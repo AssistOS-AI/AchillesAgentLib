@@ -281,9 +281,48 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         providedArgs: { ...providedArgs },
     };
 
-    context.hasValue = (name) => Object.prototype.hasOwnProperty.call(normalizedArgs, name)
-        && normalizedArgs[name] !== undefined
-        && normalizedArgs[name] !== null;
+    context.hasValue = (name) => {
+        if (!Object.prototype.hasOwnProperty.call(normalizedArgs, name)) {
+            return false;
+        }
+        const value = normalizedArgs[name];
+        
+        // Check for null/undefined
+        if (value === undefined || value === null) {
+            return false;
+        }
+        
+        // Check for placeholder strings that LLMs might generate
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            // Empty strings are not valid values
+            if (trimmed === '') {
+                return false;
+            }
+            
+            // Check against common placeholder patterns
+            const normalized = trimmed.toLowerCase().replace(/[_\s-]/g, '');
+            const placeholderKeywords = [
+                'notprovided',
+                'notset', 
+                'missing',
+                'unknown',
+                'none',
+                'null',
+                'undefined',
+                'placeholder',
+                'yourtexthere',
+                'yourvaluehere',
+                'your' + name.replace(/_/g, ''), // e.g., "yourjobname" for job_name
+            ];
+            
+            if (placeholderKeywords.some(keyword => normalized === keyword || normalized.includes(keyword))) {
+                return false;
+            }
+        }
+        
+        return true;
+    };
 
     context.getOptionSamples = (name, limit = 10) => {
         const entries = optionEntries.get(name) || [];

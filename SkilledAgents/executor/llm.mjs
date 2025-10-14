@@ -55,11 +55,22 @@ async function extractArgumentsWithLLM(context, userMessage, { taskDescription =
         '## Context',
         `Current arguments: ${existingValues}`,
         argumentSection ? `## Required Details\n${argumentSection}` : null,
-        '## Instructions',
+        '## Critical Instructions',
+        '- Extract ONLY the values explicitly stated by the user.',
         '- Use bullet list entries in the format `- argument_name: value`.',
         '- Ensure argument names use snake_case.',
+        '- Do NOT invent, guess, or use placeholder values like "your_job_name" or "not_provided".',
+        '- If a value is not explicitly mentioned by the user, do NOT include it in the response.',
         '- If no changes are needed, reply with `- result: none`.',
         '- Keep values concise and relevant.',
+        '',
+        '## Example (Good):',
+        'User says: "job name is programmer"',
+        'Correct response: `- job_name: programmer`',
+        '',
+        '## Example (Bad):',
+        'User says: "job name is programmer"',
+        'Wrong response: `- job_name: your_job_name` ❌ (This is a placeholder, not the actual value)',
     ].filter(Boolean).join('\n\n');
 
     const history = [];

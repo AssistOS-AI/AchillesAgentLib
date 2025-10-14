@@ -81,6 +81,16 @@ async function mainLoop(context, {
             continue;
         }
 
+        // Check if this skill requires confirmation
+        // Default to true (safer) if not explicitly set to false
+        const needsConfirmation = context.skill.needConfirmation !== false;
+        
+        if (!needsConfirmation) {
+            // Skip confirmation phase - all required parameters are valid, execute immediately
+            console.log('All parameters collected. Executing...');
+            return context.toJSON();
+        }
+
         const summary = buildNarrative(context);
         const confirmation = await readUserPrompt(`${summary}\n> `);
         if (!confirmation || !confirmation.trim()) {
