@@ -40,16 +40,16 @@ function resolveHandler(skillObj, name, kind) {
 
     const containerNames = (() => {
         switch (kind) {
-        case 'validator':
-            return ['argumentValidators', 'validators', 'validationHandlers'];
-        case 'enumerator':
-            return ['argumentEnumerators', 'enumerators', 'optionProviders'];
-        case 'resolver':
-            return ['argumentResolvers', 'resolvers', 'valueResolvers', 'lookups'];
-        case 'presenter':
-            return ['argumentPresenters', 'presenters', 'valuePresenters', 'formatters'];
-        default:
-            return [];
+            case 'validator':
+                return ['argumentValidators', 'validators', 'validationHandlers'];
+            case 'enumerator':
+                return ['argumentEnumerators', 'enumerators', 'optionProviders'];
+            case 'resolver':
+                return ['argumentResolvers', 'resolvers', 'valueResolvers', 'lookups'];
+            case 'presenter':
+                return ['argumentPresenters', 'presenters', 'valuePresenters', 'formatters'];
+            default:
+                return [];
         }
     })();
 
@@ -490,7 +490,6 @@ export default class SkillRegistry {
         let rawResults;
         try {
             rawResults = this.index.search(query, searchOptions);
-            console.log("Raw Results", rawResults);
         } catch (error) {
             return {};
         }
