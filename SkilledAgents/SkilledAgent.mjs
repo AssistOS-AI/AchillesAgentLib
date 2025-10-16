@@ -132,13 +132,23 @@ function defaultPromptReader(message) {
 }
 
 class SkilledAgent {
-    constructor({ llmAgent, skillRegistry = null, promptReader = null } = {}) {
+    constructor({ llmAgent, skillRegistry = null, promptReader = null, onProcessingStart = null, onProcessingEnd = null } = {}) {
         if (!llmAgent) {
             throw new Error('SkilledAgent requires an LLMAgent instance.');
         }
         this.llmAgent = llmAgent;
         this.skillRegistry = skillRegistry instanceof SkillRegistry ? skillRegistry : new SkillRegistry();
         this.promptReader = typeof promptReader === 'function' ? promptReader : defaultPromptReader;
+        this.onProcessingStart = typeof onProcessingStart === 'function' ? onProcessingStart : null;
+        this.onProcessingEnd = typeof onProcessingEnd === 'function' ? onProcessingEnd : null;
+        
+        // Pass processing callbacks to LLMAgent
+        if (this.llmAgent) {
+            this.llmAgent._processingCallbacks = {
+                onStart: this.onProcessingStart,
+                onEnd: this.onProcessingEnd
+            };
+        }
     }
 
     async readUserPrompt(prompt) {

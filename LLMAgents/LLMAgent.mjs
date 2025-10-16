@@ -134,23 +134,54 @@ class LLMAgent {
             throw new Error('complete requires a prompt string.');
         }
 
-        const conversation = Array.isArray(history) ? history.slice() : [];
-        const response = await this.invokerStrategy({
-            prompt,
-            history: conversation,
-            mode,
-            model,
-            agent: this,
-            context,
-            ...invokerExtras,
-        });
-        if (typeof response === 'string') {
-            return response;
+        // Show processing indicator before LLM processing
+        if (this._processingCallbacks?.onStart) {
+            try {
+                this._processingCallbacks.onStart();
+            } catch (error) {
+                // Silently ignore callback errors
+            }
         }
-        if (response && typeof response === 'object' && typeof response.output === 'string') {
-            return response.output;
+
+        try {
+            const conversation = Array.isArray(history) ? history.slice() : [];
+            const response = await this.invokerStrategy({
+                prompt,
+                history: conversation,
+                mode,
+                model,
+                agent: this,
+                context,
+                ...invokerExtras,
+            });
+            
+            // Hide processing indicator after LLM processing
+            if (this._processingCallbacks?.onEnd) {
+                try {
+                    this._processingCallbacks.onEnd();
+                } catch (error) {
+                    // Silently ignore callback errors
+                }
+            }
+            
+            if (typeof response === 'string') {
+                return response;
+            }
+            if (response && typeof response === 'object' && typeof response.output === 'string') {
+                return response.output;
+            }
+            throw new Error('LLMAgent invokerStrategy must return a string response.');
+        } catch (error) {
+            // Hide processing indicator on error
+            if (this._processingCallbacks?.onEnd) {
+                try {
+                    this._processingCallbacks.onEnd();
+                } catch (callbackError) {
+                    // Silently ignore callback errors
+                }
+            }
+            throw error;
         }
-        throw new Error('LLMAgent invokerStrategy must return a string response.');
     }
 
     async doTask(agentContext, description, options = {}) {
