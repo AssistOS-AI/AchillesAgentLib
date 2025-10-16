@@ -35,7 +35,20 @@ function buildMissingMessage(context, validation) {
     }
 
     if (validation.missingOptional.length) {
-        lines.push(`Optional details you may add: ${joinList(validation.missingOptional.map(context.describeArgument))}.`);
+        const optionalDescriptions = [];
+        for (const name of validation.missingOptional) {
+            const description = context.describeArgument(name);
+            const detail = typeof context.getOptionSamplesDetailed === 'function'
+                ? context.getOptionSamplesDetailed(name, 10)
+                : { labels: context.getOptionSamples(name, 10), totalCount: (context.getOptionSamples(name, 10) || []).length };
+            if (detail.labels.length) {
+                const suffix = detail.totalCount > 10 ? ` (showing 10 of ${detail.totalCount})` : '';
+                optionalDescriptions.push(`${description}. For example: ${detail.labels.join(', ')}${suffix}`);
+            } else {
+                optionalDescriptions.push(description);
+            }
+        }
+        lines.push(`Optional details you may add: ${joinList(optionalDescriptions)}.`);
     }
 
     lines.push('Reply in natural language (e.g. "high priority and approved status") or type "cancel" to stop.');
