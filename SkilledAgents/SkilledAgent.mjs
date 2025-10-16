@@ -141,7 +141,7 @@ class SkilledAgent {
         this.promptReader = typeof promptReader === 'function' ? promptReader : defaultPromptReader;
         this.onProcessingStart = typeof onProcessingStart === 'function' ? onProcessingStart : null;
         this.onProcessingEnd = typeof onProcessingEnd === 'function' ? onProcessingEnd : null;
-        
+
         // Pass processing callbacks to LLMAgent
         if (this.llmAgent) {
             this.llmAgent._processingCallbacks = {
@@ -179,7 +179,7 @@ class SkilledAgent {
         this.skillRegistry.clear();
     }
 
-    async executeSkill(skillName, { args = {}, taskDescription = '' } = {}) {
+    async executeSkill(skillName, { args = {}, taskDescription = '', securityContext = null } = {}) {
         if (!skillName || typeof skillName !== 'string') {
             throw new Error('executeSkill requires a non-empty skill name.');
         }
@@ -199,6 +199,7 @@ class SkilledAgent {
             action,
             providedArgs: args,
             llmAgent: this.llmAgent,
+            securityContext,
         });
 
         const finalArgs = await mainLoop(context, {

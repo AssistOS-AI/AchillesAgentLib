@@ -113,6 +113,11 @@ test('Validation logic rejects placeholder string patterns', () => {
             if (placeholderKeywords.some(keyword => normalized === keyword || normalized.includes(keyword))) {
                 return false;
             }
+            
+            // Check for generic 'your*' patterns that might not match the field name
+            if (normalized.startsWith('your') && normalized.length > 4) {
+                return false;
+            }
         }
         
         return true;

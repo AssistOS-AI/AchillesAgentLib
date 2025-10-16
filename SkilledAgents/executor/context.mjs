@@ -60,25 +60,40 @@ const normalizeOptionEntries = (values = []) => {
         if (entry === null || entry === undefined) {
             continue;
         }
+        // Support rich entries: { value, label, description?, synonyms? }
         if (typeof entry === 'object' && Object.prototype.hasOwnProperty.call(entry, 'value')) {
             const label = entry.label === null || entry.label === undefined
                 ? String(entry.value)
                 : String(entry.label);
             const value = entry.value;
+            const description = entry.description ? String(entry.description) : '';
+            const synonyms = Array.isArray(entry.synonyms) ? entry.synonyms.filter(Boolean).map(String) : [];
+            const labelToken = toComparable(label);
+            const valueToken = toComparable(value);
+            const synonymTokens = synonyms.map(toComparable).filter(Boolean);
+            const allTokens = [labelToken, ...synonymTokens].filter(Boolean);
             entries.push({
                 label,
                 value,
-                labelToken: toComparable(label),
-                valueToken: toComparable(value),
+                description,
+                synonyms,
+                labelToken,
+                valueToken,
+                allTokens,
             });
             continue;
         }
         const label = String(entry);
+        const labelToken = toComparable(label);
+        const valueToken = toComparable(entry);
         entries.push({
             label,
             value: entry,
-            labelToken: toComparable(label),
-            valueToken: toComparable(entry),
+            description: '',
+            synonyms: [],
+            labelToken,
+            valueToken,
+            allTokens: [labelToken],
         });
     }
     return entries;
@@ -89,7 +104,14 @@ function createOptionSearch(entries) {
         return null;
     }
     const index = createFlexSearchAdapter({ tokenize: 'forward' });
-    entries.forEach(entry => index.add(entry.labelToken, entry.label));
+    entries.forEach(entry => {
+        // Index label and synonyms (allTokens)
+        (entry.allTokens || [entry.labelToken]).forEach(tok => {
+            if (tok) {
+                index.add(tok, entry.label);
+            }
+        });
+    });
     return index;
 }
 
@@ -101,7 +123,11 @@ async function resolveOption(definition, rawValue, optionsByName, optionSearchIn
 
     const comparable = toComparable(rawValue);
     for (const entry of entries) {
-        if (entry.labelToken === comparable || entry.valueToken === comparable) {
+        if (
+            entry.labelToken === comparable ||
+            entry.valueToken === comparable ||
+            (Array.isArray(entry.allTokens) && entry.allTokens.includes(comparable))
+        ) {
             return { matched: true, value: entry.value };
         }
     }
@@ -157,10 +183,10 @@ const createPresenter = (definition) => {
     }
     return (value) => {
         if (value === undefined) {
-        return 'not provided';
+            return 'not provided';
         }
         if (value === null) {
-        return 'null value';
+            return 'null value';
         }
         if (typeof value === 'object') {
             try {
@@ -193,24 +219,28 @@ function canonicalArgumentDefinitions(skill) {
 async function loadOptionMaps(definitions) {
     const optionEntries = new Map();
     const optionSearches = new Map();
+    const optionTotalCounts = new Map();
 
     for (const def of definitions) {
         if (typeof def.enumerator !== 'function') {
             continue;
         }
         try {
-            const rawValues = await Promise.resolve(def.enumerator());
-            const entries = normalizeOptionEntries(rawValues);
+            const raw = await Promise.resolve(def.enumerator());
+            const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.options) ? raw.options : []);
+            const entries = normalizeOptionEntries(list);
             if (entries.length) {
                 optionEntries.set(def.name, entries);
                 optionSearches.set(def.name, createOptionSearch(entries));
+                const total = Number.isInteger(raw?.totalCount) ? raw.totalCount : entries.length;
+                optionTotalCounts.set(def.name, total);
             }
         } catch (error) {
             console.warn(`Failed to load options for argument "${def.name}": ${error.message}`);
         }
     }
 
-    return { optionEntries, optionSearches };
+    return { optionEntries, optionSearches, optionTotalCounts };
 }
 
 function buildArgumentMaps(definitions) {
@@ -238,7 +268,7 @@ function friendlyName(name) {
     return trimmed.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-async function createExecutionContext({ skill, action, providedArgs = {}, llmAgent }) {
+async function createExecutionContext({ skill, action, providedArgs = {}, llmAgent, securityContext = null }) {
     if (!skill || typeof skill !== 'object') {
         throw new Error('createExecutionContext requires a skill definition.');
     }
@@ -255,7 +285,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         .map(def => def.name)
         .filter(name => !requiredSet.has(name));
 
-    const { optionEntries, optionSearches } = await loadOptionMaps(definitions);
+    const { optionEntries, optionSearches, optionTotalCounts } = await loadOptionMaps(definitions);
     const { validatorMap, resolverMap, presenterMap } = buildArgumentMaps(definitions);
 
     const normalizedArgs = {};
@@ -275,10 +305,12 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         definitionMap,
         optionEntries,
         optionSearches,
+        optionTotalCounts,
         validatorMap,
         resolverMap,
         presenterMap,
         providedArgs: { ...providedArgs },
+        securityContext,
     };
 
     context.hasValue = (name) => {
@@ -286,12 +318,12 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
             return false;
         }
         const value = normalizedArgs[name];
-        
+
         // Check for null/undefined
         if (value === undefined || value === null) {
             return false;
         }
-        
+
         // Check for placeholder strings that LLMs might generate
         if (typeof value === 'string') {
             const trimmed = value.trim();
@@ -299,12 +331,12 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
             if (trimmed === '') {
                 return false;
             }
-            
+
             // Check against common placeholder patterns
             const normalized = trimmed.toLowerCase().replace(/[_\s-]/g, '');
             const placeholderKeywords = [
                 'notprovided',
-                'notset', 
+                'notset',
                 'missing',
                 'unknown',
                 'none',
@@ -315,18 +347,36 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
                 'yourvaluehere',
                 'your' + name.replace(/_/g, ''), // e.g., "yourjobname" for job_name
             ];
-            
+
+            // Check for exact matches or contains
             if (placeholderKeywords.some(keyword => normalized === keyword || normalized.includes(keyword))) {
                 return false;
             }
+            
+            // Check for generic 'your*' patterns that might not match the field name
+            // This catches patterns like 'your_job_name', 'yourjobname', etc.
+            if (normalized.startsWith('your') && normalized.length > 4) {
+                return false;
+            }
         }
-        
+
         return true;
     };
 
     context.getOptionSamples = (name, limit = 10) => {
         const entries = optionEntries.get(name) || [];
         return entries.slice(0, limit).map(entry => entry.label);
+    };
+
+    context.getOptionSamplesDetailed = (name, limit = 10) => {
+        const entries = optionEntries.get(name) || [];
+        const total = optionTotalCounts instanceof Map && optionTotalCounts.has(name)
+            ? optionTotalCounts.get(name)
+            : entries.length;
+        return {
+            labels: entries.slice(0, limit).map(entry => entry.label),
+            totalCount: total,
+        };
     };
 
     context.presentValue = (name, value) => {
@@ -336,6 +386,46 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
                 return presenter(value, { argument: name, context });
             } catch (error) {
                 console.warn(`Presenter for argument "${name}" failed: ${error.message}`);
+            }
+        }
+        if (value === undefined) {
+            return 'not provided';
+        }
+        if (value === null) {
+            return 'null value';
+        }
+        if (typeof value === 'object') {
+            try {
+                return JSON.stringify(value);
+            } catch (error) {
+                return String(value);
+            }
+        }
+        return String(value);
+    };
+
+    context.presentValueAsync = async (name, value) => {
+        const presenter = presenterMap.get(name);
+        if (presenter) {
+            try {
+                const result = presenter(value, { argument: name, context });
+                const rendered = result && typeof result.then === 'function' ? await result : result;
+                if (rendered === undefined) {
+                    return 'not provided';
+                }
+                if (rendered === null) {
+                    return 'null value';
+                }
+                if (typeof rendered === 'object') {
+                    try {
+                        return JSON.stringify(rendered);
+                    } catch (error) {
+                        return String(rendered);
+                    }
+                }
+                return String(rendered);
+            } catch (error) {
+                console.warn(`Async presenter for argument "${name}" failed: ${error.message}`);
             }
         }
         if (value === undefined) {

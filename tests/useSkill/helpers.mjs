@@ -31,16 +31,10 @@ export async function runUseSkillScenario({
     };
     if (interceptExtraction) {
         const originalComplete = llmAgent.complete.bind(llmAgent);
+        // true means intercept 1, a number means intercept that many times  
         const maxIntercepts = interceptExtraction === true ? 1 : Number(interceptExtraction) || 0;
         let remainingIntercepts = maxIntercepts;
-        llmAgent.complete = async (options = {}) => {
-            if (remainingIntercepts > 0 && options?.context?.intent === 'skill-argument-extraction') {
-                remainingIntercepts -= 1;
-                return '- result: none';
-            }
-            return originalComplete(options);
-        };
-
+        
         const normalize = (value) => (value || '').toString().trim().replace(/[.!]+$/, '');
         const baseMatchers = [
             { key: 'project_code', regex: /project code (?:is|should be|set to|=)\s+([a-z0-9\- _]+)/i },
@@ -62,6 +56,42 @@ export async function runUseSkillScenario({
             { key: 'sku_id', regex: /transfer the\s+([a-z0-9\- ']+)/i },
         ];
         const matchers = [...baseMatchers, ...additionalMatchers];
+
+        // Helper function to extract parameters using matchers
+        const extractWithMatchers = (message) => {
+            const updates = {};
+            for (const { key, regex } of matchers) {
+                const match = message.match(regex);
+                if (match && match[1]) {
+                    updates[key] = normalize(match[1]);
+                }
+            }
+            return updates;
+        };
+
+        // Override complete to intercept extraction and use matchers
+        llmAgent.complete = async (options = {}) => {
+            if (remainingIntercepts > 0 && options?.context?.intent === 'skill-argument-extraction') {
+                remainingIntercepts -= 1;
+                
+                // Extract parameters using matchers from the LAST user message + system context
+                // System context includes taskDescription
+                const history = options.history || [];
+                const systemMessages = history.filter(h => h.role === 'system').map(h => h.message).join(' ');
+                const lastUserMessage = history.filter(h => h.role === 'user').pop()?.message || '';
+                const messageToExtract = lastUserMessage || systemMessages;
+                const extracted = extractWithMatchers(messageToExtract);
+                
+                // If we found parameters, return them in markdown format
+                if (Object.keys(extracted).length > 0) {
+                    const lines = Object.entries(extracted).map(([key, value]) => `- ${key}: ${value}`);
+                    return lines.join('\n');
+                }
+                
+                return '- result: none';
+            }
+            return originalComplete(options);
+        };
 
         llmAgent.interpretMessage = async (message) => {
             if (!message || typeof message !== 'string') {
@@ -101,10 +131,25 @@ export async function runUseSkillScenario({
     };
 
     const replies = Array.isArray(responses) ? responses.slice() : [];
+    let promptCount = 0;
+    const MAX_PROMPTS = 100; // Safety limit to prevent infinite loops
 
     const promptReader = async (message) => {
         prompts.push(message);
-        const reply = replies.length ? replies.shift() : '';
+        promptCount++;
+        
+        // Safety check to prevent infinite loops
+        if (promptCount > MAX_PROMPTS) {
+            throw new Error(`Test exceeded maximum prompt limit (${MAX_PROMPTS}). Possible infinite loop.`);
+        }
+        
+        let reply = replies.length ? replies.shift() : '';
+        
+        // If we've run out of responses, throw an error to prevent infinite loops
+        if (!reply && !replies.length && promptCount > 1) {
+            throw new Error(`Test ran out of responses. Last prompt was: "${message.substring(0, 200)}..."`);
+        }
+        
         transcript.push({ prompt: message, reply });
         return reply;
     };

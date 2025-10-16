@@ -90,7 +90,7 @@ async function mainLoop(context, {
             return context.toJSON();
         }
 
-        const summary = buildNarrative(context);
+        const summary = await buildNarrative(context);
         const confirmation = await readUserPrompt(`${summary}\n> `);
         if (!confirmation || !confirmation.trim()) {
             console.log('I need a response to continue.');

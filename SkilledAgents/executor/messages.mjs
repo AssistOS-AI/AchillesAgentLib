@@ -22,9 +22,12 @@ function buildMissingMessage(context, validation) {
         lines.push('To continue I need the following details:');
         for (const name of validation.missingRequired) {
             const description = context.describeArgument(name);
-            const samples = context.getOptionSamples(name, 10);
-            if (samples.length) {
-                lines.push(`• ${description}. For example: ${samples.join(', ')}${samples.length >= 10 ? ', ...' : ''}`);
+            const detail = typeof context.getOptionSamplesDetailed === 'function'
+                ? context.getOptionSamplesDetailed(name, 10)
+                : { labels: context.getOptionSamples(name, 10), totalCount: (context.getOptionSamples(name, 10) || []).length };
+            if (detail.labels.length) {
+                const suffix = detail.totalCount > 10 ? ` (showing 10 of ${detail.totalCount})` : '';
+                lines.push(`• ${description}. For example: ${detail.labels.join(', ')}${suffix}`);
             } else {
                 lines.push(`• ${description}.`);
             }
@@ -40,7 +43,7 @@ function buildMissingMessage(context, validation) {
     return lines.join('\n');
 }
 
-function buildNarrative(context) {
+async function buildNarrative(context) {
     const descriptor = context.skill.humanDescription || context.skill.description || `the skill ${context.skill.name}`;
     const lines = [`About to apply ${descriptor}.`];
     const definitions = context.argumentDefinitions;
@@ -54,7 +57,10 @@ function buildNarrative(context) {
             const value = Object.prototype.hasOwnProperty.call(context.normalizedArgs, name)
                 ? context.normalizedArgs[name]
                 : undefined;
-            lines.push(`• ${friendlyName(name)}: ${context.presentValue(name, value)}`);
+            const rendered = typeof context.presentValueAsync === 'function'
+                ? await context.presentValueAsync(name, value)
+                : context.presentValue(name, value);
+            lines.push(`• ${friendlyName(name)}: ${rendered}`);
         }
     }
 

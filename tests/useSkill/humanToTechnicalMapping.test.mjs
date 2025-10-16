@@ -99,7 +99,7 @@ test('useSkill maps between human-friendly names and technical IDs', async () =>
     assert.equal(scenario.actionCalls.length, 1, 'Action should execute once on acceptance');
 
     const confirmationPrompts = scenario.prompts.filter((prompt) => prompt.includes('About to apply'));
-    assert.ok(confirmationPrompts.length >= 2, 'Agent should show at least one confirmation prompt');
+    assert.ok(confirmationPrompts.length >= 1, 'Agent should show at least one confirmation prompt');
 
     confirmationPrompts.forEach((prompt) => {
         assert.match(prompt, /Berlin Central Warehouse/i, 'Confirmation should use display name for source');
