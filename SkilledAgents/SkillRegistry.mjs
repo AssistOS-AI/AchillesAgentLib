@@ -81,7 +81,7 @@ function normalizeArgumentDefinition(argumentName, rawDefinition, skillObj) {
 
     const typeToken = normalizeToken(rawDefinition.type);
     const validatorToken = normalizeToken(rawDefinition.validator || rawDefinition.validation || rawDefinition.validate);
-    const enumToken = normalizeToken(rawDefinition.enum || rawDefinition.enumerator || rawDefinition.optionsProvider);
+    const enumToken = normalizeToken(rawDefinition.enumerator || rawDefinition.optionsProvider);
     const resolverToken = normalizeToken(rawDefinition.resolver || rawDefinition.resolve || rawDefinition.lookup || rawDefinition.valueResolver);
     const presenterToken = normalizeToken(rawDefinition.presenter || rawDefinition.display || rawDefinition.present || rawDefinition.valuePresenter);
 
@@ -117,11 +117,11 @@ function normalizeArgumentDefinition(argumentName, rawDefinition, skillObj) {
     }
 
     let enumerator = enumeratorName ? resolveHandler(skillObj, enumeratorName, 'enumerator') : null;
-    if (enumeratorName && !enumerator && typeof rawDefinition.enum === 'function') {
-        enumerator = rawDefinition.enum.bind(skillObj);
+    if (enumeratorName && !enumerator && typeof rawDefinition.enumerator === 'function') {
+        enumerator = rawDefinition.enumerator.bind(skillObj);
     }
-    if (!enumerator && typeof rawDefinition.enum === 'function') {
-        enumerator = rawDefinition.enum.bind(skillObj);
+    if (!enumerator && typeof rawDefinition.enumerator === 'function') {
+        enumerator = rawDefinition.enumerator.bind(skillObj);
     }
 
     if (validatorName && !validator) {
