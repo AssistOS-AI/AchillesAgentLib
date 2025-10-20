@@ -34,6 +34,17 @@ function tryParseManualInput(context, input) {
         }
     }
 
+    // If no updates found and only one required parameter is missing,
+    // treat the entire input as the value for that parameter
+    if (Object.keys(updates).length === 0) {
+        const missingRequired = context.missingRequired();
+        if (missingRequired.length === 1) {
+            const paramName = missingRequired[0];
+            // Assign the entire trimmed input to the single missing parameter
+            updates[paramName] = trimmed;
+        }
+    }
+
     return updates;
 }
 
