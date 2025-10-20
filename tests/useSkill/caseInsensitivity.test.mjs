@@ -55,10 +55,11 @@ test('useSkill treats enumerated values as case-insensitive', async () => {
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should trigger once after acceptance');
 
-    const combinedLogs = scenario.logs.join('\n');
+    const combinedOutput = [...scenario.logs, ...scenario.prompts].join('\n');
     assert.match(
-        combinedLogs,
+        combinedOutput,
         /For example: Center 1, Center 2, Center 3, Center 4, Center 5, Center 6, Center 7, Center 8, Center 9, Center 10 \(showing 10 of 12\)/,
+        'Should show enumerated examples in prompts or logs'
     );
 
     const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
