@@ -62,7 +62,7 @@ test('useSkill samples at most ten options yet accepts deeper catalog values', a
 
     const combinedOutput = [...scenario.logs, ...scenario.prompts].join('\n');
     assert.match(combinedOutput, /For example: Center 1, Center 2, Center 3, Center 4, Center 5, Center 6, Center 7, Center 8, Center 9, Center 10 \(showing 10 of 12\)/, 'Should show enumerated examples with count');
-    assert.doesNotMatch(combinedLogs, /Center 11\b/);
+    assert.doesNotMatch(combinedOutput, /Center 11\b/);
 
     const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
     assert.ok(confirmationPrompt, 'A confirmation prompt should be presented');
