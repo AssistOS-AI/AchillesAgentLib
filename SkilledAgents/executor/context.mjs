@@ -292,6 +292,48 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
     const invalidArgs = new Set();
 
     const definitionMap = new Map(definitions.map(def => [def.name, def]));
+    const aliasEntries = new Map();
+    const aliasToArgument = new Map();
+
+    if (skill && skill.argumentAliases && typeof skill.argumentAliases === 'object') {
+        for (const [argumentName, aliasList] of Object.entries(skill.argumentAliases)) {
+            const canonicalName = normalizeName(argumentName);
+            if (!canonicalName || !definitionMap.has(canonicalName)) {
+                continue;
+            }
+            const entries = Array.isArray(aliasList) ? aliasList : [aliasList];
+            const normalizedAliases = entries
+                .map(entry => (typeof entry === 'string' ? entry.trim() : ''))
+                .filter(Boolean);
+            if (!normalizedAliases.length) {
+                continue;
+            }
+            const uniqueAliases = Array.from(new Set(normalizedAliases));
+            aliasEntries.set(canonicalName, uniqueAliases);
+            for (const alias of uniqueAliases) {
+                aliasToArgument.set(alias.trim().toLowerCase(), canonicalName);
+            }
+        }
+    }
+
+    const resolveArgumentKey = (key) => {
+        const normalized = normalizeName(key);
+        if (!normalized) {
+            return null;
+        }
+        if (definitionMap.has(normalized)) {
+            return normalized;
+        }
+        const lower = normalized.toLowerCase();
+        const direct = definitions.find(def => def.name.toLowerCase() === lower);
+        if (direct) {
+            return direct.name;
+        }
+        if (aliasToArgument.has(lower)) {
+            return aliasToArgument.get(lower);
+        }
+        return null;
+    };
 
     const context = {
         skill,
@@ -311,6 +353,8 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         presenterMap,
         providedArgs: { ...providedArgs },
         securityContext,
+        aliasEntries,
+        aliasToArgument,
     };
 
     context.hasValue = (name) => {
@@ -456,21 +500,25 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
     };
 
     context.resolveRawValue = async (name, rawValue) => {
-        const definition = definitionMap.get(name);
+        const target = resolveArgumentKey(name);
+        if (!target) {
+            return { success: false, value: null };
+        }
+        const definition = definitionMap.get(target);
         if (!definition) {
             return { success: false, value: null };
         }
 
         let candidate = rawValue;
 
-        if (resolverMap.has(name)) {
+        if (resolverMap.has(target)) {
             try {
-                candidate = await Promise.resolve(resolverMap.get(name)(rawValue, { argument: name, context }));
+                candidate = await Promise.resolve(resolverMap.get(target)(rawValue, { argument: target, context }));
             } catch (error) {
-                console.warn(`Resolver for argument "${name}" failed: ${error.message}`);
+                console.warn(`Resolver for argument "${target}" failed: ${error.message}`);
                 return { success: false, value: null };
             }
-        } else if (optionEntries.has(name)) {
+        } else if (optionEntries.has(target)) {
             const match = await resolveOption(definition, rawValue, optionEntries, optionSearches);
             if (match.matched) {
                 candidate = match.value;
@@ -478,7 +526,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         }
 
         candidate = coerceByType(candidate, definition.type);
-        const validation = await validateValue({ ...definition, validator: validatorMap.get(name) }, candidate);
+        const validation = await validateValue({ ...definition, validator: validatorMap.get(target) }, candidate);
         if (!validation.valid) {
             return { success: false, value: null };
         }
@@ -487,24 +535,27 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
     };
 
     context.setValue = async (name, rawValue) => {
-        if (!definitionMap.has(name)) {
+        const target = resolveArgumentKey(name);
+        if (!target) {
             return 'invalid';
         }
-        const result = await context.resolveRawValue(name, rawValue);
+        const result = await context.resolveRawValue(target, rawValue);
         if (!result.success) {
-            invalidArgs.add(name);
+            invalidArgs.add(target);
             return 'invalid';
         }
-        normalizedArgs[name] = result.value;
-        invalidArgs.delete(name);
+        normalizedArgs[target] = result.value;
+        invalidArgs.delete(target);
         return 'applied';
     };
 
     context.applyUpdates = async (updates = {}) => {
         let applied = false;
         for (const [key, value] of Object.entries(updates)) {
-            const resolvedName = definitionMap.has(key) ? key : normalizeName(key);
-            const target = definitionMap.has(resolvedName) ? resolvedName : key;
+            const target = resolveArgumentKey(key);
+            if (!target) {
+                continue;
+            }
             const outcome = await context.setValue(target, value);
             if (outcome === 'applied') {
                 applied = true;
@@ -539,12 +590,11 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
     };
 
     context.toJSON = () => ({ ...normalizedArgs });
+    context.getAliases = (name) => aliasEntries.get(name) || [];
+    context.resolveArgumentKey = resolveArgumentKey;
 
     // Seed initial arguments
     for (const [name, value] of Object.entries(providedArgs || {})) {
-        if (!definitionMap.has(name)) {
-            continue;
-        }
         await context.setValue(name, value);
     }
 

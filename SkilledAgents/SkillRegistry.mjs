@@ -28,6 +28,32 @@ function stripPrefix(value, prefix) {
     return value.startsWith(prefix) ? value.slice(prefix.length) : value;
 }
 
+function normalizeArgumentAliases(source) {
+    const material = typeof source === 'function' ? source() : source;
+    if (!material || typeof material !== 'object') {
+        return {};
+    }
+
+    const output = {};
+
+    for (const [argumentName, aliases] of Object.entries(material)) {
+        if (typeof argumentName !== 'string' || !argumentName.trim()) {
+            continue;
+        }
+        const canonicalName = argumentName.trim();
+        const aliasList = Array.isArray(aliases) ? aliases : [aliases];
+        const normalized = aliasList
+            .map(entry => (typeof entry === 'string' ? entry.trim() : ''))
+            .filter(Boolean);
+        if (!normalized.length) {
+            continue;
+        }
+        output[canonicalName] = Array.from(new Set(normalized));
+    }
+
+    return output;
+}
+
 function resolveHandler(skillObj, name, kind) {
     if (!name) {
         return null;
@@ -366,6 +392,7 @@ export default class SkillRegistry {
             .map(role => (typeof role === 'string' ? role.trim() : ''))
             .filter(Boolean)
             .map(role => role.toLowerCase())));
+        const normalizedAliases = normalizeArgumentAliases(skillObj.argumentAliases);
 
         if (!normalizedRoles.length) {
             throw new Error('registerSkill requires at least one role.');
@@ -417,6 +444,7 @@ export default class SkillRegistry {
             registeredAt: new Date().toISOString(),
             argumentMetadata,
             argumentOrder,
+            argumentAliases: normalizedAliases,
         };
 
         if (this.skills.has(canonicalName)) {
