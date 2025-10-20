@@ -60,9 +60,10 @@ test('useSkill allows users to revise a prior parameter while adding a new one',
             'We start on June 3rd.',
             'We wrap up July 12th.',
             'Supervisor is Maria Gomez.',
+            'accept',  // Accept initial confirmation
             'Actually make supervisor Alex Smith and add backup supervisor Jordan Lee.',
             'Priority should be medium.',
-            'accept',
+            'accept',  // Accept final confirmation
         ],
         skillConfig,
         interceptExtraction: true,

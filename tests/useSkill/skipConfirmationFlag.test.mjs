@@ -79,16 +79,15 @@ test('useSkill skips confirmation when needConfirmation is false', async () => {
 
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should execute immediately without confirmation');
-    
+
     // Check that no confirmation prompt was shown
-    const confirmationPrompts = scenario.prompts.filter(p => 
+    const confirmationPrompts = scenario.prompts.filter(p =>
         p.includes('About to apply') || p.includes('Confirm by')
     );
     assert.equal(confirmationPrompts.length, 0, 'Should NOT show any confirmation prompts when needConfirmation is false');
-    
+
     const result = scenario.result;
-    assert.ok(result, 'Result should exist');
-    assert.match(result?.category?.toLowerCase() || '', /electronics/);
+    assert.match(result.category.toLowerCase(), /electronics/);
 });
 
 test('useSkill requires confirmation when needConfirmation is true', async () => {
@@ -108,16 +107,15 @@ test('useSkill requires confirmation when needConfirmation is true', async () =>
 
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should execute after confirmation');
-    
+
     // Check that confirmation prompt WAS shown
-    const confirmationPrompts = scenario.prompts.filter(p => 
+    const confirmationPrompts = scenario.prompts.filter(p =>
         p.includes('About to apply') || p.includes('Confirm by')
     );
     assert.ok(confirmationPrompts.length >= 1, 'Should show confirmation prompt when needConfirmation is true');
-    
+
     const result = scenario.result;
-    const itemId = result?.item_id || result;
-    assert.equal(itemId, 'ITEM-123');
+    assert.equal(result.item_id, 'ITEM-123');
 });
 
 test('useSkill defaults to requiring confirmation when needConfirmation is undefined', async () => {
@@ -139,13 +137,13 @@ test('useSkill defaults to requiring confirmation when needConfirmation is undef
 
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should execute after confirmation');
-    
+
     // Check that confirmation prompt WAS shown (default behavior)
-    const confirmationPrompts = scenario.prompts.filter(p => 
+    const confirmationPrompts = scenario.prompts.filter(p =>
         p.includes('About to apply') || p.includes('Confirm by')
     );
     assert.ok(confirmationPrompts.length >= 1, 'Should show confirmation prompt by default');
-    
+
     const result = scenario.result;
     assert.equal(result.item_id, 'ITEM-456');
     assert.match(result.new_name, /HP LaserJet/i);
@@ -184,7 +182,7 @@ test('useSkill with needConfirmation false executes even with optional parameter
 
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should execute immediately');
-    
+
     const result = scenario.result;
     assert.match(result.query.toLowerCase(), /laptops/);
     assert.equal(result.limit, undefined, 'Optional parameter should be undefined');

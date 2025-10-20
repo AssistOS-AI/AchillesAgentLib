@@ -522,6 +522,8 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
             const match = await resolveOption(definition, rawValue, optionEntries, optionSearches);
             if (match.matched) {
                 candidate = match.value;
+            } else {
+                return { success: false, value: null };
             }
         }
 
