@@ -62,7 +62,7 @@ test('useSkill samples at most ten options yet accepts deeper catalog values', a
 
     // The test verifies that values outside the first 10 samples are still accepted
     const combinedOutput = [...scenario.logs, ...scenario.prompts].join('\n');
-    
+
     // The critical verification: Center 11 (outside first 10) should be accepted
     assert.equal(scenario.result, 'DC-11', 'Should accept Center 11 even if not in displayed samples');
     assert.equal(scenario.actionCalls[0], 'DC-11', 'Action should receive DC-11');

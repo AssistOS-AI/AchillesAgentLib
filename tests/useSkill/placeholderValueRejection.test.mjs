@@ -55,7 +55,7 @@ test('useSkill rejects placeholder values and continues asking', async () => {
 
     const result = scenario.result;
     assert.equal(result.record_name, 'ProjectAlpha');
-    
+
     // Handle case where extraction might capture full sentence
     const recordType = result.record_type || '';
     const typeValue = recordType.match(/development/i) ? 'development' : recordType;
@@ -65,7 +65,7 @@ test('useSkill rejects placeholder values and continues asking', async () => {
 test('Validation logic rejects placeholder string patterns', () => {
     // Test the validation logic directly without needing full context initialization
     // This is a unit test of the hasValue logic
-    
+
     const placeholders = [
         'not_provided',
         'not provided',
@@ -92,17 +92,17 @@ test('Validation logic rejects placeholder string patterns', () => {
         if (value === undefined || value === null) {
             return false;
         }
-        
+
         if (typeof value === 'string') {
             const trimmed = value.trim();
             if (trimmed === '') {
                 return false;
             }
-            
+
             const normalized = trimmed.toLowerCase().replace(/[_\s-]/g, '');
             const placeholderKeywords = [
                 'notprovided',
-                'notset', 
+                'notset',
                 'missing',
                 'unknown',
                 'none',
@@ -113,17 +113,17 @@ test('Validation logic rejects placeholder string patterns', () => {
                 'yourvaluehere',
                 'your' + name.replace(/_/g, ''),
             ];
-            
+
             if (placeholderKeywords.some(keyword => normalized === keyword || normalized.includes(keyword))) {
                 return false;
             }
-            
+
             // Check for generic 'your*' patterns that might not match the field name
             if (normalized.startsWith('your') && normalized.length > 4) {
                 return false;
             }
         }
-        
+
         return true;
     };
 

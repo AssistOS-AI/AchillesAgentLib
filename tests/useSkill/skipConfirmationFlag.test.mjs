@@ -85,10 +85,10 @@ test('useSkill skips confirmation when needConfirmation is false', async () => {
         p.includes('About to apply') || p.includes('Confirm by')
     );
     assert.equal(confirmationPrompts.length, 0, 'Should NOT show any confirmation prompts when needConfirmation is false');
-    
+
     const result = scenario.result;
     assert.ok(result, 'Result should exist');
-    
+
     // Handle different return structures: {category: 'electronics'} or 'electronics'
     const category = (typeof result === 'object' && result.category) ? result.category : result;
     const categoryStr = String(category || '');
@@ -119,7 +119,7 @@ test('useSkill requires confirmation when needConfirmation is true', async () =>
         p.includes('About to apply') || p.includes('Confirm by')
     );
     assert.ok(confirmationPrompts.length >= 1, 'Should show confirmation prompt when needConfirmation is true');
-    
+
     const result = scenario.result;
     // Handle both wrapped {item_id: 'X'} and direct 'X' returns
     const itemId = (typeof result === 'object' && result.item_id) ? result.item_id : result;

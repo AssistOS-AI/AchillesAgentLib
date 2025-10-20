@@ -58,7 +58,7 @@ test('useSkill treats enumerated values as case-insensitive', async () => {
     // Check if enumeration examples were shown (optional - LLM might extract directly from task)
     const combinedOutput = [...scenario.logs, ...scenario.prompts].join('\n');
     const hasEnumerationExamples = /For example: Center 1, Center 2, Center 3, Center 4, Center 5, Center 6, Center 7, Center 8, Center 9, Center 10 \(showing 10 of 12\)/.test(combinedOutput);
-    
+
     // The important thing is that the correct value was extracted and resolved
     assert.equal(scenario.result, 'DC-11', 'Should resolve to DC-11 technical value');
     assert.equal(scenario.actionCalls[0], 'DC-11', 'Action should receive DC-11');
