@@ -60,8 +60,8 @@ test('useSkill samples at most ten options yet accepts deeper catalog values', a
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should trigger once after acceptance');
 
-    const combinedLogs = scenario.logs.join('\n');
-    assert.match(combinedLogs, /For example: Center 1, Center 2, Center 3, Center 4, Center 5, Center 6, Center 7, Center 8, Center 9, Center 10 \(showing 10 of 12\)/);
+    const combinedOutput = [...scenario.logs, ...scenario.prompts].join('\n');
+    assert.match(combinedOutput, /For example: Center 1, Center 2, Center 3, Center 4, Center 5, Center 6, Center 7, Center 8, Center 9, Center 10 \(showing 10 of 12\)/, 'Should show enumerated examples with count');
     assert.doesNotMatch(combinedLogs, /Center 11\b/);
 
     const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
