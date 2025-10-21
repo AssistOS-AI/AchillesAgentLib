@@ -64,6 +64,28 @@ function buildAliasHints(context) {
     return lines.join('\n');
 }
 
+function buildGuidanceSection(context) {
+    const lines = [];
+    const definitions = context.argumentDefinitions || [];
+    if (!definitions.length) {
+        return '';
+    }
+
+    lines.push('## Argument Guidance');
+    for (const definition of definitions) {
+        const aliases = typeof context.getAliases === 'function' ? context.getAliases(definition.name) : [];
+        const aliasText = aliases.length ? ` (aliases: ${aliases.join(', ')})` : '';
+        const description = definition.description ? ` — ${definition.description}` : '';
+        const samples = typeof context.getOptionSamples === 'function'
+            ? context.getOptionSamples(definition.name, 5)
+            : [];
+        const sampleText = samples.length ? ` (examples: ${samples.join(', ')})` : '';
+        lines.push(`- \`${definition.name}\`${aliasText}${description}${sampleText}`);
+    }
+
+    return lines.join('\n');
+}
+
 async function extractArgumentsWithLLM(context, userMessage, { taskDescription = '' } = {}) {
     const llm = context.llmAgent;
     if (!llm) {
@@ -75,6 +97,8 @@ async function extractArgumentsWithLLM(context, userMessage, { taskDescription =
     const argumentSection = buildArgumentSection(context, true);
     const existingValues = JSON.stringify(context.normalizedArgs, null, 2);
     const aliasHints = buildAliasHints(context);
+    const guidance = buildGuidanceSection(context);
+    const firstArgument = context.argumentDefinitions?.[0]?.name || 'argument_name';
 
     const prompt = [
         '# Extract Argument Values',
@@ -86,10 +110,7 @@ async function extractArgumentsWithLLM(context, userMessage, { taskDescription =
         `Current arguments: ${existingValues}`,
         argumentSection ? `## Needed Details\n${argumentSection}` : null,
         aliasHints ? `## Argument Synonyms\n${aliasHints}` : null,
-        '## Argument Guidance',
-        '- `job_name`: the title of the job or project (e.g., "job name is Alpha Build", "call it Maintenance Update").',
-        '- `client_name`: the customer or organization the job is for. Capture phrases like "for Smith Construction", "client is ACME Corp", or "customer: Apex Homes".',
-        '- `status`: optional lifecycle state such as Pending, Active, or Completed.',
+        guidance || null,
         '## Critical Instructions',
         '- Extract ONLY the values explicitly stated by the user.',
         '- Use bullet list entries in the format `- argument_name: value`.',
@@ -101,16 +122,12 @@ async function extractArgumentsWithLLM(context, userMessage, { taskDescription =
         '- When the user references an argument via a synonym or alias, map it to the canonical argument name.',
         '',
         '## Example (Good):',
-        'User says: "job name is programmer"',
-        'Correct response: `- job_name: programmer`',
+        `User says: "${firstArgument} is Example Value"`,
+        `Correct response: \`- ${firstArgument}: Example Value\``,
         '',
         '## Example (Bad):',
-        'User says: "job name is programmer"',
-        'Wrong response: `- job_name: your_job_name` ❌ (This is a placeholder, not the actual value)',
-        '',
-        'User says: "create a job for Smith Construction"',
-        'Correct response:',
-        '- client_name: Smith Construction',
+        `User says: "${firstArgument} is Example Value"`,
+        `Wrong response: \`- ${firstArgument}: your_value\` ❌ (This is a placeholder, not the actual value)`
     ].filter(Boolean).join('\n\n');
 
     if (process.env.LLMAgentClient_DEBUG === 'true') {
