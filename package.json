@@ -20,7 +20,7 @@
         "utils"
     ],
     "scripts": {
-        "test": "node --test tests/*.test.mjs"
+        "test": "node tests/runAllTests.js"
     },
     "devDependencies": {}
 }

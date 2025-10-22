@@ -1,4 +1,5 @@
 import { loadModelsConfiguration } from './LLMProviders/providers/modelsConfigLoader.mjs';
+export { loadModelsConfiguration };
 import { registerBuiltInProviders } from './LLMProviders/providers/index.mjs';
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
@@ -126,7 +127,7 @@ function getSupportedModesFromCache() {
     return modes.length ? modes : ['fast'];
 }
 
-function listModelsFromCache() {
+export function listModelsFromCache() {
     const clone = (names) => names.map((name) => {
         const record = modelRecordMap.get(name);
         return record ? { ...record } : null;

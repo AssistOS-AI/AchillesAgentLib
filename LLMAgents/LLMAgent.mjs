@@ -9,6 +9,9 @@ import { defaultLLMInvokerStrategy } from '../utils/LLMClient.mjs';
 const DEFAULT_AGENT_NAME = 'DefaultLLMAgent';
 
 const serializeContext = (context) => {
+    if (typeof context === 'string') {
+        return context;
+    }
     if (!context || typeof context !== 'object') {
         return '';
     }
