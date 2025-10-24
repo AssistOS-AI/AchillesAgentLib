@@ -219,13 +219,10 @@ class SkilledAgent {
         }
 
         const positionalValues = orderedNames.map((name) => finalArgs[name]);
+        const wantsPositional = action.length > 1 && orderedNames.length === action.length;
 
-        if (action.length > 1) {
+        if (wantsPositional) {
             return action(...positionalValues);
-        }
-
-        if (orderedNames.length === 1) {
-            return action(positionalValues[0]);
         }
 
         return action({ ...finalArgs });
