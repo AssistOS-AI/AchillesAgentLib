@@ -179,7 +179,7 @@ class SkilledAgent {
         this.skillRegistry.clear();
     }
 
-    async executeSkill(skillName, { args = {}, taskDescription = '', securityContext = null } = {}) {
+    async executeSkill(skillName, { args = {}, taskDescription = '', securityContext = null, contextManager = null } = {}) {
         if (!skillName || typeof skillName !== 'string') {
             throw new Error('executeSkill requires a non-empty skill name.');
         }
@@ -214,18 +214,20 @@ class SkilledAgent {
             ? argumentDefinitions.map((def) => def.name)
             : requiredArguments.slice();
 
+        const executionOptions = { contextManager };
+
         if (!orderedNames.length) {
-            return action({ ...finalArgs });
+            return action({ ...finalArgs }, executionOptions);
         }
 
         const positionalValues = orderedNames.map((name) => finalArgs[name]);
         const wantsPositional = action.length > 1 && orderedNames.length === action.length;
 
         if (wantsPositional) {
-            return action(...positionalValues);
+            return action(...positionalValues, executionOptions);
         }
 
-        return action({ ...finalArgs });
+        return action({ ...finalArgs }, executionOptions);
     }
 
     async doTask(agentContext, description, options = {}) {

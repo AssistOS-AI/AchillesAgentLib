@@ -374,8 +374,14 @@ export function createDefaultLLMInvokerStrategy() {
     invokerStrategy.describe = () => ({
         configPath: modelsConfiguration.path || null,
         supportedModes: invokerStrategy.getSupportedModes(),
-        fastModels: cachedModels.fast.map(record => record.name),
-        deepModels: cachedModels.deep.map(record => record.name),
+        fastModels: cachedModels.fast.map((record) => ({
+            name: record.name,
+            apiKeyEnv: record.apiKeyEnv || null,
+        })),
+        deepModels: cachedModels.deep.map((record) => ({
+            name: record.name,
+            apiKeyEnv: record.apiKeyEnv || null,
+        })),
     });
 
     return invokerStrategy;

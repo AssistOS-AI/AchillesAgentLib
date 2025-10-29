@@ -9,25 +9,44 @@ import {
 import { envAutoConfig } from './envAutoConfig.mjs';
 import { defaultLLMInvokerStrategy } from '../utils/LLMClient.mjs';
 
+const DEBUG_ENABLED = process.env.ACHILES_DEBUG === '1' || process.env.ACHILES_DEBUG === 'true';
+
 const envReport = envAutoConfig();
-if (envReport.loaded) {
+if (DEBUG_ENABLED && envReport.loaded) {
     const appliedCount = Object.keys(envReport.variables || {}).length;
     console.info(`[ploinkyAgentLib] Environment auto-config applied ${appliedCount} key(s).`);
 }
 
 try {
-    if (defaultLLMInvokerStrategy && typeof defaultLLMInvokerStrategy.describe === 'function') {
+    if (DEBUG_ENABLED && defaultLLMInvokerStrategy && typeof defaultLLMInvokerStrategy.describe === 'function') {
         const description = defaultLLMInvokerStrategy.describe();
         if (description) {
             const modes = Array.isArray(description.supportedModes) && description.supportedModes.length
                 ? description.supportedModes.join(', ')
                 : 'unknown';
-            const fastModels = Array.isArray(description.fastModels) && description.fastModels.length
-                ? description.fastModels.join(', ')
-                : 'none';
-            const deepModels = Array.isArray(description.deepModels) && description.deepModels.length
-                ? description.deepModels.join(', ')
-                : 'none';
+
+            const formatModels = (entries) => {
+                if (!Array.isArray(entries) || !entries.length) {
+                    return 'none';
+                }
+                const configured = entries
+                    .filter((entry) => {
+                        if (!entry || typeof entry !== 'object') {
+                            return false;
+                        }
+                        const envKey = entry.apiKeyEnv;
+                        if (!envKey) {
+                            return true;
+                        }
+                        return Boolean(process.env[envKey]);
+                    })
+                    .map((entry) => entry.name);
+                return configured.length ? configured.join(', ') : 'none';
+            };
+
+            const fastModels = formatModels(description.fastModels);
+            const deepModels = formatModels(description.deepModels);
+
             console.info('[ploinkyAgentLib] Default LLM configuration:');
             if (description.configPath) {
                 console.info(`[ploinkyAgentLib]   Config file: ${description.configPath}`);

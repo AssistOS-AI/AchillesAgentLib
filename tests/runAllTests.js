@@ -41,7 +41,12 @@ function collectTestFiles(dirPath, basePath = dirPath) {
     return collected;
 }
 
-const testFiles = collectTestFiles(rootPath).sort();
+let testFiles = collectTestFiles(rootPath).sort();
+const codeSkillsTest = 'codeSkills/codeSkills.test.mjs';
+const idx = testFiles.indexOf(codeSkillsTest);
+if (idx !== -1) {
+    testFiles = testFiles.slice(0, idx).concat(testFiles.slice(idx + 1)).concat([codeSkillsTest]);
+}
 
 if (!testFiles.length) {
     console.log('No test files found.');
@@ -56,6 +61,7 @@ const results = [];
 
 for (const relativePath of testFiles) {
     const absolutePath = join(rootPath, relativePath);
+    console.log(`RUN ${relativePath}`);
     const child = spawnSync('node', ['--test', absolutePath], { stdio: 'pipe', encoding: 'utf8' });
 
     const passed = child.status === 0;
@@ -69,8 +75,19 @@ for (const relativePath of testFiles) {
 
     const statusLabel = passed ? 'PASS' : 'FAIL';
     console.log(`${statusLabel} ${relativePath}`);
-    if (!passed && child.stderr) {
-        console.error(child.stderr.trim());
+    if (child.stderr) {
+        const stderrText = child.stderr.trim();
+        if (stderrText) {
+            console.log(`[stderr] ${relativePath}:`);
+            console.log(stderrText.split('\n').map((line) => `  ${line}`).join('\n'));
+        }
+    }
+    if (child.stdout) {
+        const stdoutText = child.stdout.trim();
+        if (stdoutText) {
+            console.log(`[stdout] ${relativePath}:`);
+            console.log(stdoutText.split('\n').map((line) => `  ${line}`).join('\n'));
+        }
     }
 }
 
@@ -78,22 +95,35 @@ const failed = results.filter(result => result.status === 'failed');
 
 console.log('\nTest Summary');
 console.log('------------');
-results.forEach(result => {
-    console.log(`${result.status === 'passed' ? '✔' : '✖'} ${result.file}`);
-    if (result.status === 'failed') {
-        if (result.stderr) {
-            console.log(`  stderr: ${result.stderr.replace(/\n/g, '\n          ')}`);
-        }
-        if (result.stdout) {
-            console.log(`  stdout: ${result.stdout.replace(/\n/g, '\n          ')}`);
-        }
-        console.log(`  exit code: ${result.exitCode}`);
-    }
-});
+console.log(`Total: ${results.length} | Passed: ${results.length - failed.length} | Failed: ${failed.length}`);
 
-console.log('\nTotal:', results.length, 'tests');
-console.log('Passed:', results.length - failed.length);
-console.log('Failed:', failed.length);
+if (!failed.length) {
+    console.log('Status: all tests passed.');
+} else {
+    const collectLines = (text) => {
+        if (!text) {
+            return [];
+        }
+        const raw = text.split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+        const filtered = raw.filter((line) => !line.startsWith('[ploinkyAgentLib]'));
+        return filtered.length ? filtered : raw;
+    };
+
+    console.log('Status: failures detected.');
+    console.log('Failures:');
+    failed.forEach((result) => {
+        const stderrLines = collectLines(result.stderr);
+        const stdoutLines = collectLines(result.stdout);
+        const lines = stderrLines.length ? stderrLines : stdoutLines;
+        const snippet = lines.slice(0, 4);
+        const detail = snippet.length
+            ? snippet.join(' | ')
+            : `test failed (exit code ${result.exitCode})`;
+        console.log(` - ${result.file}: ${detail}`);
+    });
+}
 
 if (failed.length) {
     process.exit(1);
