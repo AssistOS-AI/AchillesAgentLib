@@ -14,7 +14,7 @@ const DEBUG_ENABLED = process.env.ACHILES_DEBUG === '1' || process.env.ACHILES_D
 const envReport = envAutoConfig();
 if (DEBUG_ENABLED && envReport.loaded) {
     const appliedCount = Object.keys(envReport.variables || {}).length;
-    console.info(`[ploinkyAgentLib] Environment auto-config applied ${appliedCount} key(s).`);
+    console.info(`[AchillesAgentsLib] Environment auto-config applied ${appliedCount} key(s).`);
 }
 
 try {
@@ -47,17 +47,17 @@ try {
             const fastModels = formatModels(description.fastModels);
             const deepModels = formatModels(description.deepModels);
 
-            console.info('[ploinkyAgentLib] Default LLM configuration:');
+            console.info('[AchillesAgentsLib] Default LLM configuration:');
             if (description.configPath) {
-                console.info(`[ploinkyAgentLib]   Config file: ${description.configPath}`);
+                console.info(`[AchillesAgentsLib]   Config file: ${description.configPath}`);
             }
-            console.info(`[ploinkyAgentLib]   Supported modes: ${modes}`);
-            console.info(`[ploinkyAgentLib]   Fast models: ${fastModels}`);
-            console.info(`[ploinkyAgentLib]   Deep models: ${deepModels}`);
+            console.info(`[AchillesAgentsLib]   Supported modes: ${modes}`);
+            console.info(`[AchillesAgentsLib]   Fast models: ${fastModels}`);
+            console.info(`[AchillesAgentsLib]   Deep models: ${deepModels}`);
         }
     }
 } catch (error) {
-    console.warn(`[ploinkyAgentLib] Failed to summarise default LLM configuration: ${error.message}`);
+    console.warn(`[AchillesAgentsLib] Failed to summarise default LLM configuration: ${error.message}`);
 }
 
 export {

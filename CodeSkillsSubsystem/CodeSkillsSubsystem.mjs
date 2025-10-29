@@ -6,8 +6,42 @@ import { BaseSkillsSubsystem } from '../SkillsSubsystems/BaseSkillsSubsystem.mjs
 
 const CODE_ARGUMENT_NAME = 'input';
 const DEFAULT_CODE_ARGUMENT_DESCRIPTION = 'Primary natural-language instruction or text payload.';
-const DECISION_TIMEOUT_MS = 5000;
-const EXECUTION_TIMEOUT_MS = 60000;
+
+const parseTimeout = (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+function withTimeout(promiseLike, timeoutMs, errorFactory) {
+    let timerHandle;
+    const timeoutPromise = new Promise((_, reject) => {
+        timerHandle = setTimeout(() => {
+            const produced = typeof errorFactory === 'function' ? errorFactory() : errorFactory;
+            const error = produced instanceof Error
+                ? produced
+                : new Error(produced ? String(produced) : 'Operation timed out.');
+            reject(error);
+        }, timeoutMs);
+        if (typeof timerHandle?.unref === 'function') {
+            timerHandle.unref();
+        }
+    });
+
+    const raceTarget = promiseLike instanceof Promise ? promiseLike : Promise.resolve(promiseLike);
+
+    return Promise.race([raceTarget, timeoutPromise]).finally(() => {
+        if (timerHandle) {
+            clearTimeout(timerHandle);
+        }
+    });
+}
+
+const SKILL_TIMEOUT_MS = parseTimeout(
+    process.env.ACHILESS_SKILL_TIMEOUT
+        ?? process.env.ACHILES_SKILL_TIMEOUT
+        ?? process.env.ACHILLES_SKILL_TIMEOUT,
+    60_000,
+);
 
 function extractSectionContent(sections = {}, ...aliases) {
     if (!sections || typeof sections !== 'object') {
@@ -54,14 +88,15 @@ function createDefaultAction({ skillName, prompt = '', llmAgent }) {
             'Choose "code" when JavaScript execution is safer or more precise than a free-form answer.',
         ].join('\n');
 
-        const rawDecision = await Promise.race([
+        const rawDecision = await withTimeout(
             llmAgent.complete({
                 prompt: decisionPrompt,
                 mode: 'fast',
                 context: { intent: 'code-skill-default', skillName },
             }),
-            new Promise((resolve) => setTimeout(() => resolve(JSON.stringify({ mode: 'text', text: '[timeout]' })), DECISION_TIMEOUT_MS)),
-        ]);
+            SKILL_TIMEOUT_MS,
+            () => new Error(`Code skill "${skillName}" decision timed out after ${SKILL_TIMEOUT_MS}ms.`),
+        );
 
         let decision;
         try {
@@ -89,10 +124,11 @@ function createDefaultAction({ skillName, prompt = '', llmAgent }) {
             const wrapped = `(async () => { ${decision.code} })()`;
             try {
                 const execution = Promise.resolve(eval(wrapped)); // eslint-disable-line no-eval
-                const result = await Promise.race([
+                const result = await withTimeout(
                     execution,
-                    new Promise((resolve, reject) => setTimeout(() => reject(new Error('execution timed out.')), EXECUTION_TIMEOUT_MS)),
-                ]);
+                    SKILL_TIMEOUT_MS,
+                    () => new Error(`Code skill "${skillName}" execution timed out after ${SKILL_TIMEOUT_MS}ms.`),
+                );
                 if (typeof result === 'string') {
                     outcome = result;
                 } else if (result === null || result === undefined) {
@@ -135,13 +171,32 @@ function createModuleAction({ skillName, modulePath, prompt = '', llmAgent }) {
                 throw new Error(`Code skill module at ${modulePath} does not export an action function.`);
             }
         }
-        return cached(input, {
+
+        const execution = Promise.resolve(cached(input, {
             llmAgent,
             prompt,
             skillName,
             argumentName: CODE_ARGUMENT_NAME,
             contextManager,
-        });
+        }));
+
+        const result = await withTimeout(
+            execution,
+            SKILL_TIMEOUT_MS,
+            () => new Error(`Code skill "${skillName}" execution timed out after ${SKILL_TIMEOUT_MS}ms.`),
+        );
+
+        if (typeof result === 'string') {
+            return result;
+        }
+        if (result === null || result === undefined) {
+            return '';
+        }
+        try {
+            return JSON.stringify(result);
+        } catch (error) {
+            return String(result);
+        }
     };
 }
 

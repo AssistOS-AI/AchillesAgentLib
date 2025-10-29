@@ -170,28 +170,40 @@ export class RecursiveSkilledAgent {
     }
 
     registerDiscoveredSkills() {
-        const roots = this.findAchillesSkillRoots();
+        const roots = this.findAchillesSkillRoots([
+            this.startDir,
+            process.cwd(),
+        ]);
         for (const root of roots) {
             this.registerSkillsFromRoot(root);
         }
     }
 
-    findAchillesSkillRoots() {
+    findAchillesSkillRoots(startDirs = []) {
+        const visited = new Set();
         const roots = [];
-        let current = path.resolve(this.startDir);
-        const { root } = path.parse(current);
 
-        while (true) {
-            const candidate = path.join(current, '.AchillesSkills');
-            if (isDirectory(candidate)) {
-                roots.push(candidate);
+        const collect = (startDir) => {
+            if (!startDir) {
+                return;
             }
-            if (current === root) {
-                break;
-            }
-            current = path.dirname(current);
-        }
+            let current = path.resolve(startDir);
+            const { root } = path.parse(current);
 
+            while (!visited.has(current)) {
+                visited.add(current);
+                const candidate = path.join(current, '.AchillesSkills');
+                if (isDirectory(candidate)) {
+                    roots.push(candidate);
+                }
+                if (current === root) {
+                    break;
+                }
+                current = path.dirname(current);
+            }
+        };
+
+        startDirs.forEach((dir) => collect(dir));
         return roots;
     }
 

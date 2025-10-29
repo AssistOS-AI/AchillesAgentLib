@@ -73,7 +73,7 @@ export function envAutoConfig({ startDir = process.cwd(), override = false } = {
     const envPath = findDotEnvFile(startDir);
     if (!envPath) {
         if (DEBUG_ENABLED) {
-            console.info('[ploinkyAgentLib] No .env file found during auto-config.');
+            console.info('[AchillesAgentsLib] No .env file found during auto-config.');
         }
         return {
             loaded: false,
@@ -86,7 +86,7 @@ export function envAutoConfig({ startDir = process.cwd(), override = false } = {
     try {
         content = fs.readFileSync(envPath, 'utf8');
     } catch (error) {
-        console.error(`[ploinkyAgentLib] Failed to read .env file at ${envPath}: ${error.message}`);
+        console.error(`[AchillesAgentsLib] Failed to read .env file at ${envPath}: ${error.message}`);
         return {
             loaded: false,
             path: envPath,
@@ -114,19 +114,19 @@ export function envAutoConfig({ startDir = process.cwd(), override = false } = {
     const allKeys = Object.keys(parsedVariables);
 
     if (DEBUG_ENABLED) {
-        console.info(`[ploinkyAgentLib] Loaded environment variables from ${envPath}`);
+        console.info(`[AchillesAgentsLib] Loaded environment variables from ${envPath}`);
         if (allKeys.length) {
-            console.info(`[ploinkyAgentLib] Available .env keys: ${allKeys.join(', ')}`);
+            console.info(`[AchillesAgentsLib] Available .env keys: ${allKeys.join(', ')}`);
         }
         if (appliedKeys.length) {
-            console.info(`[ploinkyAgentLib] Applied keys: ${appliedKeys.join(', ')}`);
+            console.info(`[AchillesAgentsLib] Applied keys: ${appliedKeys.join(', ')}`);
         }
         if (reportedRetained.length) {
-            console.info(`[ploinkyAgentLib] Retained existing keys: ${reportedRetained.join(', ')}`);
+            console.info(`[AchillesAgentsLib] Retained existing keys: ${reportedRetained.join(', ')}`);
         }
     }
     if (!appliedKeys.length && !reportedRetained.length) {
-        console.error('[ploinkyAgentLib] No environment keys were loaded or retained during auto-config.');
+        console.error('[AchillesAgentsLib] No environment keys were loaded or retained during auto-config.');
     }
 
     return {
