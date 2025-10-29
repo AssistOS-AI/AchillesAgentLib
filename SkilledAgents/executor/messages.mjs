@@ -1,5 +1,7 @@
 import { friendlyName } from './context.mjs';
 
+const OPTION_DISPLAY_LIMIT = 10;
+
 const joinList = (items) => {
     if (!items.length) {
         return '';
@@ -10,6 +12,66 @@ const joinList = (items) => {
     const head = items.slice(0, -1).join(', ');
     return `${head} and ${items[items.length - 1]}`;
 };
+
+const resolveDefinition = (context, name) => {
+    if (!context || !(context.definitionMap instanceof Map)) {
+        return null;
+    }
+    return context.definitionMap.get(name) || null;
+};
+
+function buildOptionDetail(context, name) {
+    const definition = resolveDefinition(context, name);
+    const isEnumerated = Boolean(
+        definition &&
+        (
+            typeof definition.enumerator === 'function' ||
+            Array.isArray(definition.options) ||
+            (typeof definition.type === 'string' && definition.type.startsWith('%'))
+        )
+    );
+
+    if (typeof context.getOptionSamplesDetailed === 'function') {
+        const detail = context.getOptionSamplesDetailed(name, OPTION_DISPLAY_LIMIT) || {};
+        const labels = Array.isArray(detail.labels) ? detail.labels.slice(0, OPTION_DISPLAY_LIMIT) : [];
+        const displayedCount = Number.isInteger(detail.displayedCount)
+            ? detail.displayedCount
+            : labels.length;
+        const totalCount = Number.isInteger(detail.totalCount)
+            ? detail.totalCount
+            : labels.length;
+        return { labels, totalCount, displayedCount, enumerated: isEnumerated };
+    }
+
+    if (typeof context.getOptionSamples === 'function') {
+        const labels = (context.getOptionSamples(name, OPTION_DISPLAY_LIMIT) || [])
+            .slice(0, OPTION_DISPLAY_LIMIT);
+        return {
+            labels,
+            totalCount: labels.length,
+            displayedCount: labels.length,
+            enumerated: isEnumerated,
+        };
+    }
+
+    return { labels: [], totalCount: 0, displayedCount: 0, enumerated: isEnumerated };
+}
+
+function appendFieldGuidance(lines, description, detail) {
+    lines.push(`• ${description}.`);
+    if (!detail.labels.length) {
+        return;
+    }
+    const heading = detail.enumerated ? '  Options:' : '  For example:';
+    lines.push(heading);
+    for (const label of detail.labels) {
+        lines.push(`    - ${label}`);
+    }
+    if (detail.totalCount > detail.displayedCount) {
+        const suffix = detail.enumerated ? ' options' : '';
+        lines.push(`    (showing ${detail.displayedCount} of ${detail.totalCount}${suffix})`);
+    }
+}
 
 function buildMissingMessage(context, validation) {
     const lines = [];
@@ -22,33 +84,18 @@ function buildMissingMessage(context, validation) {
         lines.push('To continue I need the following details:');
         for (const name of validation.missingRequired) {
             const description = context.describeArgument(name);
-            const detail = typeof context.getOptionSamplesDetailed === 'function'
-                ? context.getOptionSamplesDetailed(name, 10)
-                : { labels: context.getOptionSamples(name, 10), totalCount: (context.getOptionSamples(name, 10) || []).length };
-            if (detail.labels.length) {
-                const suffix = detail.totalCount > 10 ? ` (showing 10 of ${detail.totalCount})` : '';
-                lines.push(`• ${description}. For example: ${detail.labels.join(', ')}${suffix}`);
-            } else {
-                lines.push(`• ${description}.`);
-            }
+            const detail = buildOptionDetail(context, name);
+            appendFieldGuidance(lines, description, detail);
         }
     }
 
     if (validation.missingOptional.length) {
-        const optionalDescriptions = [];
+        lines.push('Optional details you may add:');
         for (const name of validation.missingOptional) {
             const description = context.describeArgument(name);
-            const detail = typeof context.getOptionSamplesDetailed === 'function'
-                ? context.getOptionSamplesDetailed(name, 10)
-                : { labels: context.getOptionSamples(name, 10), totalCount: (context.getOptionSamples(name, 10) || []).length };
-            if (detail.labels.length) {
-                const suffix = detail.totalCount > 10 ? ` (showing 10 of ${detail.totalCount})` : '';
-                optionalDescriptions.push(`${description}. For example: ${detail.labels.join(', ')}${suffix}`);
-            } else {
-                optionalDescriptions.push(description);
-            }
+            const detail = buildOptionDetail(context, name);
+            appendFieldGuidance(lines, description, detail);
         }
-        lines.push(`Optional details you may add: ${joinList(optionalDescriptions)}.`);
     }
 
     lines.push('Reply in natural language (e.g. "high priority and approved status") or type "cancel" to stop.');

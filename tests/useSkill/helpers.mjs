@@ -34,26 +34,26 @@ export async function runUseSkillScenario({
         // true means intercept 1, a number means intercept that many times  
         const maxIntercepts = interceptExtraction === true ? 1 : Number(interceptExtraction) || 0;
         let remainingIntercepts = maxIntercepts;
-        
+
         const normalize = (value) => (value || '').toString().trim().replace(/[.!]+$/, '');
         const baseMatchers = [
-            { key: 'project_code', regex: /project code (?:is|should be|set to|=)\s+([a-z0-9\- _]+)/i },
-            { key: 'location', regex: /location (?:is|should be|set to|=)\s+([a-z0-9\- _]+)/i },
-            { key: 'start_date', regex: /start(?: date)? (?:is|should be|set to|on|=)\s+([a-z0-9\- ,]+)/i },
-            { key: 'start_date', regex: /we start on\s+([a-z0-9\- ,]+)/i },
-            { key: 'end_date', regex: /end(?: date)? (?:is|should be|set to|on|=)\s+([a-z0-9\- ,]+)/i },
-            { key: 'end_date', regex: /wrap(?: up)?(?: on)?\s+([a-z0-9\- ,]+)/i },
-            { key: 'supervisor', regex: /supervisor (?:is|should be|set to|=|make)\s+([a-z0-9\- ']+)(?:(?:\sand)|$)/i },
-            { key: 'backup_supervisor', regex: /backup supervisor (?:is|should be|set to|=|add)\s+([a-z0-9\- ']+)/i },
-            { key: 'priority', regex: /priority (?:is|should be|set to|=)\s+([a-z0-9\- ]+)/i },
-            { key: 'region_code', regex: /region(?: code)? (?:is|should be|set to|=)\s+([a-z0-9\- ]+)/i },
-            { key: 'region_code', regex: /region should be\s+([a-z0-9\- ]+)/i },
+            { key: 'project_code', regex: /project code (?:is|should be|set to|=)\s+([a-zA-Z0-9\- _]+)/i },
+            { key: 'location', regex: /location (?:is|should be|set to|=)\s+([a-zA-Z0-9\- _]+)/i },
+            { key: 'start_date', regex: /start(?: date)? (?:is|should be|set to|on|=)\s+([a-zA-Z0-9\- ,]+)/i },
+            { key: 'start_date', regex: /we start on\s+([a-zA-Z0-9\- ,]+)/i },
+            { key: 'end_date', regex: /end(?: date)? (?:is|should be|set to|on|=)\s+([a-zA-Z0-9\- ,]+)/i },
+            { key: 'end_date', regex: /wrap(?: up)?(?: on)?\s+([a-zA-Z0-9\- ,]+)/i },
+            { key: 'supervisor', regex: /supervisor (?:is|should be|set to|=|make)\s+([a-zA-Z0-9\- ']+)(?:(?:\sand)|$)/i },
+            { key: 'backup_supervisor', regex: /backup supervisor (?:is|should be|set to|=|add)\s+([a-zA-Z0-9\- ']+)/i },
+            { key: 'priority', regex: /priority (?:is|should be|set to|=)\s+([a-zA-Z0-9\- ]+)/i },
+            { key: 'region_code', regex: /region(?: code)? (?:is|should be|set to|=)\s+([a-zA-Z0-9\- ]+)/i },
+            { key: 'region_code', regex: /region should be\s+([a-zA-Z0-9\- ]+)/i },
             { key: 'quantity', regex: /(?:quantity|units|need)\s*(?:is|should be|set to|=)?\s*([0-9]+)/i },
-            { key: 'source_warehouse_id', regex: /source warehouse (?:is|should be|set to|=)\s+([a-z0-9\- ']+)/i },
-            { key: 'destination_warehouse_id', regex: /destination(?: warehouse)? (?:is|should be|set to|=)\s+([a-z0-9\- ']+)/i },
-            { key: 'destination_warehouse_id', regex: /destination should be\s+([a-z0-9\- ']+)/i },
-            { key: 'sku_id', regex: /(?:sku|item|product) (?:is|should be|set to|=)\s+([a-z0-9\- ']+)/i },
-            { key: 'sku_id', regex: /transfer the\s+([a-z0-9\- ']+)/i },
+            { key: 'source_warehouse_id', regex: /source warehouse (?:is|should be|set to|=)\s+([a-zA-Z0-9\- ']+)/i },
+            { key: 'destination_warehouse_id', regex: /destination(?: warehouse)? (?:is|should be|set to|=)\s+([a-zA-Z0-9\- ']+)/i },
+            { key: 'destination_warehouse_id', regex: /destination should be\s+([a-zA-Z0-9\- ']+)/i },
+            { key: 'sku_id', regex: /(?:sku|item|product) (?:is|should be|set to|=)\s+([a-zA-Z0-9\- ']+)/i },
+            { key: 'sku_id', regex: /transfer the\s+([a-zA-Z0-9\- ']+)/i },
         ];
         const matchers = [...baseMatchers, ...additionalMatchers];
 
@@ -73,7 +73,7 @@ export async function runUseSkillScenario({
         llmAgent.complete = async (options = {}) => {
             if (remainingIntercepts > 0 && options?.context?.intent === 'skill-argument-extraction') {
                 remainingIntercepts -= 1;
-                
+
                 // Extract parameters using matchers from the LAST user message + system context
                 // System context includes taskDescription
                 const history = options.history || [];
@@ -81,13 +81,13 @@ export async function runUseSkillScenario({
                 const lastUserMessage = history.filter(h => h.role === 'user').pop()?.message || '';
                 const messageToExtract = lastUserMessage || systemMessages;
                 const extracted = extractWithMatchers(messageToExtract);
-                
+
                 // If we found parameters, return them in markdown format
                 if (Object.keys(extracted).length > 0) {
                     const lines = Object.entries(extracted).map(([key, value]) => `- ${key}: ${value}`);
                     return lines.join('\n');
                 }
-                
+
                 return '- result: none';
             }
             return originalComplete(options);
@@ -137,19 +137,19 @@ export async function runUseSkillScenario({
     const promptReader = async (message) => {
         prompts.push(message);
         promptCount++;
-        
+
         // Safety check to prevent infinite loops
         if (promptCount > MAX_PROMPTS) {
             throw new Error(`Test exceeded maximum prompt limit (${MAX_PROMPTS}). Possible infinite loop.`);
         }
-        
+
         let reply = replies.length ? replies.shift() : '';
-        
+
         // If we've run out of responses, throw an error to prevent infinite loops
         if (!reply && !replies.length && promptCount > 1) {
             throw new Error(`Test ran out of responses. Last prompt was: "${message.substring(0, 200)}..."`);
         }
-        
+
         transcript.push({ prompt: message, reply });
         return reply;
     };

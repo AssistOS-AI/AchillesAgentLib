@@ -42,7 +42,7 @@ const skillConfig = {
         requiredArguments: ['region_code'],
     },
     roles: ['logistics'],
-    action: (args) => args,
+    action: (args) => args.region_code,
 };
 
 test('useSkill samples at most ten options yet accepts deeper catalog values', async () => {

@@ -67,7 +67,7 @@ test('useSkill asks for missing parameters in business language and confirms exe
     assert.ok(missingMessages.length >= 1, 'Agent should surface missing details to the user');
     assert.match(collectedText, /Incident Title/i, 'Business-friendly incident title should be mentioned');
     assert.match(collectedText, /Incident severity level/i, 'Severity description should be present');
-    assert.match(collectedText, /Optional details you may add: Assigned Team/i, 'Optional arguments should be suggested separately');
+    assert.match(collectedText, /Optional details you may add:[^\n]*\n[^\n]*Team that will follow up on the incident\./i, 'Optional arguments should be suggested separately');
     assert.ok(!/skill/i.test(collectedText), 'Prompt should avoid technical terminology like "skill"');
 
     const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));

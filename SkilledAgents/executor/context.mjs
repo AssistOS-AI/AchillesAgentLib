@@ -1,6 +1,7 @@
 import { createFlexSearchAdapter } from '../search/flexsearchAdapter.mjs';
 
 const CANCEL_KEYWORDS = new Set(['cancel', 'stop', 'abort', 'no thanks', 'never mind']);
+const MAX_OPTION_SAMPLES = 10;
 
 const toComparable = (input) => {
     if (input === null || input === undefined) {
@@ -407,19 +408,24 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         return true;
     };
 
-    context.getOptionSamples = (name, limit = 10) => {
+    context.getOptionSamples = (name, limit = MAX_OPTION_SAMPLES) => {
         const entries = optionEntries.get(name) || [];
-        return entries.slice(0, limit).map(entry => entry.label);
+        const cappedLimit = Math.max(0, Math.min(Number(limit) || 0, MAX_OPTION_SAMPLES)) || 0;
+        return entries.slice(0, cappedLimit || MAX_OPTION_SAMPLES).map(entry => entry.label);
     };
 
-    context.getOptionSamplesDetailed = (name, limit = 10) => {
+    context.getOptionSamplesDetailed = (name, limit = MAX_OPTION_SAMPLES) => {
         const entries = optionEntries.get(name) || [];
+        const cappedLimit = Math.max(0, Math.min(Number(limit) || 0, MAX_OPTION_SAMPLES)) || 0;
+        const sliceLimit = cappedLimit || MAX_OPTION_SAMPLES;
+        const limitedEntries = entries.slice(0, sliceLimit);
         const total = optionTotalCounts instanceof Map && optionTotalCounts.has(name)
             ? optionTotalCounts.get(name)
             : entries.length;
         return {
-            labels: entries.slice(0, limit).map(entry => entry.label),
+            labels: limitedEntries.map(entry => entry.label),
             totalCount: total,
+            displayedCount: limitedEntries.length,
         };
     };
 
