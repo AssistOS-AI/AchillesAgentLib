@@ -98,21 +98,112 @@ function buildMissingMessage(context, validation) {
         }
     }
 
-    lines.push('Reply in natural language (e.g. "high priority and approved status") or type "cancel" to stop.');
+    lines.push('Reply in natural language or type "cancel" to stop.');
 
     return lines.join('\n');
 }
 
+async function generateActionExplanation(context) {
+    if (!context.llmAgent || typeof context.llmAgent.complete !== 'function') {
+        return null;
+    }
+
+    const skillName = context.skill.name || '';
+    const description = context.skill.description || '';
+    const humanDescription = context.skill.humanDescription || '';
+    const why = context.skill.why || '';
+    const what = context.skill.what || '';
+
+    // Only generate explanations for skills that explicitly opted in via needConfirmation: true
+    // This indicates the skill is mutating and important enough to explain
+    if (context.skill.needConfirmation !== true) {
+        return null;
+    }
+
+    // Build argument summary
+    const definitions = context.argumentDefinitions;
+    const names = definitions.length ? definitions.map(def => def.name) : Object.keys(context.normalizedArgs);
+    const argsSummary = [];
+
+    for (const name of names) {
+        const value = Object.prototype.hasOwnProperty.call(context.normalizedArgs, name)
+            ? context.normalizedArgs[name]
+            : undefined;
+        if (value !== undefined && value !== null && value !== '') {
+            const rendered = typeof context.presentValueAsync === 'function'
+                ? await context.presentValueAsync(name, value)
+                : context.presentValue(name, value);
+            argsSummary.push(`${friendlyName(name)}: ${rendered}`);
+        }
+    }
+
+    // Build a rich context for the LLM using all available skill metadata
+    const skillContext = [
+        skillName && `Skill: ${skillName}`,
+        description && `Description: ${description}`,
+        humanDescription && `Human description: ${humanDescription}`,
+        why && `Why: ${why}`,
+        what && `What: ${what}`
+    ].filter(Boolean).join('\n');
+
+    const prompt = `You are explaining an operation to a user who needs to understand what will happen.
+
+${skillContext}
+
+Parameters being provided:
+${argsSummary.join('\n')}
+
+Generate a clear, natural language explanation (2-3 sentences) that tells the user:
+1. What this operation will do
+2. What will be affected or changed
+3. The key details based on the provided parameters
+
+Use the skill's description and context to inform your explanation. Be concise, specific, and use natural language. Start directly with the explanation without preamble.`;
+
+    try {
+        const explanation = await context.llmAgent.complete({
+            prompt,
+            mode: 'fast',
+            temperature: 0.3,
+            context: { intent: 'action-explanation' }
+        });
+
+        if (explanation && typeof explanation === 'string' && explanation.trim()) {
+            return explanation.trim();
+        }
+    } catch (error) {
+        // If LLM fails, return null and fall back to standard narrative
+        if (process.env.LLMAgentClient_DEBUG === 'true') {
+            console.warn('Failed to generate action explanation:', error.message);
+        }
+    }
+
+    return null;
+}
+
 async function buildNarrative(context) {
     const descriptor = context.skill.humanDescription || context.skill.description || `the skill ${context.skill.name}`;
-    const lines = [`About to apply ${descriptor}.`];
+    const lines = [];
+
+    // Try to generate a detailed explanation for operations that need confirmation
+    const actionExplanation = await generateActionExplanation(context);
+
+    if (actionExplanation) {
+        lines.push('📋 About to perform this action:');
+        lines.push('');
+        lines.push(actionExplanation);
+        lines.push('');
+    } else {
+        lines.push(`About to apply ${descriptor}.`);
+    }
+
     const definitions = context.argumentDefinitions;
     const names = definitions.length ? definitions.map(def => def.name) : Object.keys(context.normalizedArgs);
 
     if (!names.length) {
         lines.push('No arguments are configured.');
     } else {
-        lines.push('We will use the following values:');
+        lines.push('Parameters:');
         for (const name of names) {
             const value = Object.prototype.hasOwnProperty.call(context.normalizedArgs, name)
                 ? context.normalizedArgs[name]
@@ -124,6 +215,7 @@ async function buildNarrative(context) {
         }
     }
 
+    lines.push('');
     lines.push('Confirm by replying "accept", "cancel", or describe any adjustments.');
     return lines.join('\n');
 }
