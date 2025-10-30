@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
-import { listModelsFromCache, loadModelsConfiguration } from '../utils/LLMClient.mjs'; // loadModelsConfiguration is needed to ensure models are loaded
+import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
+import { listModelsFromCache, loadModelsConfiguration } from '../../utils/LLMClient.mjs'; // loadModelsConfiguration is needed to ensure models are loaded
 
-import { toAnthropicMessages } from '../utils/LLMProviders/messageAdapters/anthropicMessages.mjs';
-import { toGeminiPayload } from '../utils/LLMProviders/messageAdapters/googleGemini.mjs';
-import { toHuggingFacePrompt } from '../utils/LLMProviders/messageAdapters/huggingFaceConversational.mjs';
-import { toOpenAIChatMessages } from '../utils/LLMProviders/messageAdapters/openAIChat.mjs';
+import { toAnthropicMessages } from '../../utils/LLMProviders/messageAdapters/anthropicMessages.mjs';
+import { toGeminiPayload } from '../../utils/LLMProviders/messageAdapters/googleGemini.mjs';
+import { toHuggingFacePrompt } from '../../utils/LLMProviders/messageAdapters/huggingFaceConversational.mjs';
+import { toOpenAIChatMessages } from '../../utils/LLMProviders/messageAdapters/openAIChat.mjs';
 
 // Ensure models are loaded before tests run
 loadModelsConfiguration();

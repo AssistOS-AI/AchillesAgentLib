@@ -127,7 +127,7 @@ async function interactiveMainLoop(context, {
         await applyUpdatesFromMessage(context, taskDescription, {
             taskDescription,
             allowSingleValueFallback: false,
-            manualOnly: true,
+            manualOnly: false,
         });
     }
 

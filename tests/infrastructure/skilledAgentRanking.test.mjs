@@ -16,8 +16,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { LLMAgent } from '../LLMAgents/index.mjs';
-import registerSkills from './helpers/initializeSkills.mjs';
+import { LLMAgent } from '../../LLMAgents/index.mjs';
+import registerSkills from '../helpers/initializeSkills.mjs';
 
 function createAutoConfiguredAgent() {
     const llmAgent = new LLMAgent({ name: 'AutoConfiguredRankingAgent' });

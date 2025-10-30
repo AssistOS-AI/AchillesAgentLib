@@ -13,6 +13,7 @@ const COLOR_FAIL = '\x1b[31m';
 
 const testsRoot = fileURLToPath(new URL('.', import.meta.url));
 const iskillsRoot = join(testsRoot, 'iskills');
+const infrastructureRoot = join(testsRoot, 'infrastructure');
 
 function collectSkillTests() {
     const testFiles = [];
@@ -126,16 +127,29 @@ async function main() {
     const logStream = fs.createWriteStream(resultsPath, { flags: 'a', encoding: 'utf8' });
     logStream.write(`Interactive skill test run - ${new Date().toISOString()}\n\n`);
 
-    const testFiles = collectSkillTests();
-    if (!testFiles.length) {
-        console.log(`${COLOR_WARN}No interactive skill tests found under @tests/iskills.${COLOR_RESET}`);
-        logStream.write('No interactive skill tests found.\n');
+    const infrastructureTests = collectInfrastructureTests();
+    const skillTests = collectSkillTests();
+
+    if (!infrastructureTests.length && !skillTests.length) {
+        console.log(`${COLOR_WARN}No tests found under @tests.${COLOR_RESET}`);
+        logStream.write('No tests found.\n');
         logStream.end();
         return;
     }
 
     const results = [];
-    for (const filePath of testFiles) {
+
+    for (const filePath of infrastructureTests) {
+        // eslint-disable-next-line no-await-in-loop
+        const result = await runSingleTest(filePath, logStream);
+        results.push(result);
+        if (result.exitCode !== 0) {
+            console.log(`${COLOR_WARN}---${COLOR_RESET}`);
+            logStream.write('---\n');
+        }
+    }
+
+    for (const filePath of skillTests) {
         // eslint-disable-next-line no-await-in-loop
         const result = await runSingleTest(filePath, logStream);
         results.push(result);
@@ -187,3 +201,17 @@ async function main() {
 }
 
 await main();
+function collectInfrastructureTests() {
+    try {
+        const entries = readdirSync(infrastructureRoot, { withFileTypes: true });
+        return entries
+            .filter(entry => entry.isFile() && entry.name.endsWith('.test.mjs'))
+            .map(entry => join(infrastructureRoot, entry.name))
+            .sort();
+    } catch (error) {
+        if (error.code !== 'ENOENT') {
+            console.warn(`${COLOR_WARN}No infrastructure tests found: ${error.message}${COLOR_RESET}`);
+        }
+        return [];
+    }
+}

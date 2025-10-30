@@ -139,6 +139,59 @@ function createSkillScopedLLMAgent(baseAgent, memory) {
     return scoped;
 }
 
+function enrichSkillSpec(specs = {}) {
+    if (specs.argumentMetadata && specs.argumentOrder) {
+        return specs;
+    }
+
+    const argumentsMap = typeof specs.arguments === 'object' && specs.arguments
+        ? specs.arguments
+        : {};
+
+    const metadata = {};
+    const order = [];
+
+    for (const [name, definition] of Object.entries(argumentsMap)) {
+        if (!name) {
+            continue;
+        }
+        const normalizedName = String(name).trim();
+        if (!normalizedName) {
+            continue;
+        }
+        order.push(normalizedName);
+        let enumerator = undefined;
+        if (typeof definition?.enumerator === 'function') {
+            enumerator = definition.enumerator;
+        } else if (Array.isArray(definition?.options)) {
+            const staticOptions = definition.options.slice();
+            enumerator = async () => staticOptions.slice();
+        }
+
+        metadata[normalizedName] = {
+            name: normalizedName,
+            description: typeof definition?.description === 'string' ? definition.description : '',
+            llmHint: typeof definition?.llmHint === 'string' ? definition.llmHint : '',
+            type: typeof definition?.type === 'string' ? definition.type : null,
+            enumerator,
+            validator: typeof definition?.validator === 'function' ? definition.validator : undefined,
+            resolver: typeof definition?.resolver === 'function' ? definition.resolver : undefined,
+            presenter: typeof definition?.presenter === 'function' ? definition.presenter : undefined,
+            defaultValue: Object.prototype.hasOwnProperty.call(definition || {}, 'default')
+                ? definition.default
+                : (Object.prototype.hasOwnProperty.call(definition || {}, 'defaultValue')
+                    ? definition.defaultValue
+                    : undefined),
+        };
+    }
+
+    return {
+        ...specs,
+        argumentMetadata: metadata,
+        argumentOrder: order,
+    };
+}
+
 export class InteractiveSkillsSubsystem {
     constructor({ llmAgent }) {
         this.llmAgent = llmAgent;
@@ -195,8 +248,9 @@ export class InteractiveSkillsSubsystem {
             : fallbackReader;
 
         const scopedLLM = createSkillScopedLLMAgent(this.llmAgent, memory);
+        const skillSpec = enrichSkillSpec({ ...moduleData.specs });
         const result = await runInteractiveSkill({
-            skill: { ...moduleData.specs },
+            skill: skillSpec,
             action: moduleData.action,
             providedArgs: args,
             llmAgent: scopedLLM,

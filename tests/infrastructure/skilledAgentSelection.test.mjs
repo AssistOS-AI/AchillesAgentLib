@@ -16,8 +16,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { LLMAgent } from '../LLMAgents/index.mjs';
-import registerSkills from './helpers/initializeSkills.mjs';
+import { LLMAgent } from '../../LLMAgents/index.mjs';
+import registerSkills from '../helpers/initializeSkills.mjs';
 
 class TrackingLLMAgent extends LLMAgent {
     constructor(options) {
@@ -27,7 +27,11 @@ class TrackingLLMAgent extends LLMAgent {
 
     async complete(options) {
         this.completionCount += 1;
-        return super.complete(options);
+        const ranked = Array.isArray(options?.context?.rankedSkills)
+            ? options.context.rankedSkills
+            : [];
+        const top = ranked.length ? ranked[0][0] || ranked[0].name || ranked[0] : 'none';
+        return typeof top === 'string' ? top : 'none';
     }
 }
 
