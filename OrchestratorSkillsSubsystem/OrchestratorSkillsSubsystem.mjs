@@ -1,4 +1,5 @@
 import { Sanitiser } from '../utils/Sanitiser.mjs';
+import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 
 const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
@@ -108,6 +109,7 @@ export class OrchestratorSkillsSubsystem {
     constructor({ llmAgent = null } = {}) {
         this.type = 'orchestrator';
         this.llmAgent = llmAgent;
+        this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 
     prepareSkill(skillRecord) {
@@ -195,6 +197,11 @@ export class OrchestratorSkillsSubsystem {
         const allowedSkillSummaries = allowedSkills.map(buildSkillSummary);
         const fallbackMetadata = skillRecord.metadata?.fallback || null;
 
+        this.debugLogger?.log('OrchestratorSkillsSubsystem:createPlan:start', {
+            skill: skillRecord.name,
+            allowedSkillCount: allowedSkills.length,
+        });
+
         if (!this.llmAgent || typeof this.llmAgent.executePrompt !== 'function') {
             throw new Error(`Orchestrator skill "${skillRecord.name}" requires an LLMAgent with executePrompt.`);
         }
@@ -230,6 +237,10 @@ export class OrchestratorSkillsSubsystem {
             });
         } catch (error) {
             const message = error?.message || String(error);
+            this.debugLogger?.log('OrchestratorSkillsSubsystem:createPlan:error', {
+                skill: skillRecord.name,
+                message,
+            });
             throw new Error(`LLM failed to generate orchestration plan for skill "${skillRecord.name}": ${message}`);
         }
 
@@ -268,12 +279,19 @@ export class OrchestratorSkillsSubsystem {
             throw new Error(`LLM did not provide any executable orchestration steps for skill "${skillRecord.name}".`);
         }
 
-        return {
+        const planSummary = {
             plan: steps,
             notes: typeof rawPlan.notes === 'string' ? rawPlan.notes : '',
             allowedSkills,
             fallback: fallbackMetadata,
         };
+
+        this.debugLogger?.log('OrchestratorSkillsSubsystem:createPlan:success', {
+            skill: skillRecord.name,
+            steps: steps.length,
+        });
+
+        return planSummary;
     }
 
     resolveSkillRecord(nameOrAlias, recursiveAgent) {
@@ -452,6 +470,13 @@ export class OrchestratorSkillsSubsystem {
                 executions.push(fallbackExecution);
             }
         }
+
+        this.debugLogger?.log('OrchestratorSkillsSubsystem:executeSkillPrompt', {
+            skill: skillRecord.name,
+            planSteps: planData.plan.length,
+            executions: executions.length,
+            fallbackTriggered: Boolean(planData.fallback),
+        });
 
         if (planData.fallback && allSkippedOrErrored && !fallbackExecution) {
             throw new Error(`Fallback execution for orchestrator skill "${skillRecord.name}" did not produce a result.`);

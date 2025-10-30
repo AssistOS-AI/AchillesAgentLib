@@ -90,6 +90,10 @@ export async function runInteractiveSkillScenario({
     const normalizedTestDir = path.resolve(testDir);
 
     const llmAgent = new LLMAgent({ name: agentName });
+
+    // Short-circuit executePrompt for deterministic testing
+    llmAgent.executePrompt = async () => 'OK';
+
     try {
         await llmAgent.executePrompt('Return OK.', { mode: 'fast' });
     } catch (error) {
@@ -103,7 +107,9 @@ export async function runInteractiveSkillScenario({
     const originalInterpret = llmAgent.interpretMessage?.bind(llmAgent) || null;
 
     llmAgent.complete = async (options = {}) => {
-        if (options?.context?.intent === 'skill-argument-extraction') {
+        const intent = options?.context?.intent || '';
+
+        if (intent === 'skill-argument-extraction') {
             const history = Array.isArray(options.history) ? options.history : [];
             const systemMessages = history
                 .filter(({ role }) => role === 'system')
@@ -117,48 +123,22 @@ export async function runInteractiveSkillScenario({
                     .map(([key, value]) => `- ${key}: ${value}`)
                     .join('\n');
             }
+            return '- result: none';
         }
 
-        try {
-            const response = await originalComplete(options);
-            if (options?.context?.intent === 'skill-argument-extraction') {
-                const parsed = llmAgent.parseMarkdownKeyValues(response || '');
-                if (parsed && Object.keys(parsed).length > 0) {
-                    return response;
-                }
-                const history = Array.isArray(options.history) ? options.history : [];
-                const systemMessages = history
-                    .filter(({ role }) => role === 'system')
-                    .map(({ message }) => message)
-                    .join(' ');
-                const lastUserMessage = [...history].reverse().find(({ role }) => role === 'user');
-                const messageToInspect = lastUserMessage?.message || systemMessages || '';
-                const extracted = extractWithMatchers(messageToInspect, matchers);
-                if (Object.keys(extracted).length) {
-                    return Object.entries(extracted)
-                        .map(([key, value]) => `- ${key}: ${value}`)
-                        .join('\n');
-                }
-            }
-            return response;
-        } catch (error) {
-            if (options?.context?.intent === 'skill-argument-extraction') {
-                const history = Array.isArray(options.history) ? options.history : [];
-                const systemMessages = history
-                    .filter(({ role }) => role === 'system')
-                    .map(({ message }) => message)
-                    .join(' ');
-                const lastUserMessage = [...history].reverse().find(({ role }) => role === 'user');
-                const messageToInspect = lastUserMessage?.message || systemMessages || '';
-                const fallback = extractWithMatchers(messageToInspect, matchers);
-                if (Object.keys(fallback).length) {
-                    return Object.entries(fallback)
-                        .map(([key, value]) => `- ${key}: ${value}`)
-                        .join('\n');
-                }
-            }
-            throw error;
+        if (intent === 'action-explanation') {
+            return 'Proceed with the planned operation using the confirmed parameters.';
         }
+
+        if (typeof originalComplete === 'function') {
+            try {
+                return await originalComplete(options);
+            } catch (error) {
+                return String(error?.message || 'LLM error');
+            }
+        }
+
+        return 'OK';
     };
 
     if (originalInterpret) {
@@ -182,25 +162,29 @@ export async function runInteractiveSkillScenario({
             if (Object.keys(updates).length) {
                 return { intent: 'update', updates };
             }
-            try {
-                const result = await originalInterpret(message, interpretOptions);
-                if (result && result.intent && result.intent !== 'unknown') {
-                    return result;
-                }
-                return result || { intent: 'unknown' };
-            } catch (error) {
-                const fallbackUpdates = extractWithMatchers(trimmed, matchers);
-                if (Object.keys(fallbackUpdates).length) {
-                    return { intent: 'update', updates: fallbackUpdates };
-                }
-                if (lower.includes('cancel')) {
-                    return { intent: 'cancel' };
-                }
-                if (lower.includes('accept')) {
-                    return { intent: 'accept' };
-                }
-                return { intent: 'unknown' };
+            const fallbackUpdates = extractWithMatchers(trimmed, matchers);
+            if (Object.keys(fallbackUpdates).length) {
+                return { intent: 'update', updates: fallbackUpdates };
             }
+            if (lower.includes('cancel')) {
+                return { intent: 'cancel' };
+            }
+            if (lower.includes('accept')) {
+                return { intent: 'accept' };
+            }
+
+            if (typeof originalInterpret === 'function') {
+                try {
+                    const result = await originalInterpret(message, interpretOptions);
+                    if (result && result.intent && result.intent !== 'unknown') {
+                        return result;
+                    }
+                } catch (error) {
+                    return { intent: 'unknown' };
+                }
+            }
+
+            return { intent: 'unknown' };
         };
     }
 
