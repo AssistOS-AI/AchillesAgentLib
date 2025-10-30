@@ -13,3 +13,8 @@ The code you generate must:
 - Avoid console logging or side effects beyond pure computation.
 
 Keep the reasoning transparent and show the computed values in the final string.
+
+## LLM Mode
+deep
+
+Prefer the deep reasoning mode to reduce the chance of numeric hallucinations when chaining multiple calculations.

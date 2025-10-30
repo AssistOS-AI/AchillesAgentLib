@@ -1,0 +1,570 @@
+Interactive skill test run - 2025-10-30T16:59:00.284Z
+
+=== iskills/cancel-during-parameter-collection/cancelDuringParameterCollection.test.mjs ===
+[stdout] ✖ interactive skill stops when user cancels during parameter collection (2016.117923ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 2070.936022
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/cancel-during-parameter-collection/cancelDuringParameterCollection.test.mjs:11:1
+[stdout] ✖ interactive skill stops when user cancels during parameter collection (2016.117923ms)
+[stdout]   AssertionError [ERR_ASSERTION]: Optional parameters should appear in the prompt
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/cancel-during-parameter-collection/cancelDuringParameterCollection.test.mjs:39:12)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: 'To continue I need the following details:\n• Store Group.\n• Deployment Date.\nReply in natural language (e.g. "high priority and approved status") or type "cancel" to stop.\n\n[DEBUG] argument-extraction prompt:\n # Extract Argument Values\n\n## Skill Context\n\nSkill: deploy-update-interactive-skill-interactive\n\nDescription: a deployment plan for the retail point-of-sale systems\n\nOriginal request: Prepare the POS rollout.\n\n## Current Arguments\n\nCurrent arguments: {}\n\n## Needed Details\nMissing required arguments:\n- store_group\n- deployment_date\n\n## Critical Instructions\n\n- Extract ONLY the values explicitly stated by the user.\n\n- Use bullet list entries in the format `- argument_name: value`.\n\n- Ensure argument names use snake_case.\n\n- Do NOT invent, guess, or use placeholder values like "your_job_name" or "not_provided".\n\n- If a value is not explicitly mentioned by the user, do NOT include it in the response.\n\n- If no changes are needed, reply with `- result: none`.\n\n- Keep values concise and relevant.\n\n- When the user references an argument via a synonym or alias, map it to the canonical argument name.\n\n## Example (Good):\n\nUser says: "argument_name is Example Value"\n\nCorrect response: `- argument_name: Example Value`\n\n## Example (Bad):\n\nUser says: "argument_name is Example Value"\n\nWrong response: `- argument_name: your_value` ❌ (This is a placeholder, not the actual value)\n[DEBUG] argument-extraction response:\n - store_group: East Coast flagships\nI could not understand the changes. Please rephrase or provide key/value pairs.\nTo continue I need the following details:\n• Store Group.\n• Deployment Date.\nReply in natural language (e.g. "high priority and approved status") or type "cancel" to stop.\n\n[DEBUG] argument-extraction prompt:\n # Extract Argument Values\n\n## Skill Context\n\nSkill: deploy-update-interactive-skill-interactive\n\nDescription: a deployment plan for the retail point-of-sale systems\n\nOriginal request: Prepare the POS rollout.\n\n## Current Arguments\n\nCurrent arguments: {}\n\n## Needed Details\nMissing required arguments:\n- store_group\n- deployment_date\n\n## Critical Instructions\n\n- Extract ONLY the values explicitly stated by the user.\n\n- Use bullet list entries in the format `- argument_name: value`.\n\n- Ensure argument names use snake_case.\n\n- Do NOT invent, guess, or use placeholder values like "your_job_name" or "not_provided".\n\n- If a value is not explicitly mentioned by the user, do NOT include it in the response.\n\n- If no changes are needed, reply with `- result: none`.\n\n- Keep values concise and relevant.\n\n- When the user references an argument via a synonym or alias, map it to the canonical argument name.\n\n## Example (Good):\n\nUser says: "argument_name is Example Value"\n\nCorrect response: `- argument_name: Example Value`\n\n## Example (Bad):\n\nUser says: "argument_name is Example Value"\n\nWrong response: `- argument_name: your_value` ❌ (This is a placeholder, not the actual value)\n[DEBUG] argument-extraction response:\n - deployment_date: 3rd of next month\nI could not understand the changes. Please rephrase or provide key/value pairs.\nTo continue I need the following details:\n• Store Group.\n• Deployment Date.\nReply in natural language (e.g. "high priority and approved status") or type "cancel" to stop.\n\n> \n> \n> ',
+[stdout]     expected: /Maintenance window approval/i,
+[stdout]     operator: 'match',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/cancel-during-parameter-collection/cancelDuringParameterCollection.test.mjs
+
+---
+=== iskills/cancellation-during-confirmation/cancellationDuringConfirmation.test.mjs ===
+[stdout] ✖ interactive skill stops execution when user cancels at confirmation time (621.965136ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 687.861696
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/cancellation-during-confirmation/cancellationDuringConfirmation.test.mjs:11:1
+[stdout] ✖ interactive skill stops execution when user cancels at confirmation time (621.965136ms)
+[stdout]   AssertionError [ERR_ASSERTION]: Confirmation prompt should have been presented
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/cancellation-during-confirmation/cancellationDuringConfirmation.test.mjs:32:12)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: undefined,
+[stdout]     expected: true,
+[stdout]     operator: '==',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/cancellation-during-confirmation/cancellationDuringConfirmation.test.mjs
+
+---
+=== iskills/case-insensitivity/caseInsensitivity.test.mjs ===
+[stdout] ✖ interactive skill treats enumerated values as case-insensitive (1264.845377ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 1318.127472
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/case-insensitivity/caseInsensitivity.test.mjs:11:1
+[stdout] ✖ interactive skill treats enumerated values as case-insensitive (1264.845377ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/case-insensitivity/caseInsensitivity.test.mjs:27:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/case-insensitivity/caseInsensitivity.test.mjs:12:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/case-insensitivity/caseInsensitivity.test.mjs:12:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/case-insensitivity/caseInsensitivity.test.mjs
+
+---
+=== iskills/confirmation-flags/confirmationFlags.test.mjs ===
+[stdout] ✖ interactive skill skips confirmation when needConfirmation is false (637.189183ms)
+[stdout] ✖ interactive skill requires confirmation when needConfirmation is true (885.965777ms)
+[stdout] ✖ interactive skill defaults to requiring confirmation when flag is undefined (1306.918947ms)
+[stdout] ✖ interactive skill with needConfirmation false executes with optional values missing (569.882577ms)
+[stdout] ℹ tests 4
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 4
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 3457.710414
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/confirmation-flags/confirmationFlags.test.mjs:28:1
+[stdout] ✖ interactive skill skips confirmation when needConfirmation is false (637.189183ms)
+[stdout]   AssertionError [ERR_ASSERTION]: The input did not match the regular expression /electronics/. Input:
+[stdout]   
+[stdout]   ''
+[stdout]   
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:48:12)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: true,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: '',
+[stdout]     expected: /electronics/,
+[stdout]     operator: 'match',
+[stdout]     diff: 'simple'
+[stdout]   }
+[stdout] 
+[stdout] test at iskills/confirmation-flags/confirmationFlags.test.mjs:51:1
+[stdout] ✖ interactive skill requires confirmation when needConfirmation is true (885.965777ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:66:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async runScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:20:22)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:52:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async runScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:20:22)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:52:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+[stdout] 
+[stdout] test at iskills/confirmation-flags/confirmationFlags.test.mjs:76:1
+[stdout] ✖ interactive skill defaults to requiring confirmation when flag is undefined (1306.918947ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:92:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async runScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:20:22)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:77:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async runScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:20:22)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:77:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+[stdout] 
+[stdout] test at iskills/confirmation-flags/confirmationFlags.test.mjs:101:1
+[stdout] ✖ interactive skill with needConfirmation false executes with optional values missing (569.882577ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:113:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async runScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:20:22)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:102:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async runScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:20:22)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/confirmation-flags/confirmationFlags.test.mjs:102:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/confirmation-flags/confirmationFlags.test.mjs
+
+---
+=== iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs ===
+[stdout] ✖ interactive skill maps between human-friendly names and technical IDs (1317.032309ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 1378.876205
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs:15:1
+[stdout] ✖ interactive skill maps between human-friendly names and technical IDs (1317.032309ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs:36:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs:24:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs:24:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs
+
+---
+=== iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs ===
+[stdout] ✖ interactive skill accepts enumerator values beyond sampled list (1578.507416ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 1640.094479
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs:11:1
+[stdout] ✖ interactive skill accepts enumerator values beyond sampled list (1578.507416ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs:27:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs:12:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs:12:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs
+
+---
+=== iskills/missing-parameters/missingParameters.test.mjs ===
+[stdout] ✖ interactive skill asks for missing parameters in business language and confirms execution summary (1226.51145ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 1279.653405
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/missing-parameters/missingParameters.test.mjs:11:1
+[stdout] ✖ interactive skill asks for missing parameters in business language and confirms execution summary (1226.51145ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/missing-parameters/missingParameters.test.mjs:29:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/missing-parameters/missingParameters.test.mjs:12:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/missing-parameters/missingParameters.test.mjs:12:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/missing-parameters/missingParameters.test.mjs
+
+---
+=== iskills/misspelling-recovery/misspellingRecovery.test.mjs ===
+[stdout] ✖ interactive skill recovers from small misspellings in enumerated values (1044.480931ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 1096.836723
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/misspelling-recovery/misspellingRecovery.test.mjs:11:1
+[stdout] ✖ interactive skill recovers from small misspellings in enumerated values (1044.480931ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/misspelling-recovery/misspellingRecovery.test.mjs:28:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/misspelling-recovery/misspellingRecovery.test.mjs:12:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/misspelling-recovery/misspellingRecovery.test.mjs:12:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/misspelling-recovery/misspellingRecovery.test.mjs
+
+---
+=== iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs ===
+[stdout] ✖ interactive skill rejects placeholder values and continues asking (1305.728715ms)
+[stdout] ✔ placeholder detection helper flags template-style values (0.616958ms)
+[stdout] ℹ tests 2
+[stdout] ℹ suites 0
+[stdout] ℹ pass 1
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 1362.426277
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs:11:1
+[stdout] ✖ interactive skill rejects placeholder values and continues asking (1305.728715ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs:32:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs:12:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs:12:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs
+
+---
+=== iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmation.test.mjs ===
+[stdout] ✖ interactive skill allows revising a prior parameter while adding a new one (1221.741701ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 1276.186406
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmation.test.mjs:11:1
+[stdout] ✖ interactive skill allows revising a prior parameter while adding a new one (1221.741701ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmation.test.mjs:33:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmation.test.mjs:12:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmation.test.mjs:12:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmation.test.mjs
+
+---
+=== iskills/update-parameter-while-providing-new-values/updateParameterWhileProvidingNewValues.test.mjs ===
+[stdout] ✖ interactive skill applies updates while adding new values in the same reply (1179.204331ms)
+[stdout] ℹ tests 1
+[stdout] ℹ suites 0
+[stdout] ℹ pass 0
+[stdout] ℹ fail 1
+[stdout] ℹ cancelled 0
+[stdout] ℹ skipped 0
+[stdout] ℹ todo 0
+[stdout] ℹ duration_ms 1234.118318
+[stdout] 
+[stdout] ✖ failing tests:
+[stdout] 
+[stdout] test at iskills/update-parameter-while-providing-new-values/updateParameterWhileProvidingNewValues.test.mjs:11:1
+[stdout] ✖ interactive skill applies updates while adding new values in the same reply (1179.204331ms)
+[stdout]   AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Scenario responses exhausted. Last prompt: "> "
+[stdout]       at TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/update-parameter-while-providing-new-values/updateParameterWhileProvidingNewValues.test.mjs:30:12)
+[stdout]       at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]       at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]       at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]       at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]       at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]       at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]       at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/update-parameter-while-providing-new-values/updateParameterWhileProvidingNewValues.test.mjs:12:22)
+[stdout]       at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+[stdout]     generatedMessage: false,
+[stdout]     code: 'ERR_ASSERTION',
+[stdout]     actual: Error: Scenario responses exhausted. Last prompt: "> "
+[stdout]         at promptReader (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:230:19)
+[stdout]         at interactiveMainLoop (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/interactiveMainLoop.mjs:139:33)
+[stdout]         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[stdout]         at async runInteractiveSkill (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/executor/runInteractiveSkill.mjs:32:23)
+[stdout]         at async InteractiveSkillsSubsystem.executeSkillPrompt (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs:198:24)
+[stdout]         at async RecursiveSkilledAgent.executeWithReviewMode (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/RecursiveSkilledAgents/RecursiveSkilledAgent.mjs:545:27)
+[stdout]         at async runInteractiveSkillScenario (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/helpers/runInteractiveSkillScenario.mjs:278:31)
+[stdout]         at async TestContext.<anonymous> (file:///home/salboaie/work/ploinky/node_modules/ploinkyAgentLib/tests/iskills/update-parameter-while-providing-new-values/updateParameterWhileProvidingNewValues.test.mjs:12:22)
+[stdout]         at async Test.run (node:internal/test_runner/test:1113:7)
+[stdout]         at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3),
+[stdout]     expected: null,
+[stdout]     operator: 'ifError',
+[stdout]     diff: 'simple'
+[stdout]   }
+FAIL iskills/update-parameter-while-providing-new-values/updateParameterWhileProvidingNewValues.test.mjs
+

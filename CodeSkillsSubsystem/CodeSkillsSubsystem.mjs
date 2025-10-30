@@ -2,8 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { BaseSkillsSubsystem } from '../SkillsSubsystems/BaseSkillsSubsystem.mjs';
-
 const CODE_ARGUMENT_NAME = 'input';
 const DEFAULT_CODE_ARGUMENT_DESCRIPTION = 'Primary natural-language instruction or text payload.';
 
@@ -11,6 +9,29 @@ const parseTimeout = (value, fallback) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
+
+const SKILL_TIMEOUT_MS = parseTimeout(
+    process.env.ACHILESS_SKILL_TIMEOUT
+        ?? process.env.ACHILES_SKILL_TIMEOUT
+        ?? process.env.ACHILLES_SKILL_TIMEOUT,
+    60_000,
+);
+
+function extractSectionContent(sections = {}, ...aliases) {
+    if (!sections || typeof sections !== 'object') {
+        return '';
+    }
+    for (const alias of aliases) {
+        if (!alias) {
+            continue;
+        }
+        const key = alias.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        if (sections[key]) {
+            return sections[key];
+        }
+    }
+    return '';
+}
 
 function withTimeout(promiseLike, timeoutMs, errorFactory) {
     let timerHandle;
@@ -36,37 +57,34 @@ function withTimeout(promiseLike, timeoutMs, errorFactory) {
     });
 }
 
-const SKILL_TIMEOUT_MS = parseTimeout(
-    process.env.ACHILESS_SKILL_TIMEOUT
-        ?? process.env.ACHILES_SKILL_TIMEOUT
-        ?? process.env.ACHILLES_SKILL_TIMEOUT,
-    60_000,
-);
-
-function extractSectionContent(sections = {}, ...aliases) {
-    if (!sections || typeof sections !== 'object') {
-        return '';
+function determineMode(value) {
+    const normalized = String(value || '').toLowerCase();
+    if (normalized.includes('deep')) {
+        return 'deep';
     }
-    for (const alias of aliases) {
-        if (!alias) {
-            continue;
-        }
-        const key = alias.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        if (sections[key]) {
-            return sections[key];
-        }
-    }
-    return '';
+    return 'fast';
 }
 
-function createDefaultAction({ skillName, prompt = '', llmAgent }) {
-    return async ({ input }, { contextManager = null } = {}) => {
+function unwrapCodeFence(payload) {
+    if (typeof payload !== 'string') {
+        return payload;
+    }
+    const trimmed = payload.trim();
+    const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)```$/i);
+    if (fenceMatch) {
+        return fenceMatch[1].trim();
+    }
+    return trimmed;
+}
+
+function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast' }) {
+    return async ({ input }, context) => {
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Code skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
 
-        if (!llmAgent || typeof llmAgent.complete !== 'function') {
-            throw new Error(`Code skill "${skillName}" requires an LLMAgent with a "complete" method.`);
+        if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
+            throw new Error(`Code skill "${skillName}" requires an LLMAgent with an "executePrompt" method.`);
         }
 
         const instructions = prompt ? prompt.trim() : 'Decide whether to respond directly or craft JavaScript to solve the task.';
@@ -88,28 +106,24 @@ function createDefaultAction({ skillName, prompt = '', llmAgent }) {
             'Choose "code" when JavaScript execution is safer or more precise than a free-form answer.',
         ].join('\n');
 
-        const rawDecision = await withTimeout(
-            llmAgent.complete({
-                prompt: decisionPrompt,
-                mode: 'fast',
+        const decision = await withTimeout(
+            llmAgent.executePrompt(decisionPrompt, {
+                mode: llmMode,
                 context: { intent: 'code-skill-default', skillName },
+                responseShape: 'json',
             }),
             SKILL_TIMEOUT_MS,
             () => new Error(`Code skill "${skillName}" decision timed out after ${SKILL_TIMEOUT_MS}ms.`),
         );
 
-        let decision;
-        try {
-            decision = typeof rawDecision === 'string' ? JSON.parse(rawDecision) : rawDecision;
-        } catch (error) {
-            throw new Error(`Code skill "${skillName}" expected JSON decision. Received: ${rawDecision}`);
+        if (!decision || typeof decision !== 'object') {
+            throw new Error(`Code skill "${skillName}" expected a JSON object response.`);
         }
 
-        if (!decision || typeof decision !== 'object' || typeof decision.mode !== 'string') {
-            throw new Error(`Code skill "${skillName}" requires a decision object with a "mode" property.`);
-        }
+        const mode = typeof decision.mode === 'string'
+            ? decision.mode.toLowerCase()
+            : (decision.code ? 'code' : 'text');
 
-        const mode = decision.mode.toLowerCase();
         let outcome = '';
 
         if (mode === 'text') {
@@ -121,31 +135,17 @@ function createDefaultAction({ skillName, prompt = '', llmAgent }) {
             if (typeof decision.code !== 'string' || !decision.code.trim()) {
                 throw new Error(`Code skill "${skillName}" received code mode without executable "code".`);
             }
-            const wrapped = `(async () => { ${decision.code} })()`;
-            try {
-                const execution = Promise.resolve(eval(wrapped)); // eslint-disable-line no-eval
-                const result = await withTimeout(
-                    execution,
-                    SKILL_TIMEOUT_MS,
-                    () => new Error(`Code skill "${skillName}" execution timed out after ${SKILL_TIMEOUT_MS}ms.`),
-                );
-                if (typeof result === 'string') {
-                    outcome = result;
-                } else if (result === null || result === undefined) {
-                    outcome = '';
-                } else {
-                    outcome = JSON.stringify(result);
-                }
-            } catch (error) {
-                throw new Error(`Code skill "${skillName}" execution failed: ${error.message}`);
-            }
+            outcome = await executeCodeSnippet({
+                skillName,
+                code: decision.code,
+            });
         } else {
             throw new Error(`Code skill "${skillName}" received unsupported mode "${decision.mode}".`);
         }
 
-        if (contextManager && typeof contextManager.appendToHistory === 'function') {
+        if (context?.sessionMemory && typeof context.sessionMemory.appendToHistory === 'function') {
             try {
-                contextManager.appendToHistory({ user: input, ai: outcome });
+                context.sessionMemory.appendToHistory({ user: input, ai: outcome });
             } catch (error) {
                 // Ignore context persistence issues
             }
@@ -155,9 +155,9 @@ function createDefaultAction({ skillName, prompt = '', llmAgent }) {
     };
 }
 
-function createModuleAction({ skillName, modulePath, prompt = '', llmAgent }) {
+function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, llmMode = 'fast' }) {
     let cached = null;
-    return async ({ input }, { contextManager = null } = {}) => {
+    return async ({ input }, context) => {
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Code skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
@@ -177,7 +177,8 @@ function createModuleAction({ skillName, modulePath, prompt = '', llmAgent }) {
             prompt,
             skillName,
             argumentName: CODE_ARGUMENT_NAME,
-            contextManager,
+            sessionMemory: context?.sessionMemory || null,
+            llmMode,
         }));
 
         const result = await withTimeout(
@@ -200,52 +201,132 @@ function createModuleAction({ skillName, modulePath, prompt = '', llmAgent }) {
     };
 }
 
-export class CodeSkillsSubsystem extends BaseSkillsSubsystem {
-    registerSkillDescriptor({ skillName, summary, filePath, skillDir, sections, body, title }) {
-        const llmAgent = this.skilledAgent.llmAgent;
+const MAX_SNIPPET_PREVIEW = 160;
+
+async function runSnippet(code, label) {
+    const wrapped = `(async () => { ${code} })()`;
+    const execution = Promise.resolve(eval(wrapped)); // eslint-disable-line no-eval
+    const result = await withTimeout(
+        execution,
+        SKILL_TIMEOUT_MS,
+        () => new Error(`Code execution timed out after ${SKILL_TIMEOUT_MS}ms while running ${label}.`),
+    );
+    return result;
+}
+
+async function executeCodeSnippet({ skillName, code }) {
+    const attempt = async (snippet, note) => {
+        const preview = snippet.slice(0, MAX_SNIPPET_PREVIEW);
+        try {
+            return await runSnippet(snippet, note || skillName);
+        } catch (error) {
+            throw new Error(`Code skill "${skillName}" execution failed: ${error.message}. Snippet: ${preview}…`);
+        }
+    };
+
+    let result = await attempt(code, skillName);
+
+    if (result === undefined) {
+        const fnMatches = Array.from(code.matchAll(/function\s+([a-zA-Z0-9_]+)\s*\(/g));
+        if (fnMatches.length) {
+            const lastFn = fnMatches[fnMatches.length - 1][1];
+            const augmented = `${code}\nreturn typeof ${lastFn} === 'function' ? ${lastFn}() : undefined;`;
+            result = await attempt(augmented, `${skillName}:call-${lastFn}`);
+        }
+    }
+
+    if (result === undefined) {
+        throw new Error(`Code skill "${skillName}" execution returned undefined. Ensure the generated code ends with \`return "…"\`.`);
+    }
+
+    if (typeof result === 'string') {
+        return result;
+    }
+    if (result === null || result === undefined) {
+        return '';
+    }
+    try {
+        return JSON.stringify(result);
+    } catch (error) {
+        return String(result);
+    }
+}
+
+export class CodeSkillsSubsystem {
+    constructor({ llmAgent }) {
+        this.llmAgent = llmAgent;
+        this.executors = new Map();
+    }
+
+    prepareSkill(skillRecord) {
+        const { descriptor, skillDir, filePath } = skillRecord;
+        const sections = descriptor?.sections || {};
         const prompt = extractSectionContent(sections, 'prompt');
         const argumentDescription = extractSectionContent(sections, 'argument', 'input', 'parameters') || DEFAULT_CODE_ARGUMENT_DESCRIPTION;
+        const llmMode = determineMode(extractSectionContent(sections, 'llm mode', 'llm-mode', 'mode'));
         const folderName = skillDir ? path.basename(skillDir) : null;
         const localModulePath = folderName ? path.join(skillDir, `${folderName}.js`) : null;
         const moduleExists = localModulePath ? fs.existsSync(localModulePath) : false;
 
-        const specs = {
-            name: skillName,
-            description: summary,
-            what: summary,
-            why: `Automatically registered code skill originating from ${filePath}.`,
-            arguments: {
-                [CODE_ARGUMENT_NAME]: {
-                    description: argumentDescription,
-                    type: 'string',
-                },
-            },
-            requiredArguments: [CODE_ARGUMENT_NAME],
-            argumentOrder: [CODE_ARGUMENT_NAME],
-            needConfirmation: false,
-        };
-
-        const action = moduleExists
-            ? createModuleAction({ skillName, modulePath: localModulePath, prompt, llmAgent })
-            : createDefaultAction({ skillName, prompt, llmAgent });
-
-        const roles = ['code'];
-        const registeredName = this.skilledAgent.registerSkill({ specs, action, roles });
-        const canonicalName = registeredName || skillName;
-
-        this.recordMetadata(canonicalName, {
+        skillRecord.metadata = {
             type: 'code',
             prompt,
             modulePath: moduleExists ? localModulePath : null,
             filePath,
             skillDir,
-            title,
-            summary,
-            body,
+            title: descriptor?.title || null,
+            summary: descriptor?.summary || null,
+            body: descriptor?.body || null,
             sections,
             defaultArgument: CODE_ARGUMENT_NAME,
-        });
+            argumentDescription,
+            llmMode,
+        };
 
-        return canonicalName;
+        const executor = moduleExists
+            ? createModuleExecutor({
+                skillName: skillRecord.name,
+                modulePath: localModulePath,
+                prompt,
+                llmAgent: this.llmAgent,
+                llmMode,
+            })
+            : createDefaultExecutor({
+                skillName: skillRecord.name,
+                prompt,
+                llmAgent: this.llmAgent,
+                llmMode,
+            });
+
+        this.executors.set(skillRecord.name, executor);
+    }
+
+    async executeSkillPrompt({ skillRecord, promptText, options = {} }) {
+        const executor = this.executors.get(skillRecord.name);
+        if (!executor) {
+            throw new Error(`Executor not prepared for code skill "${skillRecord.name}".`);
+        }
+
+        const {
+            args = {},
+            sessionMemory = null,
+        } = options;
+
+        const input = typeof args[CODE_ARGUMENT_NAME] === 'string' && args[CODE_ARGUMENT_NAME].trim()
+            ? args[CODE_ARGUMENT_NAME]
+            : String(promptText ?? '').trim();
+
+        if (!input) {
+            throw new Error(`Code skill "${skillRecord.name}" requires either prompt text or the "${CODE_ARGUMENT_NAME}" argument.`);
+        }
+
+        const result = await executor({ input }, { sessionMemory });
+
+        return {
+            skill: skillRecord.name,
+            metadata: skillRecord.metadata || null,
+            result,
+            sessionMemory,
+        };
     }
 }

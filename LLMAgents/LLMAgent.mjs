@@ -8,6 +8,18 @@ import { defaultLLMInvokerStrategy } from '../utils/LLMClient.mjs';
 
 const DEFAULT_AGENT_NAME = 'DefaultLLMAgent';
 
+const stripCodeFence = (value) => {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    const trimmed = value.trim();
+    const fenceMatch = trimmed.match(/^```[a-zA-Z]*\n([\s\S]*?)```$/);
+    if (fenceMatch) {
+        return fenceMatch[1].trim();
+    }
+    return trimmed;
+};
+
 const serializeContext = (context) => {
     if (typeof context === 'string') {
         return context;
@@ -185,6 +197,84 @@ class LLMAgent {
             }
             throw error;
         }
+    }
+
+    async executePrompt(promptText, options = {}) {
+        if (!promptText || typeof promptText !== 'string') {
+            throw new Error('executePrompt requires a promptText string.');
+        }
+
+        const {
+            mode = 'fast',
+            model = null,
+            responseShape = null,
+            globalMemory = null,
+            userMemory = null,
+            sessionMemory = null,
+            skillShortMemory = null,
+            ...rest
+        } = options || {};
+
+        const segments = [];
+        const pushSegment = (label, value) => {
+            if (value === null || value === undefined) {
+                return;
+            }
+            try {
+                const rendered = typeof value === 'string' ? value : value.toString();
+                if (rendered && rendered.trim()) {
+                    segments.push(`${label}:\n${rendered.trim()}`);
+                }
+            } catch (error) {
+                // ignore serialization issues
+            }
+        };
+
+        pushSegment('Global Memory', globalMemory);
+        pushSegment('User Memory', userMemory);
+        pushSegment('Session Memory', sessionMemory);
+        pushSegment('Skill Memory', skillShortMemory);
+
+        const combinedContext = segments.length
+            ? `${segments.join('\n\n')}\n\nPrompt:\n${promptText}`
+            : promptText;
+
+        const result = await this.doTask(combinedContext, promptText, {
+            mode,
+            model,
+            ...rest,
+        });
+
+        if (!responseShape) {
+            return result;
+        }
+
+        if (responseShape === 'json') {
+            try {
+                return JSON.parse(result);
+            } catch (error) {
+                throw new Error(`Expected JSON response but parsing failed: ${error.message}. Raw: ${String(result).slice(0, 200)}…`);
+            }
+        }
+
+        if (responseShape === 'code') {
+            return stripCodeFence(result);
+        }
+
+        if (responseShape === 'json-code') {
+            try {
+                const payload = JSON.parse(result);
+                if (!payload || typeof payload !== 'object' || typeof payload.code !== 'string') {
+                    throw new Error('missing "code" property');
+                }
+                payload.code = payload.code.trim();
+                return payload;
+            } catch (error) {
+                throw new Error(`Expected JSON with code, but parsing failed: ${error.message}. Raw: ${String(result).slice(0, 200)}…`);
+            }
+        }
+
+        return result;
     }
 
     async doTask(agentContext, description, options = {}) {

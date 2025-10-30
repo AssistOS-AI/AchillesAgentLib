@@ -1,10 +1,9 @@
 export * from './LLMAgents/index.mjs';
 export * from './SkilledAgents/index.mjs';
 export * from './utils/PersistoClient.mjs';
-export * from './ContextManager/index.mjs';
+export * from './MemoryContainer/index.mjs';
 export * from './RecursiveSkilledAgents/index.mjs';
 export * from './CodeSkillsSubsystem/index.mjs';
-export { SimpleSkillsSubsystem } from './SimpleSkillsSubsystem/SimpleSkillsSubsystem.mjs';
 export * from './CloudeSkillsSubsystem/index.mjs';
 export * from './MCPSkillsSubsystem/index.mjs';
 export * from './OrchestratorSkillsSubsystem/index.mjs';

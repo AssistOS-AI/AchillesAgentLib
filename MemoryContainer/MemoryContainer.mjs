@@ -5,7 +5,7 @@ function cloneHistory(history) {
     return history.map((entry) => ({ ...entry }));
 }
 
-export class ContextManager {
+export class MemoryContainer {
     constructor({ baseDir = process.cwd(), initialHistory = [] } = {}) {
         this.baseDir = baseDir;
         this.history = Array.isArray(initialHistory)

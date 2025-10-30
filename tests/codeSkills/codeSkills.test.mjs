@@ -33,7 +33,7 @@ async function initializeRecursiveAgent() {
 
     const skilledAgent = createTestAgent();
     try {
-        await skilledAgent.llmAgent.complete({ prompt: 'Return OK', mode: 'fast' });
+        await skilledAgent.llmAgent.executePrompt('Return OK', { mode: 'fast' });
     } catch (error) {
         const attempts = Array.isArray(error?.attempts) ? error.attempts : [];
         const onlyMissingKeys = attempts.length > 0
@@ -89,6 +89,7 @@ test('Proofread code skill polishes input text', async (t) => {
         assert.equal(result.skill, 'proofread-polisher-code');
         console.info('[codeSkills.test] proofread result:', result.result);
         assert.equal(result.metadata.type, 'code');
+        assert.equal(result.metadata.llmMode, 'fast');
         const normalized = result.result.trim().toLowerCase();
         assert.ok(normalized.startsWith('this is a test'));
     } catch (error) {
@@ -115,6 +116,7 @@ test('Large number multiplication uses code execution', async (t) => {
         assert.equal(result.skill, 'large-number-multiplier-code');
         console.info('[codeSkills.test] multiply result:', result.result);
         assert.equal(result.metadata.type, 'code');
+        assert.equal(result.metadata.llmMode, 'fast');
         assert.ok(result.result.includes('12193263211705532552354824112635269'));
     } catch (error) {
         console.error('Test failure diagnostic:', error);
@@ -140,6 +142,7 @@ test('Math evaluator computes arithmetic mean with generated code', async (t) =>
         assert.equal(result.skill, 'math-expression-evaluator-code');
         console.info('[codeSkills.test] math result:', result.result);
         assert.equal(result.metadata.type, 'code');
+        assert.equal(result.metadata.llmMode, 'deep');
         assert.ok(typeof result.result === 'string');
         assert.ok(result.result && result.result.length > 0);
         const normalized = result.result.toLowerCase();

@@ -4,7 +4,13 @@ import readline from 'node:readline';
 
 import { createSkilledAgent, SkilledAgent } from '../SkilledAgents/index.mjs';
 import { CodeSkillsSubsystem } from '../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
-import { SimpleSkillsSubsystem } from '../SimpleSkillsSubsystem/SimpleSkillsSubsystem.mjs';
+import { InteractiveSkillsSubsystem } from '../InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs';
+import { CloudeSkillsSubsystem } from '../CloudeSkillsSubsystem/CloudeSkillsSubsystem.mjs';
+import { MCPSkillsSubsystem } from '../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
+import { OrchestratorSkillsSubsystem } from '../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
+import { Sanitiser } from '../utils/Sanitiser.mjs';
+import { createFlexSearchAdapter } from '../SkilledAgents/search/flexsearchAdapter.mjs';
+import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 
 const SKILL_FILE_TYPES = {
     'skill.md': { type: 'claude' },
@@ -122,10 +128,7 @@ function parseSkillDocument(filePath) {
 }
 
 function sanitiseName(value) {
-    return value
-        .toLowerCase()
-        .replace(/[^a-z0-9_\-]+/g, '-')
-        .replace(/^-+|-+$/g, '');
+    return Sanitiser.sanitiseName(value);
 }
 
 export class RecursiveSkilledAgent {
@@ -149,6 +152,16 @@ export class RecursiveSkilledAgent {
 
         this.subsystems = new Map();
         this.skillToSubsystem = new Map();
+        this.skillCatalog = new Map();
+        this.skillAliases = new Map();
+        this.promptReader = this.aggregatorAgent?.promptReader || null;
+
+        this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
+        this.debugLogger?.log('RecursiveSkilledAgent:init', {
+            startDir: this.startDir,
+            hasSkilledAgent: Boolean(skilledAgent),
+            skilledAgentOptions: Object.keys(skilledAgentOptions || {}),
+        });
 
         this.registerDiscoveredSkills();
     }
@@ -160,9 +173,15 @@ export class RecursiveSkilledAgent {
 
         let subsystem;
         if (type === 'code') {
-            subsystem = new CodeSkillsSubsystem({ skilledAgent: this.aggregatorAgent });
+            subsystem = new CodeSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+        } else if (type === 'interactive') {
+            subsystem = new InteractiveSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+        } else if (type === 'mcp') {
+            subsystem = new MCPSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+        } else if (type === 'orchestrator') {
+            subsystem = new OrchestratorSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
         } else {
-            subsystem = new SimpleSkillsSubsystem({ type, skilledAgent: this.aggregatorAgent });
+            subsystem = new CloudeSkillsSubsystem();
         }
 
         this.subsystems.set(type, subsystem);
@@ -194,6 +213,7 @@ export class RecursiveSkilledAgent {
                 visited.add(current);
                 const candidate = path.join(current, '.AchillesSkills');
                 if (isDirectory(candidate)) {
+                    this.debugLogger?.log('RecursiveSkilledAgent:discoveredRoot', { candidate });
                     roots.push(candidate);
                 }
                 if (current === root) {
@@ -263,201 +283,342 @@ export class RecursiveSkilledAgent {
     }
 
     registerSkillFromFile({ filePath, type, skillDir }) {
-        const { title, summary, body, sections } = parseSkillDocument(filePath);
-        const baseName = sanitiseName(title || path.basename(skillDir));
-        const skillName = sanitiseName(`${baseName}-${type}`) || sanitiseName(`${path.basename(skillDir)}-${type}`);
+        const descriptor = parseSkillDocument(filePath);
+        const shortName = path.basename(skillDir);
+        const baseName = sanitiseName(descriptor?.title || shortName);
+        const canonicalName = sanitiseName(`${baseName}-${type}`) || sanitiseName(`${shortName}-${type}`);
 
         const shouldInclude = this.skillFilter({
             type,
             filePath,
             skillDir,
-            title,
-            summary,
-            sections,
+            title: descriptor?.title,
+            summary: descriptor?.summary,
+            sections: descriptor?.sections,
         });
         if (!shouldInclude) {
             return;
         }
 
-        const subsystem = this.ensureSubsystem(type);
-        let canonicalName;
-        try {
-            canonicalName = subsystem.registerSkillDescriptor({
-                skillName,
-                summary,
-                filePath,
-                skillDir,
-                sections,
-                body,
-                title,
-                type,
-            });
-        } catch (error) {
-            this.logger.warn(`[RecursiveSkilledAgent] Failed to register skill from ${filePath}: ${error.message}`);
-            return;
-        }
+        const skillRecord = {
+            name: canonicalName,
+            type,
+            descriptor,
+            filePath,
+            skillDir,
+            shortName,
+            metadata: null,
+        };
 
-        if (canonicalName) {
-            const normalized = sanitiseName(canonicalName);
-            this.skillToSubsystem.set(canonicalName, type);
-            this.skillToSubsystem.set(normalized, type);
-        }
-    }
-
-    async getSubsystemCandidate(subsystem, taskDescription, rankOptions = {}) {
-        try {
-            return await subsystem.chooseSkill(taskDescription, rankOptions);
-        } catch (error) {
-            this.logger.warn(`[RecursiveSkilledAgent] Failed to rank skills in subsystem: ${error.message}`);
-            return null;
-        }
-    }
-
-    async resolveSubsystemTie(taskDescription, candidates) {
-        const llmAgent = this.aggregatorAgent?.llmAgent;
-        if (!llmAgent) {
-            return candidates[0];
-        }
-
-        const descriptionLines = candidates.map(({ subsystemType, skillName, metadata }, index) => {
-            const summary = metadata?.summary || metadata?.title || 'No description';
-            return `${index + 1}. Subsystem: ${subsystemType} | Skill: ${skillName} | Summary: ${summary}`;
+        this.debugLogger?.log('RecursiveSkilledAgent:registerSkill', {
+            name: canonicalName,
+            type,
+            aliases: Array.from(aliases),
         });
 
-        const prompt = [
-            '# Choose the Best Skill',
-            'You are helping select the most suitable skill to handle the user request.',
-            `User request: ${taskDescription}`,
-            '',
-            'Candidates:',
-            ...descriptionLines,
-            '',
-            'Respond with the skill name that should be used. If none seem appropriate, reply with "none".',
-        ].join('\n');
+        const subsystem = this.ensureSubsystem(type);
+        if (subsystem && typeof subsystem.prepareSkill === 'function') {
+            try {
+                subsystem.prepareSkill(skillRecord, this);
+            } catch (error) {
+                this.logger.warn(`[RecursiveSkilledAgent] Failed to prepare skill ${canonicalName}: ${error.message}`);
+            }
+        }
 
-        try {
-            const response = await llmAgent.complete({
-                prompt,
-                mode: 'fast',
-                context: { intent: 'skill-subsystem-selection' },
-            });
-            const normalized = String(response || '').toLowerCase();
-            for (const candidate of candidates) {
-                const names = [candidate.skillName, candidate.metadata?.title].filter(Boolean);
-                if (names.some((name) => normalized.includes(String(name).toLowerCase()))) {
-                    return candidate;
+        this.skillCatalog.set(canonicalName, skillRecord);
+
+        const aliases = new Set([
+            canonicalName,
+            sanitiseName(canonicalName),
+            shortName,
+            sanitiseName(shortName),
+            baseName,
+        ].filter(Boolean));
+
+        aliases.forEach((alias) => {
+            this.skillAliases.set(alias, skillRecord);
+            this.skillToSubsystem.set(alias, type);
+        });
+    }
+
+    getSkillRecord(identifier) {
+        if (!identifier || typeof identifier !== 'string') {
+            return null;
+        }
+        const normalized = sanitiseName(identifier);
+        const record = this.skillAliases.get(normalized) || null;
+        this.debugLogger?.log('RecursiveSkilledAgent:getSkillRecord', {
+            identifier,
+            normalized,
+            resolved: record?.name || null,
+        });
+        return record;
+    }
+
+    listSkillsByType(type) {
+        return Array.from(this.skillCatalog.values()).filter((record) => record.type === type);
+    }
+
+    buildSearchText(record) {
+        return [
+            record.descriptor?.title,
+            record.descriptor?.summary,
+            record.descriptor?.body,
+        ].filter(Boolean).join(' ');
+    }
+
+    selectOrchestratorForPrompt(taskDescription) {
+        const orchestrators = this.listSkillsByType('orchestrator');
+        if (!orchestrators.length) {
+            return null;
+        }
+
+        const index = createFlexSearchAdapter({ tokenize: 'forward' });
+        orchestrators.forEach((record, idx) => {
+            try {
+                index.add(String(idx), this.buildSearchText(record));
+            } catch (error) {
+                this.logger.warn(`[RecursiveSkilledAgent] Failed to index orchestrator ${record.name}: ${error.message}`);
+            }
+        });
+
+        this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:start', {
+            taskDescription,
+            orchestratorCount: orchestrators.length,
+        });
+
+        const query = typeof taskDescription === 'string' ? taskDescription.trim() : '';
+        if (query) {
+            try {
+                const matches = index.search(query, { limit: 1 }) || [];
+            if (matches.length) {
+                const [best] = matches;
+                const position = Number.parseInt(typeof best === 'object' ? best.id ?? best.doc ?? best.key : best, 10);
+                if (Number.isInteger(position) && orchestrators[position]) {
+                    this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:searchMatch', {
+                        method: 'index-position',
+                        match: orchestrators[position].name,
+                    });
+                    return orchestrators[position];
+                }
+                const label = typeof best === 'string' ? best : String(best);
+                const found = orchestrators.find((record) => sanitiseName(record.name) === sanitiseName(label) || sanitiseName(record.shortName) === sanitiseName(label));
+                if (found) {
+                    this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:searchMatch', {
+                        method: 'label',
+                        match: found.name,
+                    });
+                    return found;
                 }
             }
         } catch (error) {
-            this.logger.warn(`[RecursiveSkilledAgent] Tie-break prompt failed: ${error.message}`);
-        }
-
-        return candidates[0];
-    }
-
-    async selectSkill(taskDescription, options = {}) {
-        const rankOptions = options.rankOptions || {};
-        const candidates = [];
-
-        for (const [type, subsystem] of this.subsystems.entries()) {
-            const candidate = await this.getSubsystemCandidate(subsystem, taskDescription, rankOptions);
-            if (candidate && candidate.name) {
-                candidates.push({
-                    subsystem,
-                    subsystemType: type,
-                    skillName: candidate.name,
-                    score: candidate.score,
-                    metadata: candidate.metadata,
-                });
+            this.logger.warn(`[RecursiveSkilledAgent] Orchestrator search failed: ${error.message}`);
             }
         }
 
+        const tokens = query
+            ? query.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 2)
+            : [];
+
+        if (!tokens.length) {
+            const selected = orchestrators[0] || null;
+            if (selected) {
+                this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:default', {
+                    reason: 'no-tokens',
+                    match: selected.name,
+                });
+            }
+            return selected;
+        }
+
+        const scored = orchestrators
+            .map((record) => {
+                const haystack = this.buildSearchText(record).toLowerCase();
+                let score = 0;
+                tokens.forEach((token) => {
+                    if (haystack.includes(token)) {
+                        score += 1;
+                    }
+                });
+                return { record, score };
+            })
+            .sort((a, b) => b.score - a.score);
+
+        const best = scored.length && scored[0].score > 0 ? scored[0].record : orchestrators[0] || null;
+        if (best) {
+            this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:scored', {
+                match: best.name,
+            });
+        }
+        return best;
+    }
+
+    chooseSkillByHeuristic(taskDescription, candidates) {
+        if (!candidates.length) {
+            return null;
+        }
+        const query = typeof taskDescription === 'string' ? taskDescription.trim().toLowerCase() : '';
+        if (!query) {
+            return candidates[0];
+        }
+        const tokens = query.split(/[^a-z0-9]+/).filter((token) => token.length > 2);
+        if (!tokens.length) {
+            return candidates[0];
+        }
+        const scored = candidates
+            .map((record) => {
+                const haystack = this.buildSearchText(record).toLowerCase();
+                let score = 0;
+                tokens.forEach((token) => {
+                    if (haystack.includes(token)) {
+                        score += 1;
+                    }
+                });
+                return { record, score };
+            })
+            .sort((a, b) => b.score - a.score);
+        return scored.length && scored[0].score > 0 ? scored[0].record : candidates[0];
+    }
+
+    async chooseSkillWithLLM(taskDescription, candidates) {
         if (!candidates.length) {
             return null;
         }
 
-        candidates.sort((a, b) => a.score - b.score);
-        const bestScore = candidates[0].score;
-        const bestCandidates = candidates.filter((item) => item.score === bestScore);
-
-        if (bestCandidates.length === 1) {
-            return bestCandidates[0];
+        const llmAgent = this.aggregatorAgent?.llmAgent;
+        if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
+            return this.chooseSkillByHeuristic(taskDescription, candidates);
         }
 
-        return this.resolveSubsystemTie(taskDescription, bestCandidates);
+        const prompt = [
+            '# Skill Selection',
+            'Choose the single best skill for the request.',
+            '',
+            '## Request',
+            taskDescription || '<empty>',
+            '',
+            '## Available Skills',
+        ];
+
+        candidates.forEach((record) => {
+            prompt.push(`- ${record.name}: ${record.descriptor?.summary || 'No summary provided.'}`);
+        });
+
+        prompt.push(
+            '',
+            'Respond with either the exact skill name or the word "none".',
+        );
+
+        try {
+            const response = await llmAgent.executePrompt(prompt.join('\n'), {
+                mode: 'fast',
+                context: { intent: 'recursive-skill-selection' },
+            });
+
+            if (typeof response === 'string') {
+                const trimmed = response.trim();
+                if (!trimmed || trimmed.toLowerCase() === 'none') {
+                    return null;
+                }
+                const normalized = sanitiseName(trimmed.split(/[\s\r\n]+/)[0]);
+                return candidates.find((record) =>
+                    sanitiseName(record.name) === normalized
+                    || sanitiseName(record.shortName) === normalized) || null;
+            }
+        } catch (error) {
+            this.logger.warn(`[RecursiveSkilledAgent] Skill selection via LLM failed: ${error.message}`);
+        }
+
+        return this.chooseSkillByHeuristic(taskDescription, candidates);
     }
 
-    findSubsystemForSkill(skillName) {
-        const type = this.skillToSubsystem.get(skillName);
-        if (!type) {
-            return null;
+    async executeWithoutExplicitSkill(taskDescription, forwardOptions, reviewMode) {
+        this.debugLogger?.log('RecursiveSkilledAgent:executeWithoutExplicitSkill', {
+            taskDescription,
+            reviewMode,
+        });
+
+        const orchestratorRecord = this.selectOrchestratorForPrompt(taskDescription);
+        if (orchestratorRecord) {
+            const subsystem = this.ensureSubsystem('orchestrator');
+            const execution = await subsystem.executeSkillPrompt({
+                skillRecord: orchestratorRecord,
+                recursiveAgent: this,
+                promptText: taskDescription,
+                options: {
+                    ...forwardOptions,
+                    reviewMode,
+                },
+            });
+            this.debugLogger?.log('RecursiveSkilledAgent:executeWithoutExplicitSkill:orchestrator', {
+                selected: orchestratorRecord.name,
+                reviewMode,
+            });
+            return {
+                ...execution,
+                reviewMode,
+                subsystem: orchestratorRecord.type,
+            };
         }
-        return this.subsystems.get(type) || null;
+
+        const candidates = Array.from(this.skillCatalog.values());
+        this.debugLogger?.log('RecursiveSkilledAgent:executeWithoutExplicitSkill:fallback-selection', {
+            candidateCount: candidates.length,
+        });
+        const selected = await this.chooseSkillWithLLM(taskDescription, candidates);
+
+        if (selected) {
+            this.debugLogger?.log('RecursiveSkilledAgent:executeWithoutExplicitSkill:llm-selected', {
+                selected: selected.name,
+            });
+            return this.executeWithReviewMode(taskDescription, {
+                ...forwardOptions,
+                skillName: selected.name,
+            }, reviewMode);
+        }
+
+        throw new Error('Unable to determine an appropriate skill for the request.');
     }
 
     async executeWithReviewMode(taskDescription, options = {}, reviewMode = 'none') {
-        let { skillName = null, subsystemType = null } = options || {};
-        const contextManager = options.contextManager || null;
-        const args = { ...(options.args || {}) };
-        const securityContext = options.securityContext || null;
-        const rankOptions = options.rankOptions || {};
+        const {
+            skillName = null,
+            promptReader = null,
+            subsystemType = null, // retained for backwards compatibility
+            ...forward
+        } = options || {};
 
-        let subsystem = null;
-
-        if (skillName) {
-            skillName = sanitiseName(skillName);
-            subsystem = subsystemType ? this.subsystems.get(subsystemType) : this.findSubsystemForSkill(skillName);
-            if (!subsystem) {
-                throw new Error(`Skill "${skillName}" is not registered.`);
-            }
-        } else if (subsystemType) {
-            subsystem = this.subsystems.get(subsystemType);
-            if (!subsystem) {
-                throw new Error(`Subsystem "${subsystemType}" is not registered.`);
-            }
+        if (!skillName) {
+            return this.executeWithoutExplicitSkill(taskDescription, forward, reviewMode);
         }
 
-        if (subsystem && !skillName) {
-            const chosen = await subsystem.chooseSkill(taskDescription, rankOptions);
-            if (!chosen || !chosen.name) {
-                throw new Error('No skill available to handle the request.');
-            }
-            skillName = chosen.name;
-            if (!options.args && chosen.metadata?.defaultArgument) {
-                args[chosen.metadata.defaultArgument] = taskDescription;
-            }
+        const skillRecord = this.getSkillRecord(skillName);
+        if (!skillRecord) {
+            throw new Error(`Skill "${skillName}" is not registered.`);
         }
 
-        if (!subsystem) {
-            const selection = await this.selectSkill(taskDescription, options);
-            if (!selection) {
-                throw new Error('No skill available to handle the request.');
-            }
-            subsystem = selection.subsystem;
-            subsystemType = selection.subsystemType;
-            skillName = selection.skillName;
-            if (!options.args && selection.metadata?.defaultArgument) {
-                args[selection.metadata.defaultArgument] = taskDescription;
-            }
+        const subsystem = this.ensureSubsystem(skillRecord.type);
+
+        const args = { ...(forward.args || {}) };
+        if (!forward.args && skillRecord.metadata?.defaultArgument && !Object.prototype.hasOwnProperty.call(args, skillRecord.metadata.defaultArgument)) {
+            args[skillRecord.metadata.defaultArgument] = taskDescription;
         }
 
-        const metadata = subsystem.getMetadata ? subsystem.getMetadata(skillName) : null;
-        if (!options.args && metadata?.defaultArgument && !Object.prototype.hasOwnProperty.call(args, metadata.defaultArgument)) {
-            args[metadata.defaultArgument] = taskDescription;
-        }
-
-        const execution = await subsystem.executePrompt(taskDescription, {
-            skillName,
-            args,
-            securityContext,
-            contextManager,
-            rankOptions,
+        const execution = await subsystem.executeSkillPrompt({
+            skillRecord,
+            recursiveAgent: this,
+            promptText: taskDescription,
+            options: {
+                ...forward,
+                args,
+                promptReader: promptReader || this.promptReader,
+            },
         });
 
         return {
             ...execution,
             reviewMode,
-            subsystem: subsystemType || this.skillToSubsystem.get(skillName) || null,
+            subsystem: skillRecord.type,
         };
     }
 
