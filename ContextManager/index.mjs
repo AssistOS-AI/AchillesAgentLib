@@ -1,1 +1,1 @@
-/statusexport { ContextManager } from './ContextManager.mjs';
+export { ContextManager } from './ContextManager.mjs';
