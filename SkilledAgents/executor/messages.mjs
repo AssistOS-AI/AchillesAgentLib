@@ -98,7 +98,7 @@ function buildMissingMessage(context, validation) {
         }
     }
 
-    lines.push('Reply in natural language (e.g. "high priority and approved status") or type "cancel" to stop.');
+    lines.push('Reply in natural language or type "cancel" to stop.');
 
     return lines.join('\n');
 }
