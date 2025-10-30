@@ -121,12 +121,61 @@ function interpretSelection(response, ranked) {
     return fallback;
 }
 
+/**
+ * Check if a string looks like a webchat envelope JSON
+ * @param {string} text - The text to check
+ * @returns {boolean} True if it looks like an envelope
+ */
+function looksLikeEnvelope(text) {
+    if (typeof text !== 'string') {
+        return false;
+    }
+    const trimmed = text.trim();
+    // Check for envelope markers - don't assume opening/closing characters
+    // as they can vary depending on how the envelope is echoed
+    return trimmed.includes('"__webchatMessage"') &&
+        trimmed.includes('"version"') &&
+        trimmed.includes('"text"') &&
+        trimmed.includes('"attachments"');
+}
+
 function defaultPromptReader(message) {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    // Create a custom writable stream that filters out envelope echoes
+    const filterStream = new (class {
+        write(chunk, encoding, callback) {
+            const text = typeof chunk === 'string' ? chunk : (chunk ? chunk.toString() : '');
+            // Only write to stdout if it doesn't look like an envelope echo
+            if (text && !looksLikeEnvelope(text)) {
+                process.stdout.write(chunk, encoding, callback);
+            } else if (typeof callback === 'function') {
+                // Call callback even if we filtered to maintain stream flow
+                callback();
+            }
+            return true;
+        }
+
+        // Delegate other methods to stdout
+        end(...args) {
+            return process.stdout.end(...args);
+        }
+
+        get writable() {
+            return process.stdout.writable;
+        }
+    })();
+
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: filterStream,  // Use filter stream instead of stdout directly
+        terminal: false  // Disable echo - critical for PTY environments like webchat
+    });
+
     return new Promise((resolve) => {
         rl.question(message, (answer) => {
             rl.close();
-            resolve(answer);
+            // Unescape newline placeholders (\x01 SOH) back to actual newlines
+            const result = answer.replace(/\x01/g, '\n');
+            resolve(result);
         });
     });
 }
