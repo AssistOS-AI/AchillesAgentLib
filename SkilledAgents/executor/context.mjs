@@ -269,7 +269,7 @@ function friendlyName(name) {
     return trimmed.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-async function createExecutionContext({ skill, action, providedArgs = {}, llmAgent, securityContext = null }) {
+async function createExecutionContext({ skill, action, providedArgs = {}, llmAgent, securityContext = null, readUserPrompt = null }) {
     if (!skill || typeof skill !== 'object') {
         throw new Error('createExecutionContext requires a skill definition.');
     }
@@ -340,6 +340,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         skill,
         action,
         llmAgent,
+        readUserPrompt,
         argumentDefinitions: definitions,
         requiredArguments: requiredArgs,
         optionalArguments: optionalArgs,
@@ -357,7 +358,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         aliasEntries,
         aliasToArgument,
     };
-
+    
     context.hasValue = (name) => {
         if (!Object.prototype.hasOwnProperty.call(normalizedArgs, name)) {
             return false;
@@ -519,7 +520,11 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
 
         if (resolverMap.has(target)) {
             try {
-                candidate = await Promise.resolve(resolverMap.get(target)(rawValue, { argument: target, context }));
+                candidate = await Promise.resolve(resolverMap.get(target)(rawValue, { 
+                    argument: target, 
+                    context,
+                    readUserPrompt: context.readUserPrompt
+                }));
             } catch (error) {
                 console.warn(`Resolver for argument "${target}" failed: ${error.message}`);
                 return { success: false, value: null };
