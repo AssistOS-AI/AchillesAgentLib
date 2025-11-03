@@ -243,12 +243,15 @@ class SkilledAgent {
             throw new Error(`No executable action found for skill "${skillName}".`);
         }
 
+        const readUserPromptFn = (prompt) => this.readUserPrompt(prompt);
+        
         const context = await createExecutionContext({
             skill,
             action,
             providedArgs: args,
             llmAgent: this.llmAgent,
             securityContext,
+            readUserPrompt: readUserPromptFn,
         });
 
         const finalArgs = await mainLoop(context, {
