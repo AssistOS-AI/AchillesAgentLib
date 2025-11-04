@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LightSOPLang Syntax · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"LightSOPLang","href":"light-sop-lang.html"},
+            {"label":"Syntax"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>LightSOPLang Syntax</h1>
+            <p>Textual structure of declarations, arguments, and English-mode regeneration.</p>
+            <nav class="page-links" aria-label="LightSOPLang sections">
+                <a href="light-sop-lang-overview.html">Overview</a>
+                <a href="light-sop-lang-syntax.html" aria-current="page">Syntax</a>
+                <a href="light-sop-lang-semantics.html">Semantics</a>
+                <a href="light-sop-lang-graph.html">Dependency Optimisation</a>
+                <a href="light-sop-lang-monitoring.html">Execution Monitoring</a>
+                <a href="light-sop-lang-examples.html">Worked Examples</a>
+            </nav>
+        </section>
+        <section>
+            <h2>Statements and Variable Declarations</h2>
+            <p>Every statement begins with the at-sign followed by a variable name. The interpreter treats the portion between the at-sign and the first space as the variable identifier. The next token is the command name. Remaining tokens become arguments. The parser in <code>lightSOPLang/parser.mjs</code> stores the declaration signature so the interpreter can determine when a subsequent update changes a variable.</p>
+        </section>
+
+        <section>
+            <h2>Arguments and Literals</h2>
+            <p>Arguments that start with a dollar sign are references to variables defined earlier in the script. The interpreter replaces them with the public value of the referenced variable before invoking the registry. Arguments that do not start with a dollar sign are treated as literals. Literal tokens preserve original casing and punctuation. Quoted strings are not required because the language tokenises on whitespace and passes the literal value verbatim. When the script needs to embed spaces inside a literal the author concatenates words using hyphens or underscores and lets the receiving command interpret the format. The orchestration tests show this approach in <code>planner/oskill.md</code> where intent tags such as <code>data-fetch</code> are written without quotes.</p>
+        </section>
+
+        <section>
+            <h2>Dependency Notation</h2>
+            <p>Referencing a variable with the dollar prefix creates a dependency. The interpreter records these dependencies so it can compute a topological execution order. If a variable depends on another variable that has not been defined the interpreter throws a descriptive error while loading the script. Each variable may appear as an argument multiple times in the same statement; the interpreter treats every reference as a dependency.</p>
+        </section>
+
+        <section>
+            <h2>English Mode</h2>
+            <p>Scripts may begin with the <code>#!english</code> directive. When present, the interpreter calls <code>LLMAgent.executePrompt</code> to translate the following natural language instructions into LightSOPLang code. The first invocation requests an initial script. If commands fail the interpreter asks the LLM to revise the script, passing failures, variable snapshots, and the previous code as context. The translation loop continues until failures disappear or the configured maximum number of regeneration rounds is reached.</p>
+        </section>
+
+        <section>
+            <h2>Command Registry Interface</h2>
+            <p>After parsing a statement, the interpreter constructs a payload that contains the command name, a list of argument values, the raw token string, the variable name, and the underlying variable state. Registries receive this payload together with a responder that can emit success, failure, or cancellation values. This payload format is shared by orchestration skills and MCP skills alike. Sample payloads can be observed during the test run when LightSOPLang commands call <code>inventoryLookup</code> or nested skills.</p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorials · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Tutorials"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Achilles Agents Tutorials</h1>
+            <p>Skill repositories, descriptor formats, and end-to-end examples for every Achilles Agents skill family.</p>
+        </section>
+        <section>
+            <h2>Repository Pattern</h2>
+            <p>
+                Every scenario keeps its skills inside a <code>.AchillesSkills/</code> folder. The recursive loader walks up the directory tree
+                until it finds this repository, indexes the descriptors, and registers the skills automatically.
+            </p>
+            <pre><code>tests/iskills/missing-parameters/
+└── .AchillesSkills/
+    └── support/
+        └── file_incident/
+            ├── iskill.md          # primary descriptor
+            └── file_incident.js   # optional entrypoint (specs/action/roles)</code></pre>
+            <p>
+                Descriptor suffixes map to skill families:
+            </p>
+            <ul>
+                <li><code>iskill.md</code> — interactive conversational flows.</li>
+                <li><code>oskill.md</code> — orchestration planners (LightSOPLang optional).</li>
+                <li><code>mskill.md</code> — MCP tool planners.</li>
+                <li><code>cskill.md</code> — code execution guidance.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Choose a Walkthrough</h2>
+            <div class="grid">
+                <article>
+                    <h3><a href="tutorials-interactive.html">Interactive Skills</a></h3>
+                    <p>Prompt collection, validation, and example descriptors from the interactive suite.</p>
+                </article>
+                <article>
+                    <h3><a href="tutorials-orchestration.html">Orchestration Skills</a></h3>
+                    <p>Plan coordination with LightSOPLang scripts, intent taxonomies, and fallbacks.</p>
+                </article>
+                <article>
+                    <h3><a href="tutorials-mcp.html">MCP Skills</a></h3>
+                    <p>Tool allow-lists, scripted MCP plans, and execution traces.</p>
+                </article>
+                <article>
+                    <h3><a href="tutorials-code.html">Code Skills</a></h3>
+                    <p>Descriptors plus sandbox entrypoints for LLM-assisted code execution.</p>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

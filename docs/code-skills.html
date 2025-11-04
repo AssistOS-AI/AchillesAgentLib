@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Skill System Overview","href":"overview.html"},
+            {"label":"Code Skills"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Code Skills</h1>
+            <p>
+                Code skills empower Achilles Agents to reason about and execute code safely. They are perfect for validating generated SQL,
+                transforming data pipelines, or running remediation snippets with guardrails. Each skill wraps a sandbox policy around the
+                task so that human reviewers can trust the outcome.
+            </p>
+        </section>
+
+        <section>
+            <h2>Descriptor Snapshot</h2>
+            <p>
+                Every code skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/cskill.md</code>. The descriptor explains the
+                persona, coding standards, and safety expectations for the sandbox:
+            </p>
+            <pre><code># Math Expression Evaluator
+
+Interpret natural-language requests that describe mathematical operations and produce precise numeric answers.
+
+## Prompt
+You are a careful mathematician who writes concise JavaScript to compute results...
+
+## LLM Mode
+deep</code></pre>
+            <p>
+                Companion entrypoints such as <code>mathEval.js</code> can extend the skill with exact sandbox controls, custom presenters, or role checks. The
+                descriptor remains the single source of truth for tone and guardrails.
+            </p>
+        </section>
+
+        <section>
+            <h2>How Execution Unfolds</h2>
+            <p>
+                When a code skill runs, Achilles Agents gather the required arguments through interactive skills, synthesise or validate the snippet,
+                execute it inside the declared sandbox, and return human-readable results. Timeouts, output limits, and sanitised logs keep the process
+                safe while still surfacing enough context for human reviewers.
+            </p>
+        </section>
+
+        <section>
+            <h2>Authoring Checklist</h2>
+            <ol>
+                <li>Draft <code>cskill.md</code> with persona guidance, prompt instructions, and safety notes.</li>
+                <li>Add a JavaScript entrypoint when you need custom sandbox behaviour or audit logging.</li>
+                <li>Specify confirmation rules for mutating tasks so users approve critical actions.</li>
+                <li>Exercise the skill via tests (see <code>tests/codeSkills</code>) to confirm guardrails behave as expected.</li>
+            </ol>
+            <p>
+                The focus stays on what the skill accomplishes—Achilles Agents handle the environment wiring, letting teams iterate on prompts and policies.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

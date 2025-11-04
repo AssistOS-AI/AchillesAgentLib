@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LightSOPLang Overview · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"LightSOPLang","href":"light-sop-lang.html"},
+            {"label":"Overview"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>LightSOPLang Overview</h1>
+            <p>Purpose, lifecycle, and integration points with the Achilles Agents runtime.</p>
+            <nav class="page-links" aria-label="LightSOPLang sections">
+                <a href="light-sop-lang-overview.html" aria-current="page">Overview</a>
+                <a href="light-sop-lang-syntax.html">Syntax</a>
+                <a href="light-sop-lang-semantics.html">Semantics</a>
+                <a href="light-sop-lang-graph.html">Dependency Optimisation</a>
+                <a href="light-sop-lang-monitoring.html">Execution Monitoring</a>
+                <a href="light-sop-lang-examples.html">Worked Examples</a>
+            </nav>
+        </section>
+        <section>
+            <h2>Why LightSOPLang Exists</h2>
+            <p>The Achilles Agents Library treats LightSOPLang as the glue that links high level plans with concrete skill or tool executions. Orchestration skills embed scripts to coordinate multiple downstream skills without relying on ad-hoc imperative code. MCP skills use the same notation to describe deterministic tool sequences. The language is intentionally compact so that planners can emit or edit scripts in a predictable way while leaving room for automatic regeneration when an English description is provided.</p>
+        </section>
+
+        <section>
+            <h2>Interpreter Responsibilities</h2>
+            <p>The interpreter defined in <code>lightSOPLang/interpreter.mjs</code> loads scripts, resolves dependencies between declarations, and executes commands through a registry supplied by the hosting skill family. It tracks variable states, propagates failures, and handles cancellation. When a script begins with <code>#!english</code> the interpreter delegates to the configured <code>LLMAgent</code>, asking it to generate executable LightSOPLang. The generated code is validated, executed, and, if necessary, regenerated when a command fails.</p>
+        </section>
+
+        <section>
+            <h2>Registries and Skill Families</h2>
+            <p>Each skill family provides a command registry that the interpreter uses to execute statements. Orchestration skills map command names to other skills and record plan entries. MCP skills map command names to allowed tools and capture tool usage. Registries expose two methods: <code>executeCommand(payload, responder)</code> runs the requested action, while <code>listCommands()</code> returns documentation that the interpreter supplies to the LLM regeneration prompt. This separation allows LightSOPLang scripts to remain agnostic of the concrete execution environment.</p>
+        </section>
+
+        <section>
+            <h2>Relationship with Tutorials</h2>
+            <p>The interactive tutorial does not execute LightSOPLang because conversational flows are driven by the executor. The orchestration and MCP tutorials both reference scripts drawn from <code>tests/recursiveAgent/recursiveAgentFixtures/.AchillesSkills</code>. Those scripts form part of the regression suite and demonstrate how LightSOPLang encapsulates business logic in Markdown descriptors rather than ad-hoc JavaScript.</p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

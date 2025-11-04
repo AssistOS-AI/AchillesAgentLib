@@ -3,306 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ploinky Agent Library Documentation</title>
-    <style>
-        :root {
-            color-scheme: light dark;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            line-height: 1.6;
-            background: #f8f9fc;
-            color: #202124;
-        }
-
-        header, main {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 24px 32px;
-        }
-
-        header {
-            background: linear-gradient(120deg, #0d47a1, #1976d2);
-            color: #ffffff;
-            padding-top: 48px;
-            padding-bottom: 48px;
-            box-shadow: 0 8px 24px rgba(13, 71, 161, 0.3);
-        }
-
-        h1 {
-            margin-top: 0;
-            font-size: 2.8rem;
-            letter-spacing: 0.04em;
-        }
-
-        h2 {
-            border-bottom: 2px solid #1976d2;
-            padding-bottom: 4px;
-            margin-top: 48px;
-        }
-
-        h3 {
-            margin-top: 32px;
-        }
-
-        nav {
-            margin-top: 24px;
-        }
-
-        nav ul {
-            list-style: none;
-            padding: 0;
-            display: grid;
-            gap: 12px;
-        }
-
-        nav a {
-            display: inline-block;
-            padding: 10px 16px;
-            background: rgba(255, 255, 255, 0.12);
-            color: inherit;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: transform 0.15s ease, background 0.2s ease;
-        }
-
-        nav a:hover {
-            transform: translateY(-1px);
-            background: rgba(255, 255, 255, 0.24);
-        }
-
-        section {
-            margin-bottom: 40px;
-        }
-
-        code, pre {
-            font-family: "Fira Code", "Courier New", monospace;
-            background: #1f2933;
-            color: #e8f0fe;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-
-        pre {
-            padding: 16px;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 24px 0;
-        }
-
-        th, td {
-            border: 1px solid #d2d5da;
-            padding: 12px;
-            text-align: left;
-        }
-
-        th {
-            background: #e3f2fd;
-        }
-
-        footer {
-            background: #0d47a1;
-            color: #ffffff;
-            text-align: center;
-            padding: 24px;
-        }
-
-        @media (max-width: 768px) {
-            header, main {
-                padding: 24px 18px;
-            }
-        }
-    </style>
+    <title>Achilles Agents Library Documentation</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header>
-        <h1>Ploinky Agent Library</h1>
-        <p>Comprehensive documentation for building conversational, skill-driven AI orchestrations.</p>
-        <nav aria-label="Table of Contents">
-            <ul>
-                <li><a href="#overview">Overview</a></li>
-                <li><a href="#architecture">Architecture</a></li>
-                <li><a href="#core-components">Core Components</a></li>
-                <li><a href="#execution-lifecycle">Execution Lifecycle</a></li>
-                <li><a href="#light-sop-lang">LightSOPLang Interpreter</a></li>
-                <li><a href="#mcp-integration">MCP Integration</a></li>
-                <li><a href="#testing">Testing Strategy</a></li>
-                <li><a href="#development-checklist">Development Checklist</a></li>
-            </ul>
-        </nav>
-    </header>
-    <main>
-        <section id="overview">
-            <h2>Overview</h2>
-            <p>
-                <strong>ploinkyAgentLib</strong> is a production-grade framework for orchestrating conversational
-                agents that execute discrete skills while collaborating with large language models (LLMs).
-                It blends deterministic execution flows with AI-assisted argument collection, semantic search, and
-                scripted orchestration via LightSOPLang.
-            </p>
-            <ul>
-                <li>ES module library (<code>.mjs</code>) with modern JavaScript conventions.</li>
-                <li>Supports semantic skill ranking, AI-guided selection, and interactive argument gathering.</li>
-                <li>Integrates with Model Context Protocol (MCP) tools and LightSOPLang scripts.</li>
-                <li>Includes an extensive test harness mirroring real conversational scenarios.</li>
-            </ul>
+    <div id="site-header"></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Achilles Agents Library</h1>
+            <p>Select a guide to explore Achilles Agents Library from architecture to hands-on tutorials.</p>
+        </section>
+        <section>
+            <h2>Documentation Map</h2>
+            <p>Use the links below to explore the major skill guides. Each page provides conceptual background, public API documentation, and practical guidance.</p>
+            <div class="grid">
+                <article>
+                    <h3><a href="overview.html">Skill System Overview</a></h3>
+                    <p>Learn how the new skill model decouples orchestration, execution, and evaluation while remaining LLM-friendly.</p>
+                </article>
+                <article>
+                    <h3><a href="agent-runtime.html">Agent Runtime</a></h3>
+                    <p>Understand how <code>LLMAgent</code> and <code>RecursiveSkilledAgent</code> collaborate to supervise multi-step plans.</p>
+                </article>
+                <article>
+                    <h3><a href="orchestration-skills.html">Orchestration Skills</a></h3>
+                    <p>See how orchestration skills consume LightSOPLang scripts, feed ReAct-style prompts, and monitor downstream execution.</p>
+                </article>
+                <article>
+                    <h3><a href="light-sop-lang.html">LightSOPLang</a></h3>
+                    <p>Detailed syntax, semantics, and command mapping rules for the scripting language that powers agent plans.</p>
+                </article>
+                <article>
+                    <h3><a href="interactive-skills.html">Interactive Skills</a></h3>
+                    <p>Explore argument collection loops, validation pipelines, and conversational heuristics.</p>
+                </article>
+                <article>
+                    <h3><a href="tutorials.html">Hands-on Tutorials</a></h3>
+                    <p>Step-by-step guides showing how to define skills, wire orchestration scripts, and integrate MCP tools.</p>
+                </article>
+                <article>
+                    <h3><a href="mcp-skills.html">MCP Skills</a></h3>
+                    <p>Discover how MCP-hosted toolchains are planned, scripted, and executed through the Agent runtime.</p>
+                </article>
+                <article>
+                    <h3><a href="code-skills.html">Code Skills</a></h3>
+                    <p>Dive into sandboxed code evaluation, safety filters, and developer productivity patterns.</p>
+                </article>
+            </div>
         </section>
 
-        <section id="architecture">
-            <h2>Architecture</h2>
-            <p>The library is organised around a central <code>SkilledAgent</code> with supporting subsystems:</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Layer</th>
-                        <th>Responsibility</th>
-                        <th>Key Modules</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Presentation</td>
-                        <td>Orchestrators, LightSOPLang scripts, MCP bridges</td>
-                        <td><code>OrchestratorSkillsSubsystem</code>, <code>MCPSkillsSubsystem</code></td>
-                    </tr>
-                    <tr>
-                        <td>Execution</td>
-                        <td>Interactive argument collection and validation</td>
-                        <td><code>SkilledAgents/executor/context.mjs</code>, <code>mainLoop.mjs</code></td>
-                    </tr>
-                    <tr>
-                        <td>Registry</td>
-                        <td>Skill definitions, search index, argument metadata</td>
-                        <td><code>SkilledAgents/SkillRegistry.mjs</code></td>
-                    </tr>
-                    <tr>
-                        <td>LLM Abstraction</td>
-                        <td>Prompt orchestration, completion parsing, heuristics</td>
-                        <td><code>LLMAgents/LLMAgent.mjs</code>, <code>SkilledAgents/executor/llm.mjs</code></td>
-                    </tr>
-                </tbody>
-            </table>
-            <p>
-                All modules observe strict 4-space indentation, single quotes, trailing commas on multiline literals,
-                and semicolons to prevent ASI ambiguity.
-            </p>
-        </section>
-
-        <section id="core-components">
-            <h2>Core Components</h2>
-            <h3>SkilledAgent</h3>
-            <p>
-                The facade exposed to hosting applications. It wires an <code>LLMAgent</code> and a
-                <code>SkillRegistry</code>, and routes execution requests through the interactive main loop.
-            </p>
-            <pre><code>import { SkilledAgent } from 'ploinkyAgentLib/SkilledAgents';
-
-const agent = new SkilledAgent({ llmAgent });
-agent.registerSkill({...});
-const result = await agent.executeSkill('add-equipment', { taskDescription });</code></pre>
-
-            <h3>Skill Registry</h3>
-            <ul>
-                <li>Normalises skill spec objects and validates required metadata.</li>
-                <li>Extracts enumerators, validators, resolvers, and presenters.</li>
-                <li>Builds FlexSearch indexes for semantic ranking.</li>
-                <li>Supports argument aliases and rich options with synonyms.</li>
-            </ul>
-
-            <h3>Execution Context</h3>
-            <p>
-                Created per invocation and responsible for applying user-provided arguments, enforcing types,
-                placeholder detection, and enumerator resolution. JSON export uses canonical argument names only.
-            </p>
-        </section>
-
-        <section id="execution-lifecycle">
-            <h2>Execution Lifecycle</h2>
-            <ol>
-                <li><strong>Skill discovery:</strong> Task text is ranked via FlexSearch; LLM may confirm the best match.</li>
-                <li><strong>Context creation:</strong> Enumerators load options, aliases map to canonical keys, resolvers and validators attach.</li>
-                <li><strong>Argument loop:</strong> Missing arguments trigger user prompts. Inputs flow through LLM extraction and manual parsing.</li>
-                <li><strong>Confirmation:</strong> If <code>needConfirmation</code> is not <code>false</code>,
-                    a natural language summary is produced; user intent is classified via heuristics and LLM fallback.</li>
-                <li><strong>Execution:</strong> Validated arguments feed the registered action. Outcomes propagate through CLI/reporting layers.</li>
-            </ol>
-            <p>
-                Placeholders like “your_job_name” or “not provided” are detected and rejected unless they are legitimate values.
-                Enumerated arguments support fuzzy matching, synonyms, and tolerant Levenshtein distance heuristics.
-            </p>
-        </section>
-
-        <section id="light-sop-lang">
-            <h2>LightSOPLang Interpreter</h2>
-            <p>
-                LightSOPLang provides repeatable, auditable orchestration scripts. Each variable resolves by executing
-                commands via a registry implementing <code>executeCommand(payload, responder)</code>.
-            </p>
-            <ul>
-                <li><strong>Payload:</strong> includes the command name, resolved arguments, raw text, and variable metadata.</li>
-                <li><strong>Responder API:</strong> <code>success</code>, <code>fail</code>, and <code>cancel</code> helpers produce typed values.</li>
-                <li><strong>Auto cancel:</strong> Heuristic detection funnels through <code>normalizeCancelReason</code> to de-duplicate reasons.</li>
-                <li><strong>Execution monitor:</strong> Enforces command limits and cancellation heuristics per interpreter instance.</li>
-            </ul>
-            <p>
-                Recent updates added script-aware registries to orchestrators and MCP skills, allowing LightSOPLang sections in skill descriptors
-                to define canonical execution flows without relying solely on LLM plans.
-            </p>
-        </section>
-
-        <section id="mcp-integration">
-            <h2>Model Context Protocol (MCP) Integration</h2>
-            <p>
-                The library natively integrates with MCP servers, enabling agent-driven tool invocations. Key features:</p>
-            <ul>
-                <li><strong>Allowed tools:</strong> Skills whitelist tool identifiers, ensuring prompts cannot call unapproved MCP commands.</li>
-                <li><strong>Scripted plans:</strong> LightSOPLang scripts can schedule MCP tool usage deterministically.</li>
-                <li><strong>Dynamic plans:</strong> LLM-driven plans fall back to deterministic scripts when JSON responses cannot be parsed.</li>
-            </ul>
-        </section>
-
-        <section id="testing">
-            <h2>Testing Strategy</h2>
-            <ul>
-                <li>Node’s built-in test runner powers suite files under <code>tests/</code>.</li>
-                <li>Use <code>node tests/runAllTests.js</code> (aliased via <code>npm test</code>) to run the full matrix.</li>
-                <li>Individual suites target scenarios such as interactive skill flows, LightSOPLang execution, and recursive agent behaviour.</li>
-                <li>Helpers under <code>tests/useSkill/helpers.mjs</code> provide instrumentation for scripted conversations and LLM interception.</li>
-            </ul>
-            <p>
-                When altering orchestrator subsystems or executor logic, the entire suite must pass. Specific test files that must remain green include:
-            </p>
-            <ul>
-                <li><code>SkilledAgents/tests/*.mjs</code></li>
-                <li><code>tests/useSkill/*.mjs</code></li>
-                <li><code>tests/recursiveAgent/orchestration.test.mjs</code></li>
-                <li><code>tests/lightSOPLang/*.mjs</code></li>
-            </ul>
-        </section>
-
-        <section id="development-checklist">
+        <section>
             <h2>Development Checklist</h2>
-            <p>Before submitting contributions, ensure the following:</p>
             <ol>
-                <li>Read and understand <code>SKILLEDAGENT-ARCHITECTURE.md</code>.</li>
-                <li>Use ES modules (<code>import</code>/<code>export</code>), 4-space indentation, trailing commas, single quotes, and semicolons.</li>
-                <li>Document public APIs with JSDoc and provide descriptive error messages.</li>
-                <li>Write or update tests alongside every feature or bug fix.</li>
-                <li>Run <code>npm test</code> (or targeted suites) before pushing changes.</li>
-                <li>Keep commits focused, and prefer present-tense imperative messages.</li>
-                <li>Avoid destructive Git commands that could override the user’s worktree.</li>
+                <li>Follow ES module semantics (<code>import</code>/<code>export</code> only).</li>
+                <li>Use 4-space indentation, single quotes, trailing commas, terminated statements.</li>
+                <li>Document public methods with JSDoc. Prefer descriptive error messages.</li>
+                <li>Pair every change with tests. Run <code>npm test</code> before committing.</li>
+                <li>Avoid destructive Git commands; preserve the user worktree.</li>
+                <li>Read <code>SKILLEDAGENT-ARCHITECTURE.md</code> to align with existing patterns.</li>
             </ol>
         </section>
     </main>
-    <footer>
-        <p>&copy; 2024 Ploinky Agent Library. Built with LightSOPLang, MCP, and skilled orchestration.</p>
-    </footer>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
 </body>
 </html>

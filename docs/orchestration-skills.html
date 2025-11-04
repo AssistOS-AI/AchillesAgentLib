@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orchestration Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Skill System Overview","href":"overview.html"},
+            {"label":"Orchestration Skills"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Orchestration Skills</h1>
+            <p>
+                These skills capture a playbook for reaching an outcome. They map high-level goals to named steps, decide which skills or tools to activate,
+                and apply intent labels that explain why each action matters. Organisations rely on them for structured routines such as post-incident reviews,
+                investigative digests, or customer onboarding sequences.
+            </p>
+        </section>
+
+        <section>
+            <h2>Inside the Descriptor</h2>
+            <p>
+                Every orchestration skill is documented in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/oskill.md</code>. The descriptor breaks the
+                plan into human-readable pieces:
+            </p>
+            <ul>
+                <li><strong>Instructions:</strong> How the planner should interpret the user’s request.</li>
+                <li><strong>Allowed Skills:</strong> The catalogue of downstream skills this planner may call.</li>
+                <li><strong>Intents:</strong> ReAct-style shorthand that explains the purpose of each step.</li>
+                <li><strong>Fallback:</strong> Recovery guidance when scripted steps fail.</li>
+                <li><strong>LightSOPLang:</strong> An optional deterministic script that runs before any LLM planning.</li>
+            </ul>
+            <pre><code># Planner Orchestrator
+
+## Instructions
+- Analyse the request and split it into intents.
+- Prefer the reporting skill for summarisation tasks.
+
+## Allowed Skills
+- report
+- data
+
+## Intents
+- reporting: Prepare human readable summaries or status updates.
+- data-fetch: Retrieve underlying inventory or operational records.
+
+## Fallback
+Intent: investigation
+Allowed Tools:
+- invoiceLookup
+
+## LightSOPLang
+@prompt prompt
+@report report $prompt "Primary summary" reporting
+@data data $prompt "Collect supporting facts" data-fetch</code></pre>
+            <p>
+                Scripts make the skill deterministic; LightSOPLang variables such as <code>@report</code> or <code>@data</code> read almost like prose,
+                keeping the intent legible to non-technical reviewers.
+            </p>
+        </section>
+
+        <section>
+            <h2>Execution Styles</h2>
+            <p>
+                Orchestration skills execute in one of two modes. If a LightSOPLang block is present, the skill runs those commands immediately, invoking the
+                named skills with shared context and intent tags. If there is no script, the skill requests a plan from the language model, constrained by the
+                allowed list. Either way, the result is a structured itinerary that downstream components can replay step-by-step.
+            </p>
+        </section>
+
+        <section>
+            <h2>Fallback Thinking</h2>
+            <p>
+                Real processes rarely run perfectly. Fallback sections capture how the team wants to respond when data is missing or a tool fails. Some skills
+                define investigative LightSOPLang scripts, while others instruct the planner to seek help from MCP tools. Because the fallback follows the same
+                descriptor format, it stays auditable and predictable.
+            </p>
+        </section>
+
+        <section>
+            <h2>Design Tips</h2>
+            <ul>
+                <li>Keep the allowed skills list focused so plans remain easy to reason about.</li>
+                <li>Write instructions as if coaching a teammate; the clearer the story, the better the plan.</li>
+                <li>Use intent labels consistently to explain why each step exists.</li>
+                <li>Pair orchestration skills with tutorials or test fixtures to show how they behave under pressure.</li>
+            </ul>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

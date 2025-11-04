@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill System Overview · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Skill System Overview"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Skill System Overview</h1>
+            <p>This overview explains how Achilles Agents organises skills, repositories, and execution layers into a coherent orchestration platform.</p>
+        </section>
+        <section>
+            <h2>Design Philosophy</h2>
+            <p>
+                The library embraces a <em>declarative skill graph</em> approach: skills declare their
+                capabilities, orchestration scripts or planners compose them, and agents interpret user intent
+                through iterative, human-in-the-loop conversations.
+            </p>
+            <ul>
+                <li><strong>Composability:</strong> Skills may invoke other skills or MCP tools through LightSOPLang.</li>
+                <li><strong>Auditability:</strong> Plans are explicit (scripts or JSON), enabling deterministic replays.</li>
+                <li><strong>LLM-Augmented Determinism:</strong> Language models handle fuzzy interpretation, while
+                    the execution environment enforces type safety, validation, and access control.</li>
+                <li><strong>Skill Families:</strong> Each class of skill (interactive, orchestration, MCP, code)
+                    focuses on a particular way of helping the user.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>High-Level Architecture</h2>
+            <p>The ecosystem revolves around four collaborating layers:</p>
+            <ol>
+                <li><strong>Skill Registry:</strong> Maintains metadata, argument schemas, enumerators, and access policies.</li>
+                <li><strong>Interactive Skill Flow:</strong> Guides conversational argument acquisition and validation.</li>
+                <li><strong>Orchestration Skills:</strong> Translate LightSOPLang scripts or LLM plans into sequenced actions.</li>
+                <li><strong>Execution Agents:</strong> <code>LLMAgent</code> mediates with language models; <code>RecursiveSkilledAgent</code>
+                    supervises nested plans and cancellations.</li>
+            </ol>
+            <p>
+                The flow can be visualised as:
+            </p>
+            <pre><code>User Intent ─► Skill Discovery ─► Plan Construction (script or LLM)
+           └─────────► Argument Collection ─► Validated Execution ─► Observability & Memory</code></pre>
+        </section>
+
+        <section>
+            <h2>Skill Repository Conventions</h2>
+            <p>
+                Achilles Agents skills are stored as Markdown descriptors inside a <code>.AchillesSkills/</code> directory. Each skill
+                lives in its own folder and is identified by the folder name:
+            </p>
+            <pre><code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/
+    ├── iskill.md | oskill.md | mskill.md | cskill.md   (descriptor)
+    └── &lt;skill_name&gt;.js                                (optional entrypoint)</code></pre>
+            <p>
+                The descriptor suffix maps to the skill family:
+            </p>
+            <ul>
+                <li><code>iskill.md</code> — interactive conversational skills.</li>
+                <li><code>oskill.md</code> — orchestration planners that may embed LightSOPLang scripts.</li>
+                <li><code>mskill.md</code> — MCP skills with allowed tool lists and optional scripts.</li>
+                <li><code>cskill.md</code> — code-execution skills with detailed prompts and LLM guidance.</li>
+            </ul>
+            <p>
+                Optional JavaScript entrypoints export <code>action</code>, <code>roles</code>, or any additional hooks required by
+                the scenario. The runtime merges the Markdown metadata with these entrypoints during discovery.
+            </p>
+        </section>
+
+        <section>
+            <h2>Skill Lifecycle</h2>
+            <ol>
+                <li><strong>Declaration:</strong> Skill modules export descriptors with arguments, roles, hints, and optional LightSOPLang sections.</li>
+                <li><strong>Registration:</strong> Metadata is normalised; enumerators, validators, and resolvers are bound.</li>
+                <li><strong>Selection:</strong> Requests route to orchestration scripts, static mappings, or LLM planners.</li>
+                <li><strong>Execution:</strong> Skill engines govern runtime behaviour (interactive prompts, MCP tool invocations, code evaluation).</li>
+                <li><strong>Post-processing:</strong> Presenters shape confirmations, and results feed session memories or review pipelines.</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Skill Families</h2>
+            <p>Each family focuses on a distinct flavour of work:</p>
+            <ul>
+                <li><strong>Interactive Skills:</strong> Conversational flows with validation, placeholder detection, and natural language extraction.</li>
+                <li><strong>Orchestration Skills:</strong> LightSOPLang-driven script execution for high-level plans, including fallback behaviour.</li>
+                <li><strong>MCP Skills:</strong> Tool-centric skills that interface with external Model Context Protocol servers.</li>
+                <li><strong>Code Skills:</strong> Evaluate snippets or pipelines under strict sandboxing with deterministic feedback.</li>
+            </ul>
+            <p>
+                These components are composable—an orchestration script may trigger interactive skills for data gathering,
+                then execute MCP skills for external calls or code skills for verification.
+            </p>
+            <p>
+                Dive deeper into each family: start with <a href="interactive-skills.html">Interactive Skills</a>, continue with
+                <a href="orchestration-skills.html">Orchestration Skills</a>, review <a href="mcp-skills.html">MCP Skills</a>,
+                and finish with the <a href="code-skills.html">Code Skills guide</a>.
+            </p>
+        </section>
+
+        <section>
+            <h2>ReAct-Aligned Planning</h2>
+            <p>
+                The system embraces the ReAct pattern (Reasoning + Acting) by isolating reasoning inside LightSOPLang
+                or LLM plan selection, then performing atomic actions via explicit commands. This separation makes
+                debugging easier, ensures deterministic replay, and keeps all external calls auditable.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

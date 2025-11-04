@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Skill System Overview","href":"overview.html"},
+            {"label":"Interactive Skills"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Interactive Skills</h1>
+            <p>
+                Interactive skills give Achilles Agents the ability to hold guided dialogues that surface every detail required for an action.
+                They coach the user through missing arguments, highlight acceptable values, and route the final response to the action handler with
+                consistent formatting. Because they understand enumerations, aliases, and validation hints, they can turn a loosely phrased reply into
+                structured data without exposing implementation trivia to the user.
+            </p>
+        </section>
+
+        <section>
+            <h2>Descriptor Snapshot</h2>
+            <p>
+                Every interactive skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/iskill.md</code>. The descriptor explains the
+                scenario to the agent, lists the information the conversation must capture, and hints at tone or behaviour. Optional JavaScript files named
+                after the skill can extend the descriptor with enumerators, role constraints, or bespoke result handling, but the Markdown file remains the
+                primary source of truth.
+            </p>
+            <pre><code># Assign Distribution Region
+
+Map a shipment to the correct distribution centre using internal identifiers while keeping the
+conversation business-friendly.
+
+## Required Inputs
+
+- Distribution region code
+
+## Behaviour
+
+- Presents up to ten sample centres per prompt.
+- Accepts user input regardless of letter casing.
+- Confirms using the human-friendly label while invoking the action with the technical value.</code></pre>
+            <p>
+                The author describes how the exchange should feel and what information it cannot proceed without. Conversational hints are lifted directly
+                into prompts so the dialogue stays aligned with the intended experience.
+            </p>
+        </section>
+
+        <section>
+            <h2>Conversation Flow</h2>
+            <p>
+                When an interactive skill starts, Achilles Agents read the descriptor to understand what the user cares about, what is missing, and how to ask
+                for it. The agent will:
+            </p>
+            <ul>
+                <li>Pre-fill answers from any arguments supplied up-front or inferred from the initial request.</li>
+                <li>Offer enumerated examples and synonyms when the descriptor defines them, so the user never has to memorise identifiers.</li>
+                <li>Listen for updates, cancellations, or confirmations in plain language, interpreting intent automatically.</li>
+                <li>Present a concise summary of the gathered data before triggering the action, mirroring the human-friendly descriptions from the descriptor.</li>
+            </ul>
+            <p>
+                This flow ensures that users always know what is still required and why certain answers may have been rejected.
+            </p>
+        </section>
+
+        <section>
+            <h2>Quality Guards</h2>
+            <p>
+                Interactive skills are built to keep placeholder data out of downstream systems. They recognise patterns such as <code>your_value</code>,
+                <code>not provided</code>, or bare underscores and politely ask for real answers. Fuzzy matching brings the user back on track when spelling
+                slips, and confirmation narratives highlight any fields that were auto-corrected so the user can make a final decision with confidence.
+            </p>
+            <p>
+                Together, these safeguards let teams trust the output of interactive skills for high-stakes workflows like incident reporting or customer handoffs.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

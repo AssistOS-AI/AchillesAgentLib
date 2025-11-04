@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LightSOPLang Dependency Optimisation · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"LightSOPLang","href":"light-sop-lang.html"},
+            {"label":"Dependency Optimisation"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>LightSOPLang Dependency Optimisation</h1>
+            <p>How the interpreter models scripts as single-declaration dependency graphs, why that matters for agents, and what trade-offs to watch.</p>
+            <nav class="page-links" aria-label="LightSOPLang sections">
+                <a href="light-sop-lang-overview.html">Overview</a>
+                <a href="light-sop-lang-syntax.html">Syntax</a>
+                <a href="light-sop-lang-semantics.html">Semantics</a>
+                <a href="light-sop-lang-graph.html" aria-current="page">Dependency Optimisation</a>
+                <a href="light-sop-lang-examples.html">Worked Examples</a>
+            </nav>
+        </section>
+
+        <section>
+            <h2>Graph-First Execution Model</h2>
+            <p>Every LightSOPLang variable is declared exactly once. The interpreter treats each declaration as a node in a directed acyclic graph (DAG) whose edges are derived from references such as <code>$report</code>. This graph makes optimisation straightforward: the engine can topologically order commands, parallelise safe segments, and detect cycles before execution. Alternative approaches—manual dependency bookkeeping or ad-hoc tool calls—tend to devolve into brittle imperative code. By giving the LLM a DSL that mirrors the graph explicitly, we get explainable plans while the interpreter handles dependency complexity.</p>
+            <p>Because the DSL is compact, large language models can regenerate plans reliably without learning the entire execution protocol. They specify intent in LightSOPLang, the interpreter builds the graph, and human reviewers see a deterministic representation instead of opaque tool logs.</p>
+        </section>
+
+        <section>
+            <h2>Value States and Propagation</h2>
+            <p>Each variable carries a value record with four possible states:</p>
+            <ul>
+                <li><strong>undefined</strong>: The default state before any command runs.</li>
+                <li><strong>success</strong>: The command executed and produced a result.</li>
+                <li><strong>fail</strong>: Execution threw an error or returned a failure outcome.</li>
+                <li><strong>canceled</strong>: Execution was skipped deliberately (for example, a plan branch abandoned by heuristics or user intervention).</li>
+            </ul>
+            <p>Whenever a variable ends up <strong>undefined</strong>, <strong>fail</strong>, or <strong>canceled</strong>, the interpreter automatically marks every dependent variable as <strong>undefined</strong> to signal that recomputation is required. If a value transitions from success to fail (or fail to success), or the declaration itself changes, the same invalidation applies so that the graph always reflects the latest data.</p>
+            <p>Status transitions cascade according to the root cause: dependants of a <strong>fail</strong> node drop back to <strong>undefined</strong> so they can re-run once the failure clears, dependants of a <strong>canceled</strong> node inherit <strong>canceled</strong>, and dependants of an <strong>undefined</strong> node remain <strong>undefined</strong>. This aggressive propagation keeps the execution consistent even when regeneration is triggered mid-flight.</p>
+        </section>
+
+        <section>
+            <h2>Timestamps and Deterministic Rebuilds</h2>
+            <p>The interpreter stamps every value with the millisecond timestamp of its latest update. During evaluation it compares timestamps to decide whether a dependant is stale. If an upstream value is newer than a dependant, the dependant flips back to <strong>undefined</strong> and re-executes. This timestamp check is lightweight yet crucial: it allows the engine to short-circuit recomputation when nothing changed, and to recover gracefully when regeneration produces a revised script.</p>
+        </section>
+
+        <section>
+            <h2>Contrasting with Manual Graph Handling</h2>
+            <p>Manual dependency management usually demands additional tooling: developers script graph traversals, maintain caches, or lean on workflow engines built for batch jobs rather than conversational agents. Those systems struggle with mid-conversation revisions because they assume static DAGs. LightSOPLang’s single-declaration DSL lets the LLM emit a plan that doubles as documentation. The interpreter then handles all invalidation logic so humans and agents never touch the graph directly.</p>
+            <p>Another benefit is reviewability: by reading the DSL, operators understand why each command exists. LLMs excel at altering this representation, whereas editing a JSON graph or imperative script is error-prone. The DSL becomes a safe middle ground between natural language prompts and low-level orchestration.</p>
+        </section>
+
+        <section>
+            <h2>Risks and Mitigations</h2>
+            <p>Despite its advantages, the model introduces risks. A faulty script can cause repeated recomputation if dependencies oscillate between <strong>success</strong> and <strong>fail</strong>. Timestamp-driven invalidations mitigate infinite loops but developers should still guard against non-deterministic commands. The <strong>canceled</strong> state is powerful yet dangerous: if the LLM cancels critical steps by mistake, dependants inherit the cancellation automatically. Ensure review flows or tests cover cancellation semantics.</p>
+            <p>Finally, because each variable has a single declaration, scripts must be regenerated when major control-flow changes are needed. This constraint keeps the graph simple, but authors should model optional behaviour via sub-commands or conditional LightSOPLang patterns rather than attempting to redeclare variables inline.</p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

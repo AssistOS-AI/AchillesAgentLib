@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Skill Tutorial · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Tutorials","href":"tutorials.html"},
+            {"label":"Interactive Skills Tutorial"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Interactive Skills Tutorial</h1>
+            <p>From descriptor to executable flow using `.AchillesSkills` repositories. This walkthrough shows how interactive skills gather the right data without losing the conversational tone.</p>
+            <nav class="page-links" aria-label="Tutorial navigation">
+                <a href="tutorials-interactive.html" aria-current="page">Interactive</a>
+                <a href="tutorials-orchestration.html">Orchestration</a>
+                <a href="tutorials-mcp.html">MCP</a>
+                <a href="tutorials-code.html">Code</a>
+            </nav>
+        </section>
+        <section>
+            <h2>Directory Layout</h2>
+            <p>The interactive skills used in the regression suite live under scenario-specific repositories. Example:</p>
+            <pre><code>tests/iskills/missing-parameters/
+└── .AchillesSkills/
+    └── support/
+        └── file_incident/
+            ├── iskill.md
+            └── file_incident.js</code></pre>
+            <p>
+                The folder name <code>file_incident</code> becomes the short name referenced by the runtime. The Markdown descriptor is mandatory;
+                the JavaScript file is optional and only required when you need to override defaults.
+            </p>
+        </section>
+
+        <section>
+            <h2>Descriptor: <code>iskill.md</code></h2>
+            <p>The descriptor captures user-facing context and argument requirements.</p>
+            <pre><code># File Incident
+
+Guide warehouse staff through capturing a support incident in business language, while ensuring
+all required details are gathered before execution.
+
+## Required Inputs
+
+- Incident title
+- Severity level
+
+## Optional Inputs
+
+- Assigned team for follow-up
+
+## Behaviour
+
+- Lists missing information using human-friendly wording.
+- Differentiates between required and optional arguments.
+- Confirms the action with a natural-language summary before execution.</code></pre>
+            <p>
+                The skill engine parses these sections and exposes them through prompts, confirmation narratives, and validation hints.
+            </p>
+        </section>
+
+        <section>
+            <h2>Optional Entry Point</h2>
+            <p>
+                When additional configuration is required, add a JavaScript file named after the skill. The interactive suite reuses the following file verbatim:
+            </p>
+            <pre><code>// tests/iskills/missing-parameters/.AchillesSkills/support/file_incident/file_incident.js
+export const specs = {
+    name: 'file_incident',
+    humanDescription: 'a support incident record for the warehouse printers',
+    description: 'File a support incident so the warehouse printers can be restored.',
+    arguments: {
+        incident_title: { type: 'string', description: 'Short incident headline' },
+        severity: {
+            type: 'string',
+            description: 'Incident severity level',
+            enumerator: () => [
+                { label: 'Low', value: 'low' },
+                { label: 'Medium', value: 'medium' },
+                { label: 'High', value: 'high' },
+            ],
+            resolver: (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+        },
+        assigned_team: { type: 'string', description: 'Team that will follow up on the incident' },
+    },
+    requiredArguments: ['incident_title', 'severity'],
+};
+
+export const roles = ['support'];
+
+export const action = (args) => ({ ...args });</code></pre>
+            <p>
+                Values exported by the entrypoint augment the descriptor. In this case we declare the canonical <code>specs</code>, restrict access to the
+                <code>support</code> role, and simply echo the collected arguments during tests.
+            </p>
+        </section>
+
+        <section>
+            <h2>Runtime Behaviour</h2>
+            <ol>
+                <li>The registry discovers <code>iskill.md</code>, merges <code>specs</code>/<code>roles</code>/<code>action</code> when present, and registers the skill.</li>
+                <li>During execution the interactive skill prompts for <strong>incident_title</strong> and <strong>severity</strong>, showing descriptive hints from the descriptor.</li>
+                <li>Enumerators and resolvers defined in <code>specs</code> enforce casing, synonyms, and fuzzy matching.</li>
+                <li>Once all required arguments are present, the skill renders a confirmation narrative using the descriptor title and behaviour notes.</li>
+            </ol>
+            <p>
+                The regression tests (e.g. <code>tests/iskills/missing-parameters/missingParameters.test.mjs</code>) simulate full conversations against this repository, providing concrete reference flows.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

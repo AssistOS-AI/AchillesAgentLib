@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Skill System Overview","href":"overview.html"},
+            {"label":"MCP Skills"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>MCP Skills</h1>
+            <p>
+                MCP skills let Achilles Agents choreograph external tools that speak the Model Context Protocol. They decide which tool to call,
+                capture why the step matters, and return an auditable plan that other skills can build upon. Use them for telemetry sweeps,
+                document hunts, or compliance checks where a predictable toolchain is essential.
+            </p>
+        </section>
+
+        <section>
+            <h2>Descriptor Overview</h2>
+            <p>
+                Each skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/mskill.md</code>. The descriptor tells the agent:
+            </p>
+            <ul>
+                <li><strong>Instructions:</strong> How to approach the task and what evidence to collect.</li>
+                <li><strong>Allowed Tools:</strong> A whitelist that constrains the plan to approved MCP commands.</li>
+                <li><strong>LightSOPLang:</strong> Optional deterministic scripts for sequences that should never vary.</li>
+                <li><strong>Notes or Limits:</strong> Optional guidance that caps adaptive plan length or adds review tips.</li>
+            </ul>
+            <pre><code># LLM Data Lookup
+
+## Instructions
+- Prefer tools that extract current metrics.
+- Explain why each tool is selected so the reporter can summarise later.
+
+## Allowed Tools
+- metricScanner
+- inventoryLookup
+
+## LightSOPLang
+@prompt prompt
+@scan metricScanner $prompt "Collect freshness metrics"
+@lookup inventoryLookup $prompt "Fetch inventory snapshots"</code></pre>
+            <p>
+                The allowed list keeps execution safe, while LightSOPLang provides a deterministic fall-back when you need one.
+            </p>
+        </section>
+
+        <section>
+            <h2>Planning Styles</h2>
+            <p>
+                MCP skills run in two styles. Scripted mode executes the LightSOPLang program exactly as written, producing a plan of tool calls with attached
+                rationales. Adaptive mode asks the LLM for a JSON plan that honours the allowed-tool list and any plan limits. Both outputs show the tool name,
+                arguments, and justification so reviewers can trust the result.
+            </p>
+        </section>
+
+        <section>
+            <h2>Telling the Story</h2>
+            <p>
+                Descriptors work best when they read like coaching notes for a teammate. Describe what success means, when to skip a tool, and how to present the
+                findings. The tutorials and fixtures under <code>tests/recursiveAgent/recursiveAgentFixtures/.AchillesSkills</code> include working MCP skills
+                that you can use as blueprints.
+            </p>
+        </section>
+
+        <section>
+            <h2>Authoring Checklist</h2>
+            <ol>
+                <li>Create <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/mskill.md</code> with clear instructions and an explicit allowed-tool list.</li>
+                <li>Add a LightSOPLang block when a deterministic sequence is required.</li>
+                <li>State how success is reported so downstream consumers know what to expect.</li>
+                <li>Register the repository or wire it into tests to exercise the workflow end-to-end.</li>
+            </ol>
+            <p>
+                Focus on the outcome—Achilles Agents handle the protocol mechanics while your descriptor guards intent and scope.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

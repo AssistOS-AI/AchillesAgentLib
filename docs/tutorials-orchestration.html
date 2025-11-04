@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orchestration Skill Tutorial · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Tutorials","href":"tutorials.html"},
+            {"label":"Orchestration Skills Tutorial"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Orchestration Skills Tutorial</h1>
+            <p>LightSOPLang plans, intent taxonomies, and fallback design strategies for orchestrating complex workflows.</p>
+            <nav class="page-links" aria-label="Tutorial navigation">
+                <a href="tutorials-interactive.html">Interactive</a>
+                <a href="tutorials-orchestration.html" aria-current="page">Orchestration</a>
+                <a href="tutorials-mcp.html">MCP</a>
+                <a href="tutorials-code.html">Code</a>
+            </nav>
+        </section>
+        <section>
+            <h2>Repository Layout</h2>
+            <p>
+                Orchestration skills live alongside other assets inside <code>.AchillesSkills</code>. The planner scenario in the test suite
+                uses the following structure:
+            </p>
+            <pre><code>tests/recursiveAgent/recursiveAgentFixtures/
+└── .AchillesSkills/
+    ├── orchestrationSuite/
+    │   └── planner/
+    │       └── oskill.md
+    └── fallbackSuite/
+        └── plannerFallback/
+            └── oskill.md</code></pre>
+        </section>
+
+        <section>
+            <h2>Primary Descriptor</h2>
+            <p><code>oskill.md</code> defines the instructions, allow-lists, and intents consumed by the orchestration skill.</p>
+            <pre><code># Planner Orchestrator
+
+This orchestrator coordinates logistics reporting and MCP lookups.
+
+## Instructions
+
+- Analyse the request and split it into intents.
+- Prefer the reporting skill for summarisation tasks.
+- Use the data MCP skill when raw records are required before reporting.
+- Reorder or drop steps when they do not help the user.
+
+## Allowed Skills
+
+- report
+- data
+
+## Intents
+
+- reporting: Prepare human readable summaries or status updates.
+- data-fetch: Retrieve underlying inventory or operational records.</code></pre>
+            <p>
+                The skill only exposes the permitted skills (<code>report</code>, <code>data</code>) to LightSOPLang command registries and downstream plan prompts.
+            </p>
+        </section>
+
+        <section>
+            <h2>Fallback Descriptor</h2>
+            <p>
+                You can provide an alternative orchestration playbook that runs when the scripted flow fails or when the orchestrator is invoked explicitly as a fallback.
+            </p>
+            <pre><code># Fallback Planner
+
+Handles ad-hoc investigations when no predefined skill fits.
+
+## Instructions
+
+- Evaluate whether existing skills cover the request.
+- If no skill is suitable, pivot to the fallback playbook.
+
+## Allowed Skills
+
+- nonexistent-placeholder
+
+## Fallback
+
+Intent: investigation
+Gather detailed transactional records and summarise discrepancies for the operator.
+
+Allowed Tools:
+- invoiceLookup
+- ledgerSearch
+
+## LightSOPLang
+
+@prompt prompt
+@attempt nonexistent-placeholder $prompt "Attempt non-existent skill" investigation</code></pre>
+            <p>
+                During execution, a failure to execute any scripted steps triggers the <strong>Fallback</strong> section. The agent composes a ReAct-style MCP plan using the provided instructions and tool allow-list.
+            </p>
+        </section>
+
+        <section>
+            <h2>Execution Flow</h2>
+            <ol>
+                <li><strong>Discovery:</strong> The orchestration skill loader parses <code>oskill.md</code>, extracting instructions, allowed skills, intents, and optional scripts.</li>
+                <li><strong>Scripted Execution:</strong> If the descriptor includes a <strong>LightSOPLang</strong> block, the interpreter runs those commands first via a command registry that respects the allow-list.</li>
+                <li><strong>LLM Planning:</strong> When no script is provided, the skill asks the <code>LLMAgent</code> for a JSON-formatted plan constrained to the allowed skills.</li>
+                <li><strong>Fallback:</strong> If all steps fail or are skipped, the optional fallback descriptor generates a recovery plan, usually by scheduling MCP tools.</li>
+            </ol>
+            <p>
+                The regression tests under <code>tests/recursiveAgent/orchestration.test.mjs</code> exercise these flows end-to-end and are an excellent reference when authoring new orchestration skills.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

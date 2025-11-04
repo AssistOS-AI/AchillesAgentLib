@@ -1,0 +1,230 @@
+:root {
+    color-scheme: light dark;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #f5f7fb;
+    color: #1f2933;
+}
+
+.site-banner {
+    background: #0a1c3d;
+    color: #ffffff;
+    padding: 12px 24px;
+    box-shadow: 0 6px 18px rgba(10, 28, 61, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.site-banner__top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.site-banner__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #ffffff;
+}
+
+.site-banner__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.site-banner__nav a {
+    font-size: 0.93rem;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.site-banner__nav a:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.page-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.88rem;
+    margin: 0;
+    margin-top: 2px;
+    align-items: center;
+}
+
+.page-breadcrumb a {
+    color: rgba(228, 235, 255, 0.9);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.page-breadcrumb a:hover {
+    color: #ffffff;
+}
+
+.page-breadcrumb__separator {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.page-breadcrumb__current {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+}
+
+.page-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.page-links a {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(28, 79, 156, 0.1);
+    color: #1c4f9c;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.page-links a:hover {
+    background: rgba(28, 79, 156, 0.18);
+    color: #0f2557;
+}
+
+.page-links a[aria-current="page"] {
+    background: #1c4f9c;
+    color: #ffffff;
+    cursor: default;
+}
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.content {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px 20px 48px;
+}
+
+.content h2 {
+    margin-top: 0;
+    border-bottom: 2px solid #1c4f9c;
+    padding-bottom: 6px;
+}
+
+.content section + section {
+    margin-top: 28px;
+}
+
+.lead {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lead h1 {
+    margin: 0;
+    font-size: 2rem;
+    letter-spacing: 0.02em;
+}
+
+.lead > h2 {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.grid article {
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 16px rgba(15, 37, 87, 0.08);
+    border: 1px solid rgba(28, 79, 156, 0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.grid article:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 24px rgba(15, 37, 87, 0.14);
+}
+
+.grid article h3 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+}
+
+.grid article p {
+    margin: 0;
+    font-size: 0.94rem;
+    line-height: 1.5;
+}
+
+ol {
+    padding-left: 24px;
+}
+
+.site-footer {
+    background: #0a1c3d;
+    color: #e5ecfe;
+    text-align: center;
+    padding: 24px;
+}
+
+@media (max-width: 720px) {
+    .site-banner {
+        align-items: center;
+        text-align: center;
+    }
+    .site-banner__top {
+        justify-content: center;
+    }
+    .site-banner__nav {
+        justify-content: center;
+    }
+    .site-banner__title {
+        font-size: 1.1rem;
+    }
+    .page-links {
+        justify-content: center;
+    }
+    .content {
+        padding: 28px 16px 40px;
+    }
+    .grid {
+        gap: 12px;
+    }
+    .grid article {
+        min-height: 100px;
+    }
+}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Skill Tutorial · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Tutorials","href":"tutorials.html"},
+            {"label":"Code Skills Tutorial"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Code Skills Tutorial</h1>
+            <p>Descriptors, sandbox entrypoints, and LLM-assisted execution patterns for dependable code skills.</p>
+            <nav class="page-links" aria-label="Tutorial navigation">
+                <a href="tutorials-interactive.html">Interactive</a>
+                <a href="tutorials-orchestration.html">Orchestration</a>
+                <a href="tutorials-mcp.html">MCP</a>
+                <a href="tutorials-code.html" aria-current="page">Code</a>
+            </nav>
+        </section>
+        <section>
+            <h2>Repository Layout</h2>
+            <p>
+                Code skills use the same repository conventions. The code skills test suite ships with:
+            </p>
+            <pre><code>tests/codeSkills/.AchillesSkills/
+└── test1/
+    └── mathEval/
+        ├── cskill.md
+        └── mathEval.js</code></pre>
+            <p>
+                The descriptor drives prompt construction while the JavaScript entrypoint enforces sandbox rules and integrates with <code>LLMAgent</code>.
+            </p>
+        </section>
+
+        <section>
+            <h2>Descriptor: <code>cskill.md</code></h2>
+            <pre><code># Math Expression Evaluator
+
+Interpret natural-language requests that describe mathematical operations and produce precise numeric answers...
+
+## Prompt
+You are a careful mathematician who writes concise JavaScript to compute results. Analyse the user request and extract any numbers, series names, or operations that should be performed...
+
+## LLM Mode
+deep</code></pre>
+            <p>
+                Sections such as <strong>Prompt</strong> and <strong>LLM Mode</strong> guide the code skill so that the generated snippet matches domain expectations. Additional sections can define safety policies or output schemas.
+            </p>
+        </section>
+
+        <section>
+            <h2>Entrypoint: <code>mathEval.js</code></h2>
+            <p>
+                The companion file supplies the execution harness. It calls the configured <code>LLMAgent</code> to synthesise code, unwraps fences, and evaluates the snippet inside a controlled environment.
+            </p>
+            <pre><code>// tests/codeSkills/.AchillesSkills/test1/mathEval/mathEval.js
+export async function action(instruction, context = {}) {
+    if (typeof instruction !== 'string' || !instruction.trim()) {
+        throw new Error('mathEval skill requires a non-empty instruction string.');
+    }
+
+    const { llmAgent, prompt = '', skillName = 'math-expression-evaluator-code', llmMode = 'fast' } = context;
+    if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
+        throw new Error('mathEval skill requires an LLMAgent with an \"executePrompt\" method.');
+    }
+
+    const guidance = [
+        '# Code Synthesis for Math Evaluation',
+        prompt || 'Create JavaScript that fulfils the mathematical instruction.',
+        '',
+        '## Instruction',
+        instruction,
+        '',
+        '## Response Format',
+        '- Return a JSON object with keys \"code\" and \"summary\".',
+        '- \"code\" must contain JavaScript statements that end with `return \"<final string>\";`.',
+        '- The JavaScript should compute the requested result and embed it in the final string.',
+        '- Use only standard JavaScript (no external modules).',
+    ].join('\\n');
+
+    const llmResponse = await llmAgent.executePrompt(guidance, {
+        mode: llmMode,
+        context: { intent: 'code-synthesis', skillName },
+        responseShape: 'json-code',
+    });
+
+    const payload = { ...llmResponse, code: unwrapCodeFence(llmResponse.code) };
+    const result = await executeSnippetWithFallback(payload.code, skillName, console.info);
+    return typeof result === 'string' ? result : JSON.stringify(result);
+}</code></pre>
+            <p>
+                The full file includes helper functions that unwrap code fences, fall back to calling the last declared function, and update session memory. Use it as a template when adding new sandboxed capabilities.
+            </p>
+        </section>
+
+        <section>
+            <h2>Execution Checklist</h2>
+            <ol>
+                <li>Define a clear prompt in <code>cskill.md</code> describing sandbox constraints and output expectations.</li>
+                <li>Implement an <code>action</code> export that enforces safety (timeouts, read-only modes, sanitised results).</li>
+                <li>Optionally persist conversation snippets to <code>sessionMemory</code> for audit trails.</li>
+                <li>Register the repository and call <code>RecursiveSkilledAgent.executePrompt</code> with user instructions to trigger the sandbox.</li>
+            </ol>
+            <p>
+                See <code>tests/codeSkills/codeSkills.test.mjs</code> for a complete usage example that executes the skill with different prompts and validates the computed results.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

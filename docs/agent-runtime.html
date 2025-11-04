@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Runtime · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Agent Runtime"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Agent Runtime</h1>
+            <p>LLM mediation, recursive execution, and lifecycle APIs that keep Achilles Agents plans on track.</p>
+        </section>
+        <section>
+            <h2>LLMAgent</h2>
+            <p>
+                <code>LLMAgent</code> centralises all communication with language models. It accepts an <em>invoker strategy</em>,
+                which may route requests to OpenAI, Anthropic, a test stub, or any custom provider.
+            </p>
+            <h3>Constructor</h3>
+            <pre><code>new LLMAgent({
+    name: 'PlanningLLM',
+    invokerStrategy: async ({ prompt, context, history, mode }) => {
+        // Dispatch to provider of your choice.
+        return provider.invoke(prompt, { context, history, mode });
+    },
+});</code></pre>
+
+            <h3>Key Methods</h3>
+            <ul>
+                <li><code>complete({ prompt, history = [], context = {}, mode = 'fast' })</code>: Returns the raw model output string.</li>
+                <li><code>interpretMessage(message, { intents })</code>: Classifies user replies into <code>accept</code>, <code>cancel</code>, <code>update</code>, or <code>ideas</code>,
+                    using heuristics first and falling back to the model.</li>
+                <li><code>parseMarkdownKeyValues(markdown)</code>: Converts LLM output into key-value maps (used for argument extraction).</li>
+                <li><code>classifyMessage(message)</code>: Lightweight intent classifier when a full completion is not needed.</li>
+            </ul>
+            <p>
+                The agent enforces JSON parsing where required, logs debug traces when <code>LLMAgentClient_DEBUG=true</code>, and supports request
+                cancellation by cancelling the underlying invoker promise.
+            </p>
+        </section>
+
+        <section>
+            <h2>RecursiveSkilledAgent</h2>
+            <p>
+                <code>RecursiveSkilledAgent</code> supervises complex, multi-step plans. It can execute skills directly,
+                run orchestration scripts, or call itself recursively when LightSOPLang commands reference other skills.
+            </p>
+            <h3>Constructor</h3>
+            <pre><code>const recursiveAgent = new RecursiveSkilledAgent({
+    skilledAgent,   // host-provided skill runner
+    startDir,       // directory containing orchestration fixtures
+    reviewMode: 'none' | 'summary' | 'full', // optional
+});</code></pre>
+
+            <h3>Execution APIs</h3>
+            <ul>
+                <li><code>executePrompt(prompt, options)</code>: Primary entry point. <code>options</code> may include:
+                    <ul>
+                        <li><code>skillName</code> to force a specific skill.</li>
+                        <li><code>availableTools</code> for MCP contexts.</li>
+                        <li><code>reviewMode</code> to override global review behaviour.</li>
+                    </ul>
+                </li>
+                <li><code>executeWithReviewMode(prompt, options, reviewMode)</code>: Same as above but with explicit review mode.</li>
+                <li><code>cancel()</code>: Propagates cancellation down the active stack.</li>
+            </ul>
+
+            <h3>Execution Flow</h3>
+            <ol>
+                <li>Determines the target skill or LightSOPLang script.</li>
+                <li>Loads orchestration metadata (allowed skills/tools, fallback behaviour, scripts).</li>
+                <li>Executes LightSOPLang via registries that enforce availability filters.</li>
+                <li>Delegates skill actions back to the hosting skill runner, collecting transcripts and outcomes.</li>
+                <li>Aggregates plan entries, execution results, and fallback outcomes into a coherent response.</li>
+            </ol>
+
+            <h3>Review Modes</h3>
+            <ul>
+                <li><strong>none:</strong> Execute immediately without review interrupts.</li>
+                <li><strong>summary:</strong> Provide summarized outputs suitable for human approval.</li>
+                <li><strong>full:</strong> Retain granular transcripts for auditing or human-in-the-loop workflows.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Error Handling & Cancellation</h2>
+            <p>
+                Both <code>LLMAgent</code> and <code>RecursiveSkilledAgent</code> propagate structured errors. For orchestration flows:
+            </p>
+            <ul>
+                <li>JSON parse failures fall back to deterministic LightSOPLang scripts (when available).</li>
+                <li>Unavailable skills or tools are marked as skipped, with reasons recorded in the plan.</li>
+                <li>User cancellation (interpreted via <code>interpretMessage</code>) bubbles up as <code>Error('Skill execution cancelled by user.')</code>.</li>
+                <li>Auto-cancel heuristics (e.g., maintenance windows) yield <code>STATUS_CANCELED</code> values with machine-readable reasons.</li>
+            </ul>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

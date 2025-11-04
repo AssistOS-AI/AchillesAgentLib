@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LightSOPLang · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"LightSOPLang"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>LightSOPLang Documentation</h1>
+            <p>Hub for the scripting language that powers Achilles Agents orchestration.</p>
+            <h2>How to Use this Guide</h2>
+            <p>The <a href="light-sop-lang-overview.html">overview</a> introduces the goals of LightSOPLang and its relationship with the Achilles Agents skill families. The <a href="light-sop-lang-syntax.html">syntax chapter</a> explains the textual form of commands, variable declarations, literal arguments, and the optional <code>#!english</code> translation mode. The <a href="light-sop-lang-semantics.html">semantics chapter</a> explores evaluation order, value propagation, cancellation, English regeneration, and monitoring. The <a href="light-sop-lang-examples.html">worked examples</a> walk through real scripts from the regression suites, demonstrating how orchestration skills and MCP planners employ the language.</p>
+            <p>The tutorials for each skill type reference these chapters whenever they describe embedded scripts. When creating new orchestration or MCP descriptors consult the syntax and semantics pages to ensure scripts execute deterministically and respect dependency semantics.</p>
+            <nav class="page-links" aria-label="LightSOPLang sections">
+                <a href="light-sop-lang-overview.html">Overview</a>
+                <a href="light-sop-lang-syntax.html">Syntax</a>
+                <a href="light-sop-lang-semantics.html">Semantics</a>
+                <a href="light-sop-lang-graph.html">Dependency Optimisation</a>
+                <a href="light-sop-lang-monitoring.html">Execution Monitoring</a>
+                <a href="light-sop-lang-examples.html">Worked Examples</a>
+            </nav>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>
