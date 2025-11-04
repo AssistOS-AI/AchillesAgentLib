@@ -248,6 +248,7 @@ function buildArgumentMaps(definitions) {
     const validatorMap = new Map();
     const resolverMap = new Map();
     const presenterMap = new Map();
+    const derivatorMap = new Map();
 
     for (const def of definitions) {
         if (typeof def.validator === 'function') {
@@ -256,10 +257,13 @@ function buildArgumentMaps(definitions) {
         if (typeof def.resolver === 'function') {
             resolverMap.set(def.name, def.resolver);
         }
+        if (typeof def.derivator === 'function') {
+            derivatorMap.set(def.name, def.derivator);
+        }
         presenterMap.set(def.name, createPresenter(def));
     }
 
-    return { validatorMap, resolverMap, presenterMap };
+    return { validatorMap, resolverMap, presenterMap, derivatorMap };
 }
 
 const normalizeName = (name) => (typeof name === 'string' ? name.trim() : '');
@@ -267,6 +271,38 @@ const normalizeName = (name) => (typeof name === 'string' ? name.trim() : '');
 function friendlyName(name) {
     const trimmed = normalizeName(name);
     return trimmed.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+async function executeDerivatorsIfNeeded(context) {
+    const { derivatorMap, normalizedArgs } = context;
+    
+    if (!derivatorMap || derivatorMap.size === 0) {
+        return;
+    }
+    
+    for (const [argName, derivatorFn] of derivatorMap.entries()) {
+        // Only derive if value not already set by user
+        if (context.hasValue(argName)) {
+            continue;
+        }
+        
+        try {
+            const currentValue = normalizedArgs[argName];
+            const derivedValue = await Promise.resolve(
+                derivatorFn(currentValue, {
+                    allArgs: { ...normalizedArgs },
+                    context,
+                    readUserPrompt: context.readUserPrompt,
+                })
+            );
+            
+            if (derivedValue !== undefined && derivedValue !== null) {
+                normalizedArgs[argName] = derivedValue;
+            }
+        } catch (error) {
+            console.warn(`Derivator for "${argName}" failed: ${error.message}`);
+        }
+    }
 }
 
 async function createExecutionContext({ skill, action, providedArgs = {}, llmAgent, securityContext = null, readUserPrompt = null }) {
@@ -287,7 +323,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         .filter(name => !requiredSet.has(name));
 
     const { optionEntries, optionSearches, optionTotalCounts } = await loadOptionMaps(definitions);
-    const { validatorMap, resolverMap, presenterMap } = buildArgumentMaps(definitions);
+    const { validatorMap, resolverMap, presenterMap, derivatorMap } = buildArgumentMaps(definitions);
 
     const normalizedArgs = {};
     const invalidArgs = new Set();
@@ -353,6 +389,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         validatorMap,
         resolverMap,
         presenterMap,
+        derivatorMap,
         providedArgs: { ...providedArgs },
         securityContext,
         aliasEntries,
@@ -559,6 +596,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         }
         normalizedArgs[target] = result.value;
         invalidArgs.delete(target);
+        await executeDerivatorsIfNeeded(context);
         return 'applied';
     };
 
@@ -574,6 +612,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
                 applied = true;
             }
         }
+        // Note: executeDerivatorsIfNeeded is already called in setValue for each update
         return applied ? 'updated' : 'unchanged';
     };
 

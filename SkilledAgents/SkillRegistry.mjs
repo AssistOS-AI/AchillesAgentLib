@@ -74,6 +74,8 @@ function resolveHandler(skillObj, name, kind) {
                 return ['argumentResolvers', 'resolvers', 'valueResolvers', 'lookups'];
             case 'presenter':
                 return ['argumentPresenters', 'presenters', 'valuePresenters', 'formatters'];
+            case 'derivator':
+                return ['argumentDerivators', 'derivators', 'deriveFunctions'];
             default:
                 return [];
         }
@@ -110,12 +112,14 @@ function normalizeArgumentDefinition(argumentName, rawDefinition, skillObj) {
     const enumToken = normalizeToken(rawDefinition.enumerator || rawDefinition.optionsProvider);
     const resolverToken = normalizeToken(rawDefinition.resolver || rawDefinition.resolve || rawDefinition.lookup || rawDefinition.valueResolver);
     const presenterToken = normalizeToken(rawDefinition.presenter || rawDefinition.display || rawDefinition.present || rawDefinition.valuePresenter);
+    const derivatorToken = normalizeToken(rawDefinition.derivator || rawDefinition.derive || rawDefinition.deriveFn);
 
     let baseType = null;
     let validatorName = validatorToken ? stripPrefix(validatorToken, VALIDATOR_PREFIX) : '';
     let enumeratorName = enumToken ? stripPrefix(enumToken, ENUMERATOR_PREFIX) : '';
     let resolverName = resolverToken ? stripPrefix(resolverToken, RESOLVER_PREFIX) : '';
     let presenterName = presenterToken ? presenterToken : '';
+    let derivatorName = derivatorToken ? derivatorToken : '';
 
     if (typeToken) {
         if (typeToken.startsWith(VALIDATOR_PREFIX)) {
@@ -175,6 +179,14 @@ function normalizeArgumentDefinition(argumentName, rawDefinition, skillObj) {
         presenter = rawDefinition.valuePresenter.bind(skillObj);
     }
 
+    const derivatorHandler = derivatorName ? resolveHandler(skillObj, derivatorName, 'derivator') : null;
+    let derivator = derivatorHandler;
+    if (!derivator && typeof rawDefinition.derivator === 'function') {
+        derivator = rawDefinition.derivator.bind(skillObj);
+    } else if (!derivator && typeof rawDefinition.derive === 'function') {
+        derivator = rawDefinition.derive.bind(skillObj);
+    }
+
     if (!enumerator && staticOptions) {
         enumerator = async () => staticOptions.slice();
         enumeratorName = ''; // indicates inline list
@@ -194,6 +206,8 @@ function normalizeArgumentDefinition(argumentName, rawDefinition, skillObj) {
         resolver,
         presenterName: presenterName || '',
         presenter,
+        derivatorName: derivatorName || '',
+        derivator,
         hasStaticOptions: Array.isArray(staticOptions),
     };
 }
@@ -284,6 +298,91 @@ function normalizeSkillName(name) {
         return '';
     }
     return name.trim().toLowerCase();
+}
+
+function detectCircularDerivators(argumentDefinitions) {
+    // Build dependency graph for derivators
+    const graph = new Map();
+    const derivatorArgs = new Set();
+    
+    for (const def of argumentDefinitions) {
+        if (typeof def.derivator === 'function') {
+            derivatorArgs.add(def.name);
+            graph.set(def.name, new Set());
+        }
+    }
+    
+    if (derivatorArgs.size === 0) {
+        return; // No derivators, nothing to check
+    }
+    
+    // Analyze derivator function code to detect dependencies
+    // This is a heuristic approach - we look for argument names in the function body
+    for (const def of argumentDefinitions) {
+        if (typeof def.derivator !== 'function') {
+            continue;
+        }
+        
+        const functionBody = def.derivator.toString();
+        const dependencies = graph.get(def.name);
+        
+        // Check if other derivator arguments are referenced
+        for (const otherArg of derivatorArgs) {
+            if (otherArg === def.name) {
+                continue; // Skip self
+            }
+            
+            // Look for references like allArgs.otherArg or allArgs['otherArg']
+            const patterns = [
+                new RegExp(`allArgs\\.${otherArg}\\b`),
+                new RegExp(`allArgs\\[['"\`]${otherArg}['"\`]\\]`),
+                new RegExp(`\\ballArgs\\[${otherArg}\\]`),
+            ];
+            
+            if (patterns.some(pattern => pattern.test(functionBody))) {
+                dependencies.add(otherArg);
+            }
+        }
+    }
+    
+    // Detect cycles using DFS
+    const visiting = new Set();
+    const visited = new Set();
+    
+    function hasCycle(node, path = []) {
+        if (visiting.has(node)) {
+            // Found a cycle
+            const cycleStart = path.indexOf(node);
+            const cycle = [...path.slice(cycleStart), node];
+            throw new Error(
+                `Circular derivator dependency detected: ${cycle.join(' -> ')}. ` +
+                `Derivators must not depend on each other in a circular manner.`
+            );
+        }
+        
+        if (visited.has(node)) {
+            return false;
+        }
+        
+        visiting.add(node);
+        const dependencies = graph.get(node) || new Set();
+        
+        for (const dep of dependencies) {
+            if (graph.has(dep)) {
+                hasCycle(dep, [...path, node]);
+            }
+        }
+        
+        visiting.delete(node);
+        visited.add(node);
+        return false;
+    }
+    
+    for (const node of graph.keys()) {
+        if (!visited.has(node)) {
+            hasCycle(node);
+        }
+    }
 }
 
 function sanitizeSpecs(specs) {
@@ -428,8 +527,17 @@ export default class SkillRegistry {
             } else if (meta.enumerator) {
                 publicEntry.enumerator = 'inline';
             }
+            if (meta.derivatorName) {
+                publicEntry.derivator = meta.derivatorName;
+            } else if (meta.derivator) {
+                publicEntry.derivator = 'inline';
+            }
             publicArguments[argumentName] = publicEntry;
         }
+
+        // Detect circular derivator dependencies
+        const argumentDefinitionsList = Object.values(argumentMetadata);
+        detectCircularDerivators(argumentDefinitionsList);
 
         const requiredArguments = Array.isArray(normalizedSpecs.requiredArguments)
             ? normalizedSpecs.requiredArguments.slice()
