@@ -8,12 +8,11 @@ test('LightSOPLang executes independent declarations in parallel per level', asy
     const starts = [];
     const pending = [];
 
-    const executeCommand = (input, response) => {
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = ({ command, args }, response) => {
         if (command === 'asyncTask') {
-            starts.push(`async:${parts[0]}`);
+            starts.push(`async:${args[0]}`);
             return new Promise((resolve) => {
-                pending.push({ label: parts[0], resolve });
+                pending.push({ label: args[0], resolve });
                 if (pending.length === 2) {
                     const tasks = pending.splice(0, pending.length);
                     for (const task of tasks) {
@@ -24,8 +23,8 @@ test('LightSOPLang executes independent declarations in parallel per level', asy
             });
         }
         if (command === 'combine') {
-            starts.push(input);
-            return Promise.resolve(response.success(parts.join('&')));
+            starts.push([command, ...args].join(' '));
+            return Promise.resolve(response.success(args.join('&')));
         }
         throw new Error(`Unknown command ${command}`);
     };

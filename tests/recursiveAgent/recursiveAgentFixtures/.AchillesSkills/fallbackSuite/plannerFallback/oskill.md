@@ -19,3 +19,8 @@ Gather detailed transactional records and summarise discrepancies for the operat
 Allowed Tools:
 - invoiceLookup
 - ledgerSearch
+
+## LightSOPLang
+
+@prompt prompt
+@attempt nonexistent-placeholder $prompt "Attempt non-existent skill" investigation

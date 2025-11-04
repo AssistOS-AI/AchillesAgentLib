@@ -1,11 +1,13 @@
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
+import LightSOPLangInterpreter, { DefaultExecutionMonitor } from '../lightSOPLang/index.mjs';
 
 const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
     intents: ['intents', 'intentions', 'mappings'],
     fallback: ['fallback', 'fallback-plan', 'fallback-react', 'react-fallback'],
+    script: ['light-sop-lang', 'lightsoplang', 'script', 'plan-script'],
 };
 
 function normaliseBulletList(section = '') {
@@ -132,6 +134,7 @@ export class OrchestratorSkillsSubsystem {
             allowedSkills,
             intents,
             fallback,
+            script: pickSection(sections, SECTION_KEYS.script) || '',
         };
     }
 
@@ -152,6 +155,185 @@ export class OrchestratorSkillsSubsystem {
         });
 
         return filtered;
+    }
+
+    buildSkillCommandRegistry({
+        promptText,
+        allowedSkills,
+        recursiveAgent,
+        options,
+        planEntries,
+        executions,
+        orchestratorName,
+    }) {
+        const promptCommand = 'prompt';
+        const skillLookup = new Map();
+
+        const registerSkill = (key, record) => {
+            if (!key) {
+                return;
+            }
+            skillLookup.set(Sanitiser.sanitiseName(key), record);
+        };
+
+        allowedSkills.forEach((record) => {
+            registerSkill(record.name, record);
+            registerSkill(record.shortName, record);
+            if (record.descriptor?.title) {
+                registerSkill(record.descriptor.title, record);
+            }
+        });
+
+        return {
+            executeCommand: async ({ command, args }, response) => {
+                const normalized = Sanitiser.sanitiseName(command);
+                if (normalized === promptCommand) {
+                    return response.success(promptText);
+                }
+
+                const record = skillLookup.get(normalized);
+                if (!record) {
+                    const unavailableStep = {
+                        intent: '',
+                        skill: command,
+                        run: false,
+                        input: '',
+                        reason: `Skill "${command}" is not available for orchestrator`,
+                    };
+                    planEntries.push(unavailableStep);
+                    executions.push({
+                        ...unavailableStep,
+                        skipped: true,
+                        outcome: null,
+                        error: unavailableStep.reason,
+                    });
+                    return response.fail(unavailableStep.reason);
+                }
+
+                const [inputArg = promptText, reasonArg = '', intentArg = ''] = Array.isArray(args) ? args : [];
+                const intent = intentArg ? Sanitiser.sanitiseName(intentArg) : '';
+                const planEntry = {
+                    intent,
+                    skill: record.name,
+                    run: true,
+                    input: inputArg || promptText,
+                    reason: reasonArg,
+                };
+                planEntries.push(planEntry);
+
+                let outcome = null;
+                let error = null;
+                try {
+                    outcome = await recursiveAgent.executeWithReviewMode(planEntry.input, {
+                        ...options,
+                        skillName: record.name,
+                    }, options?.reviewMode || 'none');
+                } catch (executionError) {
+                    error = executionError?.message || String(executionError);
+                }
+
+                executions.push({
+                    ...planEntry,
+                    skipped: false,
+                    outcome,
+                    error,
+                });
+
+                if (error) {
+                    return response.fail(error);
+                }
+                return response.success(`skill ${record.name} executed`);
+            },
+            listCommands: () => {
+                const docs = [{ name: promptCommand, description: 'Return original prompt text' }];
+                allowedSkills.forEach((record) => {
+                    const label = Sanitiser.sanitiseName(record.shortName || record.name);
+                    docs.push({
+                        name: label,
+                        description: record.descriptor?.summary || record.descriptor?.title || record.name,
+                    });
+                });
+                return docs;
+            },
+        };
+    }
+
+    async executeScriptPlan({
+        skillRecord,
+        recursiveAgent,
+        promptText,
+        options,
+    }) {
+        const script = (skillRecord.metadata?.script || '').trim();
+        if (!script) {
+            throw new Error(`Orchestrator skill "${skillRecord.name}" is missing a LightSOPLang script section.`);
+        }
+
+        const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
+        const planEntries = [];
+        const executions = [];
+        const registry = this.buildSkillCommandRegistry({
+            promptText,
+            allowedSkills,
+            recursiveAgent,
+            options,
+            planEntries,
+            executions,
+            orchestratorName: skillRecord.name,
+        });
+
+        const interpreter = new LightSOPLangInterpreter(script, registry, {
+            executionMonitor: new DefaultExecutionMonitor({
+                commandLimit: Math.max(10, allowedSkills.length * 4)
+            }),
+        });
+
+        await interpreter.ready;
+
+        const fallback = skillRecord.metadata?.fallback || null;
+        let fallbackExecution = null;
+        const allSkippedOrErrored = executions.length
+            ? executions.every((entry) => entry.skipped || entry.error)
+            : true;
+
+        if (fallback && allSkippedOrErrored) {
+            fallbackExecution = await this.executeFallbackReact({
+                skillRecord,
+                fallback,
+                recursiveAgent,
+                promptText,
+                options,
+            });
+            if (fallbackExecution) {
+                executions.push(fallbackExecution);
+                planEntries.push({
+                    intent: fallbackExecution.intent || '',
+                    skill: fallbackExecution.skill,
+                    run: true,
+                    input: fallbackExecution.input,
+                    reason: fallbackExecution.reason || 'Fallback execution',
+                });
+            }
+        }
+
+        if (fallback && allSkippedOrErrored && !fallbackExecution) {
+            throw new Error(`Fallback execution for orchestrator skill "${skillRecord.name}" did not produce a result.`);
+        }
+
+        return {
+            skill: skillRecord.name,
+            metadata: skillRecord.metadata || null,
+            result: {
+                type: this.type,
+                prompt: promptText,
+                plan: planEntries,
+                notes: '',
+                executions,
+                fallbackExecution,
+                script,
+            },
+            sessionMemory: null,
+        };
     }
 
     buildSelectionPrompt({
@@ -378,6 +560,13 @@ export class OrchestratorSkillsSubsystem {
                 .join('\n');
         }
 
+        const scriptLines = ['@prompt prompt'];
+        (fallback.allowedTools || []).forEach((tool, index) => {
+            const commandName = Sanitiser.sanitiseName(tool);
+            scriptLines.push(`@fallback_${index} ${commandName} $prompt`);
+        });
+        descriptor.sections['light-sop-lang'] = scriptLines.join('\n');
+
         return {
             name: `${skillRecord.name}-fallback-mcp`,
             type: 'mcp',
@@ -446,6 +635,16 @@ export class OrchestratorSkillsSubsystem {
         promptText,
         options = {},
     }) {
+        const script = (skillRecord.metadata?.script || '').trim();
+        if (script) {
+            return this.executeScriptPlan({
+                skillRecord,
+                recursiveAgent,
+                promptText,
+                options,
+            });
+        }
+
         const planData = await this.createPlan({ skillRecord, recursiveAgent, promptText });
         const executions = await this.executePlanSteps({
             plan: planData.plan,

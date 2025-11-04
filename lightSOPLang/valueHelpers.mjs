@@ -6,7 +6,7 @@ import {
     normalizeStatus,
 } from './constants.mjs';
 
-function normalizeCancelReason(reason) {
+export function normalizeCancelReason(reason) {
     if (reason == null) {
         return 'no reason provided';
     }

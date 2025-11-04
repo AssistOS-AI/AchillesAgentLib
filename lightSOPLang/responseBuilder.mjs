@@ -4,6 +4,7 @@ import {
     createRootCanceledValue,
 } from './valueHelpers.mjs';
 import { cancelEuristic } from './cancelHeuristic.mjs';
+import { normalizeCancelReason } from './valueHelpers.mjs';
 
 export function createCommandResponder(variableName, options = {}) {
     const {
@@ -63,9 +64,7 @@ export function createCommandResponder(variableName, options = {}) {
 }
 
 function normalizeCancelReasonForAuto(reason) {
-    if (reason == null) {
-        return 'auto-cancelled';
-    }
-    const text = String(reason).trim();
-    return text || 'auto-cancelled';
+    const normalised = normalizeCancelReason(reason);
+    const stripped = normalised.replace(/^cancel(?:led|ed|ation)?[:\s-]*/i, '').trim();
+    return stripped || normalised || 'auto-cancelled';
 }

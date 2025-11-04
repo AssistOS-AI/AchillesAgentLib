@@ -8,9 +8,8 @@ test('LightSOPLang recovers from canceled state after dependency re-executes', a
     const modeDecisions = ['cancel', 'success'];
     const history = [];
 
-    const executeCommand = async (input, response) => {
-        history.push(input);
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
+        history.push([command, ...args].join(' '));
         if (command === 'mode') {
             const decision = modeDecisions.shift() ?? 'success';
             if (decision === 'cancel') {
@@ -19,7 +18,7 @@ test('LightSOPLang recovers from canceled state after dependency re-executes', a
             return response.success('ready');
         }
         if (command === 'task') {
-            return response.success(`run-${parts.join('-')}`);
+            return response.success(`run-${args.join('-')}`);
         }
         throw new Error(`Unknown command ${command}`);
     };
@@ -59,17 +58,16 @@ test('LightSOPLang recovers from canceled state after dependency re-executes', a
 test('LightSOPLang restores canceled variable after code update changes command', async () => {
     const history = [];
 
-    const executeCommand = async (input, response) => {
-        history.push(input);
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
+        history.push([command, ...args].join(' '));
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'cancel') {
             return response.cancel('forced cancel');
         }
         if (command === 'combine') {
-            return response.success(parts.join('|'));
+            return response.success(args.join('|'));
         }
         throw new Error(`Unknown command ${command}`);
     };

@@ -28,8 +28,8 @@ test('Exceptions thrown by executeCommand convert to failures and trigger monito
 test('Commands returning non-value results mark variable undefined and can be retried', async () => {
     let mode = 0;
     const registry = {
-        async executeCommand(input, response) {
-            if (input.startsWith('noop')) {
+        async executeCommand({ command, args }, response) {
+            if (command === 'noop') {
                 return response.success('noop');
             }
             if (mode === 0) {

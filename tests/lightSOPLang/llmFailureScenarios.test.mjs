@@ -27,14 +27,13 @@ test('LLMAgent stops regenerating after max rounds while exposing prompt history
     });
 
     let attempts = 0;
-    const registry = createRegistry(async (input, response) => {
+    const registry = createRegistry(async ({ command, args }, response) => {
         attempts += 1;
-        const [command, ...parts] = input.split(' ');
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'validate') {
-            if (parts[0] === 'stale') {
+            if ((args[0] ?? '') === 'stale') {
                 return response.fail('stale');
             }
             return response.success('ok');

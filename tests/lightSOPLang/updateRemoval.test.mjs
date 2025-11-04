@@ -6,14 +6,13 @@ import { createRegistry } from './helpers.mjs';
 
 test('Removing a variable from code clears dependents that reference it', async () => {
     const history = [];
-    const registry = createRegistry(async (input, response) => {
-        history.push(input);
-        const [command, ...parts] = input.split(' ');
+    const registry = createRegistry(async ({ command, args }, response) => {
+        history.push([command, ...args].join(' '));
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'combine') {
-            return response.success(parts.join(':'));
+            return response.success(args.join(':'));
         }
         throw new Error(`Unknown command ${command}`);
     }, [
@@ -42,7 +41,12 @@ test('Removing a variable from code clears dependents that reference it', async 
 });
 
 test('Removing dependents keeps remaining variables cached', async () => {
-    const registry = createRegistry(async (input, response) => response.success(input.split(' ')[1]), [
+    const registry = createRegistry(async ({ command, args }, response) => {
+        if (command === 'emit') {
+            return response.success(args[0] ?? '');
+        }
+        throw new Error(`Unknown command ${command}`);
+    }, [
         { name: 'emit', description: 'Emit literal' },
     ]);
 

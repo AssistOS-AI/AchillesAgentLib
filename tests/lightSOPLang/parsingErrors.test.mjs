@@ -22,9 +22,8 @@ test('Comment parser keeps hashes inside quotes untouched', async () => {
         '@x emit "value#hash" # comment',
         "@y emit '#tag' # more comments",
     ].join('\n'), {
-        executeCommand: async (input, response) => {
-            const [, literal] = input.split(' ');
-            return response.success(literal);
+        executeCommand: async ({ args }, response) => {
+            return response.success(args[0] ?? '');
         },
         listCommands: () => [{ name: 'emit', description: 'Return literal' }],
     });

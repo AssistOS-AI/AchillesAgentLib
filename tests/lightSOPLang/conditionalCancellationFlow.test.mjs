@@ -7,21 +7,20 @@ import { createRegistry } from './helpers.mjs';
 test('LightSOPLang skips downstream execution when guard cancels', async () => {
     const history = [];
 
-    const executeCommand = async (input, response) => {
-        history.push(input);
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
+        history.push([command, ...args].join(' '));
         if (command === 'guard') {
-            const flag = parts[0];
+            const flag = args[0];
             if (flag === 'off') {
                 return response.cancel('guard disabled');
             }
             return response.success(flag);
         }
         if (command === 'task') {
-            return response.success(parts.join('|'));
+            return response.success(args.join('|'));
         }
         if (command === 'finalize') {
-            return response.success(`FINAL:${parts.join(':')}`);
+            return response.success(`FINAL:${args.join(':')}`);
         }
         throw new Error(`Unknown command ${command}`);
     };

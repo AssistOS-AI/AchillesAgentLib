@@ -7,15 +7,14 @@ import { createRegistry } from './helpers.mjs';
 test('LightSOPLang basic execution and dependency resolution', async (t) => {
     const history = [];
 
-    const executeCommand = async (input, response) => {
-        history.push(input);
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
+        history.push([command, ...args].join(' '));
         if (command === 'emit') {
-            const value = parts[0] ?? '';
+            const value = args[0] ?? '';
             return response.success(value);
         }
         if (command === 'combine') {
-            const value = parts.join('+');
+            const value = args.join('+');
             return response.success(value);
         }
         throw new Error(`Unknown command ${command}`);

@@ -491,16 +491,20 @@ export class LightSOPLangInterpreter {
 
     async _executeVariable(variable) {
         const tokens = [variable.command];
+        const argumentValues = [];
         for (const argument of variable.arguments) {
             if (argument.type === 'literal') {
                 tokens.push(argument.value);
+                argumentValues.push(argument.value);
                 continue;
             }
             const dependency = this.variables.get(argument.name);
             if (!dependency) {
                 throw new Error(`Missing dependency ${argument.name}`);
             }
-            tokens.push(valueToCommandArgument(dependency.value));
+            const value = valueToCommandArgument(dependency.value);
+            tokens.push(value);
+            argumentValues.push(value);
         }
 
         const input = tokens.join(' ');
@@ -511,10 +515,18 @@ export class LightSOPLangInterpreter {
             heuristic: this.cancelHeuristic,
         });
 
+        const payload = {
+            command: variable.command,
+            args: argumentValues,
+            raw: input,
+            variable: variable.name,
+            variableState: variable,
+        };
+
         this.executionMonitor.beforeExecuteCommand(variable.command, input);
 
         try {
-            const executionResult = await this.commandsRegistry.executeCommand(input, responder.api);
+            const executionResult = await this.commandsRegistry.executeCommand(payload, responder.api);
             resultValue = executionResult ?? responder.getLastValue();
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);

@@ -9,21 +9,20 @@ test('LightSOPLang propagates cancellations triggered by dependency timestamp re
     const history = [];
     let transformCalls = 0;
 
-    const executeCommand = async (input, response) => {
-        history.push(input);
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
+        history.push([command, ...args].join(' '));
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'transform') {
             transformCalls += 1;
             if (transformCalls >= 2) {
                 return response.cancel('maintenance window');
             }
-            return response.success(parts.join('|'));
+            return response.success(args.join('|'));
         }
         if (command === 'wrap') {
-            return response.success(`[${parts.join(',')}]`);
+            return response.success(`[${args.join(',')}]`);
         }
         throw new Error(`Unknown command ${command}`);
     };

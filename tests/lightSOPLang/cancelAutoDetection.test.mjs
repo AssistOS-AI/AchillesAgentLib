@@ -9,12 +9,12 @@ import { createRegistry } from './helpers.mjs';
 
 test('Auto cancel is disabled by default and respects enableAutoCancel', async () => {
     const history = [];
-    const registry = createRegistry(async (input, response) => {
-        history.push(input);
-        if (input.startsWith('produce')) {
+    const registry = createRegistry(async ({ command, args }, response) => {
+        history.push([command, ...args].join(' '));
+        if (command === 'produce') {
             return response.success('Canceled: maintenance window');
         }
-        throw new Error(`Unexpected command ${input}`);
+        throw new Error(`Unexpected command ${command}`);
     }, [{ name: 'produce', description: 'Produce a string' }]);
 
     const code = '@result produce value';
@@ -29,14 +29,14 @@ test('Auto cancel is disabled by default and respects enableAutoCancel', async (
 
     assert.equal(
         interpreter.getVarValue('result'),
-        'canceled:command produce canceled (Canceled: maintenance window)',
+        'canceled:command produce canceled (maintenance window)',
     );
 });
 
 test('Auto cancel heuristic converts structured responses to cancel', async () => {
     let mode = 0;
-    const registry = createRegistry(async (input, response) => {
-        if (input.startsWith('task')) {
+    const registry = createRegistry(async ({ command, args }, response) => {
+        if (command === 'task') {
             if (mode === 0) {
                 mode = 1;
                 return response.success({ status: 'cancel', reason: 'quota exceeded' });

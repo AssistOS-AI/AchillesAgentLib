@@ -13,13 +13,12 @@ test('ExecutionMonitor stops after command budget exhausted', async () => {
         failureLimit: 10,
     });
 
-    const executeCommand = async (input, response) => {
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'combine') {
-            return response.success(parts.join('+'));
+            return response.success(args.join('+'));
         }
         throw new Error(`Unknown command ${command}`);
     };
@@ -56,7 +55,12 @@ test('ExecutionMonitor prevents oversized prompt regeneration', async () => {
         failureLimit: 10,
     });
 
-    const registry = createRegistry(async (input, response) => response.success('ok'), [
+    const registry = createRegistry(async ({ command }, response) => {
+        if (command === 'emit') {
+            return response.success('ok');
+        }
+        return response.success('');
+    }, [
         { name: 'emit', description: 'Emit literal' },
     ]);
 
@@ -89,10 +93,9 @@ test('ExecutionMonitor aborts after repeated failures', async () => {
         failureLimit: 2,
     });
 
-    const executeCommand = async (input, response) => {
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
         if (command === 'failer') {
-            return response.fail(`fail-${parts.join('-')}`);
+            return response.fail(`fail-${args.join('-')}`);
         }
         throw new Error(`Unexpected command ${command}`);
     };
@@ -125,13 +128,12 @@ test('ExecutionMonitor statistics capture execution data', async () => {
         failureLimit: 5,
     });
 
-    const executeCommand = async (input, response) => {
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'combine') {
-            return response.success(parts.join('|'));
+            return response.success(args.join('|'));
         }
         throw new Error(`Unknown command ${command}`);
     };

@@ -26,17 +26,16 @@ test('LLMAgent generated scripts iterate until success', async () => {
 
     const history = [];
 
-    const executeCommand = async (input, response) => {
-        history.push(input);
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
+        history.push([command, ...args].join(' '));
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'failer') {
             return response.fail('simulated failure');
         }
         if (command === 'combine') {
-            return response.success(parts.join('+'));
+            return response.success(args.join('+'));
         }
         throw new Error(`Unknown command ${command}`);
     };
@@ -105,13 +104,12 @@ test('LLMAgent uses command catalog to pick supported operations', async () => {
     });
     const monitor = new DefaultExecutionMonitor();
 
-    const executeCommand = async (input, response) => {
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'combine') {
-            return response.success(parts.join('*'));
+            return response.success(args.join('*'));
         }
         return response.fail(`unknown command ${command}`);
     };
@@ -169,10 +167,9 @@ test('LLMAgent can refine scripts across multiple failure rounds', async () => {
     });
     const monitor = new DefaultExecutionMonitor();
 
-    const executeCommand = async (input, response) => {
-        const [command, ...parts] = input.split(' ');
+    const executeCommand = async ({ command, args }, response) => {
         if (command === 'emit') {
-            return response.success(parts[0] ?? '');
+            return response.success(args[0] ?? '');
         }
         if (command === 'failer') {
             return response.fail('planned failure');
@@ -181,7 +178,7 @@ test('LLMAgent can refine scripts across multiple failure rounds', async () => {
             return response.cancel('planned cancel');
         }
         if (command === 'successor') {
-            return response.success(`${parts.join('#')}#done`);
+            return response.success(`${args.join('#')}#done`);
         }
         throw new Error(`Unknown command ${command}`);
     };

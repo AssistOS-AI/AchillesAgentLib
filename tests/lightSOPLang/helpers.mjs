@@ -17,7 +17,9 @@ export function normalizeCommandDocs(entries) {
 export function createRegistry(executeCommand, docs = []) {
     const docSource = typeof docs === 'function' ? docs : () => normalizeCommandDocs(docs);
     return {
-        executeCommand,
+        async executeCommand(payload, response) {
+            return executeCommand(payload, response);
+        },
         listCommands: () => normalizeCommandDocs(docSource()),
     };
 }
