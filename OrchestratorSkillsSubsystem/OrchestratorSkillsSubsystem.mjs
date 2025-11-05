@@ -282,7 +282,7 @@ export class OrchestratorSkillsSubsystem {
             orchestratorName: skillRecord.name,
         });
 
-        const interpreter = new LightSOPLangInterpreter(script, registry, {
+        const interpreter = new LightSOPLangInterpreter(script, registry, promptText, {
             executionMonitor: new DefaultExecutionMonitor({
                 commandLimit: Math.max(10, allowedSkills.length * 4)
             }),

@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { SkilledAgent } from '../../SkilledAgents/SkilledAgent.mjs';
 import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
+import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
+import { MCPSkillsSubsystem } from '../../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
 import { createMiniMCPServer } from './helpers/miniMCP.mjs';
 
 class StubLLMAgent {
@@ -99,6 +101,73 @@ function createAgent({
         startDir,
     });
 }
+
+test('Orchestrator LightSOPLang scripts receive the prompt as $input', async () => {
+    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: new StubLLMAgent() });
+    const capturedInputs = [];
+
+    const allowedSkillRecord = {
+        name: 'echo-skill',
+        shortName: 'echo',
+        descriptor: { summary: 'Echo downstream input' },
+    };
+
+    const recursiveAgent = {
+        skillCatalog: new Map([[allowedSkillRecord.name, allowedSkillRecord]]),
+        executeWithReviewMode: async (input, options) => {
+            capturedInputs.push(input);
+            return { skill: options.skillName, input };
+        },
+    };
+
+    const skillRecord = {
+        name: 'input-aware-orchestrator',
+        metadata: {
+            script: [
+                '@origin prompt',
+                '@run echo $input "Use supplied input" summary',
+            ].join('\n'),
+            allowedSkills: ['echo-skill'],
+            fallback: null,
+        },
+    };
+
+    const result = await subsystem.executeScriptPlan({
+        skillRecord,
+        recursiveAgent,
+        promptText: 'Primary orchestration prompt',
+        options: {},
+    });
+
+    assert.equal(capturedInputs.length, 1);
+    assert.equal(capturedInputs[0], 'Primary orchestration prompt');
+    assert.equal(result.result.plan[0].input, 'Primary orchestration prompt');
+});
+
+test('MCP LightSOPLang scripts receive the prompt as $input', async () => {
+    const subsystem = new MCPSkillsSubsystem();
+
+    const skillRecord = {
+        name: 'input-aware-mcp',
+        metadata: {
+            script: '@step diagnosticTool $input "Use supplied input"',
+            allowedTools: ['diagnostictool'],
+        },
+    };
+
+    const tools = [
+        { name: 'diagnosticTool', description: 'Runs diagnostics based on input' },
+    ];
+
+    const response = await subsystem.executeScriptPlan({
+        skillRecord,
+        promptText: 'Investigate system state',
+        tools,
+    });
+
+    assert.equal(response.result.plan.length, 1);
+    assert.equal(response.result.plan[0].arguments, 'Investigate system state');
+});
 
 test('RecursiveSkilledAgent orchestrates via oskill when no skill is supplied', async () => {
     const agent = createAgent();

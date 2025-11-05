@@ -9,6 +9,7 @@ import {
 import {
     createUndefinedValue,
     createFailValue,
+    createSuccessValue,
     valueToCommandArgument,
     formatPublicValue,
     createPropagatedCanceledValue,
@@ -61,9 +62,53 @@ function extractOptions(onFailOrOptions, maybeOptions) {
     };
 }
 
+function normalizeConstructorArgs(args) {
+    const result = {
+        inputValue: undefined,
+        onFailOrOptions: undefined,
+        maybeOptions: undefined,
+    };
+
+    if (!args.length) {
+        return result;
+    }
+
+    const [first, second, third] = args;
+    const isOptionsCandidate = (value) => {
+        if (typeof value === 'function') {
+            return true;
+        }
+        if (typeof value === 'object' && value) {
+            const knownKeys = [
+                'onFail',
+                'executionMonitor',
+                'llmAgent',
+                'maxLlmaRounds',
+                'cancelHeuristic',
+                'autoCancel',
+                'options',
+            ];
+            return knownKeys.some((key) => Object.prototype.hasOwnProperty.call(value, key));
+        }
+        return false;
+    };
+
+    if (!isOptionsCandidate(first)) {
+        result.inputValue = first;
+        result.onFailOrOptions = second;
+        result.maybeOptions = third;
+    } else {
+        result.onFailOrOptions = first;
+        result.maybeOptions = second;
+    }
+
+    return result;
+}
+
 export class LightSOPLangInterpreter {
-    constructor(code, commandsRegistry, onFailOrOptions = {}, maybeOptions = undefined) {
-        const { onFail, options } = extractOptions(onFailOrOptions, maybeOptions);
+    constructor(code, commandsRegistry, ...rest) {
+        const { inputValue, onFailOrOptions, maybeOptions } = normalizeConstructorArgs(rest);
+        const { onFail, options } = extractOptions(onFailOrOptions ?? {}, maybeOptions);
         this.commandsRegistry = ensureCommandsRegistry(commandsRegistry);
         this.onFail = ensureOnFail(onFail ?? options.onFail);
         this.llmAgent = options.llmAgent ?? null;
@@ -79,6 +124,9 @@ export class LightSOPLangInterpreter {
             ? this.commandsRegistry.autoCancel
             : false;
         this.autoCancelEnabled = Boolean(options.autoCancel ?? registryAutoCancel);
+
+        const explicitInput = inputValue !== undefined ? inputValue : (options.input ?? undefined);
+        this.inputValue = explicitInput;
 
         this.variables = new Map();
         this._runQueue = Promise.resolve();
@@ -176,10 +224,15 @@ export class LightSOPLangInterpreter {
         }
 
         for (const name of Array.from(this.variables.keys())) {
+            if (name === 'input' && this.inputValue !== undefined && !seenNames.has('input')) {
+                continue;
+            }
             if (!seenNames.has(name)) {
                 this.variables.delete(name);
             }
         }
+
+        this._ensureInputVariable(seenNames);
 
         for (const variable of this.variables.values()) {
             variable.dependents = new Set();
@@ -197,6 +250,27 @@ export class LightSOPLangInterpreter {
 
         for (const variable of changedVariables) {
             variable.markChanged();
+        }
+
+        this._ensureInputVariable();
+    }
+
+    _ensureInputVariable(seenNames = new Set()) {
+        if (this.inputValue === undefined) {
+            return;
+        }
+
+        if (seenNames.has('input')) {
+            return;
+        }
+
+        let variable = this.variables.get('input');
+        if (!variable) {
+            variable = new VariableState('input');
+            this.variables.set('input', variable);
+        }
+        if (variable.value.status !== STATUS_SUCCESS || variable.value.data !== this.inputValue) {
+            variable.value = createSuccessValue(this.inputValue, 'input');
         }
     }
 
@@ -356,6 +430,10 @@ export class LightSOPLangInterpreter {
         if (context.instructions) {
             lines.push('Instructions:');
             lines.push(context.instructions.trim());
+        }
+        if (this.inputValue !== undefined) {
+            lines.push('Input context:');
+            lines.push(typeof this.inputValue === 'string' ? this.inputValue : JSON.stringify(this.inputValue));
         }
         if (context.commands && context.commands.length) {
             lines.push('Available commands and descriptions:');

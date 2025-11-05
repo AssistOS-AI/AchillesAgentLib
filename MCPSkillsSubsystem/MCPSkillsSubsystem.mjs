@@ -173,7 +173,7 @@ export class MCPSkillsSubsystem {
             planSteps,
         });
 
-        const interpreter = new LightSOPLangInterpreter(script, registry, {
+        const interpreter = new LightSOPLangInterpreter(script, registry, promptText, {
             executionMonitor: new DefaultExecutionMonitor({
                 commandLimit: Math.max(10, filteredTools.length * 4),
             }),
