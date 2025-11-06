@@ -1,7 +1,7 @@
-Interactive skill test run - 2025-11-03T14:03:17.652Z
+Interactive skill test run - 2025-11-06T14:50:24.872Z
 
 === infrastructure/messageAdapters.test.mjs ===
-[stdout] ✔ LLMAgent.complete uses correct message adapter for each configured model (mocked) (1.504764ms)
+[stdout] ✔ LLMAgent.complete uses correct message adapter for each configured model (mocked) (1.505155ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -9,11 +9,11 @@ Interactive skill test run - 2025-11-03T14:03:17.652Z
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 45.665872
+[stdout] ℹ duration_ms 47.001665
 PASS infrastructure/messageAdapters.test.mjs
 
 === infrastructure/skilledAgentRanking.test.mjs ===
-[stdout] ✔ rankSkill highlights the help skill for a help query (3.475922ms)
+[stdout] ✔ rankSkill highlights the help skill for a help query (3.678521ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -21,11 +21,11 @@ PASS infrastructure/messageAdapters.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 103.284813
+[stdout] ℹ duration_ms 100.16722
 PASS infrastructure/skilledAgentRanking.test.mjs
 
 === infrastructure/skilledAgentSelection.test.mjs ===
-[stdout] ✔ chooseSkillWithLLM consults the LLM even when a single skill is ranked (3.890932ms)
+[stdout] ✔ chooseSkillWithLLM consults the LLM even when a single skill is ranked (3.969476ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -33,11 +33,11 @@ PASS infrastructure/skilledAgentRanking.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 103.685517
+[stdout] ℹ duration_ms 98.465466
 PASS infrastructure/skilledAgentSelection.test.mjs
 
 === iskills/cancel-during-parameter-collection/cancelDuringParameterCollection.test.mjs ===
-[stdout] ✔ interactive skill stops when user cancels during parameter collection (7.705ms)
+[stdout] ✔ interactive skill stops when user cancels during parameter collection (7.681982ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -45,11 +45,11 @@ PASS infrastructure/skilledAgentSelection.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 60.257035
+[stdout] ℹ duration_ms 60.843751
 PASS iskills/cancel-during-parameter-collection/cancelDuringParameterCollection.test.mjs
 
 === iskills/cancellation-during-confirmation/cancellationDuringConfirmation.test.mjs ===
-[stdout] ✔ interactive skill stops execution when user cancels at confirmation time (7.981136ms)
+[stdout] ✔ interactive skill stops execution when user cancels at confirmation time (8.142805ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -57,11 +57,11 @@ PASS iskills/cancel-during-parameter-collection/cancelDuringParameterCollection.
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 59.94192
+[stdout] ℹ duration_ms 64.473572
 PASS iskills/cancellation-during-confirmation/cancellationDuringConfirmation.test.mjs
 
 === iskills/case-insensitivity/caseInsensitivity.test.mjs ===
-[stdout] ✔ interactive skill treats enumerated values as case-insensitive (9.531123ms)
+[stdout] ✔ interactive skill treats enumerated values as case-insensitive (9.223251ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -69,14 +69,14 @@ PASS iskills/cancellation-during-confirmation/cancellationDuringConfirmation.tes
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 104.561963
+[stdout] ℹ duration_ms 105.03524
 PASS iskills/case-insensitivity/caseInsensitivity.test.mjs
 
 === iskills/confirmation-flags/confirmationFlags.test.mjs ===
-[stdout] ✔ interactive skill skips confirmation when needConfirmation is false (9.999215ms)
-[stdout] ✔ interactive skill requires confirmation when needConfirmation is true (3.556552ms)
-[stdout] ✔ interactive skill defaults to requiring confirmation when flag is undefined (2.181376ms)
-[stdout] ✔ interactive skill with needConfirmation false executes with optional values missing (1.300707ms)
+[stdout] ✔ interactive skill skips confirmation when needConfirmation is false (6.513584ms)
+[stdout] ✔ interactive skill requires confirmation when needConfirmation is true (3.821284ms)
+[stdout] ✔ interactive skill defaults to requiring confirmation when flag is undefined (1.841305ms)
+[stdout] ✔ interactive skill with needConfirmation false executes with optional values missing (1.388273ms)
 [stdout] ℹ tests 4
 [stdout] ℹ suites 0
 [stdout] ℹ pass 4
@@ -84,11 +84,11 @@ PASS iskills/case-insensitivity/caseInsensitivity.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 80.724362
+[stdout] ℹ duration_ms 67.39387
 PASS iskills/confirmation-flags/confirmationFlags.test.mjs
 
 === iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs ===
-[stdout] ✔ interactive skill maps between human-friendly names and technical IDs (10.276607ms)
+[stdout] ✔ interactive skill maps between human-friendly names and technical IDs (10.879697ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -96,11 +96,11 @@ PASS iskills/confirmation-flags/confirmationFlags.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 108.405857
+[stdout] ℹ duration_ms 109.951729
 PASS iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs
 
 === iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs ===
-[stdout] ✔ interactive skill accepts enumerator values beyond sampled list (9.302758ms)
+[stdout] ✔ interactive skill accepts enumerator values beyond sampled list (9.313123ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -108,11 +108,11 @@ PASS iskills/human-to-technical-mapping/humanToTechnicalMapping.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 105.78002
+[stdout] ℹ duration_ms 107.853783
 PASS iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs
 
 === iskills/missing-parameters/missingParameters.test.mjs ===
-[stdout] ✔ interactive skill asks for missing parameters in business language and confirms execution summary (9.89588ms)
+[stdout] ✔ interactive skill asks for missing parameters in business language and confirms execution summary (9.983778ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -120,11 +120,11 @@ PASS iskills/large-enumerator-sampling/largeEnumeratorSampling.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 105.028946
+[stdout] ℹ duration_ms 105.1541
 PASS iskills/missing-parameters/missingParameters.test.mjs
 
 === iskills/misspelling-recovery/misspellingRecovery.test.mjs ===
-[stdout] ✔ interactive skill recovers from small misspellings in enumerated values (9.764548ms)
+[stdout] ✔ interactive skill recovers from small misspellings in enumerated values (9.736486ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -132,12 +132,12 @@ PASS iskills/missing-parameters/missingParameters.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 107.498073
+[stdout] ℹ duration_ms 109.880988
 PASS iskills/misspelling-recovery/misspellingRecovery.test.mjs
 
 === iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs ===
-[stdout] ✔ interactive skill rejects placeholder values and continues asking (8.666258ms)
-[stdout] ✔ placeholder detection helper flags template-style values (0.267713ms)
+[stdout] ✔ interactive skill rejects placeholder values and continues asking (8.5946ms)
+[stdout] ✔ placeholder detection helper flags template-style values (0.257832ms)
 [stdout] ℹ tests 2
 [stdout] ℹ suites 0
 [stdout] ℹ pass 2
@@ -145,11 +145,11 @@ PASS iskills/misspelling-recovery/misspellingRecovery.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 64.196374
+[stdout] ℹ duration_ms 64.788532
 PASS iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs
 
 === iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmation.test.mjs ===
-[stdout] ✔ interactive skill allows revising a prior parameter while adding a new one (11.224114ms)
+[stdout] ✔ interactive skill allows revising a prior parameter while adding a new one (11.399029ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -157,11 +157,11 @@ PASS iskills/placeholder-value-rejection/placeholderValueRejection.test.mjs
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 108.349483
+[stdout] ℹ duration_ms 109.226084
 PASS iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmation.test.mjs
 
 === iskills/update-parameter-while-providing-new-values/updateParameterWhileProvidingNewValues.test.mjs ===
-[stdout] ✔ interactive skill applies updates while adding new values in the same reply (10.385889ms)
+[stdout] ✔ interactive skill applies updates while adding new values in the same reply (10.716056ms)
 [stdout] ℹ tests 1
 [stdout] ℹ suites 0
 [stdout] ℹ pass 1
@@ -169,6 +169,6 @@ PASS iskills/revise-parameter-during-confirmation/reviseParameterDuringConfirmat
 [stdout] ℹ cancelled 0
 [stdout] ℹ skipped 0
 [stdout] ℹ todo 0
-[stdout] ℹ duration_ms 108.394487
+[stdout] ℹ duration_ms 108.970735
 PASS iskills/update-parameter-while-providing-new-values/updateParameterWhileProvidingNewValues.test.mjs
 

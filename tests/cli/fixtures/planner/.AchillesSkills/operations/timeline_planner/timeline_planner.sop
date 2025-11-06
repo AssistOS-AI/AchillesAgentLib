@@ -1,0 +1,3 @@
+@prompt origin
+@clarify capture-requirements-interactive $origin "Clarify requested timeline details" clarification
+@outline draft-outline-code $origin "Produce milestone oriented outline" timeline

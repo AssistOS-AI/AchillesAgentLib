@@ -6,7 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const rootPath = fileURLToPath(new URL('.', import.meta.url));
 
-const DEFAULT_DISABLED = new Set(['runAllTests.js', 'useSkill/helpers.mjs']);
+const DEFAULT_DISABLED = new Set([
+    'runAll.js',
+    'oldTests.js',
+    'useSkill/helpers.mjs',
+    'useSkill/runAllTests.mjs',
+]);
 const envDisabled = (process.env.DISABLED_TESTS || '')
     .split(',')
     .map(entry => entry.trim())

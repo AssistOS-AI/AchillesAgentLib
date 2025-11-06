@@ -5,7 +5,27 @@ import { LLMAgent } from '../../LLMAgents/index.mjs';
 import { action as mathEvalAction } from './.AchillesSkills/test1/mathEval/mathEval.js';
 
 function createAgent() {
-    return new LLMAgent();
+    const codePayload = JSON.stringify({
+        code: [
+            'const numbers = [10, 20, 30];',
+            'const total = numbers.reduce((sum, value) => sum + value, 0);',
+            'return `Sum of 10, 20, and 30 is ${total}.`;',
+        ].join('\n'),
+        summary: 'Computed the requested sum.',
+    });
+
+    return new LLMAgent({
+        name: 'TestMathEvalLLM',
+        invokerStrategy: async ({ prompt, context }) => {
+            if (typeof prompt === 'string' && prompt.includes('Return OK')) {
+                return 'OK';
+            }
+            if (context?.intent === 'code-synthesis') {
+                return codePayload;
+            }
+            return 'Fallback response';
+        },
+    });
 }
 
 test('mathEval action executes generated code', async (t) => {

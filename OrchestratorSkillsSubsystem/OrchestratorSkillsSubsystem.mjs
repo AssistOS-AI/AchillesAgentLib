@@ -286,6 +286,7 @@ export class OrchestratorSkillsSubsystem {
             executionMonitor: new DefaultExecutionMonitor({
                 commandLimit: Math.max(10, allowedSkills.length * 4)
             }),
+            llmAgent: this.llmAgent,
         });
 
         await interpreter.ready;

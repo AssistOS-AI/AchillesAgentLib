@@ -600,8 +600,26 @@ export class RecursiveSkilledAgent {
         const subsystem = this.ensureSubsystem(skillRecord.type);
 
         const args = { ...(forward.args || {}) };
-        if (!forward.args && skillRecord.metadata?.defaultArgument && !Object.prototype.hasOwnProperty.call(args, skillRecord.metadata.defaultArgument)) {
-            args[skillRecord.metadata.defaultArgument] = taskDescription;
+        const hasOwn = (name) => Object.prototype.hasOwnProperty.call(args, name);
+        const injectArg = (name) => {
+            if (typeof name === 'string' && name && !hasOwn(name)) {
+                args[name] = taskDescription;
+            }
+        };
+
+        if (skillRecord.metadata?.defaultArgument) {
+            injectArg(skillRecord.metadata.defaultArgument);
+        }
+
+        if (skillRecord.type === 'interactive') {
+            const requiredList = Array.isArray(skillRecord.requiredArguments)
+                ? skillRecord.requiredArguments
+                : [];
+            requiredList.forEach(injectArg);
+        }
+
+        if (!Object.keys(args).length) {
+            args.input = taskDescription;
         }
 
         const execution = await subsystem.executeSkillPrompt({
