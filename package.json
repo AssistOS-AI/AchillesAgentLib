@@ -24,7 +24,8 @@
         "CloudeSkillsSubsystem",
         "MCPSkillsSubsystem",
         "OrchestratorSkillsSubsystem",
-        "InteractiveSkillsSubsystem"
+        "InteractiveSkillsSubsystem",
+        "lightSOPLang"
     ],
     "scripts": {
         "test": "node tests/runAll.js"
