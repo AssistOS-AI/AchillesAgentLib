@@ -17,7 +17,14 @@
         "index.mjs",
         "LLMAgents",
         "SkilledAgents",
-        "utils"
+        "utils",
+        "MemoryContainer",
+        "RecursiveSkilledAgents",
+        "CodeSkillsSubsystem",
+        "CloudeSkillsSubsystem",
+        "MCPSkillsSubsystem",
+        "OrchestratorSkillsSubsystem",
+        "InteractiveSkillsSubsystem"
     ],
     "scripts": {
         "test": "node tests/runAll.js"
