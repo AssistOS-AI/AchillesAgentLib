@@ -89,7 +89,9 @@ function buildMissingMessage(context, validation) {
         }
     }
 
-    if (validation.missingOptional.length) {
+    const promptOnlyRequired = Boolean(context?.skill?.promptOnlyRequiredArguments);
+
+    if (validation.missingOptional.length && !promptOnlyRequired) {
         lines.push('Optional details you may add:');
         for (const name of validation.missingOptional) {
             const description = context.describeArgument(name);
