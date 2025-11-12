@@ -6,6 +6,9 @@ const DEFAULT_INDEX_OPTIONS = {
 
 const SEARCHABLE_FIELDS = ['name', 'what', 'why', 'description', 'arguments', 'requiredArguments', 'roles'];
 
+// Environment variable to disable flexsearch: ACHILLES_DISABLE_FLEXSEARCH=true
+const FLEXSEARCH_ENABLED = process.env.ACHILLES_DISABLE_FLEXSEARCH !== 'true';
+
 const VALIDATOR_PREFIX = '@';
 const ENUMERATOR_PREFIX = '%';
 const RESOLVER_PREFIX = '&';
@@ -457,9 +460,13 @@ function sanitizeSpecs(specs) {
 export default class SkillRegistry {
     constructor(options = {}) {
         const { flexSearchAdapter, indexOptions } = options;
-        this.index = flexSearchAdapter || createFlexSearchAdapter(indexOptions || DEFAULT_INDEX_OPTIONS);
+        this.flexSearchEnabled = FLEXSEARCH_ENABLED;
+        this.index = this.flexSearchEnabled
+            ? (flexSearchAdapter || createFlexSearchAdapter(indexOptions || DEFAULT_INDEX_OPTIONS))
+            : null;
         this.skills = new Map();
         this.actions = new Map();
+        this.searchTexts = new Map(); // For fallback search when flexsearch is disabled
     }
 
     registerSkill(skillObj) {
@@ -558,7 +565,8 @@ export default class SkillRegistry {
         if (this.skills.has(canonicalName)) {
             this.skills.delete(canonicalName);
             this.actions.delete(canonicalName);
-            if (typeof this.index.remove === 'function') {
+            this.searchTexts.delete(canonicalName);
+            if (this.flexSearchEnabled && typeof this.index?.remove === 'function') {
                 try {
                     this.index.remove(canonicalName);
                 } catch (error) {
@@ -572,7 +580,13 @@ export default class SkillRegistry {
 
         const searchText = buildSearchText(record);
         if (searchText) {
-            this.index.add(canonicalName, searchText);
+            // Store for fallback search
+            this.searchTexts.set(canonicalName, searchText);
+
+            // Add to flexsearch index if enabled
+            if (this.flexSearchEnabled && this.index) {
+                this.index.add(canonicalName, searchText);
+            }
         }
 
         return record.name;
@@ -616,23 +630,34 @@ export default class SkillRegistry {
         const limit = Number.isInteger(options.limit) && options.limit > 0
             ? options.limit
             : (options.limit === 0 ? 0 : 5);
-        const includeScores = false;
-        const searchOptions = {
-            bool: options?.bool === 'and' ? 'and' : 'or',
-            suggest: options?.suggest !== false,
-            ...(limit ? { limit } : {}),
-        };
 
-        let rawResults;
-        try {
-            rawResults = this.index.search(query, searchOptions);
-        } catch (error) {
-            return {};
-        }
+        let matches = [];
 
-        const matches = normalizeSearchResults(rawResults, { includeScores });
-        if (!matches.length) {
-            return {};
+        // Use flexsearch or fallback based on configuration
+        if (this.flexSearchEnabled && this.index) {
+            const includeScores = false;
+            const searchOptions = {
+                bool: options?.bool === 'and' ? 'and' : 'or',
+                suggest: options?.suggest !== false,
+                ...(limit ? { limit } : {}),
+            };
+
+            let rawResults;
+            try {
+                rawResults = this.index.search(query, searchOptions);
+            } catch (error) {
+                return {};
+            }
+
+            matches = normalizeSearchResults(rawResults, { includeScores });
+
+            if (!matches.length) {
+                return {};
+            }
+        } else {
+            // When FlexSearch is disabled, return ALL skills for the user's roles
+            // Let the LLM do the selection based on the full skill list
+            matches = Array.from(this.skills.keys());
         }
 
         const seen = new Set();
@@ -654,7 +679,9 @@ export default class SkillRegistry {
                     orderedRecords.push(record);
                 }
             }
-            if (limit && orderedRecords.length >= limit) {
+            // Only apply limit when FlexSearch is enabled
+            // When disabled, we send all matching skills to the LLM
+            if (this.flexSearchEnabled && limit && orderedRecords.length >= limit) {
                 break;
             }
         }
@@ -711,7 +738,8 @@ export default class SkillRegistry {
     clear() {
         this.skills.clear();
         this.actions.clear();
-        if (typeof this.index.clear === 'function') {
+        this.searchTexts.clear();
+        if (this.flexSearchEnabled && typeof this.index?.clear === 'function') {
             this.index.clear();
         }
     }
