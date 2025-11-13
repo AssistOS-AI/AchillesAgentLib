@@ -14,7 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import { runUseSkillScenario, containsMissingDetailsPrompt } from './helpers.mjs';
 
 const skillConfig = {
     specs: {
@@ -53,6 +53,10 @@ test('useSkill stops when the user cancels while clarifying parameters', async (
         scenario.logs.join('\n'),
         ...scenario.prompts,
     ].join('\n');
-    assert.match(combinedText, /To continue I need the following details:/, 'Agent should still surface missing details before cancellation');
-    assert.match(combinedText, /Maintenance window approval/i, 'Business language describing optional parameters should be present');
+    assert.ok(containsMissingDetailsPrompt(combinedText), 'Agent should still surface missing details before cancellation');
+    assert.match(
+        combinedText,
+        /\|\s*Change Window\s*\|\s*Optional/i,
+        'Optional parameters should be listed for the user',
+    );
 });

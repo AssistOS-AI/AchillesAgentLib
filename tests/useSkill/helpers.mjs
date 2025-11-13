@@ -403,3 +403,30 @@ export async function runUseSkillScenario({
         autoMatchers: lastAutoMatchers,
     };
 }
+
+const confirmationPromptPattern = /About to (?:apply|perform)/i;
+const missingDetailsPromptPattern = /(To continue I need|Please provide) the following details:/i;
+
+const containsConfirmationPrompt = (text) => confirmationPromptPattern.test(String(text || ''));
+const containsMissingDetailsPrompt = (text) => missingDetailsPromptPattern.test(String(text || ''));
+const summaryContainsParameterValue = (text, label, value) => {
+    if (!text) {
+        return false;
+    }
+    const safeLabel = escapeRegExp(String(label || ''));
+    const safeValue = escapeRegExp(String(value || ''));
+    const strictPattern = new RegExp(`${safeLabel}\\s*(?:[:|])\\s*${safeValue}`, 'i');
+    if (strictPattern.test(text)) {
+        return true;
+    }
+    const relaxedPattern = new RegExp(`${safeLabel}[^\n]{0,80}${safeValue}`, 'i');
+    return relaxedPattern.test(text);
+};
+
+export {
+    containsConfirmationPrompt,
+    containsMissingDetailsPrompt,
+    confirmationPromptPattern,
+    missingDetailsPromptPattern,
+    summaryContainsParameterValue,
+};

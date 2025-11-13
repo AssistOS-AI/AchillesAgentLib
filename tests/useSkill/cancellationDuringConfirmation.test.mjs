@@ -13,7 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import { runUseSkillScenario, containsConfirmationPrompt } from './helpers.mjs';
 
 const skillConfig = {
     specs: {
@@ -48,7 +48,7 @@ test('useSkill stops execution when the user cancels at confirmation time', asyn
     assert.match(scenario.error.message, /cancelled/i, 'Error message should indicate cancellation');
     assert.equal(scenario.actionCalls.length, 0, 'Action should not execute after cancellation');
 
-    const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompt = scenario.prompts.find(containsConfirmationPrompt);
     assert.ok(confirmationPrompt, 'Confirmation prompt should have been presented');
     assert.ok(confirmationPrompt.toLowerCase().includes('purchase approval'), 'Confirmation should frame the business operation');
 });

@@ -14,7 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import { runUseSkillScenario, containsConfirmationPrompt } from './helpers.mjs';
 
 const warehouses = [
     { label: 'Berlin Central Warehouse', value: 'WH-DE-01' },
@@ -60,7 +60,7 @@ test('useSkill recovers from small misspellings in enumerated values', async () 
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should run once after acceptance');
 
-    const confirmation = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
+    const confirmation = scenario.prompts.find(containsConfirmationPrompt);
     assert.ok(confirmation, 'A confirmation prompt should be presented');
     assert.match(confirmation, /Berlin Central Warehouse/i, 'Confirmation should use the cleaned-up label');
 

@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import { runUseSkillScenario, containsConfirmationPrompt } from './helpers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,7 +98,7 @@ test('useSkill maps between human-friendly names and technical IDs', async () =>
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should execute once on acceptance');
 
-    const confirmationPrompts = scenario.prompts.filter((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompts = scenario.prompts.filter(containsConfirmationPrompt);
     assert.ok(confirmationPrompts.length >= 1, 'Agent should show at least one confirmation prompt');
 
     confirmationPrompts.forEach((prompt) => {

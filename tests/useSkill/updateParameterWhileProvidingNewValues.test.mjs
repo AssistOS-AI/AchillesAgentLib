@@ -18,7 +18,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import {
+    runUseSkillScenario,
+    containsConfirmationPrompt,
+    summaryContainsParameterValue,
+} from './helpers.mjs';
 
 const skillConfig = {
     specs: {
@@ -63,13 +67,19 @@ test('useSkill applies updates while adding new values in the same reply', async
     assert.ifError(scenario.error);
     assert.equal(scenario.actionCalls.length, 1, 'Action should execute once after acceptance');
 
-    const confirmationPrompts = scenario.prompts.filter((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompts = scenario.prompts.filter(containsConfirmationPrompt);
     assert.ok(confirmationPrompts.length >= 2, 'Agent should refresh the summary after the user amends parameters');
 
-    const revisedPrompt = confirmationPrompts.find((prompt) => prompt.toLowerCase().includes('priority: medium'));
+    const revisedPrompt = confirmationPrompts.find((prompt) => summaryContainsParameterValue(prompt, 'Priority', 'medium'));
     assert.ok(revisedPrompt, 'Revised summary should include the updated priority value');
-    assert.match(revisedPrompt, /Window Start: June 3rd/i, 'Revised summary should retain the previously supplied window start');
-    assert.match(revisedPrompt, /Window End: July 12th/i, 'Revised summary should include the provided window end');
+    assert.ok(
+        summaryContainsParameterValue(revisedPrompt, 'Window Start', 'June 3rd'),
+        'Revised summary should retain the previously supplied window start',
+    );
+    assert.ok(
+        summaryContainsParameterValue(revisedPrompt, 'Window End', 'July 12th'),
+        'Revised summary should include the provided window end',
+    );
 
     const transcriptText = scenario.transcript.map(({ reply }) => reply).join('\n');
     assert.match(transcriptText, /set priority to medium/i, 'Transcript should show the user revising the original priority');

@@ -20,7 +20,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import { runUseSkillScenario, summaryContainsParameterValue } from './helpers.mjs';
 
 const skillConfig = {
     specs: {
@@ -82,7 +82,10 @@ test('useSkill allows users to revise a prior parameter while adding a new one',
     const finalSummary = prompts[prompts.length - 1] || '';
     assert.match(finalSummary, /Alex Smith/i, 'Final summary should reflect the revised supervisor');
     assert.match(finalSummary, /Jordan Lee/i, 'Final summary should include the added backup supervisor');
-    assert.match(finalSummary, /Priority: medium/i, 'Final summary should capture the priority provided at confirmation');
+    assert.ok(
+        summaryContainsParameterValue(finalSummary, 'Priority', 'medium'),
+        'Final summary should capture the priority provided at confirmation',
+    );
 
     const transcriptText = scenario.transcript.map(({ prompt, reply }) => `${prompt}\n${reply}`).join('\n');
     assert.match(transcriptText, /make supervisor Alex Smith/i, 'Transcript should show the user revising the supervisor');

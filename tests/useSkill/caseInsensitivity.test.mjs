@@ -12,7 +12,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import { runUseSkillScenario, containsConfirmationPrompt } from './helpers.mjs';
 
 const centers = Array.from({ length: 12 }, (_, index) => ({
     label: `Center ${index + 1}`,
@@ -63,7 +63,7 @@ test('useSkill treats enumerated values as case-insensitive', async () => {
     assert.equal(scenario.result, 'DC-11', 'Should resolve to DC-11 technical value');
     assert.equal(scenario.actionCalls[0], 'DC-11', 'Action should receive DC-11');
 
-    const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompt = scenario.prompts.find(containsConfirmationPrompt);
     assert.ok(confirmationPrompt, 'A confirmation prompt should be presented');
     assert.match(confirmationPrompt, /Center 11/i, 'Confirmation should display the friendly center name');
 

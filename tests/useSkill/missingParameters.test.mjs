@@ -19,7 +19,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import {
+    runUseSkillScenario,
+    containsMissingDetailsPrompt,
+    containsConfirmationPrompt,
+} from './helpers.mjs';
 
 const skillConfig = {
     specs: {
@@ -63,14 +67,21 @@ test('useSkill asks for missing parameters in business language and confirms exe
     assert.equal(scenario.actionCalls.length, 1, 'Action should run once after confirmation');
 
     const collectedText = scenario.logs.join('\n');
-    const missingMessages = collectedText.match(/To continue I need the following details:/g) || [];
-    assert.ok(missingMessages.length >= 1, 'Agent should surface missing details to the user');
+    assert.ok(containsMissingDetailsPrompt(collectedText), 'Agent should surface missing details to the user');
     assert.match(collectedText, /Incident Title/i, 'Business-friendly incident title should be mentioned');
-    assert.match(collectedText, /Incident severity level/i, 'Severity description should be present');
-    assert.match(collectedText, /Optional details you may add:[^\n]*\n[^\n]*Team that will follow up on the incident\./i, 'Optional arguments should be suggested separately');
+    assert.match(
+        collectedText,
+        /\|\s*Severity\s*\|\s*Required/i,
+        'Severity should be clearly marked as required',
+    );
+    assert.match(
+        collectedText,
+        /\|\s*Assigned Team\s*\|\s*Optional/i,
+        'Optional arguments should be suggested separately',
+    );
     assert.ok(!/skill/i.test(collectedText), 'Prompt should avoid technical terminology like "skill"');
 
-    const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompt = scenario.prompts.find(containsConfirmationPrompt);
     assert.ok(confirmationPrompt, 'Confirmation narrative should be presented before execution');
     assert.ok(confirmationPrompt.includes('a support incident record for the warehouse printers'), 'Confirmation should describe the business action');
     assert.ok(confirmationPrompt.includes('Incident Title'), 'Confirmation should list the incident title');

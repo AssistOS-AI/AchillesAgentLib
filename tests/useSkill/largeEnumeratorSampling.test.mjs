@@ -17,7 +17,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runUseSkillScenario } from './helpers.mjs';
+import { runUseSkillScenario, containsConfirmationPrompt } from './helpers.mjs';
 
 const centers = Array.from({ length: 12 }, (_, index) => ({
     label: `Center ${index + 1}`,
@@ -67,7 +67,7 @@ test('useSkill samples at most ten options yet accepts deeper catalog values', a
     assert.equal(scenario.result, 'DC-11', 'Should accept Center 11 even if not in displayed samples');
     assert.equal(scenario.actionCalls[0], 'DC-11', 'Action should receive DC-11');
 
-    const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompt = scenario.prompts.find(containsConfirmationPrompt);
     assert.ok(confirmationPrompt, 'A confirmation prompt should be presented');
     assert.match(confirmationPrompt, /Center 11/i, 'Confirmation should display the human-friendly center name');
 
