@@ -9,6 +9,24 @@ const DEFAULT_DOCS = [
     { filename: 'NFS.md', title: 'Non-Functional Specification' },
 ];
 
+const normaliseId = (value) => {
+    if (!value || typeof value !== 'string') {
+        return '';
+    }
+    return value.trim().toUpperCase();
+};
+
+const requirementDocName = (reqId) => {
+    const normalised = normaliseId(reqId);
+    if (normalised.startsWith('FS-')) {
+        return 'FS.md';
+    }
+    if (normalised.startsWith('NFS-')) {
+        return 'NFS.md';
+    }
+    return null;
+};
+
 const ensureDir = (dirPath) => {
     if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
@@ -81,6 +99,20 @@ const buildChapter = ({ id, title, description, extra = '' }) => [
     description || 'Pending elaboration.',
     extra ? `\n${extra.trim()}\n` : '',
 ].join('\n').trim();
+
+const ensureTraceabilityBlock = ({
+    ursId = 'TBD',
+    dsIds = [],
+    label = 'Traceability',
+}) => {
+    const linkedDs = Array.from(new Set(dsIds.map((entry) => normaliseId(entry)).filter(Boolean)));
+    const dsValue = linkedDs.length ? linkedDs.join(', ') : 'pending';
+    return [
+        `### ${label}`,
+        `- Source URS: ${normaliseId(ursId) || 'TBD'}`,
+        `- Linked DS: ${dsValue}`,
+    ].join('\n');
+};
 
 class GampRSP {
     constructor() {
@@ -194,27 +226,27 @@ class GampRSP {
         this.writeDocument(docName, replaceChapter(content, id, newBody));
     }
 
-    createFS(title, description, ursId, reqId = null) {
+    createFS(title, description, ursId, reqId = null, linkedDs = []) {
         const docName = 'FS.md';
         const ids = this.collectIds(docName, 'FS');
         const id = reqId || nextId(ids, 'FS');
-        const extra = [
-            '### Traceability',
-            `- URS: ${ursId || 'TBD'}`,
-            '- DS: pending',
-        ].join('\n');
+        const extra = ensureTraceabilityBlock({
+            ursId,
+            dsIds: linkedDs,
+            label: 'Traceability',
+        });
         const chapter = buildChapter({ id, title, description, extra });
         const content = this.readDocument(docName);
         this.writeDocument(docName, `${content.trim()}\n\n${chapter}\n`);
         return id;
     }
 
-    updateFS(id, title, description, ursId) {
-        const extra = [
-            '### Traceability',
-            `- URS: ${ursId || 'TBD'}`,
-            '- DS: pending',
-        ].join('\n');
+    updateFS(id, title, description, ursId, linkedDs = []) {
+        const extra = ensureTraceabilityBlock({
+            ursId,
+            dsIds: linkedDs,
+            label: 'Traceability',
+        });
         const chapter = buildChapter({ id, title, description, extra });
         const updated = replaceChapter(this.readDocument('FS.md'), id, chapter);
         this.writeDocument('FS.md', updated);
@@ -224,14 +256,15 @@ class GampRSP {
         this.retireGeneric('FS.md', id);
     }
 
-    createNFS(title, description, ursId, reqId = null) {
+    createNFS(title, description, ursId, reqId = null, linkedDs = []) {
         const docName = 'NFS.md';
         const ids = this.collectIds(docName, 'NFS');
         const id = reqId || nextId(ids, 'NFS');
         const extra = [
             '### Quality Envelope',
             '- Attribute: pending',
-            `- Linked URS: ${ursId || 'TBD'}`,
+            `- Linked URS: ${normaliseId(ursId) || 'TBD'}`,
+            `- Linked DS: ${linkedDs.length ? linkedDs.map((entry) => normaliseId(entry)).filter(Boolean).join(', ') : 'pending'}`,
         ].join('\n');
         const chapter = buildChapter({ id, title, description, extra });
         const content = this.readDocument(docName);
@@ -239,11 +272,12 @@ class GampRSP {
         return id;
     }
 
-    updateNFS(id, title, description, ursId) {
+    updateNFS(id, title, description, ursId, linkedDs = []) {
         const extra = [
             '### Quality Envelope',
             '- Attribute: pending',
-            `- Linked URS: ${ursId || 'TBD'}`,
+            `- Linked URS: ${normaliseId(ursId) || 'TBD'}`,
+            `- Linked DS: ${linkedDs.length ? linkedDs.map((entry) => normaliseId(entry)).filter(Boolean).join(', ') : 'pending'}`,
         ].join('\n');
         const chapter = buildChapter({ id, title, description, extra });
         const updated = replaceChapter(this.readDocument('NFS.md'), id, chapter);
@@ -269,9 +303,13 @@ class GampRSP {
     createDS(title, description, architecture, ursId, reqId) {
         const ids = this.listDSIds();
         const id = nextId(ids, 'DS');
+        const timestamp = Date.now();
         const payload = [
             `# ${id} – ${title}`,
-            `Version: v1.0 (${Date.now()})`,
+            '',
+            '## Version',
+            '- current: v1.0',
+            `- timestamp: ${timestamp}`,
             '',
             '## Scope & Intent',
             description || 'Pending design elaboration.',
@@ -291,6 +329,7 @@ class GampRSP {
         ].join('\n');
         const target = path.join(this.getDSDir(), `${id}.md`);
         writeFileSafe(target, payload);
+        this.linkRequirementToDS(reqId, id);
         return id;
     }
 
@@ -396,10 +435,27 @@ class GampRSP {
         writeFileSafe(filePath, replaced);
     }
 
-    describeFile(dsId, filePath, description, exports = [], dependencies = []) {
+    describeFile(dsId, filePath, description, exports = [], dependencies = [], options = {}) {
+        const meta = (options && typeof options === 'object' && !Array.isArray(options))
+            ? options
+            : {};
+        const why = meta.why || description || 'Purpose pending.';
+        const how = meta.how || 'Implementation details will follow DS guidance.';
+        const what = meta.what || 'Resulting artifact captured by this DS.';
+        const sideEffects = meta.sideEffects || 'None noted.';
+        const concurrency = meta.concurrency || 'Not specified.';
         const payload = [
             `### File: ${filePath}`,
             `Timestamp: ${Date.now()}`,
+            '',
+            '#### Why',
+            why,
+            '',
+            '#### How',
+            how,
+            '',
+            '#### What',
+            what,
             '',
             '#### Description',
             description || 'Pending description.',
@@ -409,9 +465,53 @@ class GampRSP {
             '',
             '#### Dependencies',
             dependencies.length ? dependencies.map((item) => `- ${item}`).join('\n') : '- none',
+            '',
+            '#### Side Effects',
+            sideEffects,
+            '',
+            '#### Concurrency',
+            concurrency,
         ].join('\n');
         this.appendToDS(dsId, payload, '## File Impact');
         return payload;
+    }
+
+    linkRequirementToDS(reqId, dsId) {
+        const targetDoc = requirementDocName(reqId);
+        if (!targetDoc) {
+            return;
+        }
+        const normalisedReq = normaliseId(reqId);
+        const content = this.readDocument(targetDoc);
+        const chapters = extractChapters(content);
+        const chapter = chapters.find((entry) => normaliseId(entry.heading).startsWith(normalisedReq));
+        if (!chapter) {
+            return;
+        }
+        const dsToken = normaliseId(dsId);
+        if (!dsToken) {
+            return;
+        }
+        const lines = chapter.body.split('\n');
+        const dsLineIndex = lines.findIndex((line) => /- (Linked\s+)?DS:/i.test(line.trim()));
+        if (dsLineIndex >= 0) {
+            const existing = lines[dsLineIndex].split(':').slice(1).join(':');
+            const tokens = existing.split(',').map((entry) => normaliseId(entry)).filter(Boolean);
+            if (!tokens.includes(dsToken)) {
+                tokens.push(dsToken);
+            }
+            lines[dsLineIndex] = `- Linked DS: ${tokens.join(', ')}`;
+        } else {
+            const traceIdx = lines.findIndex((line) => line.trim().startsWith('### Traceability') || line.trim().startsWith('### Quality Envelope'));
+            let insertionIdx = traceIdx >= 0 ? traceIdx + 1 : lines.length;
+            while (insertionIdx < lines.length && lines[insertionIdx].trim().startsWith('- ')) {
+                insertionIdx += 1;
+            }
+            lines.splice(insertionIdx, 0, `- Linked DS: ${dsToken}`);
+        }
+        const updatedBody = lines.join('\n');
+        const updatedContent = content.replace(chapter.body, updatedBody);
+        this.writeDocument(targetDoc, updatedContent);
     }
 
     loadSpecs(filterText = '') {

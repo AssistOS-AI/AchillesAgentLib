@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Achiles CLI Guide</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Achiles CLI</h1>
+            <p>Task-focused orchestration for the Achilles Agents Library. The CLI automatically plans, bootstraps specifications, and delegates work across orchestration skills—including a new <code>generic-skill</code> that can manipulate project files with LLM supervision.</p>
+        </section>
+
+        <section>
+            <h2>Workspace Bootstrapping</h2>
+            <p>Every CLI session starts inside the current workspace (or the explicit <code>workspaceRoot</code> argument when embedding). Before any user prompt is processed, the CLI runs two internal orchestrators:</p>
+            <ol>
+                <li><strong>ignore-files</strong> &mdash; seeds <code>.specs/.ignore</code> with default Node.js artefacts and any user-selected folders. Keeping ignore entries local prevents accidental scans of <code>node_modules</code>, build artefacts, or large caches.</li>
+                <li><strong>reverse-specs</strong> &mdash; walks the workspace (respecting the ignore list) and describes each source file inside a dedicated DS document. The descriptions power <code>build-code</code> and keep the reverse-generated documentation up to date.</li>
+            </ol>
+            <p>This bootstrap step is logged to the terminal (e.g., <code>[auto] Running ignore-files-orchestrator – Automatic bootstrap…</code>) and only runs once per CLI instance. Because each CLI test spins up a temporary workspace, bootstrapping never writes to the repository root.</p>
+        </section>
+
+        <section>
+            <h2>Execution Flow</h2>
+            <ol>
+                <li><strong>User prompt</strong> &rarr; the CLI requests a JSON plan from the LLM that maps sub-tasks to orchestrator skills.</li>
+                <li><strong>Plan filtering</strong> &rarr; only skills present in <code>.AchillesSkills</code> are executed. Malformed or empty plans automatically fall back to <code>generic-skill</code>.</li>
+                <li><strong>Skill execution</strong> &rarr; each orchestrator receives common context (<code>workspaceRoot</code>, <code>specsRoot</code>, and the shared <code>LLMAgent</code>) so they can read or update the specification singleton (<code>GampRSP</code>).</li>
+                <li><strong>Fallback</strong> &rarr; if no plan was produced, the CLI invokes <code>generic-skill</code> to execute a lightweight tool-based plan using the same LLM.</li>
+            </ol>
+            <p>All steps stream JSON-style status lines to the terminal so humans and automated agents can observe progress without diving into logs.</p>
+        </section>
+
+        <section>
+            <h2>Built-in Orchestrator Skills</h2>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Skill</th>
+                            <th>Summary</th>
+                            <th>Key Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>ignore-files</code></td>
+                            <td>Maintains <code>.specs/.ignore</code> so reverse-spec scans stay focused.</td>
+                            <td>Always injects defaults (<code>node_modules</code>, <code>dist</code>, caches) then merges user entries.</td>
+                        </tr>
+                        <tr>
+                            <td><code>reverse-specs</code></td>
+                            <td>Describes every relevant source file in a DS file for traceability.</td>
+                            <td>Respects the ignore list and records exports/snippets for <code>build-code</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>update-specs</code></td>
+                            <td>Creates URS/FS/DS scaffolding for new requirements.</td>
+                            <td>Useful for ad-hoc requirement capture straight from a prompt.</td>
+                        </tr>
+                        <tr>
+                            <td><code>mock-build</code></td>
+                            <td>Generates CLI or HTML mock artefacts under <code>.specs/mock</code>.</td>
+                            <td>Detects project type via <code>package.json</code>; ideal for rapid demos.</td>
+                        </tr>
+                        <tr>
+                            <td><code>build-code</code></td>
+                            <td>Reads DS file-impact sections and rewrites stubs with managed banners.</td>
+                            <td>Only touches files referenced by DS metadata; prevents accidental edits.</td>
+                        </tr>
+                        <tr>
+                            <td><code>generate-docs</code></td>
+                            <td>Exports HTML snapshots (<code>.specs/html_docs</code>) for URS/FS/NFS/DS.</td>
+                            <td>Use after significant specification changes for stakeholder review.</td>
+                        </tr>
+                        <tr>
+                            <td><code>run-tests</code></td>
+                            <td>Executes <code>runAlltests.js</code> (optionally filtered by suite).</td>
+                            <td>Returns stdout/stderr plus exit codes for CI ingestion.</td>
+                        </tr>
+                        <tr>
+                            <td><code>fix-tests-and-code</code></td>
+                            <td>Iteratively runs tests, records failures in a DS, and re-runs <code>build-code</code>.</td>
+                            <td>Capped at three attempts before reporting exhaustion.</td>
+                        </tr>
+                        <tr>
+                            <td><code>refactor-design</code></td>
+                            <td>Captures refactor prompts as DS updates, annotates file impacts, and regenerates stubs.</td>
+                            <td>Accepts explicit <code>DS-###</code> references or creates new URS/FS/DS triplets.</td>
+                        </tr>
+                        <tr>
+                            <td><code>generic-skill</code></td>
+                            <td>Fallback orchestrator that plans arbitrary file operations with LLM supervision.</td>
+                            <td>Tools include listing folders, reading files, LLM-driven rewrites, and targeted search/replace.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2>The Generic Skill</h2>
+            <p>When no plan is produced (or a user explicitly requests it), <code>generic-skill</code> executes a small tool plan. The LLM receives the list of tools and produces JSON steps such as:</p>
+<pre><code>[
+  {"tool":"list-files","target":"src"},
+  {"tool":"read-file","target":"src/index.mjs"},
+  {"tool":"rewrite-file","target":"src/index.mjs","instructions":"Add a default export"}
+]</code></pre>
+            <p>Each tool is sandboxed to the current workspace root. Rewrites pipe the existing file content back through the shared <code>LLMAgent</code> and expect a full file replacement wrapped in a code fence. For small edits, <code>replace-text</code> offers deterministic replacements without invoking the LLM.</p>
+        </section>
+
+        <section>
+            <h2>Testing the CLI</h2>
+            <ul>
+                <li><strong>Temporary Workspaces</strong> &mdash; every test places its fixtures under <code>tests/.tmp/&lt;scenario&gt;</code>. Nothing writes to the repository root, and the directory is ignored by Git.</li>
+                <li><strong>Per-test Timeouts</strong> &mdash; each <code>node:test</code> case explicitly sets a timeout (10&ndash;30 seconds) to prevent accidental hangs caused by blocking prompts.</li>
+                <li><strong>Standalone Suites</strong> &mdash; CLI-specific tests live under <code>tests/cli/gamp</code> and exercise bootstrapping, plan execution, and the fallback pipeline.</li>
+                <li><strong>Manual Runs</strong> &mdash; to reproduce an individual scenario, invoke <code>node tests/cli/gamp/achiles-cli.test.mjs --test-name-pattern &quot;scenario&quot;</code>.</li>
+            </ul>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

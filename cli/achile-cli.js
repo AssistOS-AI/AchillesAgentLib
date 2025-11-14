@@ -15,6 +15,16 @@ const COLOR_WARN = '\x1b[33m';
 const COLOR_ERROR = '\x1b[31m';
 
 const DEFAULT_LIST_COLUMNS = ['name', 'type', 'summary', 'implementation'];
+const AUTO_BOOTSTRAP_SKILLS = [
+    {
+        name: 'ignore-files',
+        prompt: 'Automatic bootstrap: ensure default ignore list is applied.',
+    },
+    {
+        name: 'reverse-specs',
+        prompt: 'Automatic bootstrap: synchronise specifications with current workspace files.',
+    },
+];
 
 const ensureArray = (value) => {
     if (Array.isArray(value)) {
@@ -133,6 +143,7 @@ const parsePlan = (raw, fallbackSkill) => {
 class AchilesCLI {
     constructor({
         startDirs = [],
+        workspaceRoot = process.cwd(),
         llmAgent = null,
         promptReader = null,
         output = process.stdout,
@@ -145,9 +156,10 @@ class AchilesCLI {
             ? listTimeoutMs
             : 1500;
 
-        this.workspaceRoot = process.cwd();
+        this.workspaceRoot = path.resolve(workspaceRoot || process.cwd());
         GampRSP.configure(this.workspaceRoot);
         this.specsRoot = GampRSP.getSpecsDirectory();
+        this.bootstrapCompleted = false;
 
         this.llmAgent = llmAgent instanceof LLMAgent
             ? llmAgent
@@ -156,7 +168,7 @@ class AchilesCLI {
         const cliSkillRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '.AchillesSkills');
         this.skillSearchRoots = [
             cliSkillRoot,
-            ...(skillDirs.length ? skillDirs : [process.cwd()]),
+            ...(skillDirs.length ? skillDirs : [this.workspaceRoot]),
         ]
             .map((dir) => path.resolve(dir));
 
@@ -174,7 +186,14 @@ class AchilesCLI {
     }
 
     _resolveSkillRoot(dir) {
-        const candidate = path.join(dir, '.AchillesSkills');
+        const absolute = path.resolve(dir);
+        if (fs.existsSync(absolute)) {
+            const stats = fs.statSync(absolute);
+            if (stats.isDirectory() && path.basename(absolute) === '.AchillesSkills') {
+                return absolute;
+            }
+        }
+        const candidate = path.join(absolute, '.AchillesSkills');
         if (!fs.existsSync(candidate)) {
             return null;
         }
@@ -296,8 +315,52 @@ class AchilesCLI {
             this.output.write(`${COLOR_WARN}[warn] Failed to obtain plan from LLM: ${error.message}${COLOR_RESET}\n`);
         }
 
-        const fallback = orchestrators[0];
-        return parsePlan(rawPlan, fallback);
+        const parsed = parsePlan(rawPlan, null);
+        if (parsed.length) {
+            return parsed;
+        }
+
+        if (!rawPlan && orchestrators.length) {
+            return parsePlan(rawPlan, orchestrators[0]);
+        }
+
+        return [];
+    }
+
+    _buildArgsForSkill(record, promptText) {
+        const args = {};
+        const inject = (name) => {
+            if (typeof name === 'string' && name && !Object.prototype.hasOwnProperty.call(args, name)) {
+                args[name] = promptText;
+            }
+        };
+
+        if (record.metadata?.defaultArgument) {
+            inject(record.metadata.defaultArgument);
+        }
+
+        if (record.type === 'interactive') {
+            const required = Array.isArray(record.requiredArguments) ? record.requiredArguments : [];
+            required.forEach(inject);
+        }
+
+        if (!Object.keys(args).length) {
+            args.input = promptText;
+        }
+
+        return args;
+    }
+
+    async _runSkill(record, promptText) {
+        return this.recursiveAgent.executeWithReviewMode(promptText, {
+            skillName: record.name,
+            args: this._buildArgsForSkill(record, promptText),
+            context: {
+                workspaceRoot: this.workspaceRoot,
+                specsRoot: this.specsRoot,
+                llmAgent: this.llmAgent,
+            },
+        });
     }
 
     async executePlan(planSteps = []) {
@@ -314,30 +377,7 @@ class AchilesCLI {
             }
 
             try {
-                const args = {};
-                if (record.metadata?.defaultArgument && !Object.prototype.hasOwnProperty.call(args, record.metadata.defaultArgument)) {
-                    args[record.metadata.defaultArgument] = step.prompt;
-                }
-                if (record.type === 'interactive') {
-                    const required = Array.isArray(record.requiredArguments) ? record.requiredArguments : [];
-                    required.forEach((name) => {
-                        if (typeof name === 'string' && name && !Object.prototype.hasOwnProperty.call(args, name)) {
-                            args[name] = step.prompt;
-                        }
-                    });
-                }
-                if (!Object.keys(args).length) {
-                    args.input = step.prompt;
-                }
-
-                const result = await this.recursiveAgent.executeWithReviewMode(step.prompt, {
-                    skillName: record.name,
-                    args,
-                    context: {
-                        workspaceRoot: this.workspaceRoot,
-                        specsRoot: this.specsRoot,
-                    },
-                });
+                const result = await this._runSkill(record, step.prompt);
                 executions.push({
                     ...step,
                     status: 'ok',
@@ -355,6 +395,70 @@ class AchilesCLI {
         return executions;
     }
 
+    async ensureBootstrap(taskDescription) {
+        if (this.bootstrapCompleted) {
+            return;
+        }
+
+        const promptText = taskDescription || 'Workspace bootstrap';
+
+        for (const step of AUTO_BOOTSTRAP_SKILLS) {
+            const record = this.findSkill(step.name);
+            if (!record) {
+                this.output.write(`${COLOR_WARN}[auto] Skill "${step.name}" not found; skipping bootstrap step.${COLOR_RESET}\n`);
+                continue;
+            }
+
+            const plannedPrompt = step.prompt || promptText;
+
+            this.output.write(`${COLOR_INFO}[auto] Running ${record.name} – ${plannedPrompt}${COLOR_RESET}\n`);
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this._runSkill(record, plannedPrompt);
+                this.output.write(`${COLOR_INFO}[auto] Completed ${record.name}${COLOR_RESET}\n`);
+            } catch (error) {
+                this.output.write(`${COLOR_WARN}[auto] ${record.name} failed: ${error.message}${COLOR_RESET}\n`);
+            }
+        }
+
+        this.bootstrapCompleted = true;
+    }
+
+    async executeGenericFallback(promptText) {
+        const record = this.findSkill('generic-skill');
+        if (!record) {
+            const fallback = await this.recursiveAgent.executePrompt(promptText, {
+                context: {
+                    workspaceRoot: this.workspaceRoot,
+                    specsRoot: this.specsRoot,
+                },
+            });
+            return {
+                skill: 'auto',
+                prompt: promptText,
+                status: 'ok',
+                result: fallback,
+            };
+        }
+
+        try {
+            const result = await this._runSkill(record, promptText);
+            return {
+                skill: record.shortName || record.name,
+                prompt: promptText,
+                status: 'ok',
+                result,
+            };
+        } catch (error) {
+            return {
+                skill: record.shortName || record.name,
+                prompt: promptText,
+                status: 'failed',
+                error: error.message,
+            };
+        }
+    }
+
     async processTaskInput(taskText) {
         const trimmed = taskText.trim();
         if (!trimmed) {
@@ -364,22 +468,12 @@ class AchilesCLI {
             };
         }
 
+        await this.ensureBootstrap(trimmed);
         const plan = await this.createPlan(trimmed);
         if (!plan.length) {
-            const fallback = await this.recursiveAgent.executePrompt(trimmed, {
-                context: {
-                    workspaceRoot: this.workspaceRoot,
-                    specsRoot: this.specsRoot,
-                },
-            });
             return {
                 plan: [],
-                executions: [{
-                    skill: 'auto',
-                    prompt: trimmed,
-                    status: 'ok',
-                    result: fallback,
-                }],
+                executions: [await this.executeGenericFallback(trimmed)],
             };
         }
 
