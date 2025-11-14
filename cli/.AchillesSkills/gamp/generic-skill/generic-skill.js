@@ -6,6 +6,9 @@ const TOOL_DESCRIPTIONS = [
     { tool: 'read-file', description: 'Read a file and report snippet. Fields: target (file).' },
     { tool: 'rewrite-file', description: 'Produce full replacement for a file using the LLM. Fields: target (file), instructions (optional).' },
     { tool: 'replace-text', description: 'Simple search/replace. Fields: target (file), search, replace.' },
+    { tool: 'create-file', description: 'Create/overwrite a file with provided content. Fields: target (file), content.' },
+    { tool: 'append-file', description: 'Append content to an existing file. Fields: target (file), content.' },
+    { tool: 'delete-path', description: 'Delete a file or empty directory. Fields: target (path).' },
 ];
 
 const MAX_LIST_ENTRIES = 50;
@@ -32,6 +35,7 @@ const normalisePlan = (entries = []) => entries
             instructions: entry.instructions ?? entry.note ?? '',
             search: entry.search ?? null,
             replace: entry.replace ?? null,
+            content: entry.content ?? entry.body ?? entry.text ?? null,
         };
     })
     .filter(Boolean);
@@ -156,6 +160,47 @@ const replaceText = ({ workspaceRoot, target, search, replace }) => {
     return { replacements: 1 };
 };
 
+const writeFileContent = ({ workspaceRoot, target, content }) => {
+    if (!target) {
+        throw new Error('create-file requires a target path.');
+    }
+    const filePath = safeResolve(workspaceRoot, target);
+    const text = typeof content === 'string' ? content : '';
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, `${text}${text.endsWith('\n') ? '' : '\n'}`);
+    return { bytes: Buffer.byteLength(text) };
+};
+
+const appendFileContent = ({ workspaceRoot, target, content }) => {
+    if (!target) {
+        throw new Error('append-file requires a target path.');
+    }
+    if (typeof content !== 'string' || !content) {
+        throw new Error('append-file requires non-empty content.');
+    }
+    const filePath = safeResolve(workspaceRoot, target);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.appendFileSync(filePath, `${content}${content.endsWith('\n') ? '' : '\n'}`);
+    return { bytes: Buffer.byteLength(content) };
+};
+
+const deletePath = ({ workspaceRoot, target }) => {
+    if (!target) {
+        throw new Error('delete-path requires a target path.');
+    }
+    const filePath = safeResolve(workspaceRoot, target);
+    if (!fs.existsSync(filePath)) {
+        return { deleted: false };
+    }
+    const stat = fs.statSync(filePath);
+    if (stat.isDirectory()) {
+        fs.rmSync(filePath, { recursive: true, force: true });
+    } else {
+        fs.unlinkSync(filePath);
+    }
+    return { deleted: true };
+};
+
 const TOOL_EXECUTORS = {
     'list-files': ({ workspaceRoot, step }) => listFiles({ workspaceRoot, target: step.target }),
     'read-file': ({ workspaceRoot, step }) => readFileSnippet({ workspaceRoot, target: step.target }),
@@ -165,6 +210,20 @@ const TOOL_EXECUTORS = {
         target: step.target,
         search: step.search,
         replace: step.replace,
+    }),
+    'create-file': ({ workspaceRoot, step }) => writeFileContent({
+        workspaceRoot,
+        target: step.target,
+        content: step.content ?? step.instructions,
+    }),
+    'append-file': ({ workspaceRoot, step }) => appendFileContent({
+        workspaceRoot,
+        target: step.target,
+        content: step.content ?? step.instructions,
+    }),
+    'delete-path': ({ workspaceRoot, step }) => deletePath({
+        workspaceRoot,
+        target: step.target,
     }),
 };
 
