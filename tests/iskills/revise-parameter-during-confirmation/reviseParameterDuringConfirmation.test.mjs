@@ -43,7 +43,7 @@ test('interactive skill allows revising a prior parameter while adding a new one
     const finalSummary = prompts[prompts.length - 1] || '';
     assert.match(finalSummary, /Alex Smith/i);
     assert.match(finalSummary, /Jordan Lee/i);
-    assert.match(finalSummary, /Priority: medium/i);
+    assert.match(finalSummary, /\|\s*Priority\s*\|[^|]*medium/i);
 
     const transcriptText = scenario.transcript.map(({ prompt, reply }) => `${prompt}\n${reply}`).join('\n');
     assert.match(transcriptText, /make supervisor Alex Smith/i);

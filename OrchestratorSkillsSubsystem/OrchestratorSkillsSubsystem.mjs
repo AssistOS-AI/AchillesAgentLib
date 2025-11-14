@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import LightSOPLangInterpreter, { DefaultExecutionMonitor } from '../lightSOPLang/index.mjs';
@@ -8,6 +12,42 @@ const SECTION_KEYS = {
     intents: ['intents', 'intentions', 'mappings'],
     fallback: ['fallback', 'fallback-plan', 'fallback-react', 'react-fallback'],
     script: ['light-sop-lang', 'lightsoplang', 'script', 'plan-script'],
+};
+
+const parseTimeout = (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const SKILL_TIMEOUT_MS = parseTimeout(
+    process.env.ACHILLES_ORCHESTRATOR_TIMEOUT
+        ?? process.env.ACHILES_ORCHESTRATOR_TIMEOUT
+        ?? process.env.ACHILESS_ORCHESTRATOR_TIMEOUT,
+    90_000,
+);
+
+const withTimeout = (promiseLike, timeoutMs, errorFactory) => {
+    let timerHandle;
+    const timeoutPromise = new Promise((_, reject) => {
+        timerHandle = setTimeout(() => {
+            const produced = typeof errorFactory === 'function' ? errorFactory() : errorFactory;
+            const error = produced instanceof Error
+                ? produced
+                : new Error(produced ? String(produced) : 'Operation timed out.');
+            reject(error);
+        }, timeoutMs);
+        if (typeof timerHandle?.unref === 'function') {
+            timerHandle.unref();
+        }
+    });
+
+    const raceTarget = promiseLike instanceof Promise ? promiseLike : Promise.resolve(promiseLike);
+
+    return Promise.race([raceTarget, timeoutPromise]).finally(() => {
+        if (timerHandle) {
+            clearTimeout(timerHandle);
+        }
+    });
 };
 
 function normaliseBulletList(section = '') {
@@ -112,6 +152,7 @@ export class OrchestratorSkillsSubsystem {
         this.type = 'orchestrator';
         this.llmAgent = llmAgent;
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
+        this.moduleExecutors = new Map();
     }
 
     prepareSkill(skillRecord) {
@@ -124,6 +165,10 @@ export class OrchestratorSkillsSubsystem {
         const intents = parseIntents(pickSection(sections, SECTION_KEYS.intents));
         const fallback = parseFallback(pickSection(sections, SECTION_KEYS.fallback));
 
+        const folderName = skillRecord.skillDir ? path.basename(skillRecord.skillDir) : null;
+        const modulePath = folderName ? path.join(skillRecord.skillDir, `${folderName}.js`) : null;
+        const moduleExists = modulePath ? fs.existsSync(modulePath) : false;
+
         skillRecord.metadata = {
             type: this.type,
             title: skillRecord.descriptor?.title || null,
@@ -135,6 +180,7 @@ export class OrchestratorSkillsSubsystem {
             intents,
             fallback,
             script: pickSection(sections, SECTION_KEYS.script) || '',
+            modulePath: moduleExists ? modulePath : null,
         };
     }
 
@@ -636,6 +682,15 @@ export class OrchestratorSkillsSubsystem {
         promptText,
         options = {},
     }) {
+        if (skillRecord.metadata?.modulePath) {
+            return this.executeModuleSkill({
+                skillRecord,
+                recursiveAgent,
+                promptText,
+                options,
+            });
+        }
+
         const script = (skillRecord.metadata?.script || '').trim();
         if (script) {
             return this.executeScriptPlan({
@@ -692,6 +747,53 @@ export class OrchestratorSkillsSubsystem {
                 notes: planData.notes,
                 executions,
                 fallbackExecution,
+            },
+            sessionMemory: null,
+        };
+    }
+
+    async loadModule(skillRecord) {
+        if (!skillRecord.metadata?.modulePath) {
+            return null;
+        }
+        if (this.moduleExecutors.has(skillRecord.name)) {
+            return this.moduleExecutors.get(skillRecord.name);
+        }
+        const moduleUrl = pathToFileURL(skillRecord.metadata.modulePath);
+        const imported = await import(moduleUrl.href);
+        const handler = typeof imported.action === 'function'
+            ? imported.action
+            : (typeof imported.default === 'function' ? imported.default : null);
+        if (typeof handler !== 'function') {
+            throw new Error(`Orchestrator module at ${skillRecord.metadata.modulePath} must export an action() function.`);
+        }
+        this.moduleExecutors.set(skillRecord.name, handler);
+        return handler;
+    }
+
+    async executeModuleSkill({ skillRecord, recursiveAgent, promptText, options }) {
+        const action = await this.loadModule(skillRecord);
+        const context = {
+            prompt: promptText,
+            args: options.args || {},
+            llmAgent: this.llmAgent,
+            recursiveAgent,
+            metadata: skillRecord.metadata,
+            skillRecord,
+            context: options.context || {},
+        };
+        const result = await withTimeout(
+            Promise.resolve(action(context)),
+            SKILL_TIMEOUT_MS,
+            () => new Error(`Orchestrator skill "${skillRecord.name}" timed out after ${SKILL_TIMEOUT_MS}ms.`),
+        );
+        return {
+            skill: skillRecord.name,
+            metadata: skillRecord.metadata || null,
+            result: {
+                type: this.type,
+                prompt: promptText,
+                output: result,
             },
             sessionMemory: null,
         };

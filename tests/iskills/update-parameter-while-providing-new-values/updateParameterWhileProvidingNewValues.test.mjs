@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     runInteractiveSkillScenario,
     resolveTestDir,
+    isConfirmationPrompt,
 } from '../helpers/runInteractiveSkillScenario.mjs';
 
 const testDir = resolveTestDir(import.meta);
@@ -30,12 +31,12 @@ test('interactive skill applies updates while adding new values in the same repl
     assert.ifError(scenario.error);
     assert.ok(scenario.result, 'Execution should succeed');
 
-    const confirmationPrompts = scenario.prompts.filter((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompts = scenario.prompts.filter((prompt) => isConfirmationPrompt(prompt));
     assert.ok(confirmationPrompts.length >= 2, 'Agent should refresh the summary after updates');
-    const revisedPrompt = confirmationPrompts.find((prompt) => /Priority: medium/i.test(prompt));
+    const revisedPrompt = confirmationPrompts.find((prompt) => /\|\s*Priority\s*\|[^|]*medium/i.test(prompt));
     assert.ok(revisedPrompt, 'Revised prompt should include the updated priority');
-    assert.match(revisedPrompt, /Window Start: June 3rd/i);
-    assert.match(revisedPrompt, /Window End: July 12th/i);
+    assert.match(revisedPrompt, /\|\s*Window Start\s*\|[^|]*June 3rd/i);
+    assert.match(revisedPrompt, /\|\s*Window End\s*\|[^|]*July 12th/i);
 
     const transcriptText = scenario.transcript.map(({ reply }) => reply).join('\n');
     assert.match(transcriptText, /set priority to medium/i);

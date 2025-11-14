@@ -357,19 +357,19 @@ Example output:
 ```
 Ignored values for Equipment Type because they did not match the expected format.
 
-To continue I need the following details:
-• Equipment Id — The unique identifier for the equipment.
-  Options:
-    - EQ-001
-    - EQ-002
-    - EQ-003
-    (showing 3 of 150 options)
+📋 Please provide the following details:
 
-Optional details you may add:
-• Description — Additional notes about the equipment.
-  For example:
-    - "Heavy duty excavator"
-    - "Portable generator"
+| Argument                  | Required     | Choices                                       |
+|---------------------------|--------------|-----------------------------------------------|
+| Equipment Id              | Required     | • EQ-001                                      |
+|                           |              | • EQ-002                                      |
+|                           |              | • EQ-003                                      |
+|                           |              |   (+147 more)                                 |
+| Equipment Type            | Required     | • Plant                                       |
+|                           |              | • Vehicle                                     |
+|                           |              | • Tool                                        |
+|                           |              |   (+5 more)                                   |
+| Description               | Optional     | —                                             |
 
 Reply in natural language or type "cancel" to stop.
 ```
@@ -1104,4 +1104,3 @@ The architecture is modular, extensible, and production-ready, with careful atte
 - `AGENTS.md` - Development guidelines for AI coding agents
 - `LLMAgents/` - LLM integration layer
 - FlexSearch documentation - Search engine details
-

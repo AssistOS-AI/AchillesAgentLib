@@ -14,6 +14,17 @@ const COLOR_FAIL = '\x1b[31m';
 const testsRoot = fileURLToPath(new URL('.', import.meta.url));
 const iskillsRoot = join(testsRoot, 'iskills');
 const infrastructureRoot = join(testsRoot, 'infrastructure');
+const oldTestsModuleUrl = new URL('./oldTests.js', import.meta.url);
+const normalizeTestId = (value = '') => value.replace(/\\/g, '/');
+const relativeId = (absolutePath) => normalizeTestId(relative(testsRoot, absolutePath));
+const DB_TABLE_TEST_PREFIX = 'dbtableSkills/';
+
+const isDbTableTest = (filePath) => {
+    const relativePath = relativeId(filePath);
+    return relativePath === 'dbtableSkills' || relativePath.startsWith(DB_TABLE_TEST_PREFIX);
+};
+
+const excludeDbTableTests = (filePaths) => filePaths.filter((filePath) => !isDbTableTest(filePath));
 
 function collectSkillTests() {
     const testFiles = [];
@@ -114,6 +125,29 @@ async function runSingleTest(absolutePath, logStream) {
     };
 }
 
+async function loadOldTestsList() {
+    try {
+        const imported = await import(oldTestsModuleUrl.href);
+        const candidate = imported?.oldTests ?? imported?.default ?? [];
+        if (Array.isArray(candidate)) {
+            return candidate.map((entry) => normalizeTestId(entry));
+        }
+        if (Array.isArray(imported?.tests)) {
+            return imported.tests.map((entry) => normalizeTestId(entry));
+        }
+        console.warn(`${COLOR_WARN}oldTests.js does not export an array; skipping exclusions.${COLOR_RESET}`);
+    } catch (error) {
+        if (error.code !== 'ERR_MODULE_NOT_FOUND') {
+            console.warn(`${COLOR_WARN}Failed to load oldTests.js: ${error.message}${COLOR_RESET}`);
+        }
+    }
+    return [];
+}
+
+function filterOutOldTests(filePaths, oldSet) {
+    return filePaths.filter((filePath) => !oldSet.has(relativeId(filePath)));
+}
+
 async function main() {
     const resultsPath = join(testsRoot, 'lastExecution.results');
     try {
@@ -127,8 +161,20 @@ async function main() {
     const logStream = fs.createWriteStream(resultsPath, { flags: 'a', encoding: 'utf8' });
     logStream.write(`Interactive skill test run - ${new Date().toISOString()}\n\n`);
 
-    const infrastructureTests = collectInfrastructureTests();
-    const skillTests = collectSkillTests();
+    const oldTestsList = await loadOldTestsList();
+    const oldTestsSet = new Set(oldTestsList);
+    if (oldTestsSet.size) {
+        logStream.write(`Excluded legacy tests (${oldTestsSet.size}):\n`);
+        oldTestsList.forEach((testId) => logStream.write(` - ${testId}\n`));
+        logStream.write('\n');
+    }
+
+    const infrastructureTests = excludeDbTableTests(
+        filterOutOldTests(collectInfrastructureTests(), oldTestsSet),
+    );
+    const skillTests = excludeDbTableTests(
+        filterOutOldTests(collectSkillTests(), oldTestsSet),
+    );
 
     if (!infrastructureTests.length && !skillTests.length) {
         console.log(`${COLOR_WARN}No tests found under @tests.${COLOR_RESET}`);

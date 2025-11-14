@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     runInteractiveSkillScenario,
     resolveTestDir,
+    isConfirmationPrompt,
 } from '../helpers/runInteractiveSkillScenario.mjs';
 
 const testDir = resolveTestDir(import.meta);
@@ -38,9 +39,7 @@ test('interactive skill skips confirmation when needConfirmation is false', asyn
     }
 
     assert.ifError(scenario.error);
-    const confirmationPrompts = scenario.prompts.filter((prompt) =>
-        prompt.includes('About to apply') || prompt.includes('Confirm by'),
-    );
+    const confirmationPrompts = scenario.prompts.filter((prompt) => isConfirmationPrompt(prompt));
     assert.equal(confirmationPrompts.length, 0, 'No confirmation prompt should be shown');
     const category = typeof scenario.result === 'object'
         ? scenario.result.category
@@ -64,9 +63,7 @@ test('interactive skill requires confirmation when needConfirmation is true', as
     }
 
     assert.ifError(scenario.error);
-    const confirmationPrompts = scenario.prompts.filter((prompt) =>
-        prompt.includes('About to apply') || prompt.includes('Confirm by'),
-    );
+    const confirmationPrompts = scenario.prompts.filter((prompt) => isConfirmationPrompt(prompt));
     assert.ok(confirmationPrompts.length >= 1, 'Confirmation prompt should be shown');
     const result = scenario.result;
     const itemId = typeof result === 'object' ? result.item_id : result;
@@ -90,9 +87,7 @@ test('interactive skill defaults to requiring confirmation when flag is undefine
     }
 
     assert.ifError(scenario.error);
-    const confirmationPrompts = scenario.prompts.filter((prompt) =>
-        prompt.includes('About to apply') || prompt.includes('Confirm by'),
-    );
+    const confirmationPrompts = scenario.prompts.filter((prompt) => isConfirmationPrompt(prompt));
     assert.ok(confirmationPrompts.length >= 1, 'Confirmation prompt should exist');
     assert.equal(scenario.result.item_id, 'ITEM-456');
     assert.match(scenario.result.new_name, /HP LaserJet/i);
@@ -111,9 +106,7 @@ test('interactive skill with needConfirmation false executes with optional value
     }
 
     assert.ifError(scenario.error);
-    const confirmationPrompts = scenario.prompts.filter((prompt) =>
-        prompt.includes('About to apply') || prompt.includes('Confirm by'),
-    );
+    const confirmationPrompts = scenario.prompts.filter((prompt) => isConfirmationPrompt(prompt));
     assert.equal(confirmationPrompts.length, 0, 'No confirmation prompt should appear');
     assert.match(String(scenario.result.query || '').toLowerCase(), /laptops/);
     assert.equal(scenario.result.limit, undefined);

@@ -19,6 +19,7 @@
             <p>This overview explains how Achilles Agents organises skills, repositories, and execution layers into a coherent orchestration platform.</p>
             <nav class="page-links" aria-label="Skill families">
                 <a href="interactive-skills.html">Interactive Skills</a>
+                <a href="dbtable-skills.html">DBTable Skills</a>
                 <a href="orchestration-skills.html">Orchestration Skills</a>
                 <a href="mcp-skills.html">MCP Skills</a>
                 <a href="code-skills.html">Code Skills</a>
@@ -65,13 +66,14 @@
                 lives in its own folder and is identified by the folder name:
             </p>
             <pre><code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/
-    ├── iskill.md | oskill.md | mskill.md | cskill.md   (descriptor)
+    ├── iskill.md | oskill.md | mskill.md | cskill.md | tskill.md   (descriptor)
     └── &lt;skill_name&gt;.js                                (optional entrypoint)</code></pre>
             <p>
                 The descriptor suffix maps to the skill family:
             </p>
             <ul>
                 <li><code>iskill.md</code> — interactive conversational skills.</li>
+                <li><code>tskill.md</code> — DBTable skills that describe CRUD workflows over structured tables.</li>
                 <li><code>oskill.md</code> — orchestration planners that may embed LightSOPLang scripts.</li>
                 <li><code>mskill.md</code> — MCP skills with allowed tool lists and optional scripts.</li>
                 <li><code>cskill.md</code> — code-execution skills with detailed prompts and LLM guidance.</li>
@@ -98,6 +100,7 @@
             <p>Each family focuses on a distinct flavour of work:</p>
             <ul>
                 <li><strong>Interactive Skills:</strong> Conversational flows with validation, placeholder detection, and natural language extraction.</li>
+                <li><strong>DBTable Skills:</strong> Table-centric CRUD operations defined in <code>tskill.md</code>, with automatic argument collection and Persisto integration.</li>
                 <li><strong>Orchestration Skills:</strong> LightSOPLang-driven script execution for high-level plans, including fallback behaviour.</li>
                 <li><strong>MCP Skills:</strong> Tool-centric skills that interface with external Model Context Protocol servers.</li>
                 <li><strong>Code Skills:</strong> Evaluate snippets or pipelines under strict sandboxing with deterministic feedback.</li>
@@ -107,7 +110,7 @@
                 then execute MCP skills for external calls or code skills for verification.
             </p>
             <p>
-                Dive deeper into each family: start with <a href="interactive-skills.html">Interactive Skills</a>, continue with
+                Dive deeper into each family: explore <a href="interactive-skills.html">Interactive Skills</a>, learn how table descriptors become CRUD workflows in <a href="dbtable-skills.html">DBTable Skills</a>, continue with
                 <a href="orchestration-skills.html">Orchestration Skills</a>, review <a href="mcp-skills.html">MCP Skills</a>,
                 and finish with the <a href="code-skills.html">Code Skills guide</a>.
             </p>

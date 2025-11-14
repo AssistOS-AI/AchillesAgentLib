@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
     runInteractiveSkillScenario,
     resolveTestDir,
+    isConfirmationPrompt,
 } from '../helpers/runInteractiveSkillScenario.mjs';
 
 const testDir = resolveTestDir(import.meta);
@@ -36,7 +37,7 @@ test('interactive skill maps between human-friendly names and technical IDs', as
     assert.ifError(scenario.error);
     assert.ok(scenario.result, 'Scenario should return a payload');
 
-    const confirmationPrompts = scenario.prompts.filter((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompts = scenario.prompts.filter((prompt) => isConfirmationPrompt(prompt));
     assert.ok(confirmationPrompts.length >= 1, 'Agent should present at least one confirmation prompt');
 
     for (const promptText of confirmationPrompts) {

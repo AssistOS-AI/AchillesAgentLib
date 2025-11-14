@@ -306,3 +306,16 @@ export function resolveTestDir(meta) {
     const filename = fileURLToPath(meta.url);
     return path.dirname(filename);
 }
+
+export function isConfirmationPrompt(prompt = '') {
+    if (typeof prompt !== 'string') {
+        return false;
+    }
+    const normalized = prompt.trim();
+    if (!normalized) {
+        return false;
+    }
+    return /📋\s+About to (?:perform|apply)/i.test(normalized)
+        || /About to apply/i.test(normalized)
+        || /Confirm by replying\s+"accept"/i.test(normalized);
+}

@@ -8,3 +8,4 @@ export * from './CloudeSkillsSubsystem/index.mjs';
 export * from './MCPSkillsSubsystem/index.mjs';
 export * from './OrchestratorSkillsSubsystem/index.mjs';
 export * from './InteractiveSkillsSubsystem/index.mjs';
+export * from './DBTableSkillsSubsystem/index.mjs';

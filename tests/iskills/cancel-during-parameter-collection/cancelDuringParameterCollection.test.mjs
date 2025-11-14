@@ -35,7 +35,7 @@ test('interactive skill stops when user cancels during parameter collection', as
         scenario.prompts.join('\n'),
     ].join('\n');
 
-    assert.match(combinedText, /To continue I need the following details:/, 'Agent should surface missing details before cancellation');
-    assert.match(combinedText, /Maintenance window approval/i, 'Optional parameters should appear in the prompt');
+    assert.match(combinedText, /📋 Please provide the following details:/, 'Agent should surface missing details before cancellation');
+    assert.match(combinedText, /\|\s*Change Window\s*\|\s*Optional/i, 'Optional parameters should appear in the prompt');
     assert.equal(scenario.skill, 'deploy_update');
 });

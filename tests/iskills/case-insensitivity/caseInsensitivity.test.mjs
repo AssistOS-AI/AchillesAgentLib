@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     runInteractiveSkillScenario,
     resolveTestDir,
+    isConfirmationPrompt,
 } from '../helpers/runInteractiveSkillScenario.mjs';
 
 const testDir = resolveTestDir(import.meta);
@@ -29,7 +30,7 @@ test('interactive skill treats enumerated values as case-insensitive', async (t)
     assert.equal(scenario.skill, 'assign_distribution_region');
 
     const confirmationPrompt = scenario.prompts.find((prompt) =>
-        prompt.includes('About to apply') && /Center 11/i.test(prompt)
+        isConfirmationPrompt(prompt) && /Center 11/i.test(prompt)
     );
     assert.ok(confirmationPrompt, 'A confirmation prompt should be presented');
 });

@@ -5,6 +5,10 @@ import { join, extname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootPath = fileURLToPath(new URL('.', import.meta.url));
+const EXCLUDED_DIRECTORIES = new Set([
+    'dbtableSkills',
+    'useSkill',
+]);
 
 const DEFAULT_DISABLED = new Set([
     'runAll.js',
@@ -18,6 +22,15 @@ const envDisabled = (process.env.DISABLED_TESTS || '')
     .filter(Boolean);
 const disabled = new Set([...DEFAULT_DISABLED, ...envDisabled]);
 
+const shouldExclude = (relativePath) => {
+    for (const dir of EXCLUDED_DIRECTORIES) {
+        if (relativePath === dir || relativePath.startsWith(`${dir}/`)) {
+            return true;
+        }
+    }
+    return false;
+};
+
 function collectTestFiles(dirPath, basePath = dirPath) {
     const collected = [];
     const entries = readdirSync(dirPath, { withFileTypes: true });
@@ -28,7 +41,11 @@ function collectTestFiles(dirPath, basePath = dirPath) {
         }
 
         const fullPath = join(dirPath, entry.name);
+        const relativePath = relative(basePath, fullPath);
         if (entry.isDirectory()) {
+            if (shouldExclude(relativePath)) {
+                continue;
+            }
             collected.push(...collectTestFiles(fullPath, basePath));
             continue;
         }
@@ -36,7 +53,9 @@ function collectTestFiles(dirPath, basePath = dirPath) {
             continue;
         }
 
-        const relativePath = relative(basePath, fullPath);
+        if (shouldExclude(relativePath)) {
+            continue;
+        }
         if (disabled.has(entry.name) || disabled.has(relativePath)) {
             continue;
         }

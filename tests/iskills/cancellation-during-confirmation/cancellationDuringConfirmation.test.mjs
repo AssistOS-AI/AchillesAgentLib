@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     runInteractiveSkillScenario,
     resolveTestDir,
+    isConfirmationPrompt,
 } from '../helpers/runInteractiveSkillScenario.mjs';
 
 const testDir = resolveTestDir(import.meta);
@@ -28,7 +29,7 @@ test('interactive skill stops execution when user cancels at confirmation time',
     assert.ok(scenario.error, 'Cancellation should surface an error');
     assert.match(String(scenario.error?.message || scenario.error), /cancelled/i, 'Error should mention cancellation');
 
-    const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompt = scenario.prompts.find((prompt) => isConfirmationPrompt(prompt));
     assert.ok(confirmationPrompt, 'Confirmation prompt should have been presented');
     assert.match(confirmationPrompt, /purchase approval/i, 'Confirmation should describe the business operation');
     assert.equal(scenario.skill, 'approve_purchase');

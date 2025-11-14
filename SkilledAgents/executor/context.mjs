@@ -1,5 +1,7 @@
 import { createFlexSearchAdapter } from '../search/flexsearchAdapter.mjs';
 
+const CONTEXT_DEBUG = process.env.DB_TABLE_TEST_DEBUG === 'true';
+
 const CANCEL_KEYWORDS = new Set(['cancel', 'stop', 'abort', 'no thanks', 'never mind']);
 const MAX_OPTION_SAMPLES = 10;
 
@@ -564,6 +566,9 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
                 }));
             } catch (error) {
                 console.warn(`Resolver for argument "${target}" failed: ${error.message}`);
+                if (CONTEXT_DEBUG) {
+                    console.log('[DBTableTests] Resolver threw for', target, 'value:', rawValue, 'error:', error.message);
+                }
                 return { success: false, value: null };
             }
         } else if (optionEntries.has(target)) {
@@ -571,6 +576,9 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
             if (match.matched) {
                 candidate = match.value;
             } else {
+                if (CONTEXT_DEBUG) {
+                    console.log('[DBTableTests] Option match failed for', target, 'value:', rawValue);
+                }
                 return { success: false, value: null };
             }
         }
@@ -578,6 +586,9 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         candidate = coerceByType(candidate, definition.type);
         const validation = await validateValue({ ...definition, validator: validatorMap.get(target) }, candidate);
         if (!validation.valid) {
+            if (CONTEXT_DEBUG) {
+                console.log('[DBTableTests] Validation failed for', target, 'value:', candidate, 'details:', validation);
+            }
             return { success: false, value: null };
         }
 
@@ -591,6 +602,9 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         }
         const result = await context.resolveRawValue(target, rawValue);
         if (!result.success) {
+            if (CONTEXT_DEBUG) {
+                console.log('[DBTableTests] Resolve failed for', target, 'value:', rawValue);
+            }
             invalidArgs.add(target);
             return 'invalid';
         }

@@ -1,0 +1,32 @@
+[36m▶ Running dbtableSkills/createProject.test.mjs[0m
+[32mPASS[0m dbtableSkills/createProject.test.mjs (176 ms)
+
+[36m▶ Running dbtableSkills/employeesBadgeState.test.mjs[0m
+[32mPASS[0m dbtableSkills/employeesBadgeState.test.mjs (181 ms)
+
+[36m▶ Running dbtableSkills/incidentsCreate.test.mjs[0m
+[32mPASS[0m dbtableSkills/incidentsCreate.test.mjs (182 ms)
+
+[36m▶ Running dbtableSkills/listProjects.test.mjs[0m
+[32mPASS[0m dbtableSkills/listProjects.test.mjs (132 ms)
+
+[36m▶ Running dbtableSkills/mockPersistoClient.test.mjs[0m
+[32mPASS[0m dbtableSkills/mockPersistoClient.test.mjs (118 ms)
+
+[36m▶ Running dbtableSkills/parser.test.mjs[0m
+[32mPASS[0m dbtableSkills/parser.test.mjs (95 ms)
+
+[36m▶ Running dbtableSkills/requiredFieldsPrompt.test.mjs[0m
+[32mPASS[0m dbtableSkills/requiredFieldsPrompt.test.mjs (176 ms)
+
+[36m▶ Running dbtableSkills/showProjectRecord.test.mjs[0m
+[32mPASS[0m dbtableSkills/showProjectRecord.test.mjs (141 ms)
+
+[36m▶ Running dbtableSkills/updateProjectStatus.test.mjs[0m
+[32mPASS[0m dbtableSkills/updateProjectStatus.test.mjs (192 ms)
+
+Summary
+-------
+Total: 9
+Passed: 9
+Failed: 0

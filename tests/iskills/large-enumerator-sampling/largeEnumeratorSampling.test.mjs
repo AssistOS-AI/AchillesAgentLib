@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     runInteractiveSkillScenario,
     resolveTestDir,
+    isConfirmationPrompt,
 } from '../helpers/runInteractiveSkillScenario.mjs';
 
 const testDir = resolveTestDir(import.meta);
@@ -28,7 +29,7 @@ test('interactive skill accepts enumerator values beyond sampled list', async (t
     assert.equal(scenario.result, 'DC-11', 'Should accept Center 11 even if not shown in prompt samples');
 
     const confirmationPrompt = scenario.prompts.find((prompt) =>
-        prompt.includes('About to apply') && /Center 11/i.test(prompt)
+        isConfirmationPrompt(prompt) && /Center 11/i.test(prompt)
     );
     assert.ok(confirmationPrompt, 'Confirmation prompt should be present');
 });

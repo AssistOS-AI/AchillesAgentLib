@@ -8,6 +8,7 @@ import { InteractiveSkillsSubsystem } from '../InteractiveSkillsSubsystem/Intera
 import { CloudeSkillsSubsystem } from '../CloudeSkillsSubsystem/CloudeSkillsSubsystem.mjs';
 import { MCPSkillsSubsystem } from '../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
 import { OrchestratorSkillsSubsystem } from '../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
+import { DBTableSkillsSubsystem } from '../DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs';
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { createFlexSearchAdapter } from '../SkilledAgents/search/flexsearchAdapter.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
@@ -18,6 +19,7 @@ const SKILL_FILE_TYPES = {
     'cskill.md': { type: 'code' },
     'mskill.md': { type: 'mcp' },
     'oskill.md': { type: 'orchestrator' },
+    'tskill.md': { type: 'dbtable' },
 };
 
 function isReadableFile(candidate) {
@@ -180,6 +182,8 @@ export class RecursiveSkilledAgent {
             subsystem = new MCPSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
         } else if (type === 'orchestrator') {
             subsystem = new OrchestratorSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+        } else if (type === 'dbtable') {
+            subsystem = new DBTableSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
         } else {
             subsystem = new CloudeSkillsSubsystem();
         }

@@ -7,6 +7,7 @@ import { LLMAgent } from '../LLMAgents/index.mjs';
 import { SkilledAgent } from '../SkilledAgents/index.mjs';
 import { RecursiveSkilledAgent } from '../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import defaultPromptReader from '../utils/defaultPromptReader.mjs';
+import GampRSP from './GampRSP.mjs';
 
 const COLOR_RESET = '\x1b[0m';
 const COLOR_INFO = '\x1b[36m';
@@ -144,11 +145,19 @@ class AchilesCLI {
             ? listTimeoutMs
             : 1500;
 
+        this.workspaceRoot = process.cwd();
+        GampRSP.configure(this.workspaceRoot);
+        this.specsRoot = GampRSP.getSpecsDirectory();
+
         this.llmAgent = llmAgent instanceof LLMAgent
             ? llmAgent
             : new LLMAgent();
 
-        this.skillSearchRoots = (skillDirs.length ? skillDirs : [process.cwd()])
+        const cliSkillRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '.AchillesSkills');
+        this.skillSearchRoots = [
+            cliSkillRoot,
+            ...(skillDirs.length ? skillDirs : [process.cwd()]),
+        ]
             .map((dir) => path.resolve(dir));
 
         this.skilledAgent = new SkilledAgent({
@@ -193,7 +202,7 @@ class AchilesCLI {
             try {
                 this.recursiveAgent.registerSkillsFromRoot(root);
             } catch (error) {
-                this.output.write(`${COLOR_WARN}[warn] Failed to register skills from ${root}: ${error.message}${COLOR_RESET}\n`);
+                    this.output.write(`${COLOR_WARN}[warn] Failed to register skills from ${root}: ${error.message}${COLOR_RESET}\n`);
             }
         });
     }
@@ -324,6 +333,10 @@ class AchilesCLI {
                 const result = await this.recursiveAgent.executeWithReviewMode(step.prompt, {
                     skillName: record.name,
                     args,
+                    context: {
+                        workspaceRoot: this.workspaceRoot,
+                        specsRoot: this.specsRoot,
+                    },
                 });
                 executions.push({
                     ...step,
@@ -353,7 +366,12 @@ class AchilesCLI {
 
         const plan = await this.createPlan(trimmed);
         if (!plan.length) {
-            const fallback = await this.recursiveAgent.executePrompt(trimmed);
+            const fallback = await this.recursiveAgent.executePrompt(trimmed, {
+                context: {
+                    workspaceRoot: this.workspaceRoot,
+                    specsRoot: this.specsRoot,
+                },
+            });
             return {
                 plan: [],
                 executions: [{

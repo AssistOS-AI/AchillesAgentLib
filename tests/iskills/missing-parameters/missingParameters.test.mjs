@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     runInteractiveSkillScenario,
     resolveTestDir,
+    isConfirmationPrompt,
 } from '../helpers/runInteractiveSkillScenario.mjs';
 
 const testDir = resolveTestDir(import.meta);
@@ -31,14 +32,14 @@ test('interactive skill asks for missing parameters in business language and con
     assert.equal((scenario.result.severity || '').toLowerCase(), 'high');
 
     const collectedText = scenario.logs.join('\n');
-    const missingDetailsMentions = collectedText.match(/To continue I need the following details:/g) || [];
+    const missingDetailsMentions = collectedText.match(/📋 Please provide the following details:/g) || [];
     assert.ok(missingDetailsMentions.length >= 1, 'The agent should list missing details');
-    assert.match(collectedText, /Incident Title/i);
-    assert.match(collectedText, /Incident severity level/i);
-    assert.match(collectedText, /Optional details you may add:[^\n]*\n[\s\S]*Team that will follow up on the incident\./i);
+    assert.match(collectedText, /\|\s*Incident Title/i);
+    assert.match(collectedText, /\|\s*Severity\s*\|/i);
+    assert.match(collectedText, /\|\s*Assigned Team\s*\|\s*Optional/i, 'Optional fields should be highlighted in the table');
     assert.ok(!/skill/i.test(collectedText), 'Prompts should avoid the word "skill"');
 
-    const confirmationPrompt = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
+    const confirmationPrompt = scenario.prompts.find((prompt) => isConfirmationPrompt(prompt));
     assert.ok(confirmationPrompt, 'Confirmation prompt should appear before execution');
     assert.ok(confirmationPrompt.includes('a support incident record for the warehouse printers'));
     assert.ok(confirmationPrompt.includes('Incident Title'));

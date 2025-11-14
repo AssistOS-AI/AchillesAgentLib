@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DBTable Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Skill System Overview","href":"overview.html"},
+            {"label":"DBTable Skills"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>DBTable Skills</h1>
+            <p>
+                DBTable skills wrap CRUD-style workflows around structured business tables. Instead of hard-coding forms, authors describe
+                schema rules, validation hints, and lookup strategies in <code>tskill.md</code>. The subsystem compiles that descriptor into
+                executable helpers, plans the correct operation (list, view, create, update), gathers missing fields through the interactive
+                executor, and persists results with a registered Persisto client.
+            </p>
+            <nav class="page-links" aria-label="Skill families">
+                <a href="interactive-skills.html">Interactive Skills</a>
+                <a href="dbtable-skills.html" aria-current="page">DBTable Skills</a>
+                <a href="orchestration-skills.html">Orchestration Skills</a>
+                <a href="mcp-skills.html">MCP Skills</a>
+                <a href="code-skills.html">Code Skills</a>
+            </nav>
+        </section>
+
+        <section>
+            <h2>Skill Layout</h2>
+            <p>
+                Each DBTable skill lives under <code>.AchillesSkills/&lt;domain&gt;/&lt;table&gt;/</code> with three important files:
+            </p>
+            <ul>
+                <li><code>tskill.md</code> – the Markdown descriptor that defines the table, field metadata, and behavioural hints.</li>
+                <li><code>dbtable.generated.mjs</code> – produced by <code>compileDBTableSkill</code>; exports helpers such as <code>prepareRecord</code> and <code>presentRecord</code>.</li>
+                <li><code>dbtable.generated.meta.json</code> – caches the descriptor hash so recompilation only runs when the author edits <code>tskill.md</code>.</li>
+            </ul>
+            <p>
+                <code>RecursiveSkilledAgent</code> discovers directories that contain <code>tskill.md</code>, assigns them canonical names like
+                <code>projects-dbtable</code>, and delegates preparation and execution to <code>DBTableSkillsSubsystem</code>.
+            </p>
+        </section>
+
+        <section>
+            <h2>Descriptor Anatomy</h2>
+            <p>
+                A descriptor uses headings to describe both the table overview and each field. Sub-chapters such as <em>Description</em>,
+                <em>Field Name Presenter</em>, <em>Enumerator</em>, <em>Resolver</em>, <em>Validator</em>, <em>Derivator</em>, and
+                <em>PrimaryKey</em> are parsed into the blueprint:
+            </p>
+<pre><code># Projects
+Track internal initiatives and their lifecycle status.
+
+## Table Purpose
+Provide lifecycle visibility by listing, creating, or updating projects.
+
+## Field: project_id
+### Description
+Unique identifier users refer to in chat.
+### Field Name Presenter
+Project ID
+### Resolver
+Normalise inputs like `PRJ1` or `Project 1` into the canonical `PRJ-001`.
+### PrimaryKey
+If empty, generate a PRJ- prefixed identifier with padded counters.
+
+## Field: status
+### Required
+Status is mandatory when creating or updating records.
+### Enumerator
+- planned: scheduled but not started
+- active: currently in delivery
+- complete: fully delivered
+### Validator
+Reject anything that is not one of planned/active/complete.</code></pre>
+            <p>
+                Authoring guidelines:
+            </p>
+            <ul>
+                <li>Use one <code>## Field: name</code> section per column. Headings must be unique.</li>
+                <li>Bulleted lists under <em>Aliases</em> or <em>Enumerator</em> are parsed automatically; free-form text also works.</li>
+                <li><em>Derivator</em> sections describe read-only fields computed via LLM prompts. They are excluded from persistence.</li>
+                <li><em>Grouping</em> declares cross-table helpers (<code>buildGroupingAccessor</code>) when Persisto exposes richer relations.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Compilation Pipeline</h2>
+            <p>
+                When a descriptor changes, <code>compileDBTableSkill</code> parses it into a blueprint and rewrites
+                <code>dbtable.generated.mjs</code>. The generated module exports:
+            </p>
+            <ul>
+                <li><code>blueprint</code> – normalised table metadata, field ordering, primary keys, and descriptor hash.</li>
+                <li><code>prepareRecord()</code> – runs resolver instructions on user input so downstream clients receive canonical values.</li>
+                <li><code>presentRecord()</code> – mirrors presenter instructions to produce human-friendly responses.</li>
+                <li><code>validatorFunction()</code> – enforces required fields and invokes validator prompts, returning structured issue lists.</li>
+                <li><code>generatePKValues()</code> – fills blank primary keys via deterministic helpers or LLM instructions.</li>
+                <li><code>enumeratorFunction()</code> and <code>fieldNamePresenterFunction()</code> – expose options and friendly labels to the UI loop.</li>
+            </ul>
+            <p>
+                These helpers feed directly into <code>runDBTableSkill</code>, ensuring the author’s Markdown stays the single source of truth.
+            </p>
+        </section>
+
+        <section>
+            <h2>Supported Operations</h2>
+            <p>
+                <code>runDBTableSkill</code> uses the descriptor plus the user prompt to build an operation plan. The flow is:
+            </p>
+            <ol>
+                <li>Heuristics guess the intent (list, show single record, create, update); an LLM prompt refines the plan and extracts filters or values.</li>
+                <li>For <em>display-table</em>, the subsystem calls <code>tableClient.select()</code> and renders a Markdown table via <code>presentRecord</code>.</li>
+                <li>For <em>display-record</em>, the plan resolves primary keys, fetches a single record, and prints it as a field/value table.</li>
+                <li>For <em>create-record</em> or <em>update-record</em>, the subsystem gathers missing fields with the interactive executor, validates input, writes via Persisto, and reports optional fields still missing.</li>
+            </ol>
+            <p>
+                The operation result always includes machine-readable fields (status, issues, rows) plus a Markdown fragment ready to stream back to the user.
+            </p>
+        </section>
+
+        <section>
+            <h2>Gathering and Validating Fields</h2>
+            <p>
+                DBTable skills reuse the interactive executor so authors inherit the same argument collection experience familiar from
+                <code>iskill.md</code> descriptors. During create/update flows:
+            </p>
+            <ul>
+                <li>The subsystem builds a temporary interactive skill where each argument mirrors a field definition (description, enumerator, resolver, validator).</li>
+                <li>Enumerators expose bullet samples or call the LLM instructions to surface searchable option lists.</li>
+                <li>Validators merge hard requirements (missing fields) with structured responses returned by <em>Validator</em> prompts.</li>
+                <li>Optional fields are summarised after execution so operators can decide whether to call the skill again with extra details.</li>
+            </ul>
+            <p>
+                Because the loop is interactive, DBTable skills can confirm destructive actions, cancel gracefully, and surface placeholder detection just like first-class interactive skills.
+            </p>
+        </section>
+
+        <section>
+            <h2>Persisto Client Contract</h2>
+            <p>
+                DBTable skills never talk to the database directly. Instead, register an adapter that exposes the CRUD surface area for each table:
+            </p>
+<pre><code>import { registerPersistoClient } from 'achillesAgentLib/DBTableSkillsSubsystem';
+import { Persisto } from './persisto.js';
+
+registerPersistoClient({
+    getProjects: (id) => Persisto.fetchProject(id),
+    updateProjects: (record) => Persisto.saveProject(record),
+    createProjects: (record) => Persisto.insertProject(record),
+    select: (tableName, filters, options) => Persisto.query(tableName, filters, options),
+});</code></pre>
+            <p>
+                Method names follow predictable patterns (<code>get${PascalCase(tableName)}</code>, <code>update${PascalCase(tableName)}</code>,
+                <code>create${PascalCase(tableName)}</code>). Optional helpers such as <code>buildGroupingAccessor</code> or
+                <code>buildRelationAccessor</code> can call richer Persisto APIs when descriptors declare <em>Grouping</em> data.
+            </p>
+        </section>
+
+        <section>
+            <h2>LLM Collaboration</h2>
+            <p>
+                All free-form instructions inside <code>tskill.md</code> are fed to <code>LLMAgent</code> at runtime:
+            </p>
+            <ul>
+                <li><strong>Enumerators:</strong> either return the bullet list directly or ask the model to build options dynamically.</li>
+                <li><strong>Resolvers and Presenters:</strong> prompts teach the model how to normalise inbound values and how to display them back.</li>
+                <li><strong>Validators:</strong> produce JSON payloads such as <code>{ "issues": [{ "field": "status", "message": "..."}]}</code> that the UI can map to prompts.</li>
+                <li><strong>Derivators:</strong> let authors compute read-only insights (for example, “overall health”) every time a record is displayed.</li>
+            </ul>
+            <p>
+                Because the descriptor narrates both directions (resolver vs presenter), DBTable skills remain reversible—the system always knows how to store a value and how to explain it.
+            </p>
+        </section>
+
+        <section>
+            <h2>Testing and Local Development</h2>
+            <p>
+                Use <code>tests/runDBTableTests.js</code> to exercise DBTable flows in isolation. The helper
+                <code>tests/dbtableSkills/helpers/runDBTableScenario.mjs</code> wires a <code>MockPersistoClient</code> plus a
+                <code>RecursiveSkilledAgent</code> so you can script realistic prompts in Node tests. A typical workflow is:
+            </p>
+            <ol>
+                <li>Author or update <code>tskill.md</code> and run the tests; the compiler regenerates <code>dbtable.generated.mjs</code> automatically.</li>
+                <li>Use <code>runDBTableScenario</code> to seed fake table data and simulate user responses.</li>
+                <li>Assert on <code>execution.result.record</code>, <code>execution.result.rows</code>, or <code>execution.result.issues</code>.</li>
+            </ol>
+            <p>
+                This keeps DBTable skills aligned with the rest of the testable architecture: Markdown describes intent, generated modules implement it,
+                and automated scenarios guarantee nothing regresses.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

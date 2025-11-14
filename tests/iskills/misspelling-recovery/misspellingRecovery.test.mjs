@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     runInteractiveSkillScenario,
     resolveTestDir,
+    isConfirmationPrompt,
 } from '../helpers/runInteractiveSkillScenario.mjs';
 
 const testDir = resolveTestDir(import.meta);
@@ -28,7 +29,7 @@ test('interactive skill recovers from small misspellings in enumerated values', 
     assert.ifError(scenario.error);
     assert.ok(scenario.result, 'Scenario should produce a payload');
 
-    const confirmation = scenario.prompts.find((prompt) => prompt.includes('About to apply'));
+    const confirmation = scenario.prompts.find((prompt) => isConfirmationPrompt(prompt));
     assert.ok(confirmation, 'Confirmation prompt should be presented');
     assert.match(confirmation, /Berlin Central Warehouse/i);
 
