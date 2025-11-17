@@ -186,3 +186,76 @@ test('AchilesCLI falls back to generic skill when no plan is provided', { concur
     const rewritten = fs.readFileSync(path.join(workspace, 'src', 'index.mjs'), 'utf8');
     assert.ok(rewritten.includes('"generic"'), 'Generic skill should rewrite the file.');
 });
+
+test('AchilesCLI enforces the default English language contract', { concurrency: false, timeout: 10_000 }, async () => {
+    const workspace = createWorkspace('language-contract');
+    const output = createOutputBuffer();
+    const planPrompts = [];
+    const llm = new LLMAgent({
+        invokerStrategy: async ({ context, prompt }) => {
+            if (context?.intent === 'achiles-cli-plan') {
+                planPrompts.push(prompt);
+                return JSON.stringify([{ skill: 'mock-build', prompt: 'Preview specifications.' }]);
+            }
+            return '[]';
+        },
+    });
+    const cli = new AchilesCLI({
+        llmAgent: llm,
+        workspaceRoot: workspace,
+        output,
+        autoBootstrapMode: 'manual',
+    });
+    const executed = [];
+    cli.recursiveAgent.executeWithReviewMode = async (promptText, options = {}) => {
+        executed.push({ promptText, context: options?.context });
+        return { result: { message: 'ok' } };
+    };
+
+    await cli.processTaskInput('Redactează specificațiile pentru demo.');
+
+    assert.ok(planPrompts.length >= 1, 'Planner should receive at least one prompt.');
+    assert.match(planPrompts[0], /Language Requirements/i, 'Plan prompt should include language contract.');
+    assert.match(planPrompts[0], /english/i, 'Default language should be english.');
+    assert.ok(executed.length >= 1, 'At least one skill execution should occur.');
+    assert.match(executed[0].promptText, /Language Contract/i, 'Skill prompt should include language contract.');
+    assert.match(executed[0].promptText, /english/i, 'Skill prompt should reference english output.');
+    assert.equal(executed[0].context?.specLanguage, 'english', 'Context should expose the active spec language.');
+    assert.match(executed[0].context?.languageContract || '', /Language Contract/i, 'Context should include the language contract text.');
+});
+
+test('AchilesCLI honors updated /lang preference for future prompts', { concurrency: false, timeout: 10_000 }, async () => {
+    const workspace = createWorkspace('language-command');
+    const output = createOutputBuffer();
+    const planPrompts = [];
+    const llm = new LLMAgent({
+        invokerStrategy: async ({ context, prompt }) => {
+            if (context?.intent === 'achiles-cli-plan') {
+                planPrompts.push(prompt);
+                return JSON.stringify([{ skill: 'mock-build', prompt: 'Preview specifications.' }]);
+            }
+            return '[]';
+        },
+    });
+    const cli = new AchilesCLI({
+        llmAgent: llm,
+        workspaceRoot: workspace,
+        output,
+        autoBootstrapMode: 'manual',
+    });
+    cli.setSpecLanguage('romanian');
+
+    const executed = [];
+    cli.recursiveAgent.executeWithReviewMode = async (promptText, options = {}) => {
+        executed.push({ promptText, context: options?.context });
+        return { result: { message: 'ok' } };
+    };
+
+    await cli.processTaskInput('Documentează cerințele.');
+
+    assert.ok(planPrompts.length >= 1, 'Planner should receive at least one prompt.');
+    assert.match(planPrompts[0], /romanian/i, 'Plan prompt should mention the updated language.');
+    assert.ok(executed.length >= 1, 'At least one skill execution should occur.');
+    assert.match(executed[0].promptText, /romanian/i, 'Skill prompt should embed the updated language.');
+    assert.equal(executed[0].context?.specLanguage, 'romanian', 'Context should expose the new language preference.');
+});

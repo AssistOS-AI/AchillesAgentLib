@@ -919,6 +919,10 @@ Before submitting changes, verify:
 - [ ] Commit message follows present-tense format
 - [ ] Changes are focused and well-organized
 
+### LLM Planning Reliability
+- Never synthesize fallback specifications when the LLM planner is offline or returns no actions. Surface the error instead so the operator can refine the prompt or rerun when the planner is available.
+- Prompts should nudge the LLM to behave like a seasoned architect: reusing existing specs, avoiding duplicates, and honoring GAMP traceability rules.
+
 ---
 
 ## Getting Help
@@ -932,4 +936,3 @@ Before submitting changes, verify:
 ---
 
 **Remember: Quality over speed. Take time to understand the architecture, write comprehensive tests, and follow established patterns. The SkilledAgent system is production-grade code that requires production-grade development practices.**
-

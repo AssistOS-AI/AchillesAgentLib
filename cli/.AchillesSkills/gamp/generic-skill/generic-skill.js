@@ -252,14 +252,18 @@ export async function action({ prompt = '', context = {}, llmAgent = null }) {
     const workspaceRoot = context.workspaceRoot
         ? path.resolve(context.workspaceRoot)
         : process.cwd();
+    const log = typeof context.logger === 'function' ? context.logger : null;
 
     const effectiveLLM = llmAgent || context.llmAgent || null;
     const planFromLLM = await readPlanFromLLM(effectiveLLM, prompt);
     const planSource = planFromLLM && planFromLLM.length ? planFromLLM : DEFAULT_PLAN;
     const plan = normalisePlan(planSource);
+    log?.(`[plan] Prepared ${plan.length} ${plan.length === 1 ? 'step' : 'steps'} for generic operations.`);
 
     const steps = [];
-    for (const step of plan) {
+    for (let index = 0; index < plan.length; index += 1) {
+        const step = plan[index];
+        log?.(`[step ${index + 1}/${plan.length || 1}] ${step.tool} ${step.target || ''}`.trim());
         try {
             // eslint-disable-next-line no-await-in-loop
             const result = await executeStep({
@@ -268,12 +272,14 @@ export async function action({ prompt = '', context = {}, llmAgent = null }) {
                 llmAgent: effectiveLLM,
                 taskPrompt: prompt,
             });
+            log?.(`[step ${index + 1}/${plan.length || 1}] ${step.tool} succeeded.`);
             steps.push({
                 ...step,
                 status: 'ok',
                 result,
             });
         } catch (error) {
+            log?.(`[step ${index + 1}/${plan.length || 1}] ${step.tool} failed: ${error.message}`);
             steps.push({
                 ...step,
                 status: 'failed',

@@ -114,6 +114,26 @@ const ensureTraceabilityBlock = ({
     ].join('\n');
 };
 
+const slugifyTitle = (value) => {
+    if (!value || typeof value !== 'string') {
+        return 'design';
+    }
+    const cleaned = value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return cleaned || 'design';
+};
+
+const extractDSIdFromFileName = (fileName) => {
+    if (!fileName) {
+        return null;
+    }
+    const match = fileName.match(/(DS-\d+)/i);
+    return match ? match[1].toUpperCase() : null;
+};
+
 class GampRSP {
     constructor() {
         this.workspaceRoot = process.cwd();
@@ -160,6 +180,31 @@ class GampRSP {
 
     getDSDir() {
         return path.join(this.specsDir, 'DS');
+    }
+
+    resolveDSFilePath(dsId, { title = '' } = {}) {
+        const normalised = normaliseId(dsId);
+        if (!normalised) {
+            throw new Error('resolveDSFilePath requires a DS identifier.');
+        }
+        const dsDir = this.getDSDir();
+        ensureDir(dsDir);
+        const entries = fs.readdirSync(dsDir);
+        const match = entries.find((entry) => entry.toUpperCase().startsWith(`${normalised}-`));
+        if (match) {
+            return path.join(dsDir, match);
+        }
+        const legacyName = `${normalised}.md`;
+        const legacyPath = path.join(dsDir, legacyName);
+        if (fs.existsSync(legacyPath)) {
+            return legacyPath;
+        }
+        const slug = slugifyTitle(title || normalised);
+        return path.join(dsDir, `${normalised}-${slug}.md`);
+    }
+
+    getDSFilePath(dsId) {
+        return this.resolveDSFilePath(dsId);
     }
 
     getMockDir() {
@@ -327,14 +372,14 @@ class GampRSP {
             '## Tests',
             '_Add tests via createTest()._',
         ].join('\n');
-        const target = path.join(this.getDSDir(), `${id}.md`);
+        const target = this.resolveDSFilePath(id, { title });
         writeFileSafe(target, payload);
         this.linkRequirementToDS(reqId, id);
         return id;
     }
 
     updateDS(id, title, description, architecture) {
-        const filePath = path.join(this.getDSDir(), `${id}.md`);
+        const filePath = this.resolveDSFilePath(id, { title });
         if (!fs.existsSync(filePath)) {
             throw new Error(`DS file ${id} not found.`);
         }
@@ -351,8 +396,8 @@ class GampRSP {
         ensureDir(this.getDSDir());
         const entries = fs.readdirSync(this.getDSDir());
         return entries
-            .filter((entry) => entry.toUpperCase().startsWith('DS-'))
-            .map((entry) => entry.replace('.md', '').toUpperCase());
+            .map((entry) => extractDSIdFromFileName(entry))
+            .filter(Boolean);
     }
 
     createTest(dsId, title, description) {
@@ -423,7 +468,7 @@ class GampRSP {
     }
 
     appendToDS(dsId, block, anchor) {
-        const filePath = path.join(this.getDSDir(), `${dsId}.md`);
+        const filePath = this.resolveDSFilePath(dsId);
         const content = readFileSafe(filePath);
         const pattern = new RegExp(`${anchor}[\\s\\S]*?(?=\\n##\\s+|$)`, 'i');
         const match = content.match(pattern);
@@ -584,12 +629,30 @@ class GampRSP {
         body { font-family: Arial, sans-serif; margin: 2rem; line-height: 1.5; }
         pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
         h1, h2, h3 { color: #003366; }
+        ul { line-height: 1.8; }
+        a { color: #0050a4; text-decoration: none; }
     </style>
 </head>
 <body>
 ${body}
 </body>
 </html>`;
+        const extractTitle = (content, fallback) => {
+            const match = content.match(/^#\s+(.+)$/m);
+            return match ? match[1].trim() : fallback;
+        };
+        const extractDescription = (content) => {
+            const match = content.match(/###\s+Description\s+([\s\S]+?)(?:\n###|\n$)/i);
+            if (match) {
+                return match[1].trim().replace(/\n+/g, ' ');
+            }
+            return '';
+        };
+        const pages = [];
+        const addPage = (href, title, section, description = '') => {
+            pages.push({ href, title, section, description });
+        };
+
         const files = [
             { name: 'URS.html', source: 'URS.md' },
             { name: 'FS.html', source: 'FS.md' },
@@ -597,13 +660,39 @@ ${body}
         ];
         files.forEach(({ name, source }) => {
             const content = readFileSafe(this.getDocPath(source));
-            writeFileSafe(path.join(docsDir, name), html(source.replace('.md', ''), `<pre>${content}</pre>`));
+            const title = extractTitle(content, source.replace('.md', '').toUpperCase());
+            writeFileSafe(path.join(docsDir, name), html(title, `<pre>${content}</pre>`));
+            addPage(name, title, 'core', extractDescription(content));
         });
-        fs.readdirSync(this.getDSDir()).forEach((entry) => {
+
+        const dsEntries = fs.readdirSync(this.getDSDir())
+            .filter((entry) => entry.toLowerCase().endsWith('.md'))
+            .sort();
+        dsEntries.forEach((entry) => {
             const content = readFileSafe(path.join(this.getDSDir(), entry));
+            const heading = extractTitle(content, entry.replace('.md', ''));
             const name = `${entry.replace('.md', '')}.html`;
-            writeFileSafe(path.join(docsDir, name), html(entry, `<pre>${content}</pre>`));
+            writeFileSafe(path.join(docsDir, name), html(heading, `<pre>${content}</pre>`));
+            addPage(name, heading, 'ds', extractDescription(content));
         });
+
+        const renderList = (heading, filter) => {
+            const entries = pages.filter((page) => page.section === filter);
+            if (!entries.length) {
+                return '';
+            }
+            const items = entries
+                .map((page) => `<li><a href="${page.href}">${page.title}</a>${page.description ? ` – ${page.description}` : ''}</li>`)
+                .join('\n');
+            return `<h2>${heading}</h2>\n<ul>\n${items}\n</ul>`;
+        };
+
+        const indexBody = [
+            '<h1>Specification Index</h1>',
+            renderList('Core Specifications', 'core'),
+            renderList('Design Specifications', 'ds'),
+        ].filter(Boolean).join('\n\n');
+        writeFileSafe(path.join(docsDir, 'index.html'), html('Specification Index', indexBody));
         return docsDir;
     }
 }

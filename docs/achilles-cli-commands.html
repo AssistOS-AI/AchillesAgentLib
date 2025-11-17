@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Achiles CLI – Commands & Prompt Guide</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Achiles CLI &mdash; Commands and Prompt Handling</h1>
+            <p>A deeper look at how the CLI reads prompts, stores history, and exposes runtime commands for humans and agents.</p>
+        </section>
+
+        <section>
+            <h2>Prompt Editing &amp; History</h2>
+            <ul>
+                <li><strong>History file</strong> &mdash; every prompt (including slash commands) is appended to <code>.specs/.prompts_history</code>. Subsequent sessions preload the same file so arrow keys immediately recall earlier prompts.</li>
+                <li><strong>Multi-line input</strong> &mdash; end a line with <code>\</code> to continue typing under the <code>... </code> prompt. Blank lines terminate multi-line mode.</li>
+                <li><strong>Special keys</strong> &mdash; <kbd>↑</kbd>/<kbd>↓</kbd> browse history; <kbd>Esc</kbd> cancels the active plan (see below); <kbd>Ctrl+C</kbd> cancels the plan or exits if idle.</li>
+                <li><strong>Non-interactive mode</strong> &mdash; pass <code>--non-interactive</code> when embedding the CLI so prompts come from your own reader; in that mode the internal history manager is bypassed.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Runtime Commands</h2>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Command</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>/help</code></td>
+                            <td>Prints command usage, history shortcuts, and cancellation hints.</td>
+                        </tr>
+                        <tr>
+                            <td><code>/list</code></td>
+                            <td>Lists every available skill (name, type, summary, implementation hints). Honors <code>--skills</code> / <code>ACHILES_CLI_SKILLS</code> overrides.</td>
+                        </tr>
+                        <tr>
+                            <td><code>/debug [on|off]</code></td>
+                            <td>Toggles verbose <code>LLM_DEBUG:</code> logging. The same mode can be pre-enabled via <code>ACHILES_LLM_DEBUG=1</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>/continue</code></td>
+                            <td>Resume the most recent plan. If you provide extra text (<code>/continue incorporate telemetry</code>) the CLI replans before resuming.</td>
+                        </tr>
+                        <tr>
+                            <td><code>/resume</code></td>
+                            <td>Alias of <code>/continue</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>/run &lt;skill&gt; &lt;&lt;prompt&gt;&gt;</code></td>
+                            <td>Invoke a specific skill without running the planner. Example: <code>/run spec-review &lt;&lt;Audit DS-003 for gaps&gt;&gt;</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>/status</code></td>
+                            <td>Shows request counts, token totals, per-model stats, and the paths to <code>.llm_logs</code>/<code>.llm_stats</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>/cancel</code></td>
+                            <td>Cancel the active plan. Equivalent to pressing <kbd>Esc</kbd> or <kbd>Ctrl+C</kbd> while a plan is running.</td>
+                        </tr>
+                        <tr>
+                            <td><code>/exit</code>, <code>/quit</code></td>
+                            <td>Gracefully close the CLI. Pending history and memories are flushed to disk.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2>Cancellation &amp; Resume</h2>
+            <p>The CLI maintains a <em>pending plan state</em>. Every time a step starts, its index is recorded. Cancelling via <kbd>Esc</kbd>, <kbd>Ctrl+C</kbd>, or <code>/cancel</code> sets the plan to <em>paused</em> and prints how many steps remain:</p>
+<pre><code>[info] Plan paused with 3 step(s) remaining. Use \"continue\" or \"/continue\" to resume.</code></pre>
+            <p>You can then:</p>
+            <ul>
+                <li>Resume untouched by simply typing <code>continue</code> (any language variants such as “continúa” are detected) or using <code>/continue</code>.</li>
+                <li>Resume with tweaks (<code>continue justifică FS-004</code>) &mdash; the CLI replans using the previous prompt plus the extra instruction.</li>
+                <li>Abort entirely by entering a brand-new prompt (the pending plan is replaced).</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Environment &amp; Flags</h2>
+            <ul>
+                <li><code>ACHILES_CLI_SKILLS</code> &mdash; comma-separated list of directories that contain <code>.AchillesSkills</code>. Matches the <code>--skills</code> flag.</li>
+                <li><code>ACHILES_LLM_DEBUG</code> &mdash; set to <code>1</code>/<code>true</code> to start the CLI with <code>/debug on</code>.</li>
+                <li><code>--bootstrap-mode</code> &mdash; choose <code>auto</code> (default), <code>ask</code>, or <code>manual</code>. Remember that bootstrapping only runs when <code>.specs/</code> is missing.</li>
+                <li><code>--assume-yes</code> / <code>--confirm-plan</code> &mdash; explicitly skip or require plan confirmations.</li>
+                <li><code>--non-interactive</code> &mdash; disable the readline wrapper (suitable for programmatic use).</li>
+            </ul>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

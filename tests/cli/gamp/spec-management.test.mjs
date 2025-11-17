@@ -52,7 +52,7 @@ test('GampRSP links DS entries and enriches file impact metadata', async () => {
         },
     );
 
-    const dsDoc = fs.readFileSync(path.join(workspaceRoot, '.specs', 'DS', `${dsId}.md`), 'utf8');
+    const dsDoc = fs.readFileSync(GampRSP.getDSFilePath(dsId), 'utf8');
     assert.match(dsDoc, /#### Why[\s\S]*Persist regulatory audit entries/);
     assert.match(dsDoc, /#### Side Effects[\s\S]*Writes to disk/);
 });
@@ -77,7 +77,7 @@ test('update-specs executes LLM-driven actions', async () => {
     assert.equal(result.actions.length, 4);
     const fsDoc = fs.readFileSync(path.join(workspaceRoot, '.specs', 'FS.md'), 'utf8');
     assert.ok(fsDoc.includes('FS telemetry'));
-    const dsDoc = fs.readFileSync(path.join(workspaceRoot, '.specs', 'DS', 'DS-001.md'), 'utf8');
+    const dsDoc = fs.readFileSync(GampRSP.getDSFilePath('DS-001'), 'utf8');
     assert.ok(dsDoc.includes('DS telemetry'));
 });
 
@@ -112,7 +112,7 @@ test('reverse-specs delegates per-file updates to LLM plans', async () => {
     });
 
     assert.equal(outcome.results.length, 1);
-    const dsDoc = fs.readFileSync(path.join(workspaceRoot, '.specs', 'DS', 'DS-001.md'), 'utf8');
+    const dsDoc = fs.readFileSync(GampRSP.getDSFilePath('DS-001'), 'utf8');
     assert.ok(dsDoc.includes('src/app.mjs'), 'DS file impact must include the source file.');
 });
 

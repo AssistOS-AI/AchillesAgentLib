@@ -531,11 +531,16 @@ export class OrchestratorSkillsSubsystem {
         return recursiveAgent.getSkillRecord(key);
     }
 
-    async executePlanSteps({ plan, recursiveAgent, options, orchestratorName }) {
+    async executePlanSteps({ plan, recursiveAgent, options, orchestratorName, logger = null }) {
+        const log = typeof logger === 'function' ? logger : null;
         const executions = [];
+        const total = plan.length || 0;
+        log?.(`[plan] Prepared ${total} ${total === 1 ? 'step' : 'steps'} for ${orchestratorName}.`);
 
-        for (const step of plan) {
+        for (let index = 0; index < plan.length; index += 1) {
+            const step = plan[index];
             if (!step.run) {
+                log?.(`[step ${index + 1}/${total || 1}] Skipping ${step.skill || step.intent || '<unknown>'} – flagged as 'run: false'.`);
                 executions.push({
                     ...step,
                     skipped: true,
@@ -547,6 +552,7 @@ export class OrchestratorSkillsSubsystem {
 
             const skillRecord = this.resolveSkillRecord(step.skill, recursiveAgent);
             if (!skillRecord) {
+                log?.(`[step ${index + 1}/${total || 1}] Unable to locate skill "${step.skill}".`);
                 executions.push({
                     ...step,
                     skipped: true,
@@ -557,6 +563,7 @@ export class OrchestratorSkillsSubsystem {
             }
 
             if (Sanitiser.sanitiseName(skillRecord.name) === Sanitiser.sanitiseName(orchestratorName)) {
+                log?.(`[step ${index + 1}/${total || 1}] Prevented recursive invocation of ${skillRecord.name}.`);
                 executions.push({
                     ...step,
                     skipped: true,
@@ -567,11 +574,14 @@ export class OrchestratorSkillsSubsystem {
             }
 
             try {
+                log?.(`[step ${index + 1}/${total || 1}] Running ${skillRecord.name}: ${step.input || '<no prompt>'}`);
+                const nestedOptions = { ...options };
                 const outcome = await recursiveAgent.executeWithReviewMode(step.input || '', {
-                    ...options,
+                    ...nestedOptions,
                     skillName: skillRecord.name,
                 }, options?.reviewMode || 'none');
 
+                log?.(`[step ${index + 1}/${total || 1}] Completed ${skillRecord.name}.`);
                 executions.push({
                     ...step,
                     skipped: false,
@@ -579,6 +589,7 @@ export class OrchestratorSkillsSubsystem {
                     error: null,
                 });
             } catch (error) {
+                log?.(`[step ${index + 1}/${total || 1}] ${skillRecord.name} failed: ${error?.message || error}`);
                 executions.push({
                     ...step,
                     skipped: false,
@@ -631,10 +642,13 @@ export class OrchestratorSkillsSubsystem {
         recursiveAgent,
         promptText,
         options,
+        logger = null,
     }) {
         if (!fallback || !fallback.instructions) {
             return null;
         }
+
+        const log = typeof logger === 'function' ? logger : null;
 
         const availableTools = Array.isArray(options?.availableTools)
             ? options.availableTools.map((tool) => ({
@@ -653,6 +667,7 @@ export class OrchestratorSkillsSubsystem {
             mcpSubsystem.prepareSkill(dynamicRecord, recursiveAgent);
         }
 
+        log?.('[fallback] Executing fallback MCP script.');
         const outcome = await mcpSubsystem.executeSkillPrompt({
             skillRecord: dynamicRecord,
             recursiveAgent,
@@ -662,6 +677,7 @@ export class OrchestratorSkillsSubsystem {
                 availableTools: filteredTools,
             },
         });
+        log?.('[fallback] Fallback MCP execution completed.');
 
         return {
             intent: fallback.intent || 'fallback',
@@ -701,12 +717,14 @@ export class OrchestratorSkillsSubsystem {
             });
         }
 
+        const { logger, ...forwardOptions } = options || {};
         const planData = await this.createPlan({ skillRecord, recursiveAgent, promptText });
         const executions = await this.executePlanSteps({
             plan: planData.plan,
             recursiveAgent,
-            options,
+            options: forwardOptions,
             orchestratorName: skillRecord.name,
+            logger,
         });
 
         let fallbackExecution = null;
@@ -719,7 +737,8 @@ export class OrchestratorSkillsSubsystem {
                 fallback: planData.fallback,
                 recursiveAgent,
                 promptText,
-                options,
+                options: forwardOptions,
+                logger,
             });
             if (fallbackExecution) {
                 executions.push(fallbackExecution);
@@ -772,21 +791,25 @@ export class OrchestratorSkillsSubsystem {
     }
 
     async executeModuleSkill({ skillRecord, recursiveAgent, promptText, options }) {
+        const { logger, ...forwardOptions } = options || {};
+        const log = typeof logger === 'function' ? logger : null;
         const action = await this.loadModule(skillRecord);
         const context = {
             prompt: promptText,
-            args: options.args || {},
+            args: forwardOptions.args || {},
             llmAgent: this.llmAgent,
             recursiveAgent,
             metadata: skillRecord.metadata,
             skillRecord,
-            context: options.context || {},
+            context: forwardOptions.context || {},
         };
+        log?.('[module] Executing orchestrator module.');
         const result = await withTimeout(
             Promise.resolve(action(context)),
             SKILL_TIMEOUT_MS,
             () => new Error(`Orchestrator skill "${skillRecord.name}" timed out after ${SKILL_TIMEOUT_MS}ms.`),
         );
+        log?.('[module] Orchestrator module completed.');
         return {
             skill: skillRecord.name,
             metadata: skillRecord.metadata || null,

@@ -4,7 +4,8 @@ import {
     classifyIntent,
     responseToJSON,
 } from './markdown.mjs';
-import { defaultLLMInvokerStrategy } from '../utils/LLMClient.mjs';
+import { defaultLLMInvokerStrategy, cancelRequests } from '../utils/LLMClient.mjs';
+import { logLLMInteraction } from '../utils/LLMLogger.mjs';
 
 const DEFAULT_AGENT_NAME = 'DefaultLLMAgent';
 
@@ -52,6 +53,9 @@ class LLMAgent {
 
         this.name = name;
         this.invokerStrategy = resolvedStrategy;
+        this._debugEnabled = false;
+        this._debugLogger = null;
+        this._debugCounter = 0;
     }
 
     parseMarkdownKeyValues(markdown) {
@@ -124,6 +128,30 @@ class LLMAgent {
             raw,
         };
     }
+    
+    setDebugLogger(logger) {
+        this._debugLogger = typeof logger === 'function' ? logger : null;
+    }
+
+    setDebugEnabled(enabled) {
+        this._debugEnabled = Boolean(enabled);
+    }
+
+    _emitDebugEvent(event) {
+        if (!this._debugEnabled || typeof this._debugLogger !== 'function') {
+            return;
+        }
+        try {
+            this._debugLogger(event);
+        } catch {
+            // Avoid cascading failures from debug hooks
+        }
+    }
+
+    _nextDebugRequestId() {
+        this._debugCounter += 1;
+        return `llm-${this._debugCounter}`;
+    }
 
     getSupportedModes() {
         if (this.invokerStrategy && typeof this.invokerStrategy.getSupportedModes === 'function') {
@@ -139,7 +167,7 @@ class LLMAgent {
         const {
             prompt,
             history = [],
-            mode = 'fast',
+            mode = process.env.DEFAULT_MODEL_TYPE === 'deep' ? 'deep' : 'fast',
             model = null,
             context = {},
             ...invokerExtras
@@ -148,6 +176,19 @@ class LLMAgent {
         if (!prompt || typeof prompt !== 'string') {
             throw new Error('complete requires a prompt string.');
         }
+
+        const requestId = this._debugEnabled ? this._nextDebugRequestId() : null;
+        const startedAt = Date.now();
+        const emit = (event) => {
+            if (!requestId) {
+                return;
+            }
+            this._emitDebugEvent({
+                id: requestId,
+                method: 'complete',
+                ...event,
+            });
+        };
 
         // Show processing indicator before LLM processing
         if (this._processingCallbacks?.onStart) {
@@ -160,6 +201,15 @@ class LLMAgent {
 
         try {
             const conversation = Array.isArray(history) ? history.slice() : [];
+            emit({
+                phase: 'request',
+                mode,
+                model,
+                prompt,
+                history: conversation,
+                context,
+                options: invokerExtras,
+            });
             const response = await this.invokerStrategy({
                 prompt,
                 history: conversation,
@@ -179,14 +229,31 @@ class LLMAgent {
                 }
             }
             
+            let finalResponse = null;
             if (typeof response === 'string') {
-                return response;
+                finalResponse = response;
+            } else if (response && typeof response === 'object' && typeof response.output === 'string') {
+                finalResponse = response.output;
+            } else {
+                throw new Error('LLMAgent invokerStrategy must return a string response.');
             }
-            if (response && typeof response === 'object' && typeof response.output === 'string') {
-                return response.output;
-            }
-            throw new Error('LLMAgent invokerStrategy must return a string response.');
+            emit({
+                phase: 'response',
+                output: finalResponse,
+            });
+            logLLMInteraction({
+                prompt,
+                response: finalResponse,
+                model: model || 'auto',
+                mode,
+                durationMs: Date.now() - startedAt,
+            });
+            return finalResponse;
         } catch (error) {
+            emit({
+                phase: 'error',
+                error: error?.message || String(error),
+            });
             // Hide processing indicator on error
             if (this._processingCallbacks?.onEnd) {
                 try {
@@ -195,7 +262,29 @@ class LLMAgent {
                     // Silently ignore callback errors
                 }
             }
+            logLLMInteraction({
+                prompt,
+                response: error?.message || '',
+                model: model || 'auto',
+                mode,
+                durationMs: Date.now() - startedAt,
+            });
             throw error;
+        }
+    }
+
+    cancel() {
+        try {
+            cancelRequests();
+        } catch {
+            // ignore cancellation failures
+        }
+        if (this._processingCallbacks?.onEnd) {
+            try {
+                this._processingCallbacks.onEnd();
+            } catch {
+                // ignore callback errors
+            }
         }
     }
 

@@ -125,7 +125,7 @@ test('reverse-specs uses LLM plans per file to evolve specs', { concurrency: fal
 
     const outcome = await reverseSpecs({ prompt: 'Reverse engineer workspace.', context: { workspaceRoot, llmAgent: llm } });
     assert.ok(outcome.results.length >= 2, 'Should process at least the source files.');
-    const dsDoc = fs.readFileSync(path.join(workspaceRoot, '.specs', 'DS', 'DS-001.md'), 'utf8');
+    const dsDoc = fs.readFileSync(GampRSP.getDSFilePath('DS-001'), 'utf8');
     assert.match(dsDoc, /src\/app\.mjs/, 'DS document should include app file.');
     assert.match(dsDoc, /src\/utils\.mjs/, 'DS document should include utils file.');
 });

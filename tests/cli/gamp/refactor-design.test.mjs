@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 
 import refactorDesign from '../../../cli/.AchillesSkills/gamp/refactor-design/refactor-design.js';
 import ignoreFiles from '../../../cli/.AchillesSkills/gamp/ignore-files/ignore-files.js';
+import GampRSP from '../../../cli/GampRSP.mjs';
 
 const TEMP_ROOT = path.join(process.cwd(), 'tests', '.tmp', 'cli-gamp');
 
@@ -23,6 +24,7 @@ const readLines = (filePath) => fs.readFileSync(filePath, 'utf8')
 
 test('refactor-design creates DS entries and file stubs', { concurrency: false, timeout: 15_000 }, async () => {
     const workspaceRoot = makeWorkspace();
+    GampRSP.configure(workspaceRoot);
     const prompt = [
         'Refactor CLI planner to isolate the runner.',
         'Touch src/refactors/plan-runner.mjs and src/config/plan.mjs',
@@ -35,7 +37,7 @@ test('refactor-design creates DS entries and file stubs', { concurrency: false, 
 
     assert.ok(Array.isArray(outcome.dsIds) && outcome.dsIds.length === 1, 'Should return a single DS id.');
     const [dsId] = outcome.dsIds;
-    const dsFile = path.join(workspaceRoot, '.specs', 'DS', `${dsId}.md`);
+    const dsFile = GampRSP.getDSFilePath(dsId);
     assert.ok(fs.existsSync(dsFile), `DS file ${dsId} must exist.`);
 
     const dsContent = fs.readFileSync(dsFile, 'utf8');
