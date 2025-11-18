@@ -76,7 +76,7 @@ test('build-code synthesizes files using DS metadata + LLM output', { concurrenc
     assert.match(content, /createEmitter/, 'LLM generated function should be present.');
 });
 
-test('mock-build generates HTML mocks for web-style projects', { concurrency: false, timeout: 15_000 }, async () => {
+test('mock-build summarises specs and publishes HTML artefacts', { concurrency: false, timeout: 15_000 }, async () => {
     const workspaceRoot = makeWorkspace('mock-html');
     const pkgPath = path.join(workspaceRoot, 'package.json');
     fs.writeFileSync(pkgPath, JSON.stringify({
@@ -92,11 +92,10 @@ test('mock-build generates HTML mocks for web-style projects', { concurrency: fa
     GampRSP.createFS('FS dashboard view', 'Render KPI tiles.', ursId);
 
     const result = await mockBuild({ context: { workspaceRoot } });
-    assert.equal(result.type, 'web', 'React dependency should trigger HTML mock.');
-    const htmlFile = result.output;
-    assert.ok(fs.existsSync(htmlFile), 'HTML mock file must exist.');
-    const htmlContent = fs.readFileSync(htmlFile, 'utf8');
-    assert.match(htmlContent, /FS-001/, 'Requirement identifier should appear in mock HTML.');
+    assert.equal(result.type, 'spec-summary', 'Spec summary output should be reported.');
+    assert.ok(fs.existsSync(result.output), 'Specification summary HTML must exist.');
+    assert.ok(fs.existsSync(result.docsIndex), 'Generated documentation index should exist.');
+    assert.ok(Array.isArray(result.specs.fs) && result.specs.fs.length >= 1, 'FS entries should appear in the summary payload.');
 });
 
 test('reverse-specs uses LLM plans per file to evolve specs', { concurrency: false, timeout: 20_000 }, async () => {

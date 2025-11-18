@@ -67,7 +67,8 @@ function parseEnvContent(content) {
     return variables;
 }
 
-const DEBUG_ENABLED = process.env.ACHILES_DEBUG === '1' || process.env.ACHILES_DEBUG === 'true';
+const debugFlag = (process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase();
+const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
 
 export function envAutoConfig({ startDir = process.cwd(), override = false } = {}) {
     const envPath = findDotEnvFile(startDir);

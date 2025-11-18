@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const DEBUG_ENV = String(process.env.ACHILESS_DEBUG || '').toLowerCase();
+const DEBUG_ENV = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILESS_DEBUG ?? '').toLowerCase();
 const DEBUG_ENABLED = DEBUG_ENV === 'true' || DEBUG_ENV === '1';
 
 let loggerInstance = null;

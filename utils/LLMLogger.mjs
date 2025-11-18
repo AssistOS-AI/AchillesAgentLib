@@ -31,7 +31,7 @@ const estimateTokens = (text) => {
     return Math.ceil(String(text).length / 4);
 };
 
-const bucketForLength = (length) => BUCKETS.find((bucket) => length < bucket.max) || BUCKETS[BUCKETS.length - 1];
+const bucketForDuration = (durationMs) => BUCKETS.find((bucket) => durationMs < bucket.max) || BUCKETS[BUCKETS.length - 1];
 
 let enabled = false;
 let logsPath = null;
@@ -99,19 +99,51 @@ export const configureLLMLogger = ({ logsFile = null, statsFile = null } = {}) =
     }
 };
 
-const appendLog = (entry) => {
+export const resetLLMLogger = () => {
+    stats = {
+        totalRequests: 0,
+        tokensSent: 0,
+        tokensReceived: 0,
+        lastModel: null,
+        lastUpdated: null,
+        models: {},
+        buckets: BUCKETS.reduce((acc, bucket) => {
+            acc[bucket.label] = initialBucketStats();
+            return acc;
+        }, {}),
+    };
+};
+
+const appendLogLine = (line) => {
     if (!logsPath) {
         return;
     }
     try {
         ensureDir(logsPath);
-        fs.appendFileSync(logsPath, `${JSON.stringify(entry)}\n`, 'utf8');
+        fs.appendFileSync(logsPath, `${line}\n`, 'utf8');
     } catch {
         // ignore log errors
     }
 };
 
-const updateStats = ({ promptLength, tokensSent, tokensReceived, durationMs, model }) => {
+const sanitizeCsvText = (text) => {
+    const raw = text == null ? '' : String(text);
+    const singleLine = raw.replace(/[\r\n]+/g, ' ').trim();
+    const escaped = singleLine.replace(/"/g, '""');
+    return `"${escaped}"`;
+};
+
+const writeCsvEvent = ({ timestamp, model, mode, type, durationMs, text }) => {
+    const safeTimestamp = timestamp || new Date().toISOString();
+    const safeModel = (model || 'unknown').replace(/,/g, ' ');
+    const safeMode = (mode || 'fast').replace(/,/g, ' ');
+    const safeType = (type || 'input').replace(/,/g, ' ');
+    const safeDuration = Number.isFinite(durationMs) ? durationMs : 0;
+    const line = `${safeTimestamp},${safeModel},${safeMode},${safeType},${safeDuration},${sanitizeCsvText(text)}`;
+    appendLogLine(line);
+};
+
+const updateStats = ({ tokensSent, tokensReceived, durationMs, model }) => {
     stats.totalRequests += 1;
     stats.tokensSent += tokensSent;
     stats.tokensReceived += tokensReceived;
@@ -126,7 +158,7 @@ const updateStats = ({ promptLength, tokensSent, tokensReceived, durationMs, mod
     stats.models[modelKey].tokensSent += tokensSent;
     stats.models[modelKey].tokensReceived += tokensReceived;
 
-    const bucket = bucketForLength(promptLength);
+    const bucket = bucketForDuration(durationMs);
     const bucketStats = stats.buckets[bucket.label] || initialBucketStats();
     bucketStats.requests += 1;
     bucketStats.tokensSent += tokensSent;
@@ -159,20 +191,23 @@ export const logLLMInteraction = ({
     const tokensSent = estimateTokens(promptText);
     const tokensReceived = estimateTokens(responseText);
 
-    const entry = {
+    writeCsvEvent({
         timestamp: new Date().toISOString(),
         model,
         mode,
-        promptLength,
-        responseLength: responseText.length,
-        tokensSent,
-        tokensReceived,
+        type: 'input',
+        durationMs: 0,
+        text: promptText,
+    });
+    writeCsvEvent({
+        timestamp: new Date().toISOString(),
+        model,
+        mode,
+        type: 'output',
         durationMs,
-        promptPreview: promptText.slice(0, 200),
-        responsePreview: responseText.slice(0, 200),
-    };
-    appendLog(entry);
-    updateStats({ promptLength, tokensSent, tokensReceived, durationMs, model });
+        text: responseText,
+    });
+    updateStats({ tokensSent, tokensReceived, durationMs, model });
 };
 
 export const getLLMStats = () => cloneStats(stats);

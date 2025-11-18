@@ -24,8 +24,14 @@ const loadHistory = (specsRoot, key) => {
 };
 
 class MemoryManager {
-    constructor({ specsRoot, workspaceRoot }) {
+    constructor({ specsRoot, workspaceRoot, llmAgent = null, summarizeExecutions = null }) {
         this.specsRoot = specsRoot || path.join(workspaceRoot || process.cwd(), '.specs');
+        this.llmAgent = llmAgent;
+        this.summarizeExecutions = typeof summarizeExecutions === 'function'
+            ? summarizeExecutions
+            : ((executions) => executions
+                .map((execution) => execution.prompt || '')
+                .filter(Boolean));
         this.globalMemory = new MemoryContainer({
             baseDir: this.specsRoot,
             initialHistory: loadHistory(this.specsRoot, HISTORY_FILE_KEYS.global),
@@ -48,7 +54,7 @@ class MemoryManager {
         };
     }
 
-    async capture({ userPrompt, plan = [], executions = [], cancelled = false }, llmAgent) {
+    async capture({ userPrompt, plan = [], executions = [], cancelled = false }) {
         if (!userPrompt && !plan.length && !executions.length) {
             return;
         }
@@ -56,16 +62,14 @@ class MemoryManager {
         if (plan.length) {
             summaryLines.push(`Plan steps: ${plan.map((step) => step.skill).join(', ')}`);
         }
-        executions.forEach((execution) => {
-            const prefix = `[${execution.status}] ${execution.skill}`;
-            summaryLines.push(`${prefix}: ${execution.prompt || ''}`);
-        });
+        const executionSummaries = this.summarizeExecutions(executions);
+        summaryLines.push(...executionSummaries);
         if (cancelled) {
             summaryLines.push('Plan cancelled before completion.');
         }
         const summary = summaryLines.filter(Boolean).join('\n');
 
-        const routing = await this._classifyMemory(llmAgent, userPrompt, summary)
+        const routing = await this._classifyMemory(userPrompt, summary)
             .catch(() => null);
         if (!routing) {
             this.sessionMemory.appendToHistory({ user: userPrompt, ai: summary });
@@ -77,8 +81,8 @@ class MemoryManager {
         this._maybeStore(this.sessionMemory, null, routing.session, userPrompt, summary, false);
     }
 
-    async _classifyMemory(llmAgent, userPrompt, summary) {
-        if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
+    async _classifyMemory(userPrompt, summary) {
+        if (!this.llmAgent || typeof this.llmAgent.executePrompt !== 'function') {
             return null;
         }
         const body = [
@@ -93,7 +97,7 @@ class MemoryManager {
             `Summary:\n${summary || '<none>'}`,
         ].join('\n\n');
 
-        const response = await llmAgent.executePrompt(body, {
+        const response = await this.llmAgent.executePrompt(body, {
             responseShape: 'json',
             context: { intent: 'memory-routing' },
             mode: 'fast',

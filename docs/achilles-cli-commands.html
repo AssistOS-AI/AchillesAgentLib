@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Achiles CLI – Commands & Prompt Guide</title>
+    <title>Achilles CLI – Commands & Prompt Guide</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
 
     <main class="content">
         <section class="lead">
-            <h1>Achiles CLI &mdash; Commands and Prompt Handling</h1>
+            <h1>Achilles CLI &mdash; Commands and Prompt Handling</h1>
             <p>A deeper look at how the CLI reads prompts, stores history, and exposes runtime commands for humans and agents.</p>
         </section>
 
@@ -42,11 +42,11 @@
                         </tr>
                         <tr>
                             <td><code>/list</code></td>
-                            <td>Lists every available skill (name, type, summary, implementation hints). Honors <code>--skills</code> / <code>ACHILES_CLI_SKILLS</code> overrides.</td>
+                            <td>Lists every available skill (name, type, summary, implementation hints). Honors <code>--skills</code> / <code>ACHILLES_CLI_SKILLS</code> overrides.</td>
                         </tr>
                         <tr>
                             <td><code>/debug [on|off]</code></td>
-                            <td>Toggles verbose <code>LLM_DEBUG:</code> logging. The same mode can be pre-enabled via <code>ACHILES_LLM_DEBUG=1</code>.</td>
+                            <td>Toggles verbose <code>LLM_DEBUG:</code> logging. The same mode can be pre-enabled via <code>ACHILLES_LLM_DEBUG=1</code>.</td>
                         </tr>
                         <tr>
                             <td><code>/continue</code></td>
@@ -78,6 +78,17 @@
         </section>
 
         <section>
+            <h2>Language Contract &amp; /lang</h2>
+            <p>All specification artifacts (URS/FS/NFS/DS, file-impact tables, and confirmation prompts) are emitted in English by default. The CLI injects an explicit “Language Requirements” block into every planner call and skill execution, preventing LLMs from drifting into other languages even when the operator submits prompts in Romanian or another locale.</p>
+            <ul>
+                <li><strong>Default</strong> &mdash; English output for every spec. The reminder is prepended to the planner prompt and every skill invocation.</li>
+                <li><strong><code>/lang &lt;code&gt;</code></strong> &mdash; sets the desired specification language (for example <code>/lang english</code>, <code>/lang romanian</code>). The CLI normalizes the value and persists it for the rest of the session.</li>
+                <li><strong><code>/lang</code> (without arguments)</strong> &mdash; prints the current specification language so you can confirm the setting before issuing a new request.</li>
+                <li><strong>UI localization vs specs</strong> &mdash; even if the UI echoes prompts in another language, the CLI forces spec text to the configured language and rejects placeholder strings such as <code>your_value</code>.</li>
+            </ul>
+        </section>
+
+        <section>
             <h2>Cancellation &amp; Resume</h2>
             <p>The CLI maintains a <em>pending plan state</em>. Every time a step starts, its index is recorded. Cancelling via <kbd>Esc</kbd>, <kbd>Ctrl+C</kbd>, or <code>/cancel</code> sets the plan to <em>paused</em> and prints how many steps remain:</p>
 <pre><code>[info] Plan paused with 3 step(s) remaining. Use \"continue\" or \"/continue\" to resume.</code></pre>
@@ -92,12 +103,23 @@
         <section>
             <h2>Environment &amp; Flags</h2>
             <ul>
-                <li><code>ACHILES_CLI_SKILLS</code> &mdash; comma-separated list of directories that contain <code>.AchillesSkills</code>. Matches the <code>--skills</code> flag.</li>
-                <li><code>ACHILES_LLM_DEBUG</code> &mdash; set to <code>1</code>/<code>true</code> to start the CLI with <code>/debug on</code>.</li>
+                <li><code>ACHILLES_CLI_SKILLS</code> &mdash; comma-separated list of directories that contain <code>.AchillesSkills</code>. Matches the <code>--skills</code> flag.</li>
+                <li><code>ACHILLES_LLM_DEBUG</code> &mdash; set to <code>1</code>/<code>true</code> to start the CLI with <code>/debug on</code>.</li>
                 <li><code>--bootstrap-mode</code> &mdash; choose <code>auto</code> (default), <code>ask</code>, or <code>manual</code>. Remember that bootstrapping only runs when <code>.specs/</code> is missing.</li>
                 <li><code>--assume-yes</code> / <code>--confirm-plan</code> &mdash; explicitly skip or require plan confirmations.</li>
                 <li><code>--non-interactive</code> &mdash; disable the readline wrapper (suitable for programmatic use).</li>
             </ul>
+        </section>
+
+        <section>
+            <h2>LLM Status &amp; Logs</h2>
+            <p>The CLI captures every prompt/response pair under the workspace’s <code>.specs</code> directory:</p>
+            <ul>
+                <li><strong><code>.specs/.llm_logs</code></strong> &mdash; newline-delimited JSON entries containing prompt/response previews, token estimates, duration, and the model name used for each call.</li>
+                <li><strong><code>.specs/.llm_stats</code></strong> &mdash; aggregate counters used by <code>/status</code>. The CLI shows total requests, per-model volume, and duration-based response buckets (<code>&lt;100</code>, <code>&lt;1000</code>, <code>&lt;10000</code>, <code>&lt;100000</code>, <code>&gt;100000</code> milliseconds).</li>
+                <li><strong><code>/status</code></strong> &mdash; reports request counts, the last-used model, bucket statistics (only populated when a bucket has at least one request), and the log/stat file paths so you can tail them while debugging.</li>
+            </ul>
+            <p>Because the log files live in the workspace, every project keeps its own audit trail without polluting the global home directory.</p>
         </section>
     </main>
 

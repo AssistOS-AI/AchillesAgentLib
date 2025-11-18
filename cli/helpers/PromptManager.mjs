@@ -136,7 +136,7 @@ class PromptManager {
         ));
     }
 
-    async readMultiline(initialPrompt = 'achiles> ', continuationPrompt = '... ') {
+    async readMultiline(initialPrompt = 'achilles> ', continuationPrompt = '... ') {
         const rl = this._ensureReadline();
         rl.history = this.historyEntries.slice().reverse();
         const lines = [];

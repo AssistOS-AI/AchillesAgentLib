@@ -11,9 +11,9 @@ const parseTimeout = (value, fallback) => {
 };
 
 const SKILL_TIMEOUT_MS = parseTimeout(
-    process.env.ACHILESS_SKILL_TIMEOUT
-        ?? process.env.ACHILES_SKILL_TIMEOUT
-        ?? process.env.ACHILLES_SKILL_TIMEOUT,
+    process.env.ACHILLES_SKILL_TIMEOUT
+        ?? process.env.ACHILESS_SKILL_TIMEOUT
+        ?? process.env.ACHILES_SKILL_TIMEOUT,
     60_000,
 );
 

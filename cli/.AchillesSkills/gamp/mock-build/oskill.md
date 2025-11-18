@@ -1,13 +1,14 @@
 # mock-build
 
-Generate lightweight mock artefacts (CLI or HTML) that visualise the requirements captured in `.specs`.
+Summarise the latest GAMP specifications (URS, FS, NFS, DS) and publish human-readable HTML artefacts.
 
 ## Summary
-- Inspects `package.json` and workspace structure to guess whether to emit a CLI script or HTML screens.
-- Uses the latest URS/FS/NFS content to populate the mock.
-- Writes the mock into `.specs/mock`.
+- Reads all specification documents and design files to extract identifiers, traceability, and file impacts.
+- Generates `.specs/mock/spec-summary.html` plus the full `.specs/html_docs` site so operators can review specs visually.
+- Returns structured JSON so the CLI can echo the most important details inline.
 
 ## Instructions
-- Always refresh specs via `loadSpecs` before generating the mock.
-- Keep outputs deterministic so that rebuilds are diff-friendly.
-- Report the output path for downstream tooling.
+- Group information by doc type, preserving IDs and titles exactly as written.
+- In DS summaries, list every impacted file with its rationale (why/how/what) and the semantic expectations.
+- Include up to 3 tests per DS in the summary, mirroring the sections in the DS document.
+- Always regenerate HTML docs via `GampRSP.generateHtmlDocs()` so downstream tools stay in sync.

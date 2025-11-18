@@ -2,156 +2,238 @@ import fs from 'node:fs';
 import path from 'node:path';
 import GampRSP from '../../../GampRSP.mjs';
 
-const readPackageJson = (root) => {
-    const target = path.join(root, 'package.json');
-    if (!fs.existsSync(target)) {
-        return null;
-    }
-    try {
-        return JSON.parse(fs.readFileSync(target, 'utf8'));
-    } catch {
-        return null;
-    }
-};
-
-const detectMockType = (pkg) => {
-    if (!pkg) {
-        return 'cli';
-    }
-    const deps = Object.keys({
-        ...(pkg.dependencies || {}),
-        ...(pkg.devDependencies || {}),
-    }).map((name) => name.toLowerCase());
-    if (deps.some((name) => ['react', 'next', 'vite', 'astro'].includes(name))) {
-        return 'web';
-    }
-    return 'cli';
-};
-
-const extractRequirements = (docName) => {
-    const content = GampRSP.readDocument(docName);
-    const regex = /^##\s+((?:FS|NFS)-\d+)\s+–\s+(.*?)\n([\s\S]*?)(?=^##\s+|$)/gm;
-    const entries = [];
-    let match;
-    while ((match = regex.exec(content)) !== null) {
-        const [, id, title, body] = match;
-        const descriptionMatch = body.match(/### Description\s+([\s\S]*?)(?=\n### |\n## |$)/);
-        const description = descriptionMatch
-            ? descriptionMatch[1].trim()
-            : body.trim().split('\n').slice(0, 4).join(' ').trim();
-        entries.push({
-            id,
-            title: title.trim(),
-            source: docName.replace('.md', ''),
-            description: description || 'Description pending.',
-            mockResponse: `Simulated response for ${id}: ${description.slice(0, 160) || 'No details available.'}`,
-        });
-    }
-    return entries;
-};
-
-const collectRequirementSummaries = () => [
-    ...extractRequirements('FS.md'),
-    ...extractRequirements('NFS.md'),
+const CORE_DOCS = [
+    { type: 'URS', filename: 'URS.md' },
+    { type: 'FS', filename: 'FS.md' },
+    { type: 'NFS', filename: 'NFS.md' },
 ];
 
-const buildCliMock = (mockDir, requirements) => {
-    const target = path.join(mockDir, 'mock-cli.js');
-    const content = `#!/usr/bin/env node
-const requirements = ${JSON.stringify(requirements, null, 2)};
+const readDocument = (name) => GampRSP.readDocument(name);
 
-const args = process.argv.slice(2);
-const getArg = (flag) => {
-    const name = flag.replace(/^-+/, '');
-    const exactIndex = args.indexOf(flag);
-    if (exactIndex !== -1) {
-        return args[exactIndex + 1];
+const extractChapters = (content) => {
+    const regex = /^##\s+([A-Z]+-\d+)\s+–\s+(.*?)\n([\s\S]*?)(?=^##\s+[A-Z]+-\d+|$)/gim;
+    const chapters = [];
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+        chapters.push({
+            id: match[1].toUpperCase(),
+            title: match[2].trim(),
+            body: match[3].trim(),
+        });
     }
-    const prefixed = args.find((token) => token.startsWith(\`--\${name}=\`));
-    if (prefixed) {
-        return prefixed.split('=').slice(1).join('=');
+    return chapters;
+};
+
+const extractSection = (body, heading) => {
+    const pattern = new RegExp(`###\\s+${heading}[\\s\\S]*?(?=\\n###\\s+|$)`, 'i');
+    const match = body.match(pattern);
+    if (!match) {
+        return '';
     }
-    return null;
+    const cleaned = match[0]
+        .split('\n')
+        .slice(1)
+        .join('\n')
+        .trim();
+    return cleaned;
 };
 
-const reqId = (getArg('--req') || getArg('--requirement') || '').toUpperCase();
-const scenario = getArg('--input') || 'default scenario';
-
-const listRequirements = () => {
-    console.log('Available mock requirements:');
-    requirements.forEach((entry) => {
-        console.log(\` - \${entry.id} (\${entry.source}): \${entry.title}\`);
-    });
-    console.log('\\nUsage: node mock-cli.js --req FS-001 --input \"preview data\"');
+const extractTraceEntries = (body) => {
+    const trace = extractSection(body, 'Traceability');
+    if (!trace) {
+        return [];
+    }
+    return trace
+        .split('\n')
+        .map((line) => line.replace(/^-/, '').trim())
+        .filter(Boolean);
 };
 
-if (!reqId) {
-    listRequirements();
-    process.exit(0);
-}
-
-const match = requirements.find((entry) => entry.id.toUpperCase() === reqId);
-if (!match) {
-    console.error(\`Requirement \${reqId} not found.\\n\`);
-    listRequirements();
-    process.exit(1);
-}
-
-console.log(\`[mock] \${match.id} – \${match.title}\`);
-console.log(\`Scenario: \${scenario}\`);
-console.log(\`Summary: \${match.description}\`);
-console.log(\`Mock response: \${match.mockResponse}\`);
-`;
-    fs.writeFileSync(target, content);
-    fs.chmodSync(target, 0o755);
-    return target;
+const summariseCoreDoc = (type, filename) => {
+    const content = readDocument(filename);
+    const chapters = extractChapters(content);
+    return chapters.map((chapter) => ({
+        id: chapter.id,
+        title: chapter.title,
+        description: extractSection(chapter.body, 'Description') || chapter.body.split('\n').slice(0, 4).join(' ').trim(),
+        traceability: extractTraceEntries(chapter.body),
+        source: filename,
+    }));
 };
 
-const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const extractTopHeading = (content) => {
+    const match = content.match(/^#\s+(DS-\d+)\s+–\s+(.*)$/m);
+    return match
+        ? { id: match[1].toUpperCase(), title: match[2].trim() }
+        : { id: 'DS-000', title: 'Design Specification' };
+};
 
-const buildHtmlMock = (mockDir, requirements) => {
-    const target = path.join(mockDir, 'index.html');
-    const cards = requirements.map((entry) => `<details>
-    <summary><strong>${entry.id}</strong> – ${escapeHtml(entry.title)} (${entry.source})</summary>
-    <p>${escapeHtml(entry.description)}</p>
-    <p><em>Mock response:</em> ${escapeHtml(entry.mockResponse)}</p>
-</details>`).join('\n');
-    const html = `<!DOCTYPE html>
+const extractBlock = (content, heading) => {
+    const pattern = new RegExp(`##\\s+${heading}[\\s\\S]*?(?=\\n##\\s+|$)`, 'i');
+    const match = content.match(pattern);
+    if (!match) {
+        return '';
+    }
+    return match[0].split('\n').slice(1).join('\n').trim();
+};
+
+const parseFileImpacts = (section) => {
+    if (!section) {
+        return [];
+    }
+    const regex = /###\s+File:\s+(.*?)\n([\s\S]*?)(?=###\s+File:|$)/gi;
+    const files = [];
+    let match;
+    while ((match = regex.exec(section)) !== null) {
+        const block = match[2];
+        const parseDetail = (label) => {
+            const pattern = new RegExp(`####\\s+${label}[\\s\\S]*?(?=\\n####\\s+|$)`, 'i');
+            const detailMatch = block.match(pattern);
+            if (!detailMatch) {
+                return '';
+            }
+            return detailMatch[0].split('\n').slice(1).join('\n').trim();
+        };
+        files.push({
+            path: match[1].trim(),
+            why: parseDetail('Why'),
+            how: parseDetail('How'),
+            what: parseDetail('What'),
+            description: parseDetail('Description'),
+            exports: parseDetail('Exports').split('\n').map((line) => line.replace(/^-/, '').trim()).filter(Boolean),
+            dependencies: parseDetail('Dependencies').split('\n').map((line) => line.replace(/^-/, '').trim()).filter(Boolean),
+            sideEffects: parseDetail('Side Effects'),
+            concurrency: parseDetail('Concurrency'),
+        });
+    }
+    return files;
+};
+
+const parseTests = (section) => {
+    if (!section) {
+        return [];
+    }
+    const regex = /###\s+(TEST-\d+)\s+–\s+(.*?)\n([\s\S]*?)(?=###\s+TEST-|$)/gi;
+    const tests = [];
+    let match;
+    while ((match = regex.exec(section)) !== null) {
+        tests.push({
+            id: match[1].toUpperCase(),
+            title: match[2].trim(),
+            description: match[3].trim(),
+        });
+    }
+    return tests;
+};
+
+const summariseDesignSpecs = () => {
+    const dsDir = GampRSP.getDSDir();
+    if (!fs.existsSync(dsDir)) {
+        return [];
+    }
+    return fs.readdirSync(dsDir)
+        .filter((entry) => entry.toLowerCase().endsWith('.md'))
+        .map((entry) => {
+            const content = fs.readFileSync(path.join(dsDir, entry), 'utf8');
+            const heading = extractTopHeading(content);
+            const trace = extractBlock(content, 'Traceability')
+                .split('\n')
+                .map((line) => line.replace(/^-/, '').trim())
+                .filter(Boolean);
+            return {
+                id: heading.id,
+                title: heading.title,
+                scope: extractBlock(content, 'Scope & Intent'),
+                architecture: extractBlock(content, 'Architecture'),
+                traceability: trace,
+                files: parseFileImpacts(extractBlock(content, 'File Impact')),
+                tests: parseTests(extractBlock(content, 'Tests')),
+                file: entry,
+            };
+        });
+};
+
+const buildSummary = () => ({
+    urs: summariseCoreDoc('URS', 'URS.md'),
+    fs: summariseCoreDoc('FS', 'FS.md'),
+    nfs: summariseCoreDoc('NFS', 'NFS.md'),
+    ds: summariseDesignSpecs(),
+});
+
+const escapeHtml = (text = '') => text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+const renderList = (items, formatter) => {
+    if (!items || !items.length) {
+        return '<p>No entries yet.</p>';
+    }
+    return `<ul>
+${items.map((item) => `<li>${formatter(item)}</li>`).join('\n')}
+</ul>`;
+};
+
+const buildSummaryHtml = (summary) => {
+    const renderCore = (label, entries) => `
+    <section>
+        <h2>${label}</h2>
+        ${renderList(entries, (entry) => `<strong>${escapeHtml(entry.id)}</strong> – ${escapeHtml(entry.title)}<br/>${escapeHtml(entry.description)}`)}
+    </section>`;
+
+    const renderDS = summary.ds.map((entry) => `
+    <section>
+        <h3>${escapeHtml(entry.id)} – ${escapeHtml(entry.title)}</h3>
+        <p>${escapeHtml(entry.scope || entry.architecture || '')}</p>
+        <h4>Traceability</h4>
+        ${renderList(entry.traceability, (line) => escapeHtml(line))}
+        <h4>Files</h4>
+        ${renderList(entry.files, (file) => `<strong>${escapeHtml(file.path)}</strong> – ${escapeHtml(file.why || '')}`)}
+        <h4>Tests</h4>
+        ${renderList(entry.tests, (test) => `<strong>${escapeHtml(test.id)}</strong> – ${escapeHtml(test.title)}`)}
+    </section>`).join('\n');
+
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Specification Mock</title>
+  <title>Specification Summary</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; line-height: 1.5; }
-    details { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
-    summary { cursor: pointer; font-size: 1.05rem; }
+    body { font-family: Arial, sans-serif; margin: 2rem; line-height: 1.6; }
+    h1 { color: #003366; }
+    section { margin-bottom: 2rem; }
+    ul { padding-left: 1.2rem; }
   </style>
 </head>
 <body>
-  <h1>Specification Mock Preview</h1>
-  <p>Select a requirement to view its description and mocked response.</p>
-  ${cards}
+  <h1>Specification Summary</h1>
+  ${renderCore('URS', summary.urs)}
+  ${renderCore('FS', summary.fs)}
+  ${renderCore('NFS', summary.nfs)}
+  <section>
+    <h2>Design Specifications</h2>
+    ${renderDS || '<p>No DS entries yet.</p>'}
+  </section>
 </body>
 </html>`;
-    fs.writeFileSync(target, html);
-    return target;
 };
 
-export async function action({ context }) {
+export async function action({ context = {} }) {
     const workspaceRoot = context.workspaceRoot || process.cwd();
     GampRSP.configure(workspaceRoot);
+    const summary = buildSummary();
     const mockDir = GampRSP.getMockDir();
-    const requirements = collectRequirementSummaries();
-    const pkg = readPackageJson(workspaceRoot);
-    const type = detectMockType(pkg);
-    const output = type === 'web'
-        ? buildHtmlMock(mockDir, requirements)
-        : buildCliMock(mockDir, requirements);
+    const summaryPath = path.join(mockDir, 'spec-summary.html');
+    const docsDir = GampRSP.generateHtmlDocs();
+    fs.mkdirSync(mockDir, { recursive: true });
+    fs.writeFileSync(summaryPath, buildSummaryHtml(summary));
+    const docsIndex = path.join(docsDir, 'index.html');
     return {
-        message: 'Mock build completed.',
-        type,
-        output,
-        requirements: requirements.length,
+        message: 'Specification summary generated.',
+        type: 'spec-summary',
+        output: summaryPath,
+        docsIndex,
+        specs: summary,
     };
 }
 

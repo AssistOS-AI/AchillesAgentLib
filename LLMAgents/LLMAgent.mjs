@@ -199,6 +199,7 @@ class LLMAgent {
             }
         }
 
+        let responseMetadata = null;
         try {
             const conversation = Array.isArray(history) ? history.slice() : [];
             emit({
@@ -233,6 +234,7 @@ class LLMAgent {
             if (typeof response === 'string') {
                 finalResponse = response;
             } else if (response && typeof response === 'object' && typeof response.output === 'string') {
+                responseMetadata = response;
                 finalResponse = response.output;
             } else {
                 throw new Error('LLMAgent invokerStrategy must return a string response.');
@@ -241,11 +243,16 @@ class LLMAgent {
                 phase: 'response',
                 output: finalResponse,
             });
+            const loggedModel = responseMetadata?.model
+                || this.invokerStrategy?.getLastInvocationDetails?.()?.model
+                || model
+                || 'auto';
+            const loggedMode = responseMetadata?.mode || mode;
             logLLMInteraction({
                 prompt,
                 response: finalResponse,
-                model: model || 'auto',
-                mode,
+                model: loggedModel,
+                mode: loggedMode,
                 durationMs: Date.now() - startedAt,
             });
             return finalResponse;
@@ -262,11 +269,14 @@ class LLMAgent {
                     // Silently ignore callback errors
                 }
             }
+            const lastInvocation = this.invokerStrategy?.getLastInvocationDetails?.() || null;
+            const loggedModel = lastInvocation?.model || responseMetadata?.model || model || 'auto';
+            const loggedMode = lastInvocation?.mode || responseMetadata?.mode || mode;
             logLLMInteraction({
                 prompt,
                 response: error?.message || '',
-                model: model || 'auto',
-                mode,
+                model: loggedModel,
+                mode: loggedMode,
                 durationMs: Date.now() - startedAt,
             });
             throw error;

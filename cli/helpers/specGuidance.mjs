@@ -1,0 +1,39 @@
+export const SPEC_GUIDANCE_TEXT = `
+Overview
+This document explains how to structure four core specification layers for a GxP/regulated software product—URS, FS, NFS, and DS—so that requirements flow cleanly from business needs to implemented solutions with embedded testing and clear traceability. It also defines a design-spec-per-requirement model (DS) in which each functional or non-functional requirement has its own technical design document, including mandatory file-level impact notes (dependencies and public exports) and the tests that prove the requirement was implemented correctly.
+
+URS (User Requirements Specification)
+The URS states what the business and regulated process need from the system, without prescribing the solution. It should read like a compact contract between process owners and the delivery team. Each requirement is uniquely identified, justified, prioritized, and verifiable. Regulatory and policy expectations (for example, data integrity, Annex 11/Part 11, privacy) are referenced explicitly, and constraints and assumptions are called out. While it can mention both functional and quality needs, the URS remains solution-agnostic and relatively stable over the life of the project. A short traceability preface indicates which FS and NFS items will satisfy each URS requirement.
+
+FS (Functional Specification)
+The FS translates the URS into observable system behavior. It explains what the product must do to satisfy the user needs: the actors involved, the user-visible flows, the business rules, the data that is captured and validated, the way errors are handled, and any required audit trail behavior. Interfaces and integrations are described in terms of contracts and data exchanged, not in terms of specific code. The FS remains testable and unambiguous, but avoids deep technical design; that work lives in DS documents. Each FS requirement references its source URS items and points forward to one or more DS documents that will implement it.
+
+NFS (Non-Functional Specification)
+The NFS collects the system-wide quality attributes and operational expectations that cut across features. It defines measurable targets for performance and capacity, security controls and roles, integrity and compliance expectations (including auditability and time synchronization), availability and resilience objectives, usability and accessibility goals, and maintainability and operability conventions such as logging, metrics, and runbooks. Every NFS requirement is quantified wherever possible (for example, percentile latency targets or recovery time objectives) and is linked back to URS where applicable and forward to one or more DS documents that realize the quality attribute.
+
+DS (Design Specification) — one document per requirement
+Each requirement from FS or NFS is implemented through a dedicated DS document. Treat it as the technical single source of truth for that requirement. The DS clarifies scope and intent, presents the concrete solution design (architecture view, component responsibilities, key algorithms or state transitions, database and schema changes, and external contracts such as APIs or events), and lists configuration flags and rollout considerations. Security and compliance hooks are specified where the requirement touches authorization, data integrity, audit events, or retention. Operational aspects—monitoring, metrics, alerting, and compatibility considerations—are described so that the change can be safely operated and rolled back if needed.
+
+Mandatory file-level impact sections
+Every DS contains a chapter that enumerates each impacted file in the codebase. For every file, the DS specifies the file path and name, its dependencies (internal and external) and what it exports publicly (functions, classes, types, endpoints, events). Notes on side effects, concurrency, or thread safety are provided where relevant. This chapter is mandatory for each affected file and keeps reviews focused and future maintenance predictable.
+
+Tests and their configs described inside the DS
+Testing is defined inside the DS so that verification is inseparable from design. The DS specifies the automated tests to be added (unit, component, API/contract, end-to-end, performance, security, or data-integrity checks), where they live in the repository, and how they are integrated into CI. If manual tests are needed, the DS provides clear step-by-step procedures and expected results, including the evidence that will be captured (screenshots, logs, test reports). Each acceptance criterion or quality target maps to at least one test. Entry and exit criteria are described so that “done” is unambiguous. Each test should get a separate folder and that folder should become the current working directory of the folder. The test should remove the temporary files it generates before execution and not after, to make the debug of the test easier. All temporary files or configurations, data used by the tests should be described in this section carefully. By convention, the tests folder should be used to store all these failures. All tests should be independent of each other, and a runAlltests.js should be in the root of the project. This runAlltests.js takes as the single parameter the suite. For each FS and NFS a separate suite should be created, with a separate folder and a series of tests specific for the specifications. Each test should have run in a temporary folder and a configurable timeout should be set at the beginning of each test to stop the test if execution gets stuck. If tests require configurations (e.g. API keys) these should be made through environment variables or .env files that the user should create outside of the project and the code should recursively look in the parent folders until an .env file with KEY=VALUE variables is found and use those settings for execution. At the beginning of the test if the mandatory settings are missing the test should fail with a clear and obvious message about the missing variables. The test folder has code in a folder named “testUtil” that ensures the configuration scheme and also creates the temporary folder (unique for each execution). The cleaning of the temporary folder is the responsibility of the test but at the next execution, so humans and AI agents can examine the temporary folders where the tests ran. Those temporary folders should be unique for each test and each execution but follow a clear convention so they can be automatically cleaned.
+
+Timestamps
+Every specification file has a “Version” chapter that lists the current semantic version and a timestamp (milliseconds since Unix epoch). When updating a chapter, bump the timestamp.
+
+How the documents connect
+The life cycle is intentionally simple: URS defines needs; FS and NFS describe product behavior and quality attributes that fulfill those needs; DS documents implement each requirement with concrete design and embedded verification. A lightweight traceability matrix ties everything together by listing, for each URS item, the corresponding FS/NFS items, the implementing DS documents, and the test identifiers and evidence locations. No code is merged unless the DS is approved, the tests defined in the DS are implemented and passed, and the traceability records are updated.
+
+Implementation guardrails
+- Specifications live in Markdown under \`.specs\`.
+- Generated code must use modern Node.js (ES modules, async/await, etc).
+- Tests rely on Node’s built-in \`node:test\` runner and follow the temporary-folder + runAlltests.js conventions.
+- All narrative text, specifications, code comments, and docs are written in English.
+- Focus on the active workspace: describe files relative to the current project (e.g., \`src/cli/index.mjs\`, \`tests/cli/help.test.mjs\`) and never reference Achilles CLI internals when drafting URS/FS/NFS/DS text.
+`.trim();
+
+export default {
+    SPEC_GUIDANCE_TEXT,
+};

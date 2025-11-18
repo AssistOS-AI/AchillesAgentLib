@@ -265,6 +265,7 @@ export function __resetCallLLMWithModelForTests() {
 export function createDefaultLLMInvokerStrategy() {
     const supportedModes = getSupportedModesFromCache();
     const cachedModels = listModelsFromCache();
+    let lastInvocationDetails = { model: null, mode: null };
 
     const invokerStrategy = async function defaultLLMInvokerStrategy(invocation = {}) {
         const {
@@ -296,6 +297,7 @@ export function createDefaultLLMInvokerStrategy() {
             mode: effectiveMode,
             modelName: normalizedPreferences.modelName || null,
         };
+        lastInvocationDetails = { model: null, mode: selectionRequest.mode };
 
         const prioritized = Array.isArray(modelCandidates) && modelCandidates.length
             ? modelCandidates
@@ -348,7 +350,13 @@ export function createDefaultLLMInvokerStrategy() {
 
             try {
                 const attemptHistory = Array.isArray(history) ? history.slice() : [];
-                return await callLLMWithModel(candidate, attemptHistory, prompt, invocationConfig);
+                const output = await callLLMWithModel(candidate, attemptHistory, prompt, invocationConfig);
+                lastInvocationDetails = { model: candidate, mode: selectionRequest.mode };
+                return {
+                    output,
+                    model: candidate,
+                    mode: selectionRequest.mode,
+                };
             } catch (error) {
                 attempts.push({ model: candidate, error });
             }
@@ -363,6 +371,7 @@ export function createDefaultLLMInvokerStrategy() {
         aggregatedError.mode = selectionRequest.mode;
         aggregatedError.modelsTried = prioritized.slice();
         aggregatedError.configurationPath = modelsConfiguration.path || null;
+        lastInvocationDetails = { model: null, mode: selectionRequest.mode };
         throw aggregatedError;
     };
 
@@ -371,6 +380,7 @@ export function createDefaultLLMInvokerStrategy() {
         fast: cachedModels.fast.map(record => ({ ...record })),
         deep: cachedModels.deep.map(record => ({ ...record })),
     });
+    invokerStrategy.getLastInvocationDetails = () => ({ ...lastInvocationDetails });
     invokerStrategy.describe = () => ({
         configPath: modelsConfiguration.path || null,
         supportedModes: invokerStrategy.getSupportedModes(),

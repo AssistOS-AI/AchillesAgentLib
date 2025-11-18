@@ -8,7 +8,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 
 const cliTestFiles = [
-    path.join(repoRoot, 'tests', 'cli', 'gamp', 'achiles-cli.test.mjs'),
+    path.join(repoRoot, 'tests', 'cli', 'gamp', 'achilles-cli.test.mjs'),
     path.join(repoRoot, 'tests', 'cli', 'gamp', 'workspace-workflows.test.mjs'),
     path.join(repoRoot, 'tests', 'cli', 'gamp', 'spec-mentor.test.mjs'),
 ];

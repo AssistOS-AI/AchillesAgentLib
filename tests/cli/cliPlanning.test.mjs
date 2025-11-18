@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { LLMAgent } from '../../LLMAgents/index.mjs';
-import AchilesCLI from '../../cli/achile-cli.js';
+import AchillesCLI from '../../cli/achilles-cli.mjs';
+import { PLAN_INTENT } from '../../intentionToSkill.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,7 +22,7 @@ const buildPlanResponse = (steps) => JSON.stringify(steps, null, 2);
 const createTestLLMAgent = () => new LLMAgent({
     name: 'PlannerTestLLM',
     invokerStrategy: async ({ prompt, context }) => {
-        if (context?.intent === 'achiles-cli-plan') {
+        if (context?.intent === PLAN_INTENT) {
             if (prompt.includes('Consolidated reporting and analytics migration')) {
                 return buildPlanResponse([
                     {
@@ -64,8 +65,8 @@ const createTestLLMAgent = () => new LLMAgent({
     },
 });
 
-test('Achiles CLI lists skills with types and implementation hints', async () => {
-    const cli = new AchilesCLI({
+test('Achilles CLI lists skills with types and implementation hints', async () => {
+    const cli = new AchillesCLI({
         startDirs: [FIXTURE_ROOT],
         llmAgent: createTestLLMAgent(),
     });
@@ -77,8 +78,8 @@ test('Achiles CLI lists skills with types and implementation hints', async () =>
     assert.ok(list.some((line) => line.toLowerCase().includes('soplang')));
 });
 
-test('Achiles CLI plans and executes across orchestrator skills', async () => {
-    const cli = new AchilesCLI({
+test('Achilles CLI plans and executes across orchestrator skills', async () => {
+    const cli = new AchillesCLI({
         startDirs: [FIXTURE_ROOT],
         llmAgent: createTestLLMAgent(),
     });
@@ -102,8 +103,8 @@ test('Achiles CLI plans and executes across orchestrator skills', async () => {
     });
 });
 
-test('Achiles CLI handles prompts requiring repeated orchestrator usage', async () => {
-    const cli = new AchilesCLI({
+test('Achilles CLI handles prompts requiring repeated orchestrator usage', async () => {
+    const cli = new AchillesCLI({
         startDirs: [FIXTURE_ROOT],
         llmAgent: createTestLLMAgent(),
     });
