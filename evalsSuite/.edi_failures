@@ -1,29 +1,5 @@
 [
   {
-    "file": "case_04.json",
-    "prompt": "I need to add a new NFS: 'All external API calls must have a fallback mechanism to prevent system-wide failures.' This is medium priority. Also, URS-007, about 'seamless user experience', is still too vague. Can you give me more concrete examples or metrics for it?",
-    "errors": [
-      {
-        "type": "semantic_mismatch",
-        "key": "prioritizeRequirement",
-        "expected": "set priority to Medium for the new NFS regarding fallback mechanism for external API calls.",
-        "actual": "set priority to Medium for the new Non-Functional Specification about external API calls."
-      }
-    ]
-  },
-  {
-    "file": "case_06.json",
-    "prompt": "The current NFS-001, 'System uptime must be 99.9%', needs to be updated to 'System uptime must be 99.99% for critical services'. This is a high priority change. Also, we need to add a new URS: 'Users can save their preferences for dashboard widgets.'",
-    "errors": [
-      {
-        "type": "semantic_mismatch",
-        "key": "prioritizeRequirement",
-        "expected": "set priority to High for the modified NFS-001 regarding system uptime.",
-        "actual": "set priority to High for NFS-001 after the update."
-      }
-    ]
-  },
-  {
     "file": "case_07.json",
     "prompt": "For FS-033 ('User Registration'), the requirement needs to be modified to include email verification as a mandatory step. What are the implications for existing user accounts? Also, add a new DS for a 'Microservices communication bus' with RabbitMQ.",
     "errors": [
@@ -31,7 +7,7 @@
         "type": "semantic_mismatch",
         "key": "modifyRequirement",
         "expected": "modify FS-033 ('User Registration') to include email verification as a mandatory step.",
-        "actual": "modify FS-033 ('User Registration') to include 'email verification as a mandatory step' and analyze the implications for existing user accounts."
+        "actual": "modify FS-033 ('User Registration') to include email verification as a mandatory step and clarify the implications for existing user accounts."
       },
       {
         "type": "missing_key",
@@ -48,7 +24,7 @@
         "type": "semantic_mismatch",
         "key": "prioritizeRequirement",
         "expected": "set priority to High for the new NFS regarding WCAG 2.1 AA compliance.",
-        "actual": "set priority to Very High for the new NFS regarding WCAG 2.1 AA compliance."
+        "actual": "set priority to very high for the new NFS regarding WCAG compliance."
       }
     ]
   },
@@ -64,25 +40,13 @@
     ]
   },
   {
-    "file": "case_15.json",
-    "prompt": "I need to add a new DS for a 'Centralized Error Logging Service' using ELK stack. This should be of high priority. Also, can you clarify what 'User consent for data processing' in URS-010 specifically requires regarding GDPR compliance?",
-    "errors": [
-      {
-        "type": "missing_key",
-        "key": "prioritizeRequirement",
-        "expected": "set priority to High for the new DS regarding the 'Centralized Error Logging Service'."
-      }
-    ]
-  },
-  {
     "file": "case_17.json",
     "prompt": "I need to modify URS-001, 'User Login', to include multi-factor authentication as a mandatory feature. This is a critical security update. Also, please add a new NFS: 'The system must be accessible via a RESTful API for external integrations.'",
     "errors": [
       {
-        "type": "semantic_mismatch",
+        "type": "missing_key",
         "key": "prioritizeRequirement",
-        "expected": "set priority to Critical for URS-001.",
-        "actual": "set priority to Critical for the update to include multi-factor authentication in URS-001."
+        "expected": "set priority to Critical for URS-001."
       }
     ]
   },
@@ -94,7 +58,7 @@
         "type": "semantic_mismatch",
         "key": "prioritizeRequirement",
         "expected": "set priority to High for the new URS regarding email notifications for critical account activities.",
-        "actual": "set priority to High for the new URS about email notifications."
+        "actual": "set priority to High for the new URS regarding email notifications."
       }
     ]
   },
@@ -122,18 +86,6 @@
     ]
   },
   {
-    "file": "case_23.json",
-    "prompt": "I need to add a new DS for a 'Distributed Cache System' using Redis. Make sure this is high priority. And the current URS-004, 'User Feedback Form', is too basic. We need to modify it to include sentiment analysis integration.",
-    "errors": [
-      {
-        "type": "semantic_mismatch",
-        "key": "addRequirement",
-        "expected": "add a new DS for a 'Distributed Cache System' using Redis.",
-        "actual": "add a new Design Specification (DS) for a 'Distributed Cache System' using Redis."
-      }
-    ]
-  },
-  {
     "file": "case_26.json",
     "prompt": "I need to add a new NFS: 'All backend services must be containerized using Docker.' This is critical. Also, could you clarify what 'User roles and permissions' in FS-020 encompasses? Is it role-based access control or attribute-based?",
     "errors": [
@@ -141,30 +93,6 @@
         "type": "missing_key",
         "key": "prioritizeRequirement",
         "expected": "set priority to Critical for the new NFS."
-      }
-    ]
-  },
-  {
-    "file": "case_27.json",
-    "prompt": "Modify URS-008, 'Email Notification System', to include a template editor for administrators. This will reduce development time. Additionally, remove FS-011, 'Barcode Scanning', as it's not a planned feature anymore.",
-    "errors": [
-      {
-        "type": "semantic_mismatch",
-        "key": "modifyRequirement",
-        "expected": "modify URS-008, 'Email Notification System', to include a template editor for administrators.",
-        "actual": "modify URS-008 to include a template editor for administrators to reduce development time."
-      }
-    ]
-  },
-  {
-    "file": "case_33.json",
-    "prompt": "I need to add a new URS: 'Users must be able to customize their dashboard layout via drag-and-drop.' Set this to high priority. Also, modify NFS-009, 'Performance under load', to include specific metrics for concurrent users (e.g., 500 concurrent users with 2s response time).",
-    "errors": [
-      {
-        "type": "semantic_mismatch",
-        "key": "prioritizeRequirement",
-        "expected": "set priority to High for the new URS regarding dashboard customization via drag-and-drop.",
-        "actual": "set priority to High for the new URS regarding dashboard customization."
       }
     ]
   },
@@ -187,24 +115,18 @@
         "type": "semantic_mismatch",
         "key": "prioritizeRequirement",
         "expected": "set priority to Critical for the new URS regarding user login functionality.",
-        "actual": "set priority to Critical for the new URS regarding user login using Google or Microsoft accounts."
+        "actual": "set priority to Critical for the new URS regarding user login options."
       },
       {
         "type": "missing_key",
         "key": "clarifyRequirement",
         "expected": "clarify the security implications of OAuth flow management for the new URS."
-      }
-    ]
-  },
-  {
-    "file": "case_40.json",
-    "prompt": "I need to add a new DS for a 'Machine Learning Model Serving Platform' using Kubeflow. Set this to high priority. Also, modify URS-025, 'Search Functionality', to incorporate fuzzy matching and natural language processing for queries.",
-    "errors": [
+      },
       {
         "type": "semantic_mismatch",
-        "key": "addRequirement",
-        "expected": "add a new DS for a 'Machine Learning Model Serving Platform' using Kubeflow.",
-        "actual": "add a new Design Specification (DS) for a 'Machine Learning Model Serving Platform' using Kubeflow."
+        "key": "deleteRequirement",
+        "expected": "delete FS-001, 'Basic User Authentication'.",
+        "actual": "delete FS-001, 'Basic User Authentication', as it will be replaced by the new URS."
       }
     ]
   },
@@ -216,7 +138,7 @@
         "type": "semantic_mismatch",
         "key": "prioritizeRequirement",
         "expected": "set priority to critical for the new NFS regarding centralized and immutable system logs.",
-        "actual": "set priority to Critical for the new Non-Functional Specification regarding system logs."
+        "actual": "set priority to Critical for the new Non-Functional Specification regarding centralized and immutable system logs."
       }
     ]
   },
@@ -237,20 +159,25 @@
     "errors": [
       {
         "type": "missing_key",
-        "key": "generateTestCases",
-        "expected": "generate validation or verification test protocols for URS-105 to prove that nothing was missed during the audit."
+        "key": "generateTraceabilityMatrix",
+        "expected": "generate a Requirement Traceability Matrix (RTM) report specifically for URS-105 to show lineage to functional specs and test cases."
+      },
+      {
+        "type": "unexpected_key",
+        "key": "linkRequirements",
+        "actual": "show how URS-105 maps down to the functional specs"
       }
     ]
   },
   {
-    "file": "case_54.json",
-    "prompt": "The data retention policy in NFS-050 seems arbitrary. I think 5 years is too long for temporary logs, but I'm not sure what GAMP or GDPR says. Can you check standard compliance and then help me clarify what it should be?",
+    "file": "case_55.json",
+    "prompt": "For the new LIMS integration (FS-500), verify if the e-signature implementation meets 21 CFR Part 11 requirements. If it looks good, generate the PQ test cases for the lab technicians to execute.",
     "errors": [
       {
         "type": "semantic_mismatch",
-        "key": "reviewCompliance",
-        "expected": "check NFS-050 (data retention policy) against GAMP/GDPR standards regarding retention periods.",
-        "actual": "check the data retention policy in NFS-050 for adherence to GAMP and GDPR standards regarding the duration of temporary logs."
+        "key": "generateTestCases",
+        "expected": "generate the PQ test cases for the lab technicians to execute based on the e-signature implementation.",
+        "actual": "generate the PQ test cases for the lab technicians to execute for the LIMS integration (FS-500)."
       }
     ]
   }

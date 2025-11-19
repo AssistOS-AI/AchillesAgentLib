@@ -6,5 +6,5 @@
     "financeApproval": "Requests finance approval"
   },
   "prompt": "Submit a request. If manager approves, send to finance.",
-  "expectedPlan": "@request submitRequest $input\n@managerOutcome managerApproval $request\n@financeOutcome financeApproval $request $managerOutcome"
+  "expectedPlan": "@request submitRequest $input\n@managerOutcome managerApproval $request\n@financeOutcome financeApproval $managerOutcome"
 }

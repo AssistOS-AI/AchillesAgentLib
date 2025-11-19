@@ -453,62 +453,24 @@ class LLMAgent {
             ...rest
         } = options;
 
-        if (useInterpreter) {
-            // Use the interpreter to generate code from english
-            const commandsRegistry = {
-                executeCommand: async () => ({ status: 'success', data: 'dummy' }),
-                listCommands: () => Object.entries(skillsDescription).map(([name, desc]) => ({
-                    name,
-                    description: desc,
-                })),
-            };
+        // Use the interpreter to generate code from english
+        const commandsRegistry = {
+            executeCommand: async () => ({ status: 'success', data: 'dummy' }),
+            listCommands: () => Object.entries(skillsDescription).map(([name, desc]) => ({
+                name,
+                description: desc,
+            })),
+        };
 
-            const englishPrompt = `#!english\n${userPrompt}`;
-            const interpreter = new LightSOPLangInterpreter(englishPrompt, commandsRegistry, {
-                llmAgent: this,
-                generateOnly: true,
-                ...rest,
-            });
-
-            await interpreter.ready;
-            return interpreter.currentSourceCode;
-        }
-
-        // Original implementation
-        const prompt = `You are an expert planner and SOPLang script generator.
-Your task is to translate a user request into a valid LightSOPLang script using the provided tools (commands).
-
-Available Commands:
-${JSON.stringify(skillsDescription, null, 2)}
-Note: The 'assign' command is available by default for setting variable values (e.g., @var assign "value").
-
-LightSOPLang Syntax Rules:
-1. Each step is a variable declaration starting with '@'.
-2. Format: @variableName commandName arg1 arg2 ...
-3. Arguments can be literals (strings/numbers) or variables ($varName).
-4. Dependencies are implicit: if you use $var1 in a command, it runs after @var1 is computed.
-5. Do not use control structures like 'if' or 'for'. Use dependencies to order execution.
-6. Output ONLY the code block, no markdown fences, no explanations.
-
-Guidelines:
-- Assume required input values are available as variables (e.g. $input, $A, $B) or use literals if the prompt specifies values.
-- Do NOT initialize input variables with dummy values (like 'assign false') unless the prompt explicitly asks to set them.
-- Create a generic plan that would work for any input of that type.
-
-User Request:
-"${userPrompt}"
-
-Generate the LightSOPLang script:`;
-
-        const result = await this.complete({
-            prompt,
-            mode,
-            model,
-            context: { intent: 'create-soplang-plan' },
+        const englishPrompt = `#!english\n${userPrompt}`;
+        const interpreter = new LightSOPLangInterpreter(englishPrompt, commandsRegistry, {
+            llmAgent: this,
+            generateOnly: true,
             ...rest,
         });
 
-        return stripCodeFence(result);
+        await interpreter.ready;
+        return interpreter.currentSourceCode;
     }
 
     async detectIntents(skillsDescription, userPrompt, options = {}) {

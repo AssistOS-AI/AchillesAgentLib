@@ -459,6 +459,8 @@ export class LightSOPLangInterpreter {
         lines.push('- Assume required input values are available as variables (e.g. $input, $A, $B) or use literals if the prompt specifies values.');
         lines.push('- Do NOT initialize input variables with dummy values (like \'assign false\') unless the prompt explicitly asks to set them.');
         lines.push('- Create a generic plan that would work for any input of that type.');
+        lines.push('- IMPORTANT: Link skill parameters to available variables or context from the prompt. If a variable holds an entity (like a PR or Ticket) or a result from a previous step, use that variable as an argument for subsequent commands instead of literals, to maintain context.');
+        lines.push('- IMPORTANT: Do NOT use variable interpolation inside strings (e.g., "Result: $var"). LightSOPLang does NOT support this. Instead, pass strings and variables as separate arguments (e.g., "Result:" $var).');
         lines.push('');
         if (context.reason === 'initial') {
             lines.push('Generate an initial script that meets the instructions.');
