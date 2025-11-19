@@ -1,0 +1,9 @@
+{
+  "description": "Support ticket analysis",
+  "tools": {
+    "analyzeTicket": "Analyzes ticket content",
+    "suggestResponse": "Suggests a response based on analysis"
+  },
+  "prompt": "Analyze the incoming ticket and suggest a response.",
+  "expectedPlan": "@analysis analyzeTicket $input\n@suggestedResponse suggestResponse $analysis"
+}

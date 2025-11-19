@@ -1,0 +1,10 @@
+{
+  "description": "Travel booking",
+  "tools": {
+    "findFlight": "Finds flight options",
+    "findHotel": "Finds hotel options",
+    "book": "Books items"
+  },
+  "prompt": "Find flight from NYC to London departing 2023-12-01, find hotel in London for 2023-12-01, then book both.",
+  "expectedPlan": "@flight findFlight \"NYC\" \"London\" \"2023-12-01\"\n@hotel findHotel \"London\" \"2023-12-01\"\n@booking book $flight $hotel"
+}

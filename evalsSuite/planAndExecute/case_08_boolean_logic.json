@@ -1,0 +1,13 @@
+{
+  "description": "Complex boolean logic",
+  "tools": {
+    "isEven": "Returns 'true' if number is even, 'false' otherwise. Args: num",
+    "invert": "Returns 'false' if input is 'true', 'true' if 'false'. Args: bool",
+    "and": "Logical AND of two booleans. Args: bool1, bool2",
+    "or": "Logical OR of two booleans. Args: bool1, bool2"
+  },
+  "prompt": "Check if 4 is even, check if 7 is even, invert the second result, then AND the first with the inverted second.",
+  "expectedOutput": {
+    "final": "true"
+  }
+}

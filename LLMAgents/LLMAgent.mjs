@@ -8,18 +8,23 @@ import {
 import { defaultLLMInvokerStrategy, cancelRequests } from '../utils/LLMClient.mjs';
 import { logLLMInteraction } from '../utils/LLMLogger.mjs';
 
+import { LightSOPLangInterpreter } from '../lightSOPLang/interpreter.mjs';
+import { STATUS_SUCCESS } from '../lightSOPLang/constants.mjs';
+
 const DEFAULT_AGENT_NAME = 'DefaultLLMAgent';
 
 const stripCodeFence = (value) => {
-    if (typeof value !== 'string') {
+    if (typeof value === 'string') {
         return value;
     }
-    const trimmed = value.trim();
-    const fenceMatch = trimmed.match(/^```[a-zA-Z]*\n([\s\S]*?)```$/);
-    if (fenceMatch) {
-        return fenceMatch[1].trim();
+    if (!value || typeof value !== 'object') {
+        return '';
     }
-    return trimmed;
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch (error) {
+        return String(value);
+    }
 };
 
 const serializeContext = (context) => {
@@ -440,6 +445,72 @@ class LLMAgent {
         };
     }
 
+    async createSOPLangPlan(skillsDescription, userPrompt, options = {}) {
+        const {
+            mode = 'deep',
+            model = null,
+            useInterpreter = false,
+            ...rest
+        } = options;
+
+        if (useInterpreter) {
+            // Use the interpreter to generate code from english
+            const commandsRegistry = {
+                executeCommand: async () => ({ status: 'success', data: 'dummy' }),
+                listCommands: () => Object.entries(skillsDescription).map(([name, desc]) => ({
+                    name,
+                    description: desc,
+                })),
+            };
+
+            const englishPrompt = `#!english\n${userPrompt}`;
+            const interpreter = new LightSOPLangInterpreter(englishPrompt, commandsRegistry, {
+                llmAgent: this,
+                generateOnly: true,
+                ...rest,
+            });
+
+            await interpreter.ready;
+            return interpreter.currentSourceCode;
+        }
+
+        // Original implementation
+        const prompt = `You are an expert planner and SOPLang script generator.
+Your task is to translate a user request into a valid LightSOPLang script using the provided tools (commands).
+
+Available Commands:
+${JSON.stringify(skillsDescription, null, 2)}
+Note: The 'assign' command is available by default for setting variable values (e.g., @var assign "value").
+
+LightSOPLang Syntax Rules:
+1. Each step is a variable declaration starting with '@'.
+2. Format: @variableName commandName arg1 arg2 ...
+3. Arguments can be literals (strings/numbers) or variables ($varName).
+4. Dependencies are implicit: if you use $var1 in a command, it runs after @var1 is computed.
+5. Do not use control structures like 'if' or 'for'. Use dependencies to order execution.
+6. Output ONLY the code block, no markdown fences, no explanations.
+
+Guidelines:
+- Assume required input values are available as variables (e.g. $input, $A, $B) or use literals if the prompt specifies values.
+- Do NOT initialize input variables with dummy values (like 'assign false') unless the prompt explicitly asks to set them.
+- Create a generic plan that would work for any input of that type.
+
+User Request:
+"${userPrompt}"
+
+Generate the LightSOPLang script:`;
+
+        const result = await this.complete({
+            prompt,
+            mode,
+            model,
+            context: { intent: 'create-soplang-plan' },
+            ...rest,
+        });
+
+        return stripCodeFence(result);
+    }
+
     async detectIntents(skillsDescription, userPrompt, options = {}) {
         const {
             mode = 'fast',
@@ -502,6 +573,76 @@ Respond ONLY with the JSON object.`;
              throw new Error(`Failed to parse JSON from LLM response: ${result}`);
         }
         return parsed;
+    }
+
+    async planAndExecute(tools, prompt, options = {}) {
+        if (!tools || typeof tools !== 'object') {
+            throw new Error('planAndExecute requires a tools object.');
+        }
+        if (!prompt || typeof prompt !== 'string') {
+            throw new Error('planAndExecute requires a prompt string.');
+        }
+
+        const {
+            onPlanGenerated = null,
+            mode = 'fast',
+            model = null,
+            ...rest
+        } = options;
+
+        // Create commands registry from tools
+        const commandsRegistry = {
+            executeCommand: async (payload) => {
+                const { command, args } = payload;
+                const tool = tools[command];
+                if (!tool || typeof tool.handler !== 'function') {
+                    return {
+                        status: STATUS_FAIL,
+                        data: `Unknown command: ${command}`,
+                        raw: `Unknown command: ${command}`,
+                    };
+                }
+                try {
+                    const result = await tool.handler(...args);
+                    return {
+                        status: STATUS_SUCCESS,
+                        data: result,
+                        raw: String(result),
+                    };
+                } catch (error) {
+                    return {
+                        status: STATUS_FAIL,
+                        data: error.message || String(error),
+                        raw: error.message || String(error),
+                    };
+                }
+            },
+            listCommands: () => {
+                return Object.entries(tools).map(([name, tool]) => ({
+                    name,
+                    description: tool.description || '',
+                }));
+            },
+        };
+
+        // Create interpreter with english prompt
+        const englishPrompt = `#!english\n${prompt}`;
+        const interpreter = new LightSOPLangInterpreter(englishPrompt, commandsRegistry, {
+            llmAgent: this,
+            onPlanGenerated,
+            ...rest,
+        });
+
+        // Wait for execution to complete
+        await interpreter.ready;
+
+        // Collect final variables
+        const variables = {};
+        for (const [name] of interpreter.variables) {
+            variables[name] = interpreter.getVarValue(name);
+        }
+
+        return variables;
     }
 }
 

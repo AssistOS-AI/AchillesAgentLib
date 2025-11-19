@@ -1,0 +1,10 @@
+{
+  "description": "Data filtering pipeline",
+  "tools": {
+    "fetchData": "Fetches dataset by name",
+    "filter": "Filters data based on condition",
+    "count": "Counts items in data"
+  },
+  "prompt": "Get users, keep only active ones, and tell me how many there are.",
+  "expectedPlan": "@users fetchData \"users\"\n@activeUsers filter $users \"active == true\"\n@activeCount count $activeUsers"
+}

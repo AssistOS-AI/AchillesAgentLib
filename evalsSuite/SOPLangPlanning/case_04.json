@@ -1,0 +1,10 @@
+{
+  "description": "Approval workflow",
+  "tools": {
+    "submitRequest": "Submits a new request",
+    "managerApproval": "Requests manager approval",
+    "financeApproval": "Requests finance approval"
+  },
+  "prompt": "Submit a request. If manager approves, send to finance.",
+  "expectedPlan": "@request submitRequest $input\n@managerOutcome managerApproval $request\n@financeOutcome financeApproval $request $managerOutcome"
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Search and summarize",
+  "tools": {
+    "searchWeb": "Searches the web for a query",
+    "extractContent": "Extracts text from search results",
+    "summarize": "Summarizes text"
+  },
+  "prompt": "Search for 'Agentic patterns', extract text from the results, and summarize it.",
+  "expectedPlan": "@searchResults searchWeb \"Agentic patterns\"\n@content extractContent $searchResults\n@summary summarize $content"
+}

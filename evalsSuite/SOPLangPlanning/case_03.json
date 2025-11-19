@@ -1,0 +1,9 @@
+{
+  "description": "Translation chain",
+  "tools": {
+    "translate": "Translates text to target language",
+    "checkGrammar": "Checks grammar of text"
+  },
+  "prompt": "Translate the input to French, check the grammar, then translate that result to Spanish.",
+  "expectedPlan": "@french translate $input \"French\"\n@checked checkGrammar $french\n@spanish translate $checked \"Spanish\""
+}

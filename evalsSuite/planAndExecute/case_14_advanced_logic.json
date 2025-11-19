@@ -1,0 +1,13 @@
+{
+  "description": "Advanced boolean operations",
+  "tools": {
+    "isEven": "Returns 'true' if number is even, 'false' otherwise. Args: num",
+    "invert": "Returns 'false' if input is 'true', 'true' if 'false'. Args: bool",
+    "and": "Logical AND of two booleans. Args: bool1, bool2",
+    "or": "Logical OR of two booleans. Args: bool1, bool2"
+  },
+  "prompt": "Check if 6 is even, check if 9 is even, invert both results, then OR the two inverted results.",
+  "expectedOutput": {
+    "final": "true"
+  }
+}

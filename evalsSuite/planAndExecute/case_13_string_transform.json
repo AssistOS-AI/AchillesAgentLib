@@ -1,0 +1,13 @@
+{
+  "description": "String transformation pipeline",
+  "tools": {
+    "reverse": "Reverses the input string. Args: text",
+    "lowercase": "Converts text to lowercase. Args: text",
+    "concat": "Concatenates two strings. Args: str1, str2",
+    "substring": "Extracts substring from position with length. Args: text, start, length"
+  },
+  "prompt": "Reverse 'ABCDEF', convert to lowercase, take substring from position 1 with length 3, then concatenate with 'xyz'.",
+  "expectedOutput": {
+    "combined": "edcxyz"
+  }
+}

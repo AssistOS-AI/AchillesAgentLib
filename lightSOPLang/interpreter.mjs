@@ -124,6 +124,8 @@ export class LightSOPLangInterpreter {
             ? this.commandsRegistry.autoCancel
             : false;
         this.autoCancelEnabled = Boolean(options.autoCancel ?? registryAutoCancel);
+        this.onPlanGenerated = typeof options.onPlanGenerated === 'function' ? options.onPlanGenerated : null;
+        this.generateOnly = Boolean(options.generateOnly ?? false);
 
         const explicitInput = inputValue !== undefined ? inputValue : (options.input ?? undefined);
         this.inputValue = explicitInput;
@@ -192,6 +194,15 @@ export class LightSOPLangInterpreter {
                 variables: [],
                 previousCode: null,
             });
+            if (this.onPlanGenerated) {
+                this.onPlanGenerated(generated);
+            }
+            if (this.generateOnly) {
+                // For generate-only mode, store the code and resolve immediately
+                this.currentSourceCode = generated;
+                this.englishContext.lastCode = generated;
+                return generated;
+            }
             return generated;
         }
 
@@ -200,6 +211,14 @@ export class LightSOPLangInterpreter {
     }
 
     _applyPreparedCode(code) {
+        if (this.generateOnly) {
+            // In generate-only mode, just store the code without parsing/executing
+            this.currentSourceCode = code;
+            if (this.englishContext) {
+                this.englishContext.lastCode = code;
+            }
+            return;
+        }
         const declarations = parseCode(code);
         this.currentSourceCode = code;
         if (this.englishContext) {
@@ -382,6 +401,9 @@ export class LightSOPLangInterpreter {
             return false;
         }
 
+        if (this.onPlanGenerated) {
+            this.onPlanGenerated(newCode);
+        }
         this.updateCode(newCode, { preserveEnglish: true });
         return true;
     }
@@ -422,6 +444,22 @@ export class LightSOPLangInterpreter {
     _buildLlmaPrompt(context) {
         const lines = [];
         lines.push('You are an assistant that emits LightSOPLang code.');
+        lines.push('');
+        lines.push('LightSOPLang Syntax Rules:');
+        lines.push('1. Each step is a variable declaration starting with \'@\'.');
+        lines.push('2. Format: @variableName commandName arg1 arg2 ...');
+        lines.push('3. Arguments can be literals (strings/numbers) or variables ($varName).');
+        lines.push('4. Dependencies are implicit: if you use $var1 in a command, it runs after @var1 is computed.');
+        lines.push('5. Do not use control structures like \'if\' or \'for\'. Use dependencies to order execution.');
+        lines.push('6. Do NOT declare variables for input values that are directly specified in the prompt - use literals directly.');
+        lines.push('7. Use consistent, descriptive variable names that match when referencing ($varName).');
+        lines.push('8. Output ONLY the code block, no markdown fences, no explanations.');
+        lines.push('');
+        lines.push('Guidelines:');
+        lines.push('- Assume required input values are available as variables (e.g. $input, $A, $B) or use literals if the prompt specifies values.');
+        lines.push('- Do NOT initialize input variables with dummy values (like \'assign false\') unless the prompt explicitly asks to set them.');
+        lines.push('- Create a generic plan that would work for any input of that type.');
+        lines.push('');
         if (context.reason === 'initial') {
             lines.push('Generate an initial script that meets the instructions.');
         } else {

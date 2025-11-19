@@ -1,0 +1,9 @@
+{
+  "description": "Math calculation",
+  "tools": {
+    "add": "Adds two numbers",
+    "multiply": "Multiplies two numbers"
+  },
+  "prompt": "Calculate (5 + 3) * 2.",
+  "expectedPlan": "@sum add 5 3\n@result multiply $sum 2"
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Logic evaluation",
+  "tools": {
+    "and": "Logical AND operation",
+    "or": "Logical OR operation",
+    "not": "Logical NOT operation"
+  },
+  "prompt": "Check if (A and B) or (not C) is true.",
+  "expectedPlan": "@andAB and $A $B\n@notC not $C\n@result or $andAB $notC"
+}
