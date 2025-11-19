@@ -1,0 +1,8 @@
+{
+  "prompt": "Remove NFS-006, 'Support for Windows Server 2012', as it's end-of-life. What impact does this have on our current deployment environments? And modify FS-016, 'User Profile Management', to include an option for users to delete their entire account.",
+  "expected": {
+    "deleteRequirement": "remove NFS-006, 'Support for Windows Server 2012'.",
+    "clarifyRequirement": "clarify the impact of removing NFS-006 on current deployment environments.",
+    "modifyRequirement": "modify FS-016, 'User Profile Management', to include an option for users to delete their entire account."
+  }
+}

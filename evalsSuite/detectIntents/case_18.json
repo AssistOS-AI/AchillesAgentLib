@@ -1,0 +1,8 @@
+{
+  "prompt": "Could you please add a new URS: 'Users can receive email notifications for critical account activities (e.g., password change, login from new device).' This should be high priority. Additionally, can you clarify if FS-060, 'Reporting Module', includes export functionalities for PDF and Excel?",
+  "expected": {
+    "addRequirement": "add a new URS: 'Users can receive email notifications for critical account activities (e.g., password change, login from new device)'.",
+    "prioritizeRequirement": "set priority to High for the new URS regarding email notifications for critical account activities.",
+    "clarifyRequirement": "clarify if FS-060, 'Reporting Module', includes export functionalities for PDF and Excel."
+  }
+}

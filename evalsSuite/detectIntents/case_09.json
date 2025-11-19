@@ -1,0 +1,7 @@
+{
+  "prompt": "I want to delete URS-005, 'Offline mode for data entry', as it's no longer feasible. However, before that, I need to know if there's any dependency on it from other modules. If so, which ones?",
+  "expected": {
+    "deleteRequirement": "delete URS-005, 'Offline mode for data entry'.",
+    "clarifyRequirement": "clarify if there's any dependency on URS-005 from other modules and identify them."
+  }
+}

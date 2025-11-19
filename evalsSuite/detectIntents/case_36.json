@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new FS: 'The system must support recurring payments with flexible billing cycles (e.g., weekly, monthly, yearly).' This is a medium priority. Clarify FS-019, 'Invoice Generation', what formats are supported (PDF, CSV, XML)?",
+  "expected": {
+    "addRequirement": "add a new FS: 'The system must support recurring payments with flexible billing cycles (e.g., weekly, monthly, yearly)'.",
+    "prioritizeRequirement": "set priority to Medium for the new FS regarding recurring payments.",
+    "clarifyRequirement": "clarify what formats are supported for FS-019, 'Invoice Generation' (PDF, CSV, XML)?"
+  }
+}

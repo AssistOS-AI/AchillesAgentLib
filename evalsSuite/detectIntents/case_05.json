@@ -1,0 +1,7 @@
+{
+  "prompt": "We need to remove the requirement FS-022 'User authentication via social media logins' as it's no longer a priority. Additionally, can you confirm the exact scope of DS-301, specifically whether it includes third-party integration points?",
+  "expected": {
+    "deleteRequirement": "remove the requirement FS-022 'User authentication via social media logins'.",
+    "clarifyRequirement": "confirm the exact scope of DS-301, specifically whether it includes third-party integration points."
+  }
+}

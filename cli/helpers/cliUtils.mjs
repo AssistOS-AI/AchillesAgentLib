@@ -67,8 +67,14 @@ const tryParsePlan = (payload) => {
         }
     }
     if (typeof payload === 'string') {
+        const trimmed = payload.trim();
+        const fenceMatch = trimmed.match(/^```[a-zA-Z]*\s*([\s\S]*?)```$/);
+        const body = fenceMatch ? fenceMatch[1].trim() : trimmed;
+        if (!body) {
+            return null;
+        }
         try {
-            return tryParsePlan(JSON.parse(payload));
+            return tryParsePlan(JSON.parse(body));
         } catch {
             return null;
         }

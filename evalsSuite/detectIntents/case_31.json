@@ -1,0 +1,8 @@
+{
+  "prompt": "Could you add a new NFS: 'The system must be backward compatible with previous API versions for at least 1 year.' This is of medium priority. Also, clarify if URS-020, 'User Account Deactivation', includes data anonymization or full deletion.",
+  "expected": {
+    "addRequirement": "add a new NFS: 'The system must be backward compatible with previous API versions for at least 1 year'.",
+    "prioritizeRequirement": "set priority to Medium for the new NFS regarding backward compatibility.",
+    "clarifyRequirement": "clarify if URS-020, 'User Account Deactivation', includes data anonymization or full deletion."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "prompt": "We need to add a new URS for the user profile page. It should state that 'The user must be able to upload a profile picture not exceeding 5MB.' Also, this is critical for the next release, so please set its priority to High.",
+  "expected": {
+    "addRequirement": "add a new URS for the user profile page stating 'The user must be able to upload a profile picture not exceeding 5MB.'",
+    "prioritizeRequirement": "set priority to High for the new URS regarding user profile picture upload size limit."
+  }
+}

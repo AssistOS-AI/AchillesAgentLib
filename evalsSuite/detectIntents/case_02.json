@@ -1,0 +1,7 @@
+{
+  "prompt": "The requirement DS-102 about the old caching mechanism is obsolete. Please remove it. Also, could you explain what FS-012 ('graceful degradation') implies for the API endpoints?",
+  "expected": {
+    "deleteRequirement": "remove requirement DS-102 about the old caching mechanism.",
+    "clarifyRequirement": "explain what FS-012 ('graceful degradation') implies for the API endpoints."
+  }
+}

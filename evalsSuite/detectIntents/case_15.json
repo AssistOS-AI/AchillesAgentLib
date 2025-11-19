@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new DS for a 'Centralized Error Logging Service' using ELK stack. This should be of high priority. Also, can you clarify what 'User consent for data processing' in URS-010 specifically requires regarding GDPR compliance?",
+  "expected": {
+    "addRequirement": "add a new DS for a 'Centralized Error Logging Service' using ELK stack.",
+    "prioritizeRequirement": "set priority to High for the new DS regarding the 'Centralized Error Logging Service'.",
+    "clarifyRequirement": "clarify what 'User consent for data processing' in URS-010 specifically requires regarding GDPR compliance."
+  }
+}

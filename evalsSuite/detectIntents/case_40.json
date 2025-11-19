@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new DS for a 'Machine Learning Model Serving Platform' using Kubeflow. Set this to high priority. Also, modify URS-025, 'Search Functionality', to incorporate fuzzy matching and natural language processing for queries.",
+  "expected": {
+    "addRequirement": "add a new DS for a 'Machine Learning Model Serving Platform' using Kubeflow.",
+    "prioritizeRequirement": "set priority to high for the new DS.",
+    "modifyRequirement": "modify URS-025, 'Search Functionality', to incorporate fuzzy matching and natural language processing for queries."
+  }
+}

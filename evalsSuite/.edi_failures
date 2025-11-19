@@ -1,0 +1,257 @@
+[
+  {
+    "file": "case_04.json",
+    "prompt": "I need to add a new NFS: 'All external API calls must have a fallback mechanism to prevent system-wide failures.' This is medium priority. Also, URS-007, about 'seamless user experience', is still too vague. Can you give me more concrete examples or metrics for it?",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to Medium for the new NFS regarding fallback mechanism for external API calls.",
+        "actual": "set priority to Medium for the new Non-Functional Specification about external API calls."
+      }
+    ]
+  },
+  {
+    "file": "case_06.json",
+    "prompt": "The current NFS-001, 'System uptime must be 99.9%', needs to be updated to 'System uptime must be 99.99% for critical services'. This is a high priority change. Also, we need to add a new URS: 'Users can save their preferences for dashboard widgets.'",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to High for the modified NFS-001 regarding system uptime.",
+        "actual": "set priority to High for NFS-001 after the update."
+      }
+    ]
+  },
+  {
+    "file": "case_07.json",
+    "prompt": "For FS-033 ('User Registration'), the requirement needs to be modified to include email verification as a mandatory step. What are the implications for existing user accounts? Also, add a new DS for a 'Microservices communication bus' with RabbitMQ.",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "modifyRequirement",
+        "expected": "modify FS-033 ('User Registration') to include email verification as a mandatory step.",
+        "actual": "modify FS-033 ('User Registration') to include 'email verification as a mandatory step' and analyze the implications for existing user accounts."
+      },
+      {
+        "type": "missing_key",
+        "key": "clarifyRequirement",
+        "expected": "clarify the implications for existing user accounts regarding the new mandatory email verification."
+      }
+    ]
+  },
+  {
+    "file": "case_11.json",
+    "prompt": "Add a new NFS that specifies 'All user-facing components must be WCAG 2.1 AA compliant'. This is a very high priority. What is the current status of the old URS-003, 'Accessibility features for visually impaired users'?",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to High for the new NFS regarding WCAG 2.1 AA compliance.",
+        "actual": "set priority to Very High for the new NFS regarding WCAG 2.1 AA compliance."
+      }
+    ]
+  },
+  {
+    "file": "case_14.json",
+    "prompt": "Could you modify NFS-003, 'Application Security', to explicitly mention 'OWASP Top 10 compliance'? This is critical. And we should remove URS-002, 'Guest User Login', as it's been decided against.",
+    "errors": [
+      {
+        "type": "missing_key",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to Critical for NFS-003."
+      }
+    ]
+  },
+  {
+    "file": "case_15.json",
+    "prompt": "I need to add a new DS for a 'Centralized Error Logging Service' using ELK stack. This should be of high priority. Also, can you clarify what 'User consent for data processing' in URS-010 specifically requires regarding GDPR compliance?",
+    "errors": [
+      {
+        "type": "missing_key",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to High for the new DS regarding the 'Centralized Error Logging Service'."
+      }
+    ]
+  },
+  {
+    "file": "case_17.json",
+    "prompt": "I need to modify URS-001, 'User Login', to include multi-factor authentication as a mandatory feature. This is a critical security update. Also, please add a new NFS: 'The system must be accessible via a RESTful API for external integrations.'",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to Critical for URS-001.",
+        "actual": "set priority to Critical for the update to include multi-factor authentication in URS-001."
+      }
+    ]
+  },
+  {
+    "file": "case_18.json",
+    "prompt": "Could you please add a new URS: 'Users can receive email notifications for critical account activities (e.g., password change, login from new device).' This should be high priority. Additionally, can you clarify if FS-060, 'Reporting Module', includes export functionalities for PDF and Excel?",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to High for the new URS regarding email notifications for critical account activities.",
+        "actual": "set priority to High for the new URS about email notifications."
+      }
+    ]
+  },
+  {
+    "file": "case_21.json",
+    "prompt": "We need to add a new NFS: 'All sensitive data at rest and in transit must be encrypted using AES-256.' This is critical for data privacy. Could you also clarify the scope of URS-011, 'Audit Trail for Administrator Actions'?",
+    "errors": [
+      {
+        "type": "missing_key",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to Critical for the new NFS."
+      }
+    ]
+  },
+  {
+    "file": "case_22.json",
+    "prompt": "Remove FS-009, 'Guest Checkout Option', as it introduces too much complexity. What are the dependencies of FS-009? Also, modify DS-150, 'User Session Management', to use JWT tokens with a 30-minute expiry and refresh token mechanism.",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "clarifyRequirement",
+        "expected": "clarify the dependencies of FS-009.",
+        "actual": "What are the dependencies of FS-009?"
+      }
+    ]
+  },
+  {
+    "file": "case_23.json",
+    "prompt": "I need to add a new DS for a 'Distributed Cache System' using Redis. Make sure this is high priority. And the current URS-004, 'User Feedback Form', is too basic. We need to modify it to include sentiment analysis integration.",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "addRequirement",
+        "expected": "add a new DS for a 'Distributed Cache System' using Redis.",
+        "actual": "add a new Design Specification (DS) for a 'Distributed Cache System' using Redis."
+      }
+    ]
+  },
+  {
+    "file": "case_26.json",
+    "prompt": "I need to add a new NFS: 'All backend services must be containerized using Docker.' This is critical. Also, could you clarify what 'User roles and permissions' in FS-020 encompasses? Is it role-based access control or attribute-based?",
+    "errors": [
+      {
+        "type": "missing_key",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to Critical for the new NFS."
+      }
+    ]
+  },
+  {
+    "file": "case_27.json",
+    "prompt": "Modify URS-008, 'Email Notification System', to include a template editor for administrators. This will reduce development time. Additionally, remove FS-011, 'Barcode Scanning', as it's not a planned feature anymore.",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "modifyRequirement",
+        "expected": "modify URS-008, 'Email Notification System', to include a template editor for administrators.",
+        "actual": "modify URS-008 to include a template editor for administrators to reduce development time."
+      }
+    ]
+  },
+  {
+    "file": "case_33.json",
+    "prompt": "I need to add a new URS: 'Users must be able to customize their dashboard layout via drag-and-drop.' Set this to high priority. Also, modify NFS-009, 'Performance under load', to include specific metrics for concurrent users (e.g., 500 concurrent users with 2s response time).",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to High for the new URS regarding dashboard customization via drag-and-drop.",
+        "actual": "set priority to High for the new URS regarding dashboard customization."
+      }
+    ]
+  },
+  {
+    "file": "case_34.json",
+    "prompt": "Could you please add a new DS for 'Serverless Functions' using AWS Lambda for specific business processes. This is critical. What's the impact of removing FS-040, 'Legacy Reporting Integration', on existing dashboards?",
+    "errors": [
+      {
+        "type": "missing_key",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to Critical for the new DS."
+      }
+    ]
+  },
+  {
+    "file": "case_38.json",
+    "prompt": "Add a new URS: 'Users must be able to log in using their existing Google or Microsoft accounts.' Set this to critical priority. What are the security implications of this in terms of OAuth flow management? And delete FS-001, 'Basic User Authentication', as it will be replaced by the new URS.",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to Critical for the new URS regarding user login functionality.",
+        "actual": "set priority to Critical for the new URS regarding user login using Google or Microsoft accounts."
+      },
+      {
+        "type": "missing_key",
+        "key": "clarifyRequirement",
+        "expected": "clarify the security implications of OAuth flow management for the new URS."
+      }
+    ]
+  },
+  {
+    "file": "case_40.json",
+    "prompt": "I need to add a new DS for a 'Machine Learning Model Serving Platform' using Kubeflow. Set this to high priority. Also, modify URS-025, 'Search Functionality', to incorporate fuzzy matching and natural language processing for queries.",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "addRequirement",
+        "expected": "add a new DS for a 'Machine Learning Model Serving Platform' using Kubeflow.",
+        "actual": "add a new Design Specification (DS) for a 'Machine Learning Model Serving Platform' using Kubeflow."
+      }
+    ]
+  },
+  {
+    "file": "case_41.json",
+    "prompt": "Could you add a new NFS: 'All system logs must be centralized and immutable for auditing purposes.' This is of critical priority. And what are the implications of deprecating FS-035, 'Legacy Data Import', for existing data migration processes?",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to critical for the new NFS regarding centralized and immutable system logs.",
+        "actual": "set priority to Critical for the new Non-Functional Specification regarding system logs."
+      }
+    ]
+  },
+  {
+    "file": "case_42.json",
+    "prompt": "Remove URS-030, 'Integration with social media posting', as it's no longer strategic. Verify if any FS or DS currently relies on this functionality. Also, modify DS-007, 'Authentication Service', to support WebAuthn (FIDO2) for passwordless authentication.",
+    "errors": [
+      {
+        "type": "missing_key",
+        "key": "clarifyRequirement",
+        "expected": "verify if any FS or DS currently relies on URS-030 functionality."
+      }
+    ]
+  },
+  {
+    "file": "case_51.json",
+    "prompt": "We have an upcoming audit. I need a full report showing how URS-105 maps down to the functional specs and test cases to prove we didn't miss anything.",
+    "errors": [
+      {
+        "type": "missing_key",
+        "key": "generateTestCases",
+        "expected": "generate validation or verification test protocols for URS-105 to prove that nothing was missed during the audit."
+      }
+    ]
+  },
+  {
+    "file": "case_54.json",
+    "prompt": "The data retention policy in NFS-050 seems arbitrary. I think 5 years is too long for temporary logs, but I'm not sure what GAMP or GDPR says. Can you check standard compliance and then help me clarify what it should be?",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "reviewCompliance",
+        "expected": "check NFS-050 (data retention policy) against GAMP/GDPR standards regarding retention periods.",
+        "actual": "check the data retention policy in NFS-050 for adherence to GAMP and GDPR standards regarding the duration of temporary logs."
+      }
+    ]
+  }
+]

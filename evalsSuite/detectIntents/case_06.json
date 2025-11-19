@@ -1,0 +1,8 @@
+{
+  "prompt": "The current NFS-001, 'System uptime must be 99.9%', needs to be updated to 'System uptime must be 99.99% for critical services'. This is a high priority change. Also, we need to add a new URS: 'Users can save their preferences for dashboard widgets.'",
+  "expected": {
+    "modifyRequirement": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'.",
+    "prioritizeRequirement": "set priority to High for the modified NFS-001 regarding system uptime.",
+    "addRequirement": "add a new URS: 'Users can save their preferences for dashboard widgets.'"
+  }
+}

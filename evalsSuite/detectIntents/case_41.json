@@ -1,0 +1,8 @@
+{
+  "prompt": "Could you add a new NFS: 'All system logs must be centralized and immutable for auditing purposes.' This is of critical priority. And what are the implications of deprecating FS-035, 'Legacy Data Import', for existing data migration processes?",
+  "expected": {
+    "addRequirement": "add a new NFS: 'All system logs must be centralized and immutable for auditing purposes'.",
+    "prioritizeRequirement": "set priority to critical for the new NFS regarding centralized and immutable system logs.",
+    "clarifyRequirement": "clarify the implications of deprecating FS-035, 'Legacy Data Import', for existing data migration processes."
+  }
+}

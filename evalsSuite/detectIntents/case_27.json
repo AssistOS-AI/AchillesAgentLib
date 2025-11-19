@@ -1,0 +1,7 @@
+{
+  "prompt": "Modify URS-008, 'Email Notification System', to include a template editor for administrators. This will reduce development time. Additionally, remove FS-011, 'Barcode Scanning', as it's not a planned feature anymore.",
+  "expected": {
+    "modifyRequirement": "modify URS-008, 'Email Notification System', to include a template editor for administrators.",
+    "deleteRequirement": "remove FS-011, 'Barcode Scanning'."
+  }
+}

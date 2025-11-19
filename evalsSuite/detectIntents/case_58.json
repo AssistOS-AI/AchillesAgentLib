@@ -1,0 +1,7 @@
+{
+  "prompt": "We implemented the audit trail in DS-404. Please link it to the parent requirement URS-010. Then, assess DS-404 to ensure it fully captures the 'who, what, when, and why' as required by the URS.",
+  "expected": {
+    "linkRequirements": "link DS-404 (Audit Trail implementation) to its parent requirement URS-010.",
+    "reviewCompliance": "assess DS-404 to ensure it fully covers the 'who, what, when, and why' attributes required by URS-010."
+  }
+}

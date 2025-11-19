@@ -5,9 +5,13 @@ export const buildPlanPrompt = ({ task, orchestrators, languageContract = '' }) 
     sections.push('# Achilles CLI Orchestrator Planner');
     sections.push('Produce a step-by-step plan that maps the task to orchestrator skills.');
     sections.push('Return JSON array where each entry has fields "skill" and "prompt".');
-    sections.push('You may reuse the same skill multiple times with different prompts.');
-    sections.push('Only use skills from the catalog and copy their names exactly.');
-    sections.push('Keep prompts concise and specific to the sub-task each skill should solve.');
+    sections.push('Guidelines:');
+    sections.push('- Analyze the entire user request and break it into discrete intents; output one skill call per intent.');
+    sections.push('- When the user asks to create, update, or audit specifications, include update-specs first, then any review/summary/generate-docs steps needed.');
+    sections.push('- When the user only wants to read existing specs, prefer mock-build, spec-review, or spec-help rather than execution skills.');
+    sections.push('- Only include build-code, run-tests, or fix-tests skills when the user explicitly asks for code or test execution.');
+    sections.push('- If the user mentions multiple commands, files, or requirements, include separate plan entries (even for the same skill) with tailored prompts.');
+    sections.push('- Copy skill names exactly as listed, keep prompts concise, and provide enough context so the skill knows which part of the workspace to act upon.');
     sections.push('');
     sections.push('## Task');
     sections.push(task || '<empty>');

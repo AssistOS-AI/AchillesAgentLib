@@ -1,0 +1,7 @@
+{
+  "prompt": "The entire 'Legacy Interface' module is being retired. Delete requirements FS-100, FS-101, and FS-102. Also, confirm if this retirement impacts the URS-050 'Backward Compatibility' requirement.",
+  "expected": {
+    "deleteRequirement": "delete requirements FS-100, FS-101, and FS-102 (Legacy Interface module).",
+    "clarifyRequirement": "clarify/confirm if retiring the Legacy Interface module impacts URS-050 'Backward Compatibility'."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "prompt": "Modify DS-006, 'User Interface Design System', to explicitly mention using Material-UI components with custom theming. This will standardize the UI. Also, remove NFS-008, 'Support for Internet Explorer 11', it's deprecated.",
+  "expected": {
+    "modifyRequirement": "modify DS-006, 'User Interface Design System', to explicitly mention using Material-UI components with custom theming.",
+    "deleteRequirement": "remove NFS-008, 'Support for Internet Explorer 11'."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "prompt": "URS-001 regarding the 15-minute session timeout is already approved and locked. However, operations needs it changed to 30 minutes. Initiate a formal change request for this modification.",
+  "expected": {
+    "createChangeRequest": "initiate a formal Change Request (CR) to modify the approved URS-001, changing the session timeout from 15 to 30 minutes."
+  }
+}

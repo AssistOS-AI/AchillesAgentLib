@@ -1,0 +1,7 @@
+{
+  "prompt": "We are starting the validation phase for the new cloud infrastructure. Add a high-priority URS stating that 'The validation plan must define the strategy for qualifying the AWS environment'.",
+  "expected": {
+    "addRequirement": "add a new URS: 'The validation plan must define the strategy for qualifying the AWS environment'.",
+    "prioritizeRequirement": "set priority to High for the new URS regarding the validation plan for the AWS environment."
+  }
+}

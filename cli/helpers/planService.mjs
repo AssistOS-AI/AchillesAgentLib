@@ -1,4 +1,4 @@
-import { intentionToSkillPlan } from '../../intentionToSkill.mjs';
+import { intentionToSkillPlan } from '../intentionToSkill.mjs';
 import { ensureBootstrap } from './bootstrapHelpers.mjs';
 import {
     runSkill,
@@ -67,11 +67,6 @@ export const detectResumeInput = async (cli, text) => {
     return null;
 };
 
-const determineFallbackSkill = (cli) => {
-    const record = cli.findSkill('generic-skill');
-    return record?.name || null;
-};
-
 export const preparePlan = async (cli, taskText) => {
     const trimmed = typeof taskText === 'string' ? taskText.trim() : '';
     if (!trimmed) {
@@ -80,17 +75,19 @@ export const preparePlan = async (cli, taskText) => {
 
     await ensureBootstrap(cli, trimmed);
     const orchestrators = cli.getOrchestrators();
-    const fallbackSkillName = determineFallbackSkill(cli);
     const languageContract = cli.buildLanguageContract();
 
-    const { plan } = await intentionToSkillPlan({
+    const { plan, error } = await intentionToSkillPlan({
         llmAgent: cli.llmAgent,
         taskDescription: trimmed,
         orchestrators,
         languageContract,
-        fallbackSkillName,
         modelMode: cli.defaultModelMode,
     });
+
+    if (error) {
+        throw new Error(error);
+    }
 
     if (!plan.length) {
         if (!orchestrators.length) {

@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new FS: 'The system must provide version control for all specification documents.' This is of high priority. Also, modify NFS-004, 'Data Retention Policy', to specify that audit logs are kept for 7 years and user data for 3 years after account closure.",
+  "expected": {
+    "addRequirement": "add a new FS: 'The system must provide version control for all specification documents'.",
+    "prioritizeRequirement": "set priority to high for the new FS regarding version control for specification documents.",
+    "modifyRequirement": "modify NFS-004, 'Data Retention Policy', to specify audit logs are kept for 7 years and user data for 3 years after account closure."
+  }
+}

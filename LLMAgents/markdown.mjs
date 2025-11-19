@@ -223,6 +223,22 @@ function responseToJSON(markdown) {
     };
 }
 
+export function extractJson(text) {
+    if (typeof text !== 'string') {
+        return null;
+    }
+
+    const trimmed = text.trim();
+    const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)```\s*$/);
+    const jsonString = fenceMatch ? fenceMatch[1] : trimmed;
+
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        return null;
+    }
+}
+
 export {
     extractKeyValuePairs,
     extractIdeaList,

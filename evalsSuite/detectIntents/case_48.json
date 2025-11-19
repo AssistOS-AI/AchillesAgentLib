@@ -1,0 +1,7 @@
+{
+  "prompt": "Link FS-001 'User Interface' to DS-001 'React Components'. Also, check if FS-001 meets the SMART criteria.",
+  "expected": {
+    "linkRequirements": "link FS-001 'User Interface' to DS-001 'React Components'.",
+    "reviewCompliance": "check if FS-001 meets the SMART criteria."
+  }
+}

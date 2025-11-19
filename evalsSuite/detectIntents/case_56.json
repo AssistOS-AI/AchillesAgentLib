@@ -1,0 +1,6 @@
+{
+  "prompt": "I need robust testing for the patient admission form (FS-305). Generate negative test cases specifically focusing on SQL injection attempts and invalid character handling in the name fields.",
+  "expected": {
+    "generateTestCases": "generate negative test cases for FS-305 (patient admission form) focusing on SQL injection and invalid character handling."
+  }
+}

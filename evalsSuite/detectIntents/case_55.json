@@ -1,0 +1,7 @@
+{
+  "prompt": "For the new LIMS integration (FS-500), verify if the e-signature implementation meets 21 CFR Part 11 requirements. If it looks good, generate the PQ test cases for the lab technicians to execute.",
+  "expected": {
+    "reviewCompliance": "review FS-500 (LIMS integration) for compliance with 21 CFR Part 11 regarding electronic signatures.",
+    "generateTestCases": "generate the PQ test cases for the lab technicians to execute based on the e-signature implementation."
+  }
+}

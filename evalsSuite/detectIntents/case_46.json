@@ -1,0 +1,6 @@
+{
+  "prompt": "Please review URS-005 for GAMP 5 compliance. It seems a bit vague regarding the audit trail requirements.",
+  "expected": {
+    "reviewCompliance": "review URS-005 for GAMP 5 compliance, specifically checking for vagueness in audit trail requirements."
+  }
+}

@@ -3,6 +3,7 @@ import {
     extractIdeaList,
     classifyIntent,
     responseToJSON,
+    extractJson,
 } from './markdown.mjs';
 import { defaultLLMInvokerStrategy, cancelRequests } from '../utils/LLMClient.mjs';
 import { logLLMInteraction } from '../utils/LLMLogger.mjs';
@@ -349,11 +350,11 @@ class LLMAgent {
         }
 
         if (responseShape === 'json') {
-            try {
-                return JSON.parse(result);
-            } catch (error) {
-                throw new Error(`Expected JSON response but parsing failed: ${error.message}. Raw: ${String(result).slice(0, 200)}…`);
+            const parsed = extractJson(result);
+            if (parsed === null) {
+                throw new Error(`Expected JSON response but parsing failed. Raw: ${String(result).slice(0, 200)}…`);
             }
+            return parsed;
         }
 
         if (responseShape === 'code') {
@@ -418,7 +419,7 @@ class LLMAgent {
             serializeContext(agentContext),
             'Task description:',
             description,
-            `Create a plan with at most ${maxIterations} steps and provide a reviewed answer.`,
+            `Create a plan with at most ${maxIterations} steps and provide a reviewed answer.`, 
             'Response:',
         ].filter(Boolean).join('\n\n');
 
@@ -437,6 +438,70 @@ class LLMAgent {
             draft,
             humanReviewRequired: true,
         };
+    }
+
+    async detectIntents(skillsDescription, userPrompt, options = {}) {
+        const {
+            mode = 'fast',
+            model = null,
+            ...rest
+        } = options;
+
+        const prompt = `You are an expert agent with deep understanding of IT, software development, GAMP, software architectures, and user experience.
+Your task is to map a user's natural language prompt to a set of available software engineering skills (tools).
+
+Available Skills:
+${JSON.stringify(skillsDescription, null, 2)}
+
+User Prompt:
+"${userPrompt}"
+
+Instructions:
+1. Analyze the user prompt to identify distinct actions or intents.
+   - Do NOT separate intents like "Modify this AND clarify that" if they are about the same subject; merge the clarification or context into the primary skill (e.g., 'modifyRequirement').
+   - Only extract multiple intents for the same subject if they represent fundamentally different operations (e.g., 'addRequirement' vs 'prioritizeRequirement').
+   - If a user requests a requirement change AND specifies a priority (e.g., "This is critical"), generate TWO separate skills: one for the change and one for 'prioritizeRequirement'.
+   - For 'linkRequirements', if multiple links are requested, describe ALL of them in the parameter.
+   - For 'generateTestCases', if the user asks for tests to be generated, always map this intent.
+   - Ensure the subject/parameter for each skill is always clear, self-contained, and well-defined.
+
+   Example of splitting intents:
+   - Input: "Add a new NFS for encryption. This is critical."
+     Output: { "addRequirement": "...", "prioritizeRequirement": "set priority to Critical..." }
+
+2. Map each identified intent to one of the available skills.
+
+3. Extract the specific parameters or description for the skill from the prompt. 
+   CRITICAL: The parameter description must be SELF-CONTAINED. It should include all relevant details from the user prompt so the skill can be executed without further context.
+   - for example when the use is prioritizing and saying very high priority do not simply to simple say " high priority"
+   
+4. Output a JSON object where:
+   - Keys are the names of the matched skills.
+   - Values are the self-contained descriptions/parameters for that skill.
+
+Example Output:
+{
+  "addRequirement": "add a new URS for the user profile page stating 'The user must be able to upload a profile picture not exceeding 5MB.'",
+  "prioritizeRequirement": "set priority to High for the new URS regarding user profile picture upload size limit."
+}
+
+Respond ONLY with the JSON object.`;
+
+        const result = await this.complete({
+            prompt,
+            mode,
+            model,
+            context: { intent: 'detect-intents' },
+            ...rest,
+        });
+
+        const parsed = extractJson(result);
+        if (parsed === null) {
+             // Fallback if direct JSON extraction fails, though complete() usually handles this well if prompted correctly.
+             // For now, we rely on extractJson which handles code fences etc.
+             throw new Error(`Failed to parse JSON from LLM response: ${result}`);
+        }
+        return parsed;
     }
 }
 

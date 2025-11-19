@@ -1,0 +1,8 @@
+{
+  "prompt": "Remove FS-009, 'Guest Checkout Option', as it introduces too much complexity. What are the dependencies of FS-009? Also, modify DS-150, 'User Session Management', to use JWT tokens with a 30-minute expiry and refresh token mechanism.",
+  "expected": {
+    "deleteRequirement": "remove FS-009, 'Guest Checkout Option'.",
+    "clarifyRequirement": "clarify the dependencies of FS-009.",
+    "modifyRequirement": "modify DS-150, 'User Session Management', to use JWT tokens with a 30-minute expiry and refresh token mechanism."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "prompt": "Please link URS-200 (Inventory Mgmt) to FS-200 (Stock Updates), and then link FS-200 to DS-200 (Database Trigger). Once that's done, generate the OQ test scripts for FS-200.",
+  "expected": {
+    "linkRequirements": "create traceability links: URS-200 to FS-200, and FS-200 to DS-200.",
+    "generateTestCases": "generate Operational Qualification (OQ) test scripts for FS-200 (Stock Updates)."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "addRequirement": "Adds a new requirement to the software specification. This can be a User Requirement (URS), Design Specification (DS), Functional Specification (FS), or Non-Functional Specification (NFS). The user must provide the text for the new requirement.",
+  "deleteRequirement": "Deletes an existing requirement from the software specification. The user needs to specify which requirement to remove, for example by providing its ID or a key part of its text. This applies to any type of requirement (URS, DS, FS, NFS).",
+  "modifyRequirement": "Modifies an existing requirement in the software specification. The user must specify the requirement to be changed and provide the new text or details. This can be used to correct errors, update functionality, or change the type (URS, DS, FS, NFS).",
+  "clarifyRequirement": "Responds to user questions about existing requirements or asks for more details when a user's request is ambiguous. This skill is used to resolve uncertainty before making changes to the specifications.",
+  "prioritizeRequirement": "Adjusts the priority of an existing requirement. The user should specify the requirement and the new priority level (e.g., High, Medium, Low).",
+  "linkRequirements": "Establishes a traceability link between two requirements, typically connecting a User Requirement (URS) to a Functional Specification (FS) or an FS to a Design Specification (DS). Essential for GAMP traceability matrices.",
+  "generateTestCases": "Generates validation or verification test protocols (IQ, OQ, PQ) for a specific requirement. Ensures that the requirement is testable and covers the necessary acceptance criteria.",
+  "reviewCompliance": "Analyzes a specific requirement or specification document for adherence to GAMP 5 standards, checking for attributes like specificity, measurability, achievability, relevance, and clarity (SMART).",
+  "performRiskAssessment": "Evaluates a specific functional specification or design element to identify potential failure modes, their impact on patient safety, product quality, and data integrity (GAMP 5 Risk-Based Approach).",
+  "createChangeRequest": "Initiates a formal Change Request (CR) for a requirement that has already been approved or baselined. Required for maintaining the validated state of the system during modifications.",
+  "generateTraceabilityMatrix": "Generates a Requirement Traceability Matrix (RTM) report, showing the lineage from URS -> FS -> DS -> Tests. Used to demonstrate complete coverage for validation audits."
+}

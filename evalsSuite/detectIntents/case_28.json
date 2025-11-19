@@ -1,0 +1,8 @@
+{
+  "prompt": "Add a new FS: 'The system must integrate with an external CRM for customer data synchronization.' This is a high priority. Also, DS-001, 'Core Business Logic', is too abstract; can you clarify its boundaries and key components?",
+  "expected": {
+    "addRequirement": "add a new FS: 'The system must integrate with an external CRM for customer data synchronization'.",
+    "prioritizeRequirement": "set priority to High for the new FS regarding integration with external CRM.",
+    "clarifyRequirement": "clarify the boundaries and key components of DS-001, 'Core Business Logic'."
+  }
+}

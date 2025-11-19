@@ -1,0 +1,7 @@
+{
+  "prompt": "Remove URS-006, 'Integration with LinkedIn Profiles', it's no longer part of the scope. Also, please modify DS-003, 'Frontend Architecture', to specify using React with TypeScript and Styled Components.",
+  "expected": {
+    "deleteRequirement": "remove URS-006, 'Integration with LinkedIn Profiles'.",
+    "modifyRequirement": "modify DS-003, 'Frontend Architecture', to specify using React with TypeScript and Styled Components."
+  }
+}

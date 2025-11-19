@@ -1,0 +1,7 @@
+{
+  "prompt": "Update the description for FS-045. It currently mentions PayPal, but it should clearly state that 'The system shall process payments exclusively via Stripe, supporting both credit card and ACH transactions.' This is a critical change.",
+  "expected": {
+    "modifyRequirement": "update the description for FS-045 to state that 'The system shall process payments exclusively via Stripe, supporting both credit card and ACH transactions.'",
+    "prioritizeRequirement": "set priority to Critical for FS-045."
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new DS for a 'Search Indexing Service' using Elasticsearch. This is critical. And please modify FS-030, 'Reporting Engine', to support custom report generation based on user-defined criteria.",
+  "expected": {
+    "addRequirement": "add a new DS for a 'Search Indexing Service' using Elasticsearch.",
+    "prioritizeRequirement": "set priority to Critical for the new DS for 'Search Indexing Service' using Elasticsearch.",
+    "modifyRequirement": "modify FS-030, 'Reporting Engine', to support custom report generation based on user-defined criteria."
+  }
+}

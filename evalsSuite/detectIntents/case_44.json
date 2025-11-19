@@ -1,0 +1,6 @@
+{
+  "prompt": "Link URS-101 'User Login' to FS-202 'Authentication Module'. This ensures we track the login requirement.",
+  "expected": {
+    "linkRequirements": "create a traceability link between URS-101 'User Login' and FS-202 'Authentication Module'."
+  }
+}

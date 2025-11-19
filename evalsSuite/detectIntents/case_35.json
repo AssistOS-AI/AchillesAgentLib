@@ -1,0 +1,7 @@
+{
+  "prompt": "Remove URS-012, 'Public API Key Management', as we've switched to OAuth2. Also, modify NFS-012, 'Disaster Recovery Plan', to include a RTO (Recovery Time Objective) of 4 hours and RPO (Recovery Point Objective) of 1 hour.",
+  "expected": {
+    "deleteRequirement": "remove URS-012, 'Public API Key Management'.",
+    "modifyRequirement": "modify NFS-012, 'Disaster Recovery Plan', to include a RTO of 4 hours and RPO of 1 hour."
+  }
+}

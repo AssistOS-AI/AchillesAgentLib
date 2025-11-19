@@ -1,0 +1,6 @@
+{
+  "prompt": "Create an OQ test protocol for FS-055 'Payment Processing'. We need to verify credit card validation logic.",
+  "expected": {
+    "generateTestCases": "generate Operational Qualification (OQ) test protocol for FS-055 'Payment Processing', focusing on credit card validation logic."
+  }
+}

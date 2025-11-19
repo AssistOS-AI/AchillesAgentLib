@@ -1,0 +1,7 @@
+{
+  "prompt": "Modify DS-201, 'Database Schema', to include a new 'audit_log' table with 'timestamp', 'user_id', and 'action' columns. This is crucial for compliance. Also, can we downgrade the priority of NFS-010, 'Response time under 50ms', to Medium? It's too aggressive for now.",
+  "expected": {
+    "modifyRequirement": "modify DS-201, 'Database Schema', to include a new 'audit_log' table with 'timestamp', 'user_id', and 'action' columns.",
+    "prioritizeRequirement": "downgrade the priority of NFS-010, 'Response time under 50ms', to Medium."
+  }
+}

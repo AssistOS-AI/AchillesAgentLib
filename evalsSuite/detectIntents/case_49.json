@@ -1,0 +1,6 @@
+{
+  "prompt": "The auto-dosing calculation logic in FS-099 seems complex. Please perform a risk assessment to identify potential failure modes and their impact on patient safety.",
+  "expected": {
+    "performRiskAssessment": "perform a risk assessment on FS-099 (auto-dosing calculation logic) to identify potential failure modes and impact on patient safety."
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "prompt": "Remove NFS-005, 'Compliance with HIPAA', as our product is no longer targeting healthcare. However, confirm that there are no remaining sensitive health data fields in the URS. Also, modify URS-015, 'User Onboarding Flow', to include an interactive tutorial.",
+  "expected": {
+    "deleteRequirement": "remove NFS-005, 'Compliance with HIPAA'.",
+    "clarifyRequirement": "confirm that there are no remaining sensitive health data fields in the URS.",
+    "modifyRequirement": "modify URS-015, 'User Onboarding Flow', to include an interactive tutorial."
+  }
+}

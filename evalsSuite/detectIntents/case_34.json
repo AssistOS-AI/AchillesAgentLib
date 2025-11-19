@@ -1,0 +1,8 @@
+{
+  "prompt": "Could you please add a new DS for 'Serverless Functions' using AWS Lambda for specific business processes. This is critical. What's the impact of removing FS-040, 'Legacy Reporting Integration', on existing dashboards?",
+  "expected": {
+    "addRequirement": "add a new DS for 'Serverless Functions' using AWS Lambda for specific business processes.",
+    "prioritizeRequirement": "set priority to Critical for the new DS.",
+    "clarifyRequirement": "clarify the impact of removing FS-040, 'Legacy Reporting Integration', on existing dashboards."
+  }
+}

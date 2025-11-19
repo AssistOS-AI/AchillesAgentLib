@@ -1,0 +1,7 @@
+{
+  "prompt": "I need to remove NFS-007, 'IPv6 Support', as it's been deprioritized for this release. Also, the description for DS-400, 'Microfrontend Architecture', is too generic. It needs to specify the chosen framework (e.g., Module Federation) and communication patterns.",
+  "expected": {
+    "deleteRequirement": "remove NFS-007, 'IPv6 Support'.",
+    "modifyRequirement": "modify the description for DS-400, 'Microfrontend Architecture', to specify the chosen framework and communication patterns."
+  }
+}

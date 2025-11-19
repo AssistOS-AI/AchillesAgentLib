@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new NFS: 'All external API calls must have a fallback mechanism to prevent system-wide failures.' This is medium priority. Also, URS-007, about 'seamless user experience', is still too vague. Can you give me more concrete examples or metrics for it?",
+  "expected": {
+    "addRequirement": "add a new NFS: 'All external API calls must have a fallback mechanism to prevent system-wide failures.'",
+    "prioritizeRequirement": "set priority to Medium for the new NFS regarding fallback mechanism for external API calls.",
+    "clarifyRequirement": "give more concrete examples or metrics for URS-007, 'seamless user experience'."
+  }
+}

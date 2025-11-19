@@ -149,22 +149,12 @@ test('AchillesCLI focuses on specs before code generation', { concurrency: false
     assert.ok(fs.existsSync(docsIndex), 'Full HTML docs index should be generated.');
 });
 
-test('AchillesCLI falls back to generic skill when no plan is provided', { concurrency: false, timeout: 20_000 }, async () => {
+test('AchillesCLI surfaces planner failures when no plan can be produced', { concurrency: false, timeout: 20_000 }, async () => {
     const workspace = createWorkspace('generic-fallback');
-    const output = createOutputBuffer();
-    const planResponses = {
-        'generic-skill-plan': JSON.stringify([
-            { tool: 'rewrite-file', target: 'src/index.mjs' },
-        ]),
-        'generic-skill-rewrite': '```js\nexport const hello = () => "generic";\n```',
-    };
     const llm = new LLMAgent({
         invokerStrategy: async ({ context }) => {
             if (context?.intent === PLAN_INTENT) {
                 return '[]';
-            }
-            if (context?.intent && planResponses[context.intent]) {
-                return planResponses[context.intent];
             }
             return '[]';
         },
@@ -173,19 +163,12 @@ test('AchillesCLI falls back to generic skill when no plan is provided', { concu
     const cli = new AchillesCLI({
         llmAgent: llm,
         workspaceRoot: workspace,
-        output,
     });
 
-    const { plan, executions } = await cli.processTaskInput('Update the greeting.');
-    assert.equal(plan.length, 1, 'Fallback plan should include generic skill.');
-    assert.match(plan[0].skill, /generic-skill/i);
-    assert.equal(executions.length, 1, 'Generic skill should run once.');
-    const resolvedSkill = cli.findSkill(plan[0].skill)?.name ?? plan[0].skill;
-    assert.equal(executions[0].skill, resolvedSkill);
-    assert.equal(executions[0].status, 'ok');
-
-    const rewritten = fs.readFileSync(path.join(workspace, 'src', 'index.mjs'), 'utf8');
-    assert.ok(rewritten.includes('"generic"'), 'Generic skill should rewrite the file.');
+    await assert.rejects(
+        async () => cli.processTaskInput('Update the greeting.'),
+        /Planner did not produce any steps/i,
+    );
 });
 
 test('AchillesCLI enforces the default English language contract', { concurrency: false, timeout: 10_000 }, async () => {
@@ -377,9 +360,8 @@ test('AchillesCLI prints spec action previews during execution', { concurrency: 
     assert.ok(summaryLines.some((line) => /spec actions:/i.test(line)), 'Execution summary should include spec actions.');
 });
 
-test('AchillesCLI heuristically plans spec creation prompts when planner is empty', { concurrency: false, timeout: 10_000 }, async () => {
+test('AchillesCLI surfaces planner failures when no steps are returned', { concurrency: false, timeout: 10_000 }, async () => {
     const workspace = createWorkspace('spec-heuristic');
-    const output = createOutputBuffer();
     const llm = new LLMAgent({
         invokerStrategy: async ({ context }) => {
             if (context?.intent === PLAN_INTENT) {
@@ -391,44 +373,14 @@ test('AchillesCLI heuristically plans spec creation prompts when planner is empt
     const cli = new AchillesCLI({
         llmAgent: llm,
         workspaceRoot: workspace,
-        output,
         autoBootstrapMode: 'manual',
+        interactive: false,
     });
-    const executedSkills = [];
-    cli.recursiveAgent.executeWithReviewMode = async (_, options = {}) => {
-        const skillName = options?.skillName || 'unknown';
-        executedSkills.push(skillName);
-        if (skillName.includes('mock-build')) {
-            return {
-                message: 'Spec summary ready.',
-                specs: {
-                    urs: [{ id: 'URS-200', title: 'CLI Tool URS', description: 'High-level overview.' }],
-                    fs: [{ id: 'FS-200', title: 'CLI Tool FS', description: 'Functional expectations.' }],
-                    nfs: [],
-                    ds: [],
-                },
-                output: path.join(workspace, '.specs', 'mock', 'spec-summary.html'),
-                docsIndex: path.join(workspace, '.specs', 'html_docs', 'index.html'),
-            };
-        }
-        return {
-            message: 'Specifications updated.',
-            actions: [
-                { action: 'createURS', id: 'URS-200' },
-                { action: 'createFS', id: 'FS-200' },
-            ],
-        };
-    };
 
-    const { plan } = await cli.processTaskInput('fa-mi specificatiile complete pentru noul CLI cu comenzi help/status/echo');
-    assert.ok(plan.length >= 1, 'Plan should be generated from heuristics.');
-    const targetedSkills = plan.map((step) => step.skill.toLowerCase());
-    assert.ok(targetedSkills.some((name) => name.includes('update-specs')), 'Plan should include update-specs step.');
-    assert.ok(targetedSkills.some((name) => name.includes('mock-build')), 'Plan should include mock-build step.');
-    assert.ok(executedSkills.some((name) => name.includes('update-specs')), 'Update-specs should execute.');
-    assert.ok(executedSkills.some((name) => name.includes('mock-build')), 'Mock-build should execute.');
-    const specMessages = output.buffer.filter((line) => line.includes('[spec]'));
-    assert.ok(specMessages.length >= 1, 'Spec action preview should be printed.');
+    await assert.rejects(
+        async () => cli.processTaskInput('fa-mi specificatiile complete pentru noul CLI cu comenzi help/status/echo'),
+        /Planner did not produce any steps/i,
+    );
 });
 
 test('AchillesCLI /specs command prints the stored sections', { concurrency: false, timeout: 10_000 }, async () => {

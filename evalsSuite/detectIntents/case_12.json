@@ -1,0 +1,7 @@
+{
+  "prompt": "Please remove DS-008, 'Legacy Data Migration Strategy', as we've already completed that. Also, the description for URS-009, 'User Activity Logging', needs to be more specific. It should specify what data points are collected and how long they are retained.",
+  "expected": {
+    "deleteRequirement": "remove DS-008, 'Legacy Data Migration Strategy'.",
+    "modifyRequirement": "modify the description for URS-009, 'User Activity Logging', to specify what data points are collected and their retention period."
+  }
+}

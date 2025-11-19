@@ -1,0 +1,8 @@
+{
+  "prompt": "Could you please add a new FS: 'The system shall provide a configurable dashboard with drag-and-drop widgets.' This is of medium priority. Also, NFS-002, 'Scalability to 1 million users', is very ambitious; could you clarify the specific metrics and load conditions that define this?",
+  "expected": {
+    "addRequirement": "add a new FS: 'The system shall provide a configurable dashboard with drag-and-drop widgets'.",
+    "prioritizeRequirement": "set priority to Medium for the new FS regarding the configurable dashboard.",
+    "clarifyRequirement": "clarify the specific metrics and load conditions that define NFS-002, 'Scalability to 1 million users'."
+  }
+}

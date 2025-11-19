@@ -1,0 +1,7 @@
+{
+  "prompt": "Modify FS-018, 'Data Export Functionality', to allow exports directly to Google Drive and Dropbox, not just local download. This is a crucial feature for our users. Also, can you add a new DS for a 'Container Orchestration Strategy' using Kubernetes?",
+  "expected": {
+    "modifyRequirement": "modify FS-018, 'Data Export Functionality', to allow exports directly to Google Drive and Dropbox.",
+    "addRequirement": "add a new DS for a 'Container Orchestration Strategy' using Kubernetes."
+  }
+}

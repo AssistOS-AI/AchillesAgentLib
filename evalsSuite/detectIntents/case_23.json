@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new DS for a 'Distributed Cache System' using Redis. Make sure this is high priority. And the current URS-004, 'User Feedback Form', is too basic. We need to modify it to include sentiment analysis integration.",
+  "expected": {
+    "addRequirement": "add a new DS for a 'Distributed Cache System' using Redis.",
+    "prioritizeRequirement": "set priority to High for the new DS regarding Distributed Cache System using Redis.",
+    "modifyRequirement": "modify URS-004, 'User Feedback Form', to include sentiment analysis integration."
+  }
+}

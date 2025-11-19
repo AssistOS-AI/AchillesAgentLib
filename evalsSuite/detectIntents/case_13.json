@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new URS: 'Users must be able to export their personal data in a machine-readable format (e.g., JSON).' This has a high priority. Also, clarify what 'real-time updates' in FS-050 means exactly, what's the maximum acceptable delay?",
+  "expected": {
+    "addRequirement": "add a new URS: 'Users must be able to export their personal data in a machine-readable format (e.g., JSON).'",
+    "prioritizeRequirement": "set priority to High for the new URS regarding data export functionality.",
+    "clarifyRequirement": "clarify what 'real-time updates' in FS-050 means exactly, specifically the maximum acceptable delay."
+  }
+}

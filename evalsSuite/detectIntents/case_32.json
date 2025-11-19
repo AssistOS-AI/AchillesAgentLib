@@ -1,0 +1,7 @@
+{
+  "prompt": "Remove FS-002, 'On-premise deployment option', as we are going full cloud. Before removing it, please confirm there are no hard dependencies elsewhere. Also, modify DS-004, 'API Gateway', to specify using Kong API Gateway.",
+  "expected": {
+    "deleteRequirement": "remove FS-002, 'On-premise deployment option', after confirming no hard dependencies.",
+    "modifyRequirement": "modify DS-004, 'API Gateway', to specify using Kong API Gateway."
+  }
+}

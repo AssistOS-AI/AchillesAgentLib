@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new URS: 'Users must be able to customize their dashboard layout via drag-and-drop.' Set this to high priority. Also, modify NFS-009, 'Performance under load', to include specific metrics for concurrent users (e.g., 500 concurrent users with 2s response time).",
+  "expected": {
+    "addRequirement": "add a new URS: 'Users must be able to customize their dashboard layout via drag-and-drop'.",
+    "prioritizeRequirement": "set priority to High for the new URS regarding dashboard customization via drag-and-drop.",
+    "modifyRequirement": "modify NFS-009, 'Performance under load', to include specific metrics for concurrent users (e.g., 500 concurrent users with 2s response time)."
+  }
+}

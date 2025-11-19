@@ -1,0 +1,8 @@
+{
+  "prompt": "Add a new NFS that specifies 'All user-facing components must be WCAG 2.1 AA compliant'. This is a very high priority. What is the current status of the old URS-003, 'Accessibility features for visually impaired users'?",
+  "expected": {
+    "addRequirement": "add a new NFS: 'All user-facing components must be WCAG 2.1 AA compliant'.",
+    "prioritizeRequirement": "set priority to High for the new NFS regarding WCAG 2.1 AA compliance.",
+    "clarifyRequirement": "clarify the current status of the old URS-003, 'Accessibility features for visually impaired users'."
+  }
+}

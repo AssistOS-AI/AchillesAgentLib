@@ -1,0 +1,8 @@
+{
+  "prompt": "I need to add a new NFS: 'All backend services must be containerized using Docker.' This is critical. Also, could you clarify what 'User roles and permissions' in FS-020 encompasses? Is it role-based access control or attribute-based?",
+  "expected": {
+    "addRequirement": "add a new NFS: 'All backend services must be containerized using Docker.'",
+    "prioritizeRequirement": "set priority to Critical for the new NFS.",
+    "clarifyRequirement": "clarify what 'User roles and permissions' in FS-020 encompasses, specifically if it's role-based or attribute-based access control."
+  }
+}
