@@ -1,0 +1,1 @@
+export { DBTableSkillsSubsystem } from './DBTableSkillsSubsystem.mjs';
