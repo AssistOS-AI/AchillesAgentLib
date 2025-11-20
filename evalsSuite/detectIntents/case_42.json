@@ -1,8 +1,8 @@
 {
-  "prompt": "Remove URS-030, 'Integration with social media posting', as it's no longer strategic. Verify if any FS or DS currently relies on this functionality. Also, modify DS-007, 'Authentication Service', to support WebAuthn (FIDO2) for passwordless authentication.",
+  "prompt": "Remove URS-030, 'Integration with social media posting', as it's no longer strategic. Tell me if URS-030 is tied to any FS or DS. Also, modify DS-007, 'Authentication Service', to support WebAuthn (FIDO2) for passwordless authentication.",
   "expected": {
     "deleteRequirement": "remove URS-030, 'Integration with social media posting'.",
-    "clarifyRequirement": "verify if any FS or DS currently relies on URS-030 functionality.",
+    "clarifyRequirement": "verify if URS-030 is tied to any FS or DS.",
     "modifyRequirement": "modify DS-007, 'Authentication Service', to support WebAuthn (FIDO2) for passwordless authentication."
   }
 }

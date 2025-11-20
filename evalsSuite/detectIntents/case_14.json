@@ -1,5 +1,5 @@
 {
-  "prompt": "Could you modify NFS-003, 'Application Security', to explicitly mention 'OWASP Top 10 compliance'? This is critical. And we should remove URS-002, 'Guest User Login', as it's been decided against.",
+  "prompt": "Could you modify NFS-003, 'Application Security', to explicitly mention 'OWASP Top 10 compliance'? This has critical priority. And we should remove URS-002, 'Guest User Login', as it's been decided against.",
   "expected": {
     "modifyRequirement": "modify NFS-003, 'Application Security', to explicitly mention 'OWASP Top 10 compliance'.",
     "prioritizeRequirement": "set priority to Critical for NFS-003.",

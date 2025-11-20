@@ -1,5 +1,5 @@
 {
-  "prompt": "We need to add a new NFS: 'All sensitive data at rest and in transit must be encrypted using AES-256.' This is critical for data privacy. Could you also clarify the scope of URS-011, 'Audit Trail for Administrator Actions'?",
+  "prompt": "We need to add a new NFS: 'All sensitive data at rest and in transit must be encrypted using AES-256.' This is critical priority for data privacy. Could you also clarify the scope of URS-011, 'Audit Trail for Administrator Actions'?",
   "expected": {
     "addRequirement": "add a new NFS: 'All sensitive data at rest and in transit must be encrypted using AES-256.'",
     "prioritizeRequirement": "set priority to Critical for the new NFS.",

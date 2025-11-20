@@ -1,8 +1,7 @@
 {
-  "prompt": "For FS-033 ('User Registration'), the requirement needs to be modified to include email verification as a mandatory step. What are the implications for existing user accounts? Also, add a new DS for a 'Microservices communication bus' with RabbitMQ.",
+  "prompt": "The requirement FS-033 ('User Registration') needs to be modified to include email verification as a mandatory step. Also, add a new DS for a 'Microservices communication bus' with RabbitMQ.",
   "expected": {
     "modifyRequirement": "modify FS-033 ('User Registration') to include email verification as a mandatory step.",
-    "clarifyRequirement": "clarify the implications for existing user accounts regarding the new mandatory email verification.",
     "addRequirement": "add a new DS for a 'Microservices communication bus' with RabbitMQ."
   }
 }

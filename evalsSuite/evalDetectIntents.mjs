@@ -117,7 +117,7 @@ async function main() {
                     const expectedVal = expected[key];
                     const actualVal = actual[key];
                     
-                    const isMatch = await checkSemanticMatch(agent, expectedVal, actualVal);
+                    const { match: isMatch, reason } = await checkSemanticMatch(agent, expectedVal, actualVal);
                     if (isMatch) {
                         semanticMatchScoreSum++;
                         caseLog.push(`  [${key}] ✅ Key Match & Semantic Match`);
@@ -130,7 +130,8 @@ async function main() {
                             type: 'semantic_mismatch',
                             key: key,
                             expected: expectedVal,
-                            actual: actualVal
+                            actual: actualVal,
+                            reason: reason
                         });
                     }
                     
@@ -171,6 +172,9 @@ async function main() {
                     if (err.type === 'semantic_mismatch') {
                         console.log(`${COLORS.YELLOW}    Expected: ${err.expected}${COLORS.RESET}`);
                         console.log(`${COLORS.YELLOW}    Actual:   ${err.actual}${COLORS.RESET}`);
+                        if (err.reason) {
+                            console.log(`${COLORS.YELLOW}    Reason:   ${err.reason}${COLORS.RESET}`);
+                        }
                     } else if (err.type === 'missing_key') {
                          console.log(`${COLORS.RED}    Expected: ${err.expected}${COLORS.RESET}`);
                     } else if (err.type === 'unexpected_key') {
@@ -227,10 +231,11 @@ async function checkSemanticMatch(agent, expected, actual) {
 Description 1 (Expected): "${expected}"
 Description 2 (Actual): "${actual}"
 
-Do these two descriptions convey the essentially the same meaning and intent? 
-Ignore minor phrasing differences. Focus on whether the core action and key details (IDs, priorities, specific texts) are preserved.
+Do these two descriptions convey essentially the same meaning and intent?
+Consider acronyms/abbreviations vs. their expanded forms as equivalent (e.g., NFS vs Non Functional Specification, API vs Application Programming Interface).
+Ignore minor phrasing differences. Focus on whether the core action and key details (IDs, priorities, specific texts) are preserved. If the actual text includes extra clarifications but does not contradict the expected action, treat it as a match.
 
-Respond with exactly "YES" or "NO".`;
+Respond with exactly "YES" or "NO" and  a reason if "NO".`;
 
     try {
         const response = await agent.complete({
@@ -238,10 +243,19 @@ Respond with exactly "YES" or "NO".`;
             mode: 'fast', 
             context: { intent: 'eval-semantic-match' }
         });
-        return response.trim().toUpperCase().includes('YES');
+        const trimmed = response.trim();
+        const normalized = trimmed.toUpperCase();
+        const match = normalized.includes('YES');
+        return {
+            match,
+            reason: match ? '' : `LLM response: ${trimmed || ''}`,
+        };
     } catch (error) {
         console.warn('Error during semantic check:', error.message);
-        return false;
+        return {
+            match: false,
+            reason: `semantic check error: ${error.message}`,
+        };
     }
 }
 

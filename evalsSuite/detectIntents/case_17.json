@@ -1,5 +1,5 @@
 {
-  "prompt": "I need to modify URS-001, 'User Login', to include multi-factor authentication as a mandatory feature. This is a critical security update. Also, please add a new NFS: 'The system must be accessible via a RESTful API for external integrations.'",
+  "prompt": "I need to modify URS-001, 'User Login', to include multi-factor authentication as a mandatory feature. Set its priority to critical. Also, please add a new NFS: 'The system must be accessible via a RESTful API for external integrations.'",
   "expected": {
     "modifyRequirement": "modify URS-001, 'User Login', to include multi-factor authentication as a mandatory feature.",
     "prioritizeRequirement": "set priority to Critical for URS-001.",

@@ -2,6 +2,6 @@
   "prompt": "The data retention policy in NFS-050 seems arbitrary. I think 5 years is too long for temporary logs, but I'm not sure what GAMP or GDPR says. Can you check standard compliance and then help me clarify what it should be?",
   "expected": {
     "reviewCompliance": "check NFS-050 (data retention policy) against GAMP/GDPR standards regarding retention periods.",
-    "clarifyRequirement": "provide clarification/recommendation for the appropriate retention period for temporary logs in NFS-050."
+    "clarifyRequirement": "provide clarification/recommendation for the appropriate retention period for temporary logs in NFS-050 as 5 years seems too long."
   }
 }

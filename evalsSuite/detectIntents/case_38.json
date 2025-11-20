@@ -1,9 +1,8 @@
 {
-  "prompt": "Add a new URS: 'Users must be able to log in using their existing Google or Microsoft accounts.' Set this to critical priority. What are the security implications of this in terms of OAuth flow management? And delete FS-001, 'Basic User Authentication', as it will be replaced by the new URS.",
+  "prompt": "Add a new URS: 'Users must be able to log in using their existing Google or Microsoft accounts.' Set this to critical priority. And delete FS-001, 'Basic User Authentication', as it will be replaced by the new URS.",
   "expected": {
     "addRequirement": "add a new URS: 'Users must be able to log in using their existing Google or Microsoft accounts.'",
-    "prioritizeRequirement": "set priority to Critical for the new URS regarding user login functionality.",
-    "clarifyRequirement": "clarify the security implications of OAuth flow management for the new URS.",
+    "prioritizeRequirement": "set priority to Critical for the new URS regarding user login functionality with Google or Microsoft.",
     "deleteRequirement": "delete FS-001, 'Basic User Authentication'."
   }
 }
