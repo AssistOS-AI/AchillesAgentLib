@@ -6,19 +6,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SUITES = [
     {
-        name: 'PlanAndExecute',
-        script: 'evalPlanAndExecute.mjs',
-        description: 'Single-shot LightSOPLang planning + execution tests',
+        name: 'onlySOPLangPlan',
+        script: 'planning/evalPlanAndExecute.mjs',
+        description: 'Single-shot LightSOPLang planning + local execution checks',
     },
     {
-        name: 'SOPLangPlanning',
-        script: 'evalSOPLangPlanning.mjs',
+        name: 'startSOPLangAgentSession',
+        script: 'planning/evalSOPLangPlanning.mjs',
         description: 'Structural equivalence tests for LightSOPLang plans (SOP sessions)',
     },
     {
-        name: 'AgenticPlanAndExecute',
-        script: 'evalAgenticPlanAndExecute.mjs',
-        description: 'Agentic multi-turn sessions over tools (AgenticSession)',
+        name: 'startLoopAgentSession',
+        script: 'planning/evalAgenticPlanAndExecute.mjs',
+        description: 'Agentic multi-turn sessions over tools (Loop Session)',
     },
 ];
 

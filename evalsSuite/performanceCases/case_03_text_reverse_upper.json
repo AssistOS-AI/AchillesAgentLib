@@ -1,0 +1,6 @@
+{
+    "id": "case_03_text_reverse_upper",
+    "description": "Reverse 'hello' and uppercase it.",
+    "prompt": "Take the string 'hello', reverse it, then make it uppercase. Answer only with the final string.",
+    "expected": "OLLEH"
+}

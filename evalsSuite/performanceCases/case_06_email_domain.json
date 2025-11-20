@@ -1,0 +1,6 @@
+{
+    "id": "case_06_email_domain",
+    "description": "Extract domain from email in text.",
+    "prompt": "From the text 'Contact support@example.com for help', extract the domain only and answer with it.",
+    "expected": "example.com"
+}

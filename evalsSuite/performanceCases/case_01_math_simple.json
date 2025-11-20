@@ -1,0 +1,6 @@
+{
+    "id": "case_01_math_simple",
+    "description": "Simple arithmetic (5 + 3) * 2",
+    "prompt": "Calculate (5 + 3) * 2 and answer only with the number.",
+    "expected": "16"
+}

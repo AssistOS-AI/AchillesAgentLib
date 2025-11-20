@@ -1,0 +1,6 @@
+{
+    "id": "case_02_math_chain",
+    "description": "Chain arithmetic ((10 + 5) * 3 - 8) / 2",
+    "prompt": "Calculate ((10 + 5) * 3 - 8) / 2 and answer only with the number.",
+    "expected": "18.5"
+}

@@ -1,0 +1,6 @@
+{
+    "id": "case_09_mixed_math_logic",
+    "description": "Add 3 and 4, double it, check if even.",
+    "prompt": "Add 3 and 4, multiply the result by 2, check if the final number is even, and answer only with true or false.",
+    "expected": "true"
+}

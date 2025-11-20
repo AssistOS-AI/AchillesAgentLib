@@ -8,46 +8,19 @@ import { defaultLLMInvokerStrategy, cancelRequests } from '../utils/LLMClient.mj
 import { logLLMInteraction } from '../utils/LLMLogger.mjs';
 import {
     buildInterpretMessagePrompt,
-    buildDoTaskPrompt,
-    buildDoTaskWithReviewPrompt,
     buildDetectIntentsPrompt,
     extractJson,
 } from './templates/prompts.mjs';
 import { AgenticSession } from './AgenticSession.mjs';
 import { SOPAgenticSession } from './SOPAgenticSession.mjs';
-
-import { LightSOPLangInterpreter } from '../lightSOPLang/interpreter.mjs';
-import { STATUS_SUCCESS } from '../lightSOPLang/constants.mjs';
+import { stripCodeFence } from './LLMAgentHelpers.mjs';
+import {
+    extraDoTask,
+    extraDoTaskWithReview,
+    extraDoTaskWithHumanReview,
+} from './LLMAgentExtra.mjs';
 
 const DEFAULT_AGENT_NAME = 'DefaultLLMAgent';
-
-const stripCodeFence = (value) => {
-    if (typeof value === 'string') {
-        return value;
-    }
-    if (!value || typeof value !== 'object') {
-        return '';
-    }
-    try {
-        return JSON.stringify(value, null, 2);
-    } catch (error) {
-        return String(value);
-    }
-};
-
-const serializeContext = (context) => {
-    if (typeof context === 'string') {
-        return context;
-    }
-    if (!context || typeof context !== 'object') {
-        return '';
-    }
-    try {
-        return JSON.stringify(context, null, 2);
-    } catch (error) {
-        return String(context);
-    }
-};
 
 class LLMAgent {
     constructor(options = {}) {
@@ -385,84 +358,15 @@ ${promptText}`
     }
 
     async doTask(agentContext, description, options = {}) {
-        const {
-            mode = 'fast',
-            model = null,
-            outputSchema = null,
-            ...rest
-        } = options;
-
-        if (!description || typeof description !== 'string') {
-            throw new Error('doTask requires a task description string.');
-        }
-        const prompt = buildDoTaskPrompt(serializeContext(agentContext), description, outputSchema);
-
-        return this.complete({
-            prompt,
-            mode,
-            model,
-            context: { intent: 'task-execution' },
-            ...rest,
-        });
+        return extraDoTask(this, agentContext, description, options);
     }
 
     async doTaskWithReview(agentContext, description, options = {}) {
-        const {
-            mode = 'deep',
-            maxIterations = 3,
-            model = null,
-            ...rest
-        } = options;
-
-        const prompt = buildDoTaskWithReviewPrompt(
-            serializeContext(agentContext),
-            description,
-            maxIterations,
-        );
-
-        return this.complete({
-            prompt,
-            mode,
-            model,
-            context: { intent: 'task-review', maxIterations },
-            ...rest,
-        });
+        return extraDoTaskWithReview(this, agentContext, description, options);
     }
 
     async doTaskWithHumanReview(agentContext, description, options = {}) {
-        const draft = await this.doTask(agentContext, description, options);
-        return {
-            draft,
-            humanReviewRequired: true,
-        };
-    }
-
-    async generateSOPLangPlan(skillsDescription, userPrompt, options = {}) {
-        const {
-            mode = 'deep',
-            model = null,
-            useInterpreter = false,
-            ...rest
-        } = options;
-
-        const commandsRegistry = {
-            executeCommand: async () => ({ status: 'success', data: 'dummy' }),
-            listCommands: () => Object.entries(skillsDescription).map(([name, desc]) => ({
-                name,
-                description: desc,
-            })),
-        };
-
-        const englishPrompt = `#!english
-${userPrompt}`;
-        const interpreter = new LightSOPLangInterpreter(englishPrompt, commandsRegistry, {
-            llmAgent: this,
-            generateOnly: true,
-            ...rest,
-        });
-
-        await interpreter.ready;
-        return interpreter.currentSourceCode;
+        return extraDoTaskWithHumanReview(this, agentContext, description, options);
     }
 
     async detectIntents(skillsDescription, userPrompt, options = {}) {
@@ -489,79 +393,12 @@ ${userPrompt}`;
         return parsed;
     }
 
-    async executeSOPLangPlan(tools, prompt, options = {}) {
+    async startLoopAgentSession(tools, initialPrompt, options = {}) {
         if (!tools || typeof tools !== 'object') {
-            throw new Error('planAndExecute requires a tools object.');
-        }
-        if (!prompt || typeof prompt !== 'string') {
-            throw new Error('planAndExecute requires a prompt string.');
-        }
-
-        const {
-            onPlanGenerated = null,
-            mode = 'fast',
-            model = null,
-            ...rest
-        } = options;
-
-        const commandsRegistry = {
-            executeCommand: async (payload) => {
-                const { command, args } = payload;
-                const tool = tools[command];
-                if (!tool || typeof tool.handler !== 'function') {
-                    return {
-                        status: STATUS_FAIL,
-                        data: `Unknown command: ${command}`,
-                        raw: `Unknown command: ${command}`,
-                    };
-                }
-                try {
-                    const result = await tool.handler(...args);
-                    return {
-                        status: STATUS_SUCCESS,
-                        data: result,
-                        raw: String(result),
-                    };
-                } catch (error) {
-                    return {
-                        status: STATUS_FAIL,
-                        data: error.message || String(error),
-                        raw: error.message || String(error),
-                    };
-                }
-            },
-            listCommands: () => {
-                return Object.entries(tools).map(([name, tool]) => ({
-                    name,
-                    description: tool.description || '',
-                }));
-            },
-        };
-
-        const englishPrompt = `#!english
-${prompt}`;
-        const interpreter = new LightSOPLangInterpreter(englishPrompt, commandsRegistry, {
-            llmAgent: this,
-            onPlanGenerated,
-            ...rest,
-        });
-
-        await interpreter.ready;
-
-        const variables = {};
-        for (const [name] of interpreter.variables) {
-            variables[name] = interpreter.getVarValue(name);
-        }
-
-        return variables;
-    }
-
-    async startAgentSession(tools, initialPrompt, options = {}) {
-        if (!tools || typeof tools !== 'object') {
-            throw new Error('startAgentSession requires a tools object.');
+            throw new Error('startLoopAgentSession requires a tools object.');
         }
         if (!initialPrompt || typeof initialPrompt !== 'string') {
-            throw new Error('startAgentSession requires an initial prompt string.');
+            throw new Error('startLoopAgentSession requires an initial prompt string.');
         }
 
         const session = new AgenticSession({
@@ -573,18 +410,29 @@ ${prompt}`;
         return session;
     }
 
-    async startSOPSession(skillsDescription, initialPrompt, options = {}) {
+    async startSOPLangAgentSession(skillsDescription, initialPrompt, options = {}) {
         if (!skillsDescription || typeof skillsDescription !== 'object') {
-            throw new Error('startSOPSession requires a skillsDescription object.');
+            throw new Error('startSOPLangAgentSession requires a skillsDescription object.');
         }
         if (!initialPrompt || typeof initialPrompt !== 'string') {
-            throw new Error('startSOPSession requires an initial prompt string.');
+            throw new Error('startSOPLangAgentSession requires an initial prompt string.');
         }
  
+        const {
+            generatePlanOnly = false,
+            planOnly = false,
+            ...rest
+        } = options || {};
+
+        const sessionOptions = {
+            ...rest,
+            planOnly: planOnly || generatePlanOnly,
+        };
+
         const session = new SOPAgenticSession({
             agent: this,
             skillsDescription,
-            options,
+            options: sessionOptions,
         });
         await session.newPrompt(initialPrompt);
         return session;

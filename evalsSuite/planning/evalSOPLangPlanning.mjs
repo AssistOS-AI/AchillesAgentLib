@@ -1,14 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
-import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
+import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
+import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
 
 // Load environment variables
 envAutoConfig();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CASES_DIR = path.join(__dirname, 'SOPLangPlanning');
+const CASES_DIR = path.join(__dirname, 'startSOPLangAgentSession');
 
 const COLORS = {
     RESET: "\x1b[0m",
@@ -58,7 +58,7 @@ async function main() {
         
         try {
             const firstPrompt = allPrompts[0];
-            const session = await agent.startSOPSession(tools, firstPrompt, { useInterpreter: true });
+            const session = await agent.startSOPLangAgentSession(tools, firstPrompt, { useInterpreter: true });
             
             if (allPrompts.length > 1) {
                 for (let i = 1; i < allPrompts.length; i += 1) {
@@ -67,7 +67,7 @@ async function main() {
                 }
             }
             
-            const actualPlan = await session.getPlan();
+            const actualPlan = await session.getSOPLangPlan();
             
             const isMatch = await checkCodeEquivalence(agent, expectedPlan, actualPlan);
             

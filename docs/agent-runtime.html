@@ -54,13 +54,13 @@
                 context across multiple prompts while calling tools repeatedly.
             </p>
             <ul>
-                <li><code>startAgentSession(tools, initialPrompt, options)</code>: creates an <code>AgenticSession</code> that orchestrates
+                <li><code>startLoopAgentSession(tools, initialPrompt, options)</code>: creates an <code>AgenticSession</code> that orchestrates
                     arbitrary tools. The session object exposes <code>newPrompt(prompt)</code> to continue the conversation on the
                     same context, and <code>getVariables()</code> to inspect the final values or summary state.</li>
-                <li><code>startSOPSession(skillsDescription, initialPrompt, options)</code>: creates a <code>SOPAgenticSession</code>
+                <li><code>startSOPLangAgentSession(skillsDescription, initialPrompt, options)</code>: creates a <code>SOPAgenticSession</code>
                     that uses LightSOPLang as the internal planning language. Each prompt refines or extends the
-                    underlying SOP script instead of starting from scratch, and the session exposes <code>getPlan()</code> to
-                    retrieve the current LightSOPLang source.</li>
+                    underlying SOP script instead of starting from scratch, and the session exposes <code>getSOPLangPlan()</code>
+                    (with <code>getPlan()</code> kept as an alias) to retrieve the current LightSOPLang source.</li>
             </ul>
             <p>
                 These session APIs are useful when you want the LLM to iteratively choose tools, revise plans, and

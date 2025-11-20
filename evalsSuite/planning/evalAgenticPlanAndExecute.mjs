@@ -1,15 +1,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
-import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
-import { extractJson } from '../LLMAgents/markdown.mjs';
+import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
+import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
+import { extractJson } from '../../LLMAgents/markdown.mjs';
 
 // Load environment variables
 envAutoConfig();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CASES_DIR = path.join(__dirname, 'startSession');
+const CASES_DIR = path.join(__dirname, 'startLoopAgentSession');
 
 const COLORS = {
     RESET: '\x1b[0m',
@@ -256,9 +256,9 @@ async function main() {
     // Initialize Agent
     const agent = new LLMAgent({ name: 'SessionEvaluator' });
  
-    if (typeof agent.startAgentSession !== 'function') {
-        console.error(`${COLORS.RED}LLMAgent.startAgentSession is not implemented yet.${COLORS.RESET}`);
-        console.error('Please implement agent.startAgentSession(tools, initialPrompt) so that:');
+    if (typeof agent.startLoopAgentSession !== 'function') {
+        console.error(`${COLORS.RED}LLMAgent.startLoopAgentSession is not implemented yet.${COLORS.RESET}`);
+        console.error('Please implement agent.startLoopAgentSession(tools, initialPrompt) so that:');
         console.error('- It returns a session object with method newPrompt(prompt: string).');
         console.error('- The session exposes either getVariables() or a variables map');
         console.error('  representing the final variable values.');
@@ -301,7 +301,7 @@ async function main() {
             expectedFinalAnswer,
         } = caseData;
 
-        // Construct tools object for startAgentSession
+        // Construct tools object for startLoopAgentSession
         const toolsForAgent = {};
         for (const [name, desc] of Object.entries(toolDefinitions || {})) {
             if (!TOOL_IMPLEMENTATIONS[name]) {
@@ -321,10 +321,10 @@ async function main() {
             }
 
             // Start agentic session with first prompt
-            const session = await agent.startAgentSession(toolsForAgent, prompts[0]);
+            const session = await agent.startLoopAgentSession(toolsForAgent, prompts[0]);
  
             if (!session || typeof session.newPrompt !== 'function') {
-                throw new Error('startAgentSession must return an object with a newPrompt(prompt) method.');
+                throw new Error('startLoopAgentSession must return an object with a newPrompt(prompt) method.');
             }
 
             // Execute additional prompts if any

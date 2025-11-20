@@ -1,0 +1,6 @@
+{
+    "id": "case_07_email_domain_length",
+    "description": "Domain length from mixed case email.",
+    "prompt": "From 'Contact SUPPORT@EXAMPLE.COM for help', extract the domain, convert it to lowercase, and answer with its length as a number.",
+    "expected": "11"
+}

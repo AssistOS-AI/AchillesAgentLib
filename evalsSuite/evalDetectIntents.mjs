@@ -8,9 +8,9 @@ import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
 envAutoConfig();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SKILLS_DESC_PATH = path.join(__dirname, 'skillsDescription.json');
+const SKILLS_DESC_PATH = path.join(__dirname, 'detectIntents/skillsDescription.json');
 const CASES_DIR = path.join(__dirname, 'detectIntents');
-const FAILURES_FILE_PATH = path.join(__dirname, '.edi_failures');
+const FAILURES_FILE_PATH = path.join(__dirname, 'detectIntents/.edi_failures');
 
 const COLORS = {
     RESET: "\x1b[0m",

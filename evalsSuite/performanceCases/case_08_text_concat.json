@@ -1,0 +1,6 @@
+{
+    "id": "case_08_text_concat",
+    "description": "Concatenate transformed strings.",
+    "prompt": "Reverse 'ABC', take the first 2 characters, convert them to lowercase, then concatenate with 'xyz'. Answer only with the final string.",
+    "expected": "cbxyz"
+}

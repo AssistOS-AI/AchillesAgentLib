@@ -1,0 +1,6 @@
+{
+    "id": "case_10_text_email_mix",
+    "description": "Extract email, domain, and transform.",
+    "prompt": "From 'User: john.doe+test@example.org', extract the email, then the domain, convert it to uppercase, and answer only with the domain in uppercase.",
+    "expected": "EXAMPLE.ORG"
+}

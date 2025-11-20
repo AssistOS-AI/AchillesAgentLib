@@ -1,0 +1,6 @@
+{
+    "id": "case_04_text_length",
+    "description": "Length of 'Agentic' in uppercase.",
+    "prompt": "Convert 'Agentic' to uppercase and then tell me how many characters it has. Answer only with the number.",
+    "expected": "7"
+}

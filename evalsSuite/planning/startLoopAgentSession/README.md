@@ -1,15 +1,15 @@
-# Agent Session Evaluation Suite
+# Loop Agent Session Evaluation Suite
 
-This directory contains test cases for evaluating the `startAgentSession` LLM Agent primitive.
+This directory contains test cases for evaluating the `startLoopAgentSession` LLM Agent primitive.
 
 ## Overview
 
-The `startAgentSession` primitive creates an agentic session that can handle multiple prompts in sequence, maintaining context and tool call history across interactions.
+The `startLoopAgentSession` primitive creates an agentic session that can handle multiple prompts in sequence, maintaining context and tool call history across interactions.
 
 ### Method Signature
 
 ```javascript
-const session = await agent.startAgentSession(tools, initialPrompt);
+const session = await agent.startLoopAgentSession(tools, initialPrompt);
 // session has a newPrompt method for follow-up interactions
 await session.newPrompt(followUpPrompt);
 ```
@@ -46,7 +46,7 @@ Each test case is a JSON file with the following structure:
 
 ```bash
 cd evalsSuite
-node evalAgent Session.mjs
+node evalAgenticPlanAndExecute.mjs
 ```
 
 ## Current Test Cases
@@ -59,7 +59,7 @@ node evalAgent Session.mjs
 
 ## Implementation Notes
 
-The evaluation script calls `agent.agenticPlanAndExecute(tools, initialPrompt)` and uses the returned session object (with `newPrompt` and `getVariables`) to drive multi-turn agentic workflows.
+The evaluation script calls `agent.startLoopAgentSession(tools, initialPrompt)` and uses the returned session object (with `newPrompt` and `getVariables`) to drive multi-turn agentic workflows.
 
 ## Evaluation Criteria
 
