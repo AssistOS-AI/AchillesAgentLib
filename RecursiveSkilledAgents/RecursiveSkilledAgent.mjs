@@ -8,6 +8,7 @@ import { InteractiveSkillsSubsystem } from '../InteractiveSkillsSubsystem/Intera
 import { CloudeSkillsSubsystem } from '../CloudeSkillsSubsystem/CloudeSkillsSubsystem.mjs';
 import { MCPSkillsSubsystem } from '../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
 import { OrchestratorSkillsSubsystem } from '../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
+import { DBTableSkillsSubsystem } from '../DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs';
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { createFlexSearchAdapter } from '../SkilledAgents/search/flexsearchAdapter.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
@@ -18,6 +19,7 @@ const SKILL_FILE_TYPES = {
     'cskill.md': { type: 'code' },
     'mskill.md': { type: 'mcp' },
     'oskill.md': { type: 'orchestrator' },
+    'tskill.md': { type: 'dbtable' },
 };
 
 function isReadableFile(candidate) {
@@ -138,6 +140,7 @@ export class RecursiveSkilledAgent {
         startDir = process.cwd(),
         skillFilter = null,
         logger = console,
+        dbAdapter = null,
     } = {}) {
         if (skilledAgent && !(skilledAgent instanceof SkilledAgent)) {
             throw new TypeError('RecursiveSkilledAgent requires a SkilledAgent instance.');
@@ -146,6 +149,7 @@ export class RecursiveSkilledAgent {
         this.logger = logger || console;
         this.startDir = startDir;
         this.skillFilter = typeof skillFilter === 'function' ? skillFilter : (() => true);
+        this.dbAdapter = dbAdapter;
 
         this.aggregatorAgent = skilledAgent
             || createSkilledAgent({ ...skilledAgentOptions });
@@ -155,6 +159,7 @@ export class RecursiveSkilledAgent {
         this.skillCatalog = new Map();
         this.skillAliases = new Map();
         this.promptReader = this.aggregatorAgent?.promptReader || null;
+        this.pendingPreparations = [];
 
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
         this.debugLogger?.log('RecursiveSkilledAgent:init', {
@@ -180,6 +185,11 @@ export class RecursiveSkilledAgent {
             subsystem = new MCPSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
         } else if (type === 'orchestrator') {
             subsystem = new OrchestratorSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+        } else if (type === 'dbtable') {
+            subsystem = new DBTableSkillsSubsystem({
+                llmAgent: this.aggregatorAgent.llmAgent,
+                dbAdapter: this.dbAdapter
+            });
         } else {
             subsystem = new CloudeSkillsSubsystem();
         }
@@ -310,6 +320,14 @@ export class RecursiveSkilledAgent {
             metadata: null,
         };
 
+        const aliases = new Set([
+            canonicalName,
+            sanitiseName(canonicalName),
+            shortName,
+            sanitiseName(shortName),
+            baseName,
+        ].filter(Boolean));
+
         this.debugLogger?.log('RecursiveSkilledAgent:registerSkill', {
             name: canonicalName,
             type,
@@ -319,21 +337,20 @@ export class RecursiveSkilledAgent {
         const subsystem = this.ensureSubsystem(type);
         if (subsystem && typeof subsystem.prepareSkill === 'function') {
             try {
-                subsystem.prepareSkill(skillRecord, this);
+                const prep = subsystem.prepareSkill(skillRecord, this);
+                if (prep instanceof Promise) {
+                    this.pendingPreparations.push(
+                        prep.catch(error => {
+                            this.logger.warn(`[RecursiveSkilledAgent] Failed to prepare skill ${canonicalName}: ${error.message}`);
+                        })
+                    );
+                }
             } catch (error) {
                 this.logger.warn(`[RecursiveSkilledAgent] Failed to prepare skill ${canonicalName}: ${error.message}`);
             }
         }
 
         this.skillCatalog.set(canonicalName, skillRecord);
-
-        const aliases = new Set([
-            canonicalName,
-            sanitiseName(canonicalName),
-            shortName,
-            sanitiseName(shortName),
-            baseName,
-        ].filter(Boolean));
 
         aliases.forEach((alias) => {
             this.skillAliases.set(alias, skillRecord);
@@ -581,6 +598,12 @@ export class RecursiveSkilledAgent {
     }
 
     async executeWithReviewMode(taskDescription, options = {}, reviewMode = 'none') {
+        if (this.pendingPreparations && this.pendingPreparations.length) {
+            const toAwait = this.pendingPreparations;
+            this.pendingPreparations = [];
+            await Promise.all(toAwait);
+        }
+
         const {
             skillName = null,
             promptReader = null,

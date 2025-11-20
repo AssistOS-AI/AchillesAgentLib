@@ -1,9 +1,0 @@
-node_modules
-.git
-dist
-coverage
-package.json
-.cache
-.specs/mock
-.specs/html_docs
-Automatic bootstrap: ensure default ignore list is applied.

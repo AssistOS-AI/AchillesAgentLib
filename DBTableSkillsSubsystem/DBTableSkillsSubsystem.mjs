@@ -101,7 +101,7 @@ export class DBTableSkillsSubsystem {
 
         // Generate functions if needed
         const hash = crypto.createHash('md5').update(content).digest('hex');
-        const cacheKey = `${name}_${hash}`;
+        const cacheKey = hash; // Use only hash for cache key to reuse across skills with same content
 
         if (!this.functionCache.has(cacheKey)) {
             const functions = await generateAllFunctions(name, parsedSkill, this.llmAgent);
@@ -195,25 +195,71 @@ Respond with JSON:
     }
 
     /**
+     * Create execution context with all field functions available
+     */
+    createExecutionContext(functions) {
+        // Build a code string that defines all field functions and returns an object with global functions
+        const allPresenters = Object.values(functions.presenters || {}).join('\n\n');
+        const allResolvers = Object.values(functions.resolvers || {}).join('\n\n');
+        const allValidators = Object.values(functions.validators || {}).join('\n\n');
+        const allEnumerators = Object.values(functions.enumerators || {}).join('\n\n');
+        const allDerivators = Object.values(functions.derivators || {}).join('\n\n');
+
+        const contextCode = `(function() {
+${allPresenters}
+
+${allResolvers}
+
+${allValidators}
+
+${allEnumerators}
+
+${allDerivators}
+
+${functions.global.selectRecords || ''}
+
+${functions.global.prepareRecord || ''}
+
+${functions.global.validateRecord || ''}
+
+${functions.global.presentRecord || ''}
+
+${functions.global.generatePKValues || ''}
+
+// Return object with global functions
+return {
+    generatePKValues: typeof generatePKValues !== 'undefined' ? generatePKValues : null,
+    prepareRecord: typeof prepareRecord !== 'undefined' ? prepareRecord : null,
+    validateRecord: typeof validateRecord !== 'undefined' ? validateRecord : null,
+    presentRecord: typeof presentRecord !== 'undefined' ? presentRecord : null,
+    selectRecords: typeof selectRecords !== 'undefined' ? selectRecords : null
+};
+})()`;
+
+        return eval(contextCode);
+    }
+
+    /**
      * Execute CREATE operation flow
      */
     async executeCreateFlow(parsedSkill, functions, operation, context) {
         // Generate initial record from AI intent
         const newRecord = operation.data || {};
 
+        // Create execution context with all functions
+        const execContext = this.createExecutionContext(functions);
+
         // Generate primary key if needed
-        if (functions.global.generatePKValues) {
-            const pkValues = eval(functions.global.generatePKValues)({});
+        if (execContext.generatePKValues) {
+            const pkValues = execContext.generatePKValues({});
             Object.assign(newRecord, pkValues);
         }
 
         // Prepare record
-        const prepareFunc = eval(functions.global.prepareRecord);
-        const prepared = await prepareFunc(newRecord);
+        const prepared = await execContext.prepareRecord(newRecord);
 
         // Validate record
-        const validateFunc = eval(functions.global.validateRecord);
-        const validation = await validateFunc(prepared);
+        const validation = await execContext.validateRecord(prepared);
 
         if (!validation.isValid) {
             return {
@@ -224,8 +270,7 @@ Respond with JSON:
         }
 
         // Present record for user confirmation
-        const presentFunc = eval(functions.global.presentRecord);
-        const presented = await presentFunc(prepared);
+        const presented = await execContext.presentRecord(prepared);
 
         return {
             success: true,
@@ -239,9 +284,11 @@ Respond with JSON:
      * Execute UPDATE operation flow
      */
     async executeUpdateFlow(parsedSkill, functions, operation, context) {
+        // Create execution context with all functions
+        const execContext = this.createExecutionContext(functions);
+
         // Get existing record (simulation)
-        const selectFunc = eval(functions.global.selectRecords);
-        const existing = await selectFunc(operation.filter);
+        const existing = await execContext.selectRecords(operation.filter);
 
         if (!existing || existing.length === 0) {
             return {
@@ -255,12 +302,10 @@ Respond with JSON:
         const patched = { ...existing[0], ...operation.data };
 
         // Prepare record
-        const prepareFunc = eval(functions.global.prepareRecord);
-        const prepared = await prepareFunc(patched);
+        const prepared = await execContext.prepareRecord(patched);
 
         // Validate record
-        const validateFunc = eval(functions.global.validateRecord);
-        const validation = await validateFunc(prepared);
+        const validation = await execContext.validateRecord(prepared);
 
         if (!validation.isValid) {
             return {
@@ -271,8 +316,7 @@ Respond with JSON:
         }
 
         // Present record for user confirmation
-        const presentFunc = eval(functions.global.presentRecord);
-        const presented = await presentFunc(prepared);
+        const presented = await execContext.presentRecord(prepared);
 
         return {
             success: true,
@@ -287,14 +331,15 @@ Respond with JSON:
      * Execute SELECT operation flow
      */
     async executeSelectFlow(parsedSkill, functions, operation, context) {
+        // Create execution context with all functions
+        const execContext = this.createExecutionContext(functions);
+
         // Select records
-        const selectFunc = eval(functions.global.selectRecords);
-        const records = await selectFunc(operation.filter);
+        const records = await execContext.selectRecords(operation.filter);
 
         // Present each record
-        const presentFunc = eval(functions.global.presentRecord);
         const presented = await Promise.all(
-            records.map(record => presentFunc(record))
+            records.map(record => execContext.presentRecord(record))
         );
 
         return {
@@ -309,9 +354,11 @@ Respond with JSON:
      * Execute DELETE operation flow
      */
     async executeDeleteFlow(parsedSkill, functions, operation, context) {
+        // Create execution context with all functions
+        const execContext = this.createExecutionContext(functions);
+
         // Select records to delete
-        const selectFunc = eval(functions.global.selectRecords);
-        const records = await selectFunc(operation.filter);
+        const records = await execContext.selectRecords(operation.filter);
 
         if (!records || records.length === 0) {
             return {
@@ -322,9 +369,8 @@ Respond with JSON:
         }
 
         // Present records for confirmation
-        const presentFunc = eval(functions.global.presentRecord);
         const presented = await Promise.all(
-            records.map(record => presentFunc(record))
+            records.map(record => execContext.presentRecord(record))
         );
 
         return {
