@@ -5,7 +5,7 @@
 /**
  * Generate a presenter function for a field
  */
-export async function generatePresenterFunction(fieldName, fieldDef, llmAgent) {
+export async function generatePresenterFunction(fieldName, fieldDef, llmAgent, context = {}) {
     const baseFunction = `function presenter_${fieldName}(value, record) {
     if (value === null || value === undefined) return '';
     // ${fieldDef.valuePresenterDescription || 'Present value in human-readable format'}
@@ -17,7 +17,7 @@ export async function generatePresenterFunction(fieldName, fieldDef, llmAgent) {
     }
 
     try {
-        const prompt = `Generate a JavaScript function named "presenter_${fieldName}" that presents the value of field "${fieldName}".
+        let prompt = `Generate a JavaScript function named "presenter_${fieldName}" that presents the value of field "${fieldName}".
 Description: ${fieldDef.valuePresenterDescription}
 The function should take (value, record) as parameters and return a human-readable string.
 
@@ -27,6 +27,16 @@ Requirements:
 - The record parameter contains the entire database record for context
 
 Return only the function code without any explanation or markdown formatting.`;
+
+        if (context.oldCode) {
+            prompt += `\n\nPrevious implementation:\n${context.oldCode}`;
+        }
+        if (context.oldTskill) {
+            prompt += `\n\nPrevious Skill Definition:\n${context.oldTskill}`;
+        }
+        if (context.newTskill) {
+            prompt += `\n\nNew Skill Definition:\n${context.newTskill}`;
+        }
 
         const result = await llmAgent.executePrompt(prompt, {
             mode: 'fast',
@@ -43,7 +53,7 @@ Return only the function code without any explanation or markdown formatting.`;
 /**
  * Generate a resolver function for a field
  */
-export async function generateResolverFunction(fieldName, fieldDef, llmAgent) {
+export async function generateResolverFunction(fieldName, fieldDef, llmAgent, context = {}) {
     const baseFunction = `function resolver_${fieldName}(humanValue, record) {
     if (humanValue === null || humanValue === undefined) return null;
     // ${fieldDef.resolverDescription || 'Resolve human input to database format'}
@@ -55,7 +65,7 @@ export async function generateResolverFunction(fieldName, fieldDef, llmAgent) {
     }
 
     try {
-        const prompt = `Generate a JavaScript function named "resolver_${fieldName}" that resolves human input to database format for field "${fieldName}".
+        let prompt = `Generate a JavaScript function named "resolver_${fieldName}" that resolves human input to database format for field "${fieldName}".
 Description: ${fieldDef.resolverDescription}
 The function should take (humanValue, record) as parameters and return the database value.
 
@@ -66,6 +76,16 @@ Requirements:
 - Should be symmetric with the presenter function (reverse operation)
 
 Return only the function code without any explanation or markdown formatting.`;
+
+        if (context.oldCode) {
+            prompt += `\n\nPrevious implementation:\n${context.oldCode}`;
+        }
+        if (context.oldTskill) {
+            prompt += `\n\nPrevious Skill Definition:\n${context.oldTskill}`;
+        }
+        if (context.newTskill) {
+            prompt += `\n\nNew Skill Definition:\n${context.newTskill}`;
+        }
 
         const result = await llmAgent.executePrompt(prompt, {
             mode: 'fast',
@@ -82,7 +102,7 @@ Return only the function code without any explanation or markdown formatting.`;
 /**
  * Generate a validator function for a field
  */
-export async function generateValidatorFunction(fieldName, fieldDef, llmAgent) {
+export async function generateValidatorFunction(fieldName, fieldDef, llmAgent, context = {}) {
     const baseFunction = `function validator_${fieldName}(value, record) {
     ${fieldDef.isRequired ? `
     // Check if field is required
@@ -104,7 +124,7 @@ export async function generateValidatorFunction(fieldName, fieldDef, llmAgent) {
     }
 
     try {
-        const prompt = `Generate a JavaScript function named "validator_${fieldName}" that validates the value of field "${fieldName}".
+        let prompt = `Generate a JavaScript function named "validator_${fieldName}" that validates the value of field "${fieldName}".
 Description: ${fieldDef.validatorDescription || 'Standard validation'}
 Required: ${fieldDef.isRequired ? 'Yes - ' + (fieldDef.requiredCondition || 'always required') : 'No'}
 
@@ -114,6 +134,16 @@ The function should:
 - Return a JSON string with error details if invalid: JSON.stringify({field, error, value})
 
 Return only the function code without any explanation or markdown formatting.`;
+
+        if (context.oldCode) {
+            prompt += `\n\nPrevious implementation:\n${context.oldCode}`;
+        }
+        if (context.oldTskill) {
+            prompt += `\n\nPrevious Skill Definition:\n${context.oldTskill}`;
+        }
+        if (context.newTskill) {
+            prompt += `\n\nNew Skill Definition:\n${context.newTskill}`;
+        }
 
         const result = await llmAgent.executePrompt(prompt, {
             mode: 'fast',
@@ -130,7 +160,7 @@ Return only the function code without any explanation or markdown formatting.`;
 /**
  * Generate an enumerator function for a field
  */
-export async function generateEnumeratorFunction(fieldName, fieldDef, llmAgent) {
+export async function generateEnumeratorFunction(fieldName, fieldDef, llmAgent, context = {}) {
     const baseFunction = `function enumerator_${fieldName}(currentRecord) {
     // ${fieldDef.enumeratorDescription || 'Return possible values for this field'}
     return [];
@@ -141,7 +171,7 @@ export async function generateEnumeratorFunction(fieldName, fieldDef, llmAgent) 
     }
 
     try {
-        const prompt = `Generate a JavaScript function named "enumerator_${fieldName}" that enumerates possible values for field "${fieldName}".
+        let prompt = `Generate a JavaScript function named "enumerator_${fieldName}" that enumerates possible values for field "${fieldName}".
 Description: ${fieldDef.enumeratorDescription}
 
 The function should:
@@ -150,6 +180,16 @@ The function should:
 - Consider the current record context to provide relevant options
 
 Return only the function code without any explanation or markdown formatting.`;
+
+        if (context.oldCode) {
+            prompt += `\n\nPrevious implementation:\n${context.oldCode}`;
+        }
+        if (context.oldTskill) {
+            prompt += `\n\nPrevious Skill Definition:\n${context.oldTskill}`;
+        }
+        if (context.newTskill) {
+            prompt += `\n\nNew Skill Definition:\n${context.newTskill}`;
+        }
 
         const result = await llmAgent.executePrompt(prompt, {
             mode: 'fast',
@@ -166,7 +206,7 @@ Return only the function code without any explanation or markdown formatting.`;
 /**
  * Generate a derivator function for a derived/computed field
  */
-export async function generateDerivatorFunction(fieldName, fieldDef, llmAgent) {
+export async function generateDerivatorFunction(fieldName, fieldDef, llmAgent, context = {}) {
     const baseFunction = `function derivator_${fieldName}(record) {
     // ${fieldDef.derivatorDescription || 'Compute derived field value'}
     return null;
@@ -177,7 +217,7 @@ export async function generateDerivatorFunction(fieldName, fieldDef, llmAgent) {
     }
 
     try {
-        const prompt = `Generate a JavaScript function named "derivator_${fieldName}" that derives a computed value for field "${fieldName}".
+        let prompt = `Generate a JavaScript function named "derivator_${fieldName}" that derives a computed value for field "${fieldName}".
 Description: ${fieldDef.derivatorDescription}
 
 The function should:
@@ -186,6 +226,16 @@ The function should:
 - This is for a "fake" field not stored in the database
 
 Return only the function code without any explanation or markdown formatting.`;
+
+        if (context.oldCode) {
+            prompt += `\n\nPrevious implementation:\n${context.oldCode}`;
+        }
+        if (context.oldTskill) {
+            prompt += `\n\nPrevious Skill Definition:\n${context.oldTskill}`;
+        }
+        if (context.newTskill) {
+            prompt += `\n\nNew Skill Definition:\n${context.newTskill}`;
+        }
 
         const result = await llmAgent.executePrompt(prompt, {
             mode: 'fast',
@@ -202,7 +252,7 @@ Return only the function code without any explanation or markdown formatting.`;
 /**
  * Generate field name presenter function
  */
-export async function generateFieldNamePresenterFunction(fieldName, fieldDef, llmAgent) {
+export async function generateFieldNamePresenterFunction(fieldName, fieldDef, llmAgent, context = {}) {
     const baseFunction = `function fieldNamePresenter_${fieldName}() {
     // ${fieldDef.presenterDescription || 'Return human-readable field label'}
     return '${fieldName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}';
@@ -213,7 +263,7 @@ export async function generateFieldNamePresenterFunction(fieldName, fieldDef, ll
     }
 
     try {
-        const prompt = `Generate a JavaScript function named "fieldNamePresenter_${fieldName}" that returns a human-readable label for field "${fieldName}".
+        let prompt = `Generate a JavaScript function named "fieldNamePresenter_${fieldName}" that returns a human-readable label for field "${fieldName}".
 Description: ${fieldDef.presenterDescription}
 
 The function should:
@@ -222,6 +272,16 @@ The function should:
 - Example: "customer_id" -> "Customer ID"
 
 Return only the function code without any explanation or markdown formatting.`;
+
+        if (context.oldCode) {
+            prompt += `\n\nPrevious implementation:\n${context.oldCode}`;
+        }
+        if (context.oldTskill) {
+            prompt += `\n\nPrevious Skill Definition:\n${context.oldTskill}`;
+        }
+        if (context.newTskill) {
+            prompt += `\n\nNew Skill Definition:\n${context.newTskill}`;
+        }
 
         const result = await llmAgent.executePrompt(prompt, {
             mode: 'fast',
@@ -287,17 +347,17 @@ export function generateGlobalFunctions(tableName, skill) {
 
     // Remove derived/computed fields (they're not stored in DB)
     ${Object.entries(skill.fields)
-        .filter(([_, f]) => f.derivatorDescription)
-        .map(([fieldName]) => `delete prepared.${fieldName};`)
-        .join('\n    ') || '// No derived fields to remove'}
+            .filter(([_, f]) => f.derivatorDescription)
+            .map(([fieldName]) => `delete prepared.${fieldName};`)
+            .join('\n    ') || '// No derived fields to remove'}
 
     // Apply resolvers to convert human input to database format
     ${Object.entries(skill.fields)
-        .filter(([_, f]) => f.resolverDescription)
-        .map(([fieldName]) => `if (prepared.${fieldName} !== undefined) {
+            .filter(([_, f]) => f.resolverDescription)
+            .map(([fieldName]) => `if (prepared.${fieldName} !== undefined) {
         prepared.${fieldName} = await resolver_${fieldName}(prepared.${fieldName}, record);
     }`)
-        .join('\n    ') || '// No resolvers to apply'}
+            .join('\n    ') || '// No resolvers to apply'}
 
     return prepared;
 }`;
@@ -308,8 +368,8 @@ export function generateGlobalFunctions(tableName, skill) {
 
     // Run validators for each field
     ${Object.entries(skill.fields)
-        .filter(([_, f]) => f.validatorDescription || f.isRequired)
-        .map(([fieldName]) => `const ${fieldName}Error = await validator_${fieldName}(record.${fieldName}, record);
+            .filter(([_, f]) => f.validatorDescription || f.isRequired)
+            .map(([fieldName]) => `const ${fieldName}Error = await validator_${fieldName}(record.${fieldName}, record);
     if (${fieldName}Error) {
         try {
             errors.push(JSON.parse(${fieldName}Error));
@@ -321,7 +381,7 @@ export function generateGlobalFunctions(tableName, skill) {
             });
         }
     }`)
-        .join('\n    ') || '// No validators to run'}
+            .join('\n    ') || '// No validators to run'}
 
     return {
         isValid: errors.length === 0,
@@ -335,17 +395,17 @@ export function generateGlobalFunctions(tableName, skill) {
 
     // Apply presenters to format values for display
     ${Object.entries(skill.fields)
-        .filter(([_, f]) => f.valuePresenterDescription)
-        .map(([fieldName]) => `if (presented.${fieldName} !== undefined) {
+            .filter(([_, f]) => f.valuePresenterDescription)
+            .map(([fieldName]) => `if (presented.${fieldName} !== undefined) {
         presented.${fieldName} = await presenter_${fieldName}(presented.${fieldName}, record);
     }`)
-        .join('\n    ') || '// No presenters to apply'}
+            .join('\n    ') || '// No presenters to apply'}
 
     // Add derived/computed fields
     ${Object.entries(skill.fields)
-        .filter(([_, f]) => f.derivatorDescription)
-        .map(([fieldName]) => `presented.${fieldName} = await derivator_${fieldName}(record);`)
-        .join('\n    ') || '// No derived fields to add'}
+            .filter(([_, f]) => f.derivatorDescription)
+            .map(([fieldName]) => `presented.${fieldName} = await derivator_${fieldName}(record);`)
+            .join('\n    ') || '// No derived fields to add'}
 
     return presented;
 }`;
@@ -364,9 +424,9 @@ export function generateGlobalFunctions(tableName, skill) {
     ${pkField?.primaryKeyStrategy?.toLowerCase().includes('auto') ? `// Auto-increment logic
     // This should query the database for the next available ID
     pkValue.${skill.primaryKey} = Date.now(); // Placeholder - use proper auto-increment` :
-    pkField?.primaryKeyStrategy?.toLowerCase().includes('uuid') ? `// UUID generation
+                pkField?.primaryKeyStrategy?.toLowerCase().includes('uuid') ? `// UUID generation
     pkValue.${skill.primaryKey} = crypto.randomUUID();` :
-    `// Custom primary key generation
+                    `// Custom primary key generation
     pkValue.${skill.primaryKey} = Date.now(); // Placeholder`}
 
     return pkValue;
@@ -379,7 +439,7 @@ export function generateGlobalFunctions(tableName, skill) {
 /**
  * Generate all functions for a table
  */
-export async function generateAllFunctions(tableName, skill, llmAgent) {
+export async function generateAllFunctions(tableName, skill, llmAgent, context = {}) {
     const functions = {
         presenters: {},
         resolvers: {},
@@ -392,40 +452,68 @@ export async function generateAllFunctions(tableName, skill, llmAgent) {
 
     // Generate field-specific functions
     for (const [fieldName, fieldDef] of Object.entries(skill.fields)) {
+        const fieldContext = {
+            ...context,
+            oldCode: context.oldFunctions?.fieldNamePresenters?.[`fieldNamePresenter_${fieldName}`] ||
+                context.oldFunctions?.presenters?.[`presenter_${fieldName}`] ||
+                context.oldFunctions?.resolvers?.[`resolver_${fieldName}`] ||
+                context.oldFunctions?.validators?.[`validator_${fieldName}`] ||
+                context.oldFunctions?.enumerators?.[`enumerator_${fieldName}`] ||
+                context.oldFunctions?.derivators?.[`derivator_${fieldName}`]
+        };
+
         // Generate field name presenter
         if (fieldDef.presenterDescription) {
             functions.fieldNamePresenters[`fieldNamePresenter_${fieldName}`] =
-                await generateFieldNamePresenterFunction(fieldName, fieldDef, llmAgent);
+                await generateFieldNamePresenterFunction(fieldName, fieldDef, llmAgent, {
+                    ...context,
+                    oldCode: context.oldFunctions?.fieldNamePresenters?.[`fieldNamePresenter_${fieldName}`]
+                });
         }
 
         // Generate value presenter
         if (fieldDef.valuePresenterDescription) {
             functions.presenters[`presenter_${fieldName}`] =
-                await generatePresenterFunction(fieldName, fieldDef, llmAgent);
+                await generatePresenterFunction(fieldName, fieldDef, llmAgent, {
+                    ...context,
+                    oldCode: context.oldFunctions?.presenters?.[`presenter_${fieldName}`]
+                });
         }
 
         // Generate resolver
         if (fieldDef.resolverDescription) {
             functions.resolvers[`resolver_${fieldName}`] =
-                await generateResolverFunction(fieldName, fieldDef, llmAgent);
+                await generateResolverFunction(fieldName, fieldDef, llmAgent, {
+                    ...context,
+                    oldCode: context.oldFunctions?.resolvers?.[`resolver_${fieldName}`]
+                });
         }
 
         // Generate validator
         if (fieldDef.validatorDescription || fieldDef.isRequired) {
             functions.validators[`validator_${fieldName}`] =
-                await generateValidatorFunction(fieldName, fieldDef, llmAgent);
+                await generateValidatorFunction(fieldName, fieldDef, llmAgent, {
+                    ...context,
+                    oldCode: context.oldFunctions?.validators?.[`validator_${fieldName}`]
+                });
         }
 
         // Generate enumerator
         if (fieldDef.enumeratorDescription) {
             functions.enumerators[`enumerator_${fieldName}`] =
-                await generateEnumeratorFunction(fieldName, fieldDef, llmAgent);
+                await generateEnumeratorFunction(fieldName, fieldDef, llmAgent, {
+                    ...context,
+                    oldCode: context.oldFunctions?.enumerators?.[`enumerator_${fieldName}`]
+                });
         }
 
         // Generate derivator
         if (fieldDef.derivatorDescription) {
             functions.derivators[`derivator_${fieldName}`] =
-                await generateDerivatorFunction(fieldName, fieldDef, llmAgent);
+                await generateDerivatorFunction(fieldName, fieldDef, llmAgent, {
+                    ...context,
+                    oldCode: context.oldFunctions?.derivators?.[`derivator_${fieldName}`]
+                });
         }
     }
 
@@ -433,4 +521,57 @@ export async function generateAllFunctions(tableName, skill, llmAgent) {
     functions.global = generateGlobalFunctions(tableName, skill);
 
     return functions;
+}
+
+/**
+ * Serialize functions object to a JavaScript module string
+ */
+export function serializeFunctions(functions, tskillSource) {
+    const lines = [];
+    lines.push(`export const tskillSource = ${JSON.stringify(tskillSource)};`);
+    lines.push('');
+
+    const functionNames = {
+        presenters: {},
+        resolvers: {},
+        validators: {},
+        enumerators: {},
+        derivators: {},
+        fieldNamePresenters: {},
+        global: {}
+    };
+
+    // Helper to process a category
+    const processCategory = (category) => {
+        for (const [name, code] of Object.entries(functions[category] || {})) {
+            let exportCode = code.trim();
+            if (!exportCode.startsWith('export ')) {
+                exportCode = 'export ' + exportCode;
+            }
+            lines.push(exportCode);
+            lines.push('');
+            functionNames[category][name] = name;
+        }
+    };
+
+    processCategory('fieldNamePresenters');
+    processCategory('presenters');
+    processCategory('resolvers');
+    processCategory('validators');
+    processCategory('enumerators');
+    processCategory('derivators');
+    processCategory('global');
+
+    // Now construct the functions object export
+    lines.push('export const functions = {');
+    for (const category of Object.keys(functionNames)) {
+        lines.push(`    ${category}: {`);
+        for (const [name, ref] of Object.entries(functionNames[category])) {
+            lines.push(`        ${name}: ${ref},`);
+        }
+        lines.push(`    },`);
+    }
+    lines.push('};');
+
+    return lines.join('\n');
 }

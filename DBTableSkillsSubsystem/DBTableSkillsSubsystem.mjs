@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
-import { generateAllFunctions } from './FunctionGenerator.mjs';
+import { generateAllFunctions, serializeFunctions } from './FunctionGenerator.mjs';
 
 const DEFAULT_TIMEOUT_MS = 60000;
 const DB_TABLE_ARGUMENT_NAME = 'prompt';
@@ -16,8 +16,8 @@ const parseTimeout = (value, fallback) => {
 
 const SKILL_TIMEOUT_MS = parseTimeout(
     process.env.ACHILLES_DBTABLE_TIMEOUT
-        ?? process.env.ACHILES_DBTABLE_TIMEOUT
-        ?? process.env.ACHILESS_DBTABLE_TIMEOUT,
+    ?? process.env.ACHILES_DBTABLE_TIMEOUT
+    ?? process.env.ACHILESS_DBTABLE_TIMEOUT,
     DEFAULT_TIMEOUT_MS,
 );
 
@@ -100,15 +100,59 @@ export class DBTableSkillsSubsystem {
         }
 
         // Generate functions if needed
-        const hash = crypto.createHash('md5').update(content).digest('hex');
-        const cacheKey = hash; // Use only hash for cache key to reuse across skills with same content
+        let functions;
+        const generatedPath = tskillPath ? path.join(path.dirname(tskillPath), 'tskill.generated.mjs') : null;
 
-        if (!this.functionCache.has(cacheKey)) {
-            const functions = await generateAllFunctions(name, parsedSkill, this.llmAgent);
-            this.functionCache.set(cacheKey, functions);
+        if (generatedPath && fs.existsSync(generatedPath)) {
+            try {
+                // Load existing generated file
+                // Use timestamp to bypass cache
+                const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
+                const imported = await import(moduleUrl);
+
+                // Check if content matches
+                if (imported.tskillSource === content) {
+                    functions = imported.functions;
+                } else {
+                    // Content changed, regenerate with context
+                    console.log(`Regenerating skill "${name}" due to changes...`);
+                    const generatedFunctions = await generateAllFunctions(name, parsedSkill, this.llmAgent, {
+                        oldFunctions: imported.functions,
+                        oldTskill: imported.tskillSource,
+                        newTskill: content
+                    });
+
+                    // Serialize and write
+                    const fileContent = serializeFunctions(generatedFunctions, content);
+                    await fs.promises.writeFile(generatedPath, fileContent, 'utf-8');
+
+                    // Re-import to get compiled functions
+                    const newModuleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
+                    const newImported = await import(newModuleUrl);
+                    functions = newImported.functions;
+                }
+            } catch (error) {
+                console.error(`Error loading generated skill "${name}":`, error);
+                // Fall through to fresh generation
+            }
         }
 
-        const functions = this.functionCache.get(cacheKey);
+        if (!functions) {
+            const generatedFunctions = await generateAllFunctions(name, parsedSkill, this.llmAgent, {
+                newTskill: content
+            });
+
+            if (generatedPath) {
+                const fileContent = serializeFunctions(generatedFunctions, content);
+                await fs.promises.writeFile(generatedPath, fileContent, 'utf-8');
+
+                const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
+                const imported = await import(moduleUrl);
+                functions = imported.functions;
+            } else {
+                functions = generatedFunctions;
+            }
+        }
 
         // Store metadata
         skillRecord.metadata = {
@@ -198,6 +242,11 @@ Respond with JSON:
      * Create execution context with all field functions available
      */
     createExecutionContext(functions) {
+        // If functions are already compiled (from module import), return global functions directly
+        if (functions.global && typeof functions.global.selectRecords === 'function') {
+            return functions.global;
+        }
+
         // Build a code string that defines all field functions and returns an object with global functions
         const allPresenters = Object.values(functions.presenters || {}).join('\n\n');
         const allResolvers = Object.values(functions.resolvers || {}).join('\n\n');
