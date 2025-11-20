@@ -1,0 +1,12 @@
+{
+  "description": "Error handling and recovery in a multi-turn session",
+  "tools": {
+    "math": "Understands natural language arithmetic problems and returns the numeric result as text."
+  },
+  "prompts": [
+    "Try to divide 10 by 0. If that is invalid, detect and report it.",
+    "Now correctly divide 10 by 2 and remember the result.",
+    "Finally, add 5 to that result and answer only with the final number."
+  ],
+  "expectedFinalAnswer": "10"
+}

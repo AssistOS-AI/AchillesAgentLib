@@ -1,0 +1,10 @@
+{
+  "description": "Simple arithmetic in a single agentic session",
+  "tools": {
+    "math": "Understands natural language arithmetic problems and returns the numeric result as text."
+  },
+  "prompts": [
+    "Calculate (5 + 3) * 2 and answer only with the number."
+  ],
+  "expectedFinalAnswer": "16"
+}

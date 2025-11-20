@@ -1,5 +1,29 @@
 [
   {
+    "file": "case_04.json",
+    "prompt": "I need to add a new NFS: 'All external API calls must have a fallback mechanism to prevent system-wide failures.' This is medium priority. Also, URS-007, about 'seamless user experience', is still too vague. Can you give me more concrete examples or metrics for it?",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to Medium for the new NFS regarding fallback mechanism for external API calls.",
+        "actual": "set priority to Medium for the new Non-Functional Specification regarding external API calls."
+      }
+    ]
+  },
+  {
+    "file": "case_06.json",
+    "prompt": "The current NFS-001, 'System uptime must be 99.9%', needs to be updated to 'System uptime must be 99.99% for critical services'. This is a high priority change. Also, we need to add a new URS: 'Users can save their preferences for dashboard widgets.'",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to High for the modified NFS-001 regarding system uptime.",
+        "actual": "set priority to High for the modified requirement NFS-001."
+      }
+    ]
+  },
+  {
     "file": "case_07.json",
     "prompt": "For FS-033 ('User Registration'), the requirement needs to be modified to include email verification as a mandatory step. What are the implications for existing user accounts? Also, add a new DS for a 'Microservices communication bus' with RabbitMQ.",
     "errors": [
@@ -24,7 +48,7 @@
         "type": "semantic_mismatch",
         "key": "prioritizeRequirement",
         "expected": "set priority to High for the new NFS regarding WCAG 2.1 AA compliance.",
-        "actual": "set priority to very high for the new NFS regarding WCAG compliance."
+        "actual": "set priority to Very High for the new Non-Functional Specification regarding WCAG compliance."
       }
     ]
   },
@@ -40,29 +64,6 @@
     ]
   },
   {
-    "file": "case_17.json",
-    "prompt": "I need to modify URS-001, 'User Login', to include multi-factor authentication as a mandatory feature. This is a critical security update. Also, please add a new NFS: 'The system must be accessible via a RESTful API for external integrations.'",
-    "errors": [
-      {
-        "type": "missing_key",
-        "key": "prioritizeRequirement",
-        "expected": "set priority to Critical for URS-001."
-      }
-    ]
-  },
-  {
-    "file": "case_18.json",
-    "prompt": "Could you please add a new URS: 'Users can receive email notifications for critical account activities (e.g., password change, login from new device).' This should be high priority. Additionally, can you clarify if FS-060, 'Reporting Module', includes export functionalities for PDF and Excel?",
-    "errors": [
-      {
-        "type": "semantic_mismatch",
-        "key": "prioritizeRequirement",
-        "expected": "set priority to High for the new URS regarding email notifications for critical account activities.",
-        "actual": "set priority to High for the new URS regarding email notifications."
-      }
-    ]
-  },
-  {
     "file": "case_21.json",
     "prompt": "We need to add a new NFS: 'All sensitive data at rest and in transit must be encrypted using AES-256.' This is critical for data privacy. Could you also clarify the scope of URS-011, 'Audit Trail for Administrator Actions'?",
     "errors": [
@@ -74,14 +75,14 @@
     ]
   },
   {
-    "file": "case_22.json",
-    "prompt": "Remove FS-009, 'Guest Checkout Option', as it introduces too much complexity. What are the dependencies of FS-009? Also, modify DS-150, 'User Session Management', to use JWT tokens with a 30-minute expiry and refresh token mechanism.",
+    "file": "case_23.json",
+    "prompt": "I need to add a new DS for a 'Distributed Cache System' using Redis. Make sure this is high priority. And the current URS-004, 'User Feedback Form', is too basic. We need to modify it to include sentiment analysis integration.",
     "errors": [
       {
         "type": "semantic_mismatch",
-        "key": "clarifyRequirement",
-        "expected": "clarify the dependencies of FS-009.",
-        "actual": "What are the dependencies of FS-009?"
+        "key": "addRequirement",
+        "expected": "add a new DS for a 'Distributed Cache System' using Redis.",
+        "actual": "add a new Design Specification (DS) for a 'Distributed Cache System' using Redis."
       }
     ]
   },
@@ -97,6 +98,30 @@
     ]
   },
   {
+    "file": "case_30.json",
+    "prompt": "I need to add a new DS for a 'Search Indexing Service' using Elasticsearch. This is critical. And please modify FS-030, 'Reporting Engine', to support custom report generation based on user-defined criteria.",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "addRequirement",
+        "expected": "add a new DS for a 'Search Indexing Service' using Elasticsearch.",
+        "actual": "add a new Design Specification (DS) for a 'Search Indexing Service' using Elasticsearch."
+      }
+    ]
+  },
+  {
+    "file": "case_33.json",
+    "prompt": "I need to add a new URS: 'Users must be able to customize their dashboard layout via drag-and-drop.' Set this to high priority. Also, modify NFS-009, 'Performance under load', to include specific metrics for concurrent users (e.g., 500 concurrent users with 2s response time).",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "prioritizeRequirement",
+        "expected": "set priority to High for the new URS regarding dashboard customization via drag-and-drop.",
+        "actual": "set priority to High for the new URS about dashboard customization."
+      }
+    ]
+  },
+  {
     "file": "case_34.json",
     "prompt": "Could you please add a new DS for 'Serverless Functions' using AWS Lambda for specific business processes. This is critical. What's the impact of removing FS-040, 'Legacy Reporting Integration', on existing dashboards?",
     "errors": [
@@ -104,6 +129,28 @@
         "type": "missing_key",
         "key": "prioritizeRequirement",
         "expected": "set priority to Critical for the new DS."
+      },
+      {
+        "type": "missing_key",
+        "key": "clarifyRequirement",
+        "expected": "clarify the impact of removing FS-040, 'Legacy Reporting Integration', on existing dashboards."
+      },
+      {
+        "type": "unexpected_key",
+        "key": "performRiskAssessment",
+        "actual": "evaluate the impact of removing FS-040, 'Legacy Reporting Integration', on existing dashboards."
+      }
+    ]
+  },
+  {
+    "file": "case_35.json",
+    "prompt": "Remove URS-012, 'Public API Key Management', as we've switched to OAuth2. Also, modify NFS-012, 'Disaster Recovery Plan', to include a RTO (Recovery Time Objective) of 4 hours and RPO (Recovery Point Objective) of 1 hour.",
+    "errors": [
+      {
+        "type": "semantic_mismatch",
+        "key": "deleteRequirement",
+        "expected": "remove URS-012, 'Public API Key Management'.",
+        "actual": "remove URS-012, 'Public API Key Management' due to the switch to OAuth2."
       }
     ]
   },
@@ -112,21 +159,9 @@
     "prompt": "Add a new URS: 'Users must be able to log in using their existing Google or Microsoft accounts.' Set this to critical priority. What are the security implications of this in terms of OAuth flow management? And delete FS-001, 'Basic User Authentication', as it will be replaced by the new URS.",
     "errors": [
       {
-        "type": "semantic_mismatch",
-        "key": "prioritizeRequirement",
-        "expected": "set priority to Critical for the new URS regarding user login functionality.",
-        "actual": "set priority to Critical for the new URS regarding user login options."
-      },
-      {
         "type": "missing_key",
         "key": "clarifyRequirement",
         "expected": "clarify the security implications of OAuth flow management for the new URS."
-      },
-      {
-        "type": "semantic_mismatch",
-        "key": "deleteRequirement",
-        "expected": "delete FS-001, 'Basic User Authentication'.",
-        "actual": "delete FS-001, 'Basic User Authentication', as it will be replaced by the new URS."
       }
     ]
   },
@@ -154,30 +189,14 @@
     ]
   },
   {
-    "file": "case_51.json",
-    "prompt": "We have an upcoming audit. I need a full report showing how URS-105 maps down to the functional specs and test cases to prove we didn't miss anything.",
-    "errors": [
-      {
-        "type": "missing_key",
-        "key": "generateTraceabilityMatrix",
-        "expected": "generate a Requirement Traceability Matrix (RTM) report specifically for URS-105 to show lineage to functional specs and test cases."
-      },
-      {
-        "type": "unexpected_key",
-        "key": "linkRequirements",
-        "actual": "show how URS-105 maps down to the functional specs"
-      }
-    ]
-  },
-  {
-    "file": "case_55.json",
-    "prompt": "For the new LIMS integration (FS-500), verify if the e-signature implementation meets 21 CFR Part 11 requirements. If it looks good, generate the PQ test cases for the lab technicians to execute.",
+    "file": "case_54.json",
+    "prompt": "The data retention policy in NFS-050 seems arbitrary. I think 5 years is too long for temporary logs, but I'm not sure what GAMP or GDPR says. Can you check standard compliance and then help me clarify what it should be?",
     "errors": [
       {
         "type": "semantic_mismatch",
-        "key": "generateTestCases",
-        "expected": "generate the PQ test cases for the lab technicians to execute based on the e-signature implementation.",
-        "actual": "generate the PQ test cases for the lab technicians to execute for the LIMS integration (FS-500)."
+        "key": "clarifyRequirement",
+        "expected": "provide clarification/recommendation for the appropriate retention period for temporary logs in NFS-050.",
+        "actual": "clarify the data retention policy in NFS-050 by questioning if 5 years is too long for temporary logs."
       }
     ]
   }

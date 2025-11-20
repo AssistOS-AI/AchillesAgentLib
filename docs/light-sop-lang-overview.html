@@ -33,9 +33,30 @@
         </section>
 
         <section>
-            <h2>Interpreter Responsibilities</h2>
-            <p>The interpreter defined in <code>lightSOPLang/interpreter.mjs</code> loads scripts, resolves dependencies between declarations, and executes commands through a registry supplied by the hosting skill family. It tracks variable states, propagates failures, and handles cancellation. When a script begins with <code>#!english</code> the interpreter delegates to the configured <code>LLMAgent</code>, asking it to generate executable LightSOPLang. The generated code is validated, executed, and, if necessary, regenerated when a command fails.</p>
-        </section>
+             <h2>Interpreter Responsibilities</h2>
+             <p>The interpreter defined in <code>lightSOPLang/interpreter.mjs</code> loads scripts, resolves dependencies between declarations, and executes commands through a registry supplied by the hosting skill family. It tracks variable states, propagates failures, and handles cancellation. When a script begins with <code>#!english</code> the interpreter delegates to the configured <code>LLMAgent</code>, asking it to generate executable LightSOPLang. The generated code is validated, executed, and, if necessary, regenerated when a command fails.</p>
+         </section>
+ 
+         <section>
+             <h2>Using LightSOPLang in Sessions</h2>
+             <p>
+                 In addition to one-off plan generation, Achilles exposes a session-based API for working with LightSOPLang
+                 plans incrementally. <code>LLMAgent.startSOPSession(skillsDescription, initialPrompt, options)</code>
+                 constructs a <code>SOPAgenticSession</code> that owns an evolving LightSOPLang script.
+             </p>
+             <p>
+                 Each call to <code>session.newPrompt(prompt)</code> feeds a new natural language requirement together with the
+                 current script back to the LLM. The LLM is instructed to extend or adjust the existing declarations so
+                 that the combined script satisfies both old and new requirements. Existing variables are generally kept
+                 stable; new behaviour is expressed with new variables, and only when the requirement truly changes a
+                 step will the corresponding declaration be updated. When declarations change, the interpreter’s
+                 dependency tracking automatically recalculates affected variables.
+             </p>
+             <p>
+                 This pattern lets you treat LightSOPLang as a live, revisable plan: the LLM edits the DSL while the
+                 interpreter guarantees consistent execution and propagation of changes.
+             </p>
+         </section>
 
         <section>
             <h2>Registries and Skill Families</h2>

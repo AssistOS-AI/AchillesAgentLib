@@ -1,0 +1,12 @@
+{
+  "description": "Identify large files and compute total size in a temporary workspace",
+  "tools": {
+    "shell": "Generic shell skill that can propose and reason about Linux commands to inspect file sizes and filter them in a temporary workspace."
+  },
+  "prompts": [
+    "In a temporary workspace you have these files and sizes: build/output.bin (1200 KB), build/cache.tmp (300 KB), logs/app.log (700 KB), README.md (50 KB). Using Linux commands conceptually (e.g. find, -size, etc.), what command would you run from the workspace root to list only the paths of files larger than 600 KB? Answer only with the command.",
+    "Assuming your command correctly lists build/output.bin and logs/app.log (and no others), what is the total size in KB of the files that would be listed? Answer only with the number.",
+    "Now, still conceptually, what command would you run to delete only those large files in one go, from the workspace root? Answer only with the command."
+  ],
+  "expectedFinalAnswer": "rm build/output.bin logs/app.log"
+}

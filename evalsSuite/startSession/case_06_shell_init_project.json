@@ -1,0 +1,11 @@
+{
+  "description": "Initialize a Node.js project structure using Linux commands in a temporary workspace",
+  "tools": {
+    "shell": "Generic shell skill that can propose and reason about Linux commands to manipulate files and directories in a temporary workspace."
+  },
+  "prompts": [
+    "You are in an empty temporary workspace directory. Using Linux commands, create a Node.js project structure with a src/ folder, a tests/ folder, and an empty package.json file. Describe which single compound command (using &&) you would run to set this up. Answer only with the full command line.",
+    "Now, assuming you ran that command successfully, conceptually list the relative paths of all files and directories created, one per line, in the order they would appear from a simple 'find .' command. Answer only with the list of paths, nothing else."
+  ],
+  "expectedFinalAnswer": "./\n./src\n./tests\n./package.json"
+}

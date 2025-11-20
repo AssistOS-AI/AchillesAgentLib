@@ -1,0 +1,10 @@
+{
+  "description": "Suggest a Linux command to list all .js files in the workspace",
+  "tools": {
+    "shell": "Understands Linux commands conceptually and can reason about their effects in a temporary workspace."
+  },
+  "prompts": [
+    "You are working in a temporary project workspace that contains multiple nested folders with JavaScript files. What single Linux command would you run to list all .js files under the current directory, one per line? Answer only with the command, nothing else."
+  ],
+  "expectedFinalAnswer": "find . -name '*.js'"
+}

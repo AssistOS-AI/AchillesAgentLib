@@ -1,0 +1,11 @@
+{
+  "description": "Plan log rotation in a temporary workspace using multiple Linux commands",
+  "tools": {
+    "shell": "Generic shell skill that can propose and reason about Linux commands to manipulate files and directories in a temporary workspace."
+  },
+  "prompts": [
+    "In a temporary workspace you have a logs/ directory containing many .log files. You want to rotate logs by compressing all .log files into logs.tar.gz, then removing the original .log files but keeping the logs/ directory. What single command line would you run (it may contain multiple commands chained with &&)? Answer only with the full command line.",
+    "Assume that before rotation there were exactly 5 .log files directly under logs/ and nothing else. After your command completes successfully, how many .log files remain in logs/, and what is the name of the new archive file in the workspace root? Answer only with '<count> <archive_name>'."
+  ],
+  "expectedFinalAnswer": "0 logs.tar.gz"
+}

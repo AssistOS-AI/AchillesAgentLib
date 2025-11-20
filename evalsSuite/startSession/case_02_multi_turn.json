@@ -1,0 +1,11 @@
+{
+  "description": "Multi-turn with remembered intermediate result",
+  "tools": {
+    "math": "Understands natural language arithmetic problems and returns the numeric result as text."
+  },
+  "prompts": [
+    "First compute 10 + 5 and remember this value as an intermediate result.",
+    "Now, using the remembered value, multiply it by 3 and answer only with the final number."
+  ],
+  "expectedFinalAnswer": "45"
+}

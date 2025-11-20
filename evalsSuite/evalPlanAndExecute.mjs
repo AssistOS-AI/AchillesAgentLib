@@ -126,7 +126,7 @@ async function main() {
         console.log(`Prompt: "${prompt}"`);
 
         try {
-            const variables = await agent.planAndExecute(toolsForAgent, prompt, {
+            const variables = await agent.executeSOPLangPlan(toolsForAgent, prompt, {
                 onPlanGenerated: (code) => {
                     console.log(`${COLORS.YELLOW}Generated Plan:\n${code}${COLORS.RESET}`);
                 }

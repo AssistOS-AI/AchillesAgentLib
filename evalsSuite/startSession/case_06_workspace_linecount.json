@@ -1,0 +1,10 @@
+{
+  "description": "Count total lines in .txt files in a temporary workspace",
+  "tools": {
+    "shell": "Understands Linux commands conceptually and can reason about their effects in a temporary workspace."
+  },
+  "prompts": [
+    "In a temporary workspace we have these files and line counts: a.txt (10 lines), b.txt (12 lines), notes.md (5 lines), c.txt (8 lines). Using Linux commands conceptually (e.g. cat + wc -l), what is the total number of lines across all .txt files? Answer only with the final number."
+  ],
+  "expectedFinalAnswer": "30"
+}

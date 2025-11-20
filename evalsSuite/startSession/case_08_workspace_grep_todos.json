@@ -1,0 +1,10 @@
+{
+  "description": "Use grep to find all TODO comments in the workspace",
+  "tools": {
+    "shell": "Understands Linux commands conceptually and can reason about their effects in a temporary workspace."
+  },
+  "prompts": [
+    "In a temporary workspace with many source files, you want to find all lines containing the word TODO (case-insensitive) and print them with file name and line number. What Linux command would you use from the workspace root? Answer only with the command, nothing else."
+  ],
+  "expectedFinalAnswer": "grep -Rni 'TODO' ."
+}

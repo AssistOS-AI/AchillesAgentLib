@@ -3,10 +3,18 @@ import {
     extractIdeaList,
     classifyIntent,
     responseToJSON,
-    extractJson,
 } from './markdown.mjs';
 import { defaultLLMInvokerStrategy, cancelRequests } from '../utils/LLMClient.mjs';
 import { logLLMInteraction } from '../utils/LLMLogger.mjs';
+import {
+    buildInterpretMessagePrompt,
+    buildDoTaskPrompt,
+    buildDoTaskWithReviewPrompt,
+    buildDetectIntentsPrompt,
+    extractJson,
+} from './templates/prompts.mjs';
+import { AgenticSession } from './AgenticSession.mjs';
+import { SOPAgenticSession } from './SOPAgenticSession.mjs';
 
 import { LightSOPLangInterpreter } from '../lightSOPLang/interpreter.mjs';
 import { STATUS_SUCCESS } from '../lightSOPLang/constants.mjs';
@@ -89,17 +97,10 @@ class LLMAgent {
             }
         }
 
-        const promptSections = [
-            instructions || 'Interpret the user response and summarise the intent.',
-            `Expected intents: ${intents.join(', ') || 'accept, cancel, update'}.`,
-            'Respond using Markdown bullet points, for example:',
-            '- intent: accept|cancel|update|ideas',
-            '- updates: field=value; other=value (if relevant)',
-            '- ideas: item one; item two (optional)',
-        ];
+        const prompt = buildInterpretMessagePrompt(intents, instructions);
 
         const raw = await this.complete({
-            prompt: promptSections.join('\n\n'),
+            prompt,
             history: [{ role: 'user', message }],
             mode: 'fast',
             context: { intent: 'classify-message', expectedIntents: intents },
@@ -134,7 +135,7 @@ class LLMAgent {
             raw,
         };
     }
-    
+
     setDebugLogger(logger) {
         this._debugLogger = typeof logger === 'function' ? logger : null;
     }
@@ -196,7 +197,6 @@ class LLMAgent {
             });
         };
 
-        // Show processing indicator before LLM processing
         if (this._processingCallbacks?.onStart) {
             try {
                 this._processingCallbacks.onStart();
@@ -226,8 +226,7 @@ class LLMAgent {
                 context,
                 ...invokerExtras,
             });
-            
-            // Hide processing indicator after LLM processing
+
             if (this._processingCallbacks?.onEnd) {
                 try {
                     this._processingCallbacks.onEnd();
@@ -235,7 +234,7 @@ class LLMAgent {
                     // Silently ignore callback errors
                 }
             }
-            
+
             let finalResponse = null;
             if (typeof response === 'string') {
                 finalResponse = response;
@@ -267,7 +266,6 @@ class LLMAgent {
                 phase: 'error',
                 error: error?.message || String(error),
             });
-            // Hide processing indicator on error
             if (this._processingCallbacks?.onEnd) {
                 try {
                     this._processingCallbacks.onEnd();
@@ -328,7 +326,8 @@ class LLMAgent {
             try {
                 const rendered = typeof value === 'string' ? value : value.toString();
                 if (rendered && rendered.trim()) {
-                    segments.push(`${label}:\n${rendered.trim()}`);
+                    segments.push(`${label}:
+${rendered.trim()}`);
                 }
             } catch (error) {
                 // ignore serialization issues
@@ -341,7 +340,10 @@ class LLMAgent {
         pushSegment('Skill Memory', skillShortMemory);
 
         const combinedContext = segments.length
-            ? `${segments.join('\n\n')}\n\nPrompt:\n${promptText}`
+            ? `${segments.join('\n\n')}
+
+Prompt:
+${promptText}`
             : promptText;
 
         const result = await this.doTask(combinedContext, promptText, {
@@ -393,14 +395,7 @@ class LLMAgent {
         if (!description || typeof description !== 'string') {
             throw new Error('doTask requires a task description string.');
         }
-        const prompt = [
-            'Agent context:',
-            serializeContext(agentContext),
-            'Task description:',
-            description,
-            outputSchema ? `Use the following output schema:\n${JSON.stringify(outputSchema, null, 2)}` : '',
-            'Response:',
-        ].filter(Boolean).join('\n\n');
+        const prompt = buildDoTaskPrompt(serializeContext(agentContext), description, outputSchema);
 
         return this.complete({
             prompt,
@@ -419,14 +414,11 @@ class LLMAgent {
             ...rest
         } = options;
 
-        const prompt = [
-            'Agent context:',
+        const prompt = buildDoTaskWithReviewPrompt(
             serializeContext(agentContext),
-            'Task description:',
             description,
-            `Create a plan with at most ${maxIterations} steps and provide a reviewed answer.`, 
-            'Response:',
-        ].filter(Boolean).join('\n\n');
+            maxIterations,
+        );
 
         return this.complete({
             prompt,
@@ -445,7 +437,7 @@ class LLMAgent {
         };
     }
 
-    async createSOPLangPlan(skillsDescription, userPrompt, options = {}) {
+    async generateSOPLangPlan(skillsDescription, userPrompt, options = {}) {
         const {
             mode = 'deep',
             model = null,
@@ -453,7 +445,6 @@ class LLMAgent {
             ...rest
         } = options;
 
-        // Use the interpreter to generate code from english
         const commandsRegistry = {
             executeCommand: async () => ({ status: 'success', data: 'dummy' }),
             listCommands: () => Object.entries(skillsDescription).map(([name, desc]) => ({
@@ -462,7 +453,8 @@ class LLMAgent {
             })),
         };
 
-        const englishPrompt = `#!english\n${userPrompt}`;
+        const englishPrompt = `#!english
+${userPrompt}`;
         const interpreter = new LightSOPLangInterpreter(englishPrompt, commandsRegistry, {
             llmAgent: this,
             generateOnly: true,
@@ -480,45 +472,7 @@ class LLMAgent {
             ...rest
         } = options;
 
-        const prompt = `You are an expert agent with deep understanding of IT, software development, GAMP, software architectures, and user experience.
-Your task is to map a user's natural language prompt to a set of available software engineering skills (tools).
-
-Available Skills:
-${JSON.stringify(skillsDescription, null, 2)}
-
-User Prompt:
-"${userPrompt}"
-
-Instructions:
-1. Analyze the user prompt to identify distinct actions or intents.
-   - Do NOT separate intents like "Modify this AND clarify that" if they are about the same subject; merge the clarification or context into the primary skill (e.g., 'modifyRequirement').
-   - Only extract multiple intents for the same subject if they represent fundamentally different operations (e.g., 'addRequirement' vs 'prioritizeRequirement').
-   - If a user requests a requirement change AND specifies a priority (e.g., "This is critical"), generate TWO separate skills: one for the change and one for 'prioritizeRequirement'.
-   - For 'linkRequirements', if multiple links are requested, describe ALL of them in the parameter.
-   - For 'generateTestCases', if the user asks for tests to be generated, always map this intent.
-   - Ensure the subject/parameter for each skill is always clear, self-contained, and well-defined.
-
-   Example of splitting intents:
-   - Input: "Add a new NFS for encryption. This is critical."
-     Output: { "addRequirement": "...", "prioritizeRequirement": "set priority to Critical..." }
-
-2. Map each identified intent to one of the available skills.
-
-3. Extract the specific parameters or description for the skill from the prompt. 
-   CRITICAL: The parameter description must be SELF-CONTAINED. It should include all relevant details from the user prompt so the skill can be executed without further context.
-   - for example when the use is prioritizing and saying very high priority do not simply to simple say " high priority"
-   
-4. Output a JSON object where:
-   - Keys are the names of the matched skills.
-   - Values are the self-contained descriptions/parameters for that skill.
-
-Example Output:
-{
-  "addRequirement": "add a new URS for the user profile page stating 'The user must be able to upload a profile picture not exceeding 5MB.'",
-  "prioritizeRequirement": "set priority to High for the new URS regarding user profile picture upload size limit."
-}
-
-Respond ONLY with the JSON object.`;
+        const prompt = buildDetectIntentsPrompt(skillsDescription, userPrompt);
 
         const result = await this.complete({
             prompt,
@@ -530,14 +484,12 @@ Respond ONLY with the JSON object.`;
 
         const parsed = extractJson(result);
         if (parsed === null) {
-             // Fallback if direct JSON extraction fails, though complete() usually handles this well if prompted correctly.
-             // For now, we rely on extractJson which handles code fences etc.
-             throw new Error(`Failed to parse JSON from LLM response: ${result}`);
+            throw new Error(`Failed to parse JSON from LLM response: ${result}`);
         }
         return parsed;
     }
 
-    async planAndExecute(tools, prompt, options = {}) {
+    async executeSOPLangPlan(tools, prompt, options = {}) {
         if (!tools || typeof tools !== 'object') {
             throw new Error('planAndExecute requires a tools object.');
         }
@@ -552,7 +504,6 @@ Respond ONLY with the JSON object.`;
             ...rest
         } = options;
 
-        // Create commands registry from tools
         const commandsRegistry = {
             executeCommand: async (payload) => {
                 const { command, args } = payload;
@@ -587,18 +538,16 @@ Respond ONLY with the JSON object.`;
             },
         };
 
-        // Create interpreter with english prompt
-        const englishPrompt = `#!english\n${prompt}`;
+        const englishPrompt = `#!english
+${prompt}`;
         const interpreter = new LightSOPLangInterpreter(englishPrompt, commandsRegistry, {
             llmAgent: this,
             onPlanGenerated,
             ...rest,
         });
 
-        // Wait for execution to complete
         await interpreter.ready;
 
-        // Collect final variables
         const variables = {};
         for (const [name] of interpreter.variables) {
             variables[name] = interpreter.getVarValue(name);
@@ -606,8 +555,42 @@ Respond ONLY with the JSON object.`;
 
         return variables;
     }
-}
 
+    async startAgentSession(tools, initialPrompt, options = {}) {
+        if (!tools || typeof tools !== 'object') {
+            throw new Error('startAgentSession requires a tools object.');
+        }
+        if (!initialPrompt || typeof initialPrompt !== 'string') {
+            throw new Error('startAgentSession requires an initial prompt string.');
+        }
+
+        const session = new AgenticSession({
+            agent: this,
+            tools,
+            options,
+        });
+        await session.newPrompt(initialPrompt);
+        return session;
+    }
+
+    async startSOPSession(skillsDescription, initialPrompt, options = {}) {
+        if (!skillsDescription || typeof skillsDescription !== 'object') {
+            throw new Error('startSOPSession requires a skillsDescription object.');
+        }
+        if (!initialPrompt || typeof initialPrompt !== 'string') {
+            throw new Error('startSOPSession requires an initial prompt string.');
+        }
+ 
+        const session = new SOPAgenticSession({
+            agent: this,
+            skillsDescription,
+            options,
+        });
+        await session.newPrompt(initialPrompt);
+        return session;
+    }
+}
+ 
 export {
     LLMAgent,
     DEFAULT_AGENT_NAME,

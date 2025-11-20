@@ -53,10 +53,21 @@ async function main() {
         const casePath = path.join(CASES_DIR, caseFile);
         const caseData = JSON.parse(await fs.readFile(casePath, 'utf8'));
         
-        const { prompt, tools, expectedPlan } = caseData;
+        const { prompt, prompts, tools, expectedPlan } = caseData;
+        const allPrompts = Array.isArray(prompts) && prompts.length ? prompts : [prompt];
         
         try {
-            const actualPlan = await agent.createSOPLangPlan(tools, prompt, { useInterpreter: true });
+            const firstPrompt = allPrompts[0];
+            const session = await agent.startSOPSession(tools, firstPrompt, { useInterpreter: true });
+            
+            if (allPrompts.length > 1) {
+                for (let i = 1; i < allPrompts.length; i += 1) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await session.newPrompt(allPrompts[i]);
+                }
+            }
+            
+            const actualPlan = await session.getPlan();
             
             const isMatch = await checkCodeEquivalence(agent, expectedPlan, actualPlan);
             
