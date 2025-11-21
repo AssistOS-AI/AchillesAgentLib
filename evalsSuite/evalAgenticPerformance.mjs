@@ -2,15 +2,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fork } from 'node:child_process';
-import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
 import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
-
-envAutoConfig();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CASES_DIR = path.join(__dirname, 'performanceCases');
 import { PERFORMANCE_TOOLS } from './tools/allTools.mjs';
+
+envAutoConfig();
+const { LLMAgent } = await import('../LLMAgents/LLMAgent.mjs');
 
 const COLORS = {
     RESET: '\x1b[0m',

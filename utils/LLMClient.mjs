@@ -4,7 +4,49 @@ import { registerBuiltInProviders } from './LLMProviders/providers/index.mjs';
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
 
+const debugFlag = (process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase();
+const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
+
 const modelsConfiguration = loadModelsConfiguration();
+
+const parseEnabledModelList = (rawValue) => {
+    if (rawValue === undefined || rawValue === null) {
+        return null;
+    }
+
+    const trimmed = typeof rawValue === 'string' ? rawValue.trim() : '';
+    if (!trimmed) {
+        return null;
+    }
+
+    let entries = [];
+    const hadContent = trimmed.length > 0;
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+            entries = parsed;
+        }
+    } catch {
+        // If JSON parsing fails, fall back to delimiter parsing below.
+    }
+
+    if (!entries.length) {
+        entries = trimmed.split(/[;,]/);
+    }
+
+    const normalized = entries
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .filter(Boolean);
+
+    if (!normalized.length) {
+        return hadContent ? new Set() : null;
+    }
+
+    return new Set(normalized);
+};
+
+const enabledFastModels = parseEnabledModelList(process.env.ACHILLES_ENABLED_FAST_MODELS);
+const enabledDeepModels = parseEnabledModelList(process.env.ACHILLES_ENABLED_DEEP_MODELS);
 
 registerBuiltInProviders();
 await registerProvidersFromConfig(modelsConfiguration);
@@ -50,6 +92,10 @@ function buildModelCaches() {
         }
         const record = createAgentModelRecord(descriptor, providerConfig);
         if (!record) {
+            continue;
+        }
+        const allowedList = record.mode === 'deep' ? enabledDeepModels : enabledFastModels;
+        if (allowedList && !allowedList.has(record.name)) {
             continue;
         }
         recordMap.set(record.name, record);
@@ -350,12 +396,16 @@ export function createDefaultLLMInvokerStrategy() {
 
             try {
                 const attemptHistory = Array.isArray(history) ? history.slice() : [];
+                const effectiveMode = record.mode;
+                if (DEBUG_ENABLED) {
+                    console.info(`[AchillesAgentsLib] LLM call -> model: ${candidate}, mode: ${effectiveMode}`);
+                }
                 const output = await callLLMWithModel(candidate, attemptHistory, prompt, invocationConfig);
-                lastInvocationDetails = { model: candidate, mode: selectionRequest.mode };
+                lastInvocationDetails = { model: candidate, mode: effectiveMode };
                 return {
                     output,
                     model: candidate,
-                    mode: selectionRequest.mode,
+                    mode: effectiveMode,
                 };
             } catch (error) {
                 attempts.push({ model: candidate, error });

@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
 import { createPlanningCommandsRegistry } from './utils/sopTestCommands.mjs';
 
 envAutoConfig();
+const { LLMAgent } = await import('../../LLMAgents/LLMAgent.mjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CASES_DIR = path.join(__dirname, 'startSOPLangAgentSession');

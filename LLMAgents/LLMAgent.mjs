@@ -278,7 +278,7 @@ ${promptText}`
 
     async detectIntents(skillsDescription, userPrompt, options = {}) {
         const {
-            mode = 'fast',
+            mode = null,
             model = null,
             ...rest
         } = options;
@@ -287,7 +287,7 @@ ${promptText}`
 
         const result = await this.complete({
             prompt,
-            mode,
+            mode: mode ?? undefined,
             model,
             context: { intent: 'detect-intents' },
             ...rest,

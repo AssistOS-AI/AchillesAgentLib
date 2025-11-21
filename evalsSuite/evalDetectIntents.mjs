@@ -1,11 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
 import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
 
-// Load environment variables
 envAutoConfig();
+const { LLMAgent } = await import('../LLMAgents/LLMAgent.mjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILLS_DESC_PATH = path.join(__dirname, 'detectIntents', 'skillsDescription.json');
@@ -253,7 +252,7 @@ Respond with exactly "YES" or "NO" and  a reason if "NO".`;
     try {
         const response = await agent.complete({
             prompt,
-            mode: 'fast',
+            mode: null,
             context: { intent: 'eval-semantic-match' }
         });
         const trimmed = response.trim();
