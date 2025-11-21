@@ -1,0 +1,10 @@
+{
+    "id": "case_11_sentiment_complex",
+    "description": "Complex sentiment analysis of a narrative with shifting emotions.",
+    "steps": [
+        {
+            "prompt": "I recently purchased a brand new vehicle from the local dealership, hoping for a reliable mode of transport. At first, I was absolutely in love with the smooth engine and the comfortable interior design. However, after just two days, the air conditioning system completely failed, which made me extremely annoyed and frustrated. I took it back to the dealer, and to my surprise, they fixed it within an hour and even gave me a free service voucher. A week later, I heard a scary squeaking noise from the brakes, which made me doubt the safety of the car. I was ready to return it and demand a refund, feeling very negative about the whole experience. But it turned out to be just some dust trapped in the pads, and the mechanic cleaned it in five minutes. Since then, I have driven it for over a thousand miles without a single issue. The fuel economy is great, and the ride is incredibly smooth. I am now completely satisfied and happy with my purchase.",
+            "expected": "POSITIVE"
+        }
+    ]
+}

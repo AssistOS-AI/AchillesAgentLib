@@ -1,6 +1,26 @@
 {
     "id": "case_10_text_email_mix",
-    "description": "Extract email, domain, and transform.",
-    "prompt": "From 'User: john.doe+test@example.org', extract the email, then the domain, convert it to uppercase, and answer only with the domain in uppercase.",
-    "expected": "EXAMPLE.ORG"
+    "description": "Combining text transforms with email parsing",
+    "steps": [
+        {
+            "id": "uppercase_start",
+            "prompt": "Convert 'agentic test' to uppercase and return it.",
+            "expected": "AGENTIC TEST"
+        },
+        {
+            "id": "extract_email",
+            "prompt": "Extract the email from 'Send to qa@checks.io' and return only the email.",
+            "expected": "qa@checks.io"
+        },
+        {
+            "id": "reverse_word",
+            "prompt": "Reverse the text 'session' and return only the reversed text.",
+            "expected": "noisses"
+        },
+        {
+            "id": "extract_domain",
+            "prompt": "Extract the domain from 'owner@product.dev' and return only the domain.",
+            "expected": "product.dev"
+        }
+    ]
 }

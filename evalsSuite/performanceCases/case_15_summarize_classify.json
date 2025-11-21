@@ -1,0 +1,10 @@
+{
+    "id": "case_15_summarize_classify",
+    "description": "Summarize a text and then classify the summary.",
+    "steps": [
+        {
+            "prompt": "The local football team played their most important match of the season yesterday against their rivals. The stadium was packed with cheering fans who created an electric atmosphere. The game was intense, with both teams playing aggressively and creating many scoring opportunities. In the final minute, the star striker scored a stunning goal to secure the victory. The crowd erupted in celebration, and the players were hailed as heroes. The coach praised the team's dedication and hard work throughout the season. It was a historic win that will be remembered for years to come. Summarize this text into one sentence. Then, classify the summary into one of the available topics.",
+            "expected": "Sports"
+        }
+    ]
+}

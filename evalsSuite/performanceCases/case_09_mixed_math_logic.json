@@ -1,6 +1,26 @@
 {
     "id": "case_09_mixed_math_logic",
-    "description": "Add 3 and 4, double it, check if even.",
-    "prompt": "Add 3 and 4, multiply the result by 2, check if the final number is even, and answer only with true or false.",
-    "expected": "true"
+    "description": "Mixing math with even checks",
+    "steps": [
+        {
+            "id": "add_step",
+            "prompt": "Add 9 and 1 and return only the number.",
+            "expected": "10"
+        },
+        {
+            "id": "even_check",
+            "prompt": "Is 10 even? Respond with true or false only.",
+            "expected": "true"
+        },
+        {
+            "id": "multiply_step",
+            "prompt": "Multiply 6 by 7 and respond only with the result.",
+            "expected": "42"
+        },
+        {
+            "id": "divide_step",
+            "prompt": "Divide 144 by 12 and return only the number.",
+            "expected": "12"
+        }
+    ]
 }

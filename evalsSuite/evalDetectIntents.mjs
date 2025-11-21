@@ -8,7 +8,7 @@ import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
 envAutoConfig();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SKILLS_DESC_PATH = path.join(__dirname, 'skillsDescription.json');
+const SKILLS_FILE = path.join(__dirname, 'detectIntents', 'skillsDescription.json');
 const CASES_DIR = path.join(__dirname, 'detectIntents');
 const FAILURES_FILE_PATH = path.join(__dirname, 'detectIntents/.edi_failures');
 
@@ -20,6 +20,20 @@ const COLORS = {
 };
 
 async function main() {
+    console.log('Hint: run with --help to see available options.');
+    const args = process.argv.slice(2);
+    if (args.includes('--help') || args.includes('-h')) {
+        console.log([
+            'Usage: node evalsSuite/evalDetectIntents.mjs [failures | <start> [end]]',
+            '',
+            'Options:',
+            '  failures          Run only the last failed cases (from detectIntents/.edi_failures)',
+            '  <start> [end]     Run case range by number (e.g., 1 5)',
+            '  --help, -h        Show this help message',
+        ].join('\n'));
+        return;
+    }
+
     console.log('Loading skills description...');
     let skillsDesc;
     try {
@@ -28,17 +42,16 @@ async function main() {
         console.error(`Failed to load skills description from ${SKILLS_DESC_PATH}:`, error);
         process.exit(1);
     }
-    
+
     // Initialize Agent
     const agent = new LLMAgent({ name: 'Evaluator' });
-    
+
     // Get cases
     console.log(`Reading cases from ${CASES_DIR}...`);
     const files = await fs.readdir(CASES_DIR);
     let cases = files.filter(f => f.endsWith('.json')).sort();
 
     // Filter cases based on arguments
-    const args = process.argv.slice(2);
     if (args.length > 0) {
         if (args[0] === 'failures') {
             console.log(`Reading failed cases from ${FAILURES_FILE_PATH}...`);
@@ -71,7 +84,7 @@ async function main() {
             }
         }
     }
-    
+
     let totalCases = 0;
     let totalExpectedIntents = 0;
     let matchedKeysCount = 0; // Key exists in both
@@ -84,7 +97,7 @@ async function main() {
     for (const caseFile of cases) {
         const casePath = path.join(CASES_DIR, caseFile);
         const caseData = JSON.parse(await fs.readFile(casePath, 'utf8'));
-        
+
         const { prompt, expected } = caseData;
         let caseFailed = false;
         const failureDetails = {
@@ -92,31 +105,31 @@ async function main() {
             prompt: prompt,
             errors: []
         };
-        
+
         let caseStatus = COLORS.GREEN;
         let caseLog = [];
 
         try {
             const actual = await agent.detectIntents(skillsDesc, prompt);
-            
+
             // Compare Keys
             const expectedKeys = new Set(Object.keys(expected));
             const actualKeys = new Set(Object.keys(actual));
-            
+
             const allKeys = new Set([...expectedKeys, ...actualKeys]);
-            
+
             for (const key of allKeys) {
                 const inExpected = expectedKeys.has(key);
                 const inActual = actualKeys.has(key);
-                
+
                 if (inExpected && inActual) {
                     matchedKeysCount++;
                     semanticChecksCount++;
-                    
+
                     // Semantic Check
                     const expectedVal = expected[key];
                     const actualVal = actual[key];
-                    
+
                     const { match: isMatch, reason } = await checkSemanticMatch(agent, expectedVal, actualVal);
                     if (isMatch) {
                         semanticMatchScoreSum++;
@@ -124,7 +137,7 @@ async function main() {
                     } else {
                         if (caseStatus === COLORS.GREEN) caseStatus = COLORS.YELLOW; // Downgrade to Warning
                         caseLog.push(`  [${key}] ⚠️ Key Match but Semantic Mismatch`);
-                        
+
                         caseFailed = true; // Still counts as a fail for stats/file
                         failureDetails.errors.push({
                             type: 'semantic_mismatch',
@@ -134,7 +147,7 @@ async function main() {
                             reason: reason
                         });
                     }
-                    
+
                 } else if (inExpected) {
                     caseStatus = COLORS.RED; // Downgrade to Error
                     caseLog.push(`  [${key}] ❌ Missing in Actual`);
@@ -155,7 +168,7 @@ async function main() {
                     });
                 }
             }
-            
+
             if (caseFailed) {
                 failedCases.push(failureDetails);
             }
@@ -176,16 +189,16 @@ async function main() {
                             console.log(`${COLORS.YELLOW}    Reason:   ${err.reason}${COLORS.RESET}`);
                         }
                     } else if (err.type === 'missing_key') {
-                         console.log(`${COLORS.RED}    Expected: ${err.expected}${COLORS.RESET}`);
+                        console.log(`${COLORS.RED}    Expected: ${err.expected}${COLORS.RESET}`);
                     } else if (err.type === 'unexpected_key') {
-                         console.log(`${COLORS.RED}    Actual:   ${err.actual}${COLORS.RESET}`);
+                        console.log(`${COLORS.RED}    Actual:   ${err.actual}${COLORS.RESET}`);
                     }
                 });
                 console.log(`${COLORS.RED}   Prompt: "${prompt}"${COLORS.RESET}`);
                 console.log('');
             }
 
-            
+
         } catch (err) {
             console.error(`${COLORS.RED}Error processing ${caseFile}:${COLORS.RESET}`, err);
             failedCases.push({
@@ -195,18 +208,18 @@ async function main() {
             });
         }
     }
-    
+
     // Summary
     console.log('\n=== Evaluation Summary ===');
     console.log(`Total Cases Processed: ${totalCases}`);
     console.log(`Total Expected Intents: ${totalExpectedIntents}`);
-    
+
     const keyDetectionRate = totalExpectedIntents > 0 ? (matchedKeysCount / totalExpectedIntents) * 100 : 0;
     console.log(`Skill Detection Rate (Key Match): ${matchedKeysCount}/${totalExpectedIntents} (${keyDetectionRate.toFixed(1)}%)`);
-    
+
     const semanticAccuracy = semanticChecksCount > 0 ? (semanticMatchScoreSum / semanticChecksCount) * 100 : 0;
     console.log(`Parameter Accuracy (Semantic Match on detected skills): ${semanticMatchScoreSum}/${semanticChecksCount} (${semanticAccuracy.toFixed(1)}%)`);
-    
+
     // Overall Success = (Correctly Identified & Semantically Correct) / Total Expected
     const overallSuccessRate = totalExpectedIntents > 0 ? (semanticMatchScoreSum / totalExpectedIntents) * 100 : 0;
     console.log(`Overall Success Rate: ${overallSuccessRate.toFixed(1)}%`);
@@ -216,9 +229,9 @@ async function main() {
     try {
         await fs.writeFile(FAILURES_FILE_PATH, JSON.stringify(failedCases, null, 2));
         if (failedCases.length > 0) {
-             console.log(`\nFailures saved to ${FAILURES_FILE_PATH}`);
+            console.log(`\nFailures saved to ${FAILURES_FILE_PATH}`);
         } else {
-             console.log(`\nFailures file updated (0 failures).`);
+            console.log(`\nFailures file updated (0 failures).`);
         }
     } catch (error) {
         console.error(`\nFailed to save failures to ${FAILURES_FILE_PATH}:`, error);
@@ -240,7 +253,7 @@ Respond with exactly "YES" or "NO" and  a reason if "NO".`;
     try {
         const response = await agent.complete({
             prompt,
-            mode: 'fast', 
+            mode: 'fast',
             context: { intent: 'eval-semantic-match' }
         });
         const trimmed = response.trim();

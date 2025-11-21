@@ -229,14 +229,14 @@ class AgenticSession {
         // eslint-disable-next-line no-console
         console.log(`[AgenticSession] Calling tool "${toolName}" with prompt: "${toolPrompt}"`);
 
-        const request = {
-            prompt: toolPrompt,
-            agent: this.agent,
-            session: this,
-            toolName,
-        };
-
-        const result = await toolEntry.handler(request);
+        // Attach session to agent temporarily to support tools that need session context
+        this.agent.currentSession = this;
+        let result;
+        try {
+            result = await toolEntry.handler(this.agent, toolPrompt);
+        } finally {
+            this.agent.currentSession = null;
+        }
 
         this.toolCalls.push({
             tool: toolName,

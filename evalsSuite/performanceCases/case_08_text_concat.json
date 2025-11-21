@@ -1,6 +1,26 @@
 {
     "id": "case_08_text_concat",
-    "description": "Concatenate transformed strings.",
-    "prompt": "Reverse 'ABC', take the first 2 characters, convert them to lowercase, then concatenate with 'xyz'. Answer only with the final string.",
-    "expected": "cbxyz"
+    "description": "Concatenation and case toggling",
+    "steps": [
+        {
+            "id": "concat_hw",
+            "prompt": "Concatenate 'hello' and 'world' and return the combined string without spaces.",
+            "expected": "helloworld"
+        },
+        {
+            "id": "uppercase_text",
+            "prompt": "Convert 'loop agent' to uppercase and return it.",
+            "expected": "LOOP AGENT"
+        },
+        {
+            "id": "lowercase_text",
+            "prompt": "Convert 'MIXED' to lowercase and return it.",
+            "expected": "mixed"
+        },
+        {
+            "id": "concat_mixed",
+            "prompt": "Concatenate 'foo' and 'BAR' exactly in that order and return the combined text.",
+            "expected": "fooBAR"
+        }
+    ]
 }

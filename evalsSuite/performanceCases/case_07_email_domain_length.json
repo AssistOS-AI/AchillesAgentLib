@@ -1,6 +1,26 @@
 {
     "id": "case_07_email_domain_length",
-    "description": "Domain length from mixed case email.",
-    "prompt": "From 'Contact SUPPORT@EXAMPLE.COM for help', extract the domain, convert it to lowercase, and answer with its length as a number.",
-    "expected": "11"
+    "description": "Email/domain plus length calculations",
+    "steps": [
+        {
+            "id": "domain_first",
+            "prompt": "Extract the domain from tina@site.org and return only the domain.",
+            "expected": "site.org"
+        },
+        {
+            "id": "domain_length",
+            "prompt": "Give the length of 'site.org' and respond only with the number.",
+            "expected": "8"
+        },
+        {
+            "id": "email_second",
+            "prompt": "Extract the email from this text: 'primary: ceo@corp.com' and return only the email.",
+            "expected": "ceo@corp.com"
+        },
+        {
+            "id": "email_length",
+            "prompt": "Give the length of 'ceo@corp.com' and respond only with the number.",
+            "expected": "12"
+        }
+    ]
 }

@@ -1,6 +1,26 @@
 {
     "id": "case_06_email_domain",
-    "description": "Extract domain from email in text.",
-    "prompt": "From the text 'Contact support@example.com for help', extract the domain only and answer with it.",
-    "expected": "example.com"
+    "description": "Email extraction and domain derivation",
+    "steps": [
+        {
+            "id": "email_extract_one",
+            "prompt": "Extract the email from this text: 'Contact us at support@example.com today' and return only the email.",
+            "expected": "support@example.com"
+        },
+        {
+            "id": "domain_extract_one",
+            "prompt": "Extract the domain from 'reach me at alex@sample.io soon' and return only the domain.",
+            "expected": "sample.io"
+        },
+        {
+            "id": "email_extract_two",
+            "prompt": "Extract the email from this text: 'Email marketing@brand.co.uk for offers' and return only the email.",
+            "expected": "marketing@brand.co.uk"
+        },
+        {
+            "id": "domain_extract_two",
+            "prompt": "Extract the domain from 'team lead is rick@demo.net' and return only the domain.",
+            "expected": "demo.net"
+        }
+    ]
 }

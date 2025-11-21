@@ -19,9 +19,11 @@ const COLORS = {
 };
 
 // High-level tools for agentic sessions
-// Each handler receives: { prompt, agent, session, toolName }
+// Each handler receives: (agent, prompt)
+// Session is available via agent.currentSession
 const TOOL_IMPLEMENTATIONS = {
-    math: async ({ prompt, agent, session }) => {
+    math: async (agent, prompt) => {
+        const session = agent.currentSession;
         // Identify the most recent numeric result from the session
         let previousResult = null;
         if (session && Array.isArray(session.toolCalls)) {
@@ -104,7 +106,8 @@ const TOOL_IMPLEMENTATIONS = {
         // If there is a small numeric mismatch, trust JS evaluation
         return String(numericEvaluated);
     },
-    text: async ({ prompt, agent, session }) => {
+    text: async (agent, prompt) => {
+        const session = agent.currentSession;
         // Try to discover the most recent numeric result to substitute placeholders like <result>
         let previousNumber = null;
         if (session && Array.isArray(session.toolCalls)) {
@@ -135,16 +138,16 @@ const TOOL_IMPLEMENTATIONS = {
             '- Do NOT include any placeholder tokens like "<result>" or angle-bracketed markers in the output.',
             '- Respond ONLY with the final string or number requested, no explanations.',
         ].join('\n');
- 
+
         const result = await agent.complete({
             prompt: instruction,
             mode: 'fast',
             context: { intent: 'tool-text' },
         });
- 
+
         return String(result).trim();
     },
-    email: async ({ prompt, agent }) => {
+    email: async (agent, prompt) => {
         const instruction = [
             'You are an email analysis tool.',
             'Depending on the instruction, extract email addresses or domains and respond ONLY with the requested value.',
@@ -161,7 +164,8 @@ const TOOL_IMPLEMENTATIONS = {
 
         return String(result).trim();
     },
-    stringLength: async ({ prompt, session }) => {
+    stringLength: async (agent, prompt) => {
+        const session = agent.currentSession;
         // Prefer the most recent string result from a previous tool call
         let target = null;
         if (session && Array.isArray(session.toolCalls)) {
@@ -181,7 +185,7 @@ const TOOL_IMPLEMENTATIONS = {
 
         return String(String(target).length);
     },
-    shell: async ({ prompt, agent }) => {
+    shell: async (agent, prompt) => {
         const instruction = [
             'You are a Linux shell and filesystem expert working conceptually in a temporary workspace.',
             'You DO NOT actually run commands; you only reason about their effects.',
@@ -253,9 +257,21 @@ async function checkShellCommandEquivalence(agent, expected, actual, description
 }
 
 async function main() {
+    console.log('Hint: run with --help to see available options.');
+    const args = process.argv.slice(2);
+    if (args.includes('--help') || args.includes('-h')) {
+        console.log([
+            'Usage: node evalsSuite/planning/evalAgenticPlanAndExecute.mjs [start] [end]',
+            '',
+            'Options:',
+            '  <start> [end]   Run a range of case numbers (e.g., 1 5)',
+            '  --help, -h      Show this help message',
+        ].join('\n'));
+        return;
+    }
     // Initialize Agent
     const agent = new LLMAgent({ name: 'SessionEvaluator' });
- 
+
     if (typeof agent.startLoopAgentSession !== 'function') {
         console.error(`${COLORS.RED}LLMAgent.startLoopAgentSession is not implemented yet.${COLORS.RESET}`);
         console.error('Please implement agent.startLoopAgentSession(tools, initialPrompt) so that:');
@@ -270,7 +286,6 @@ async function main() {
     let cases = files.filter((f) => f.endsWith('.json')).sort();
 
     // Optional CLI arguments: node evalAgenticPlanAndExecute.mjs [start] [end]
-    const args = process.argv.slice(2);
     if (args.length > 0) {
         const start = Number.parseInt(args[0], 10);
         const end = args.length > 1 ? Number.parseInt(args[1], 10) : start;
@@ -285,7 +300,7 @@ async function main() {
             });
         }
     }
- 
+
     let totalCases = 0;
     let passedCases = 0;
 
@@ -322,7 +337,7 @@ async function main() {
 
             // Start agentic session with first prompt
             const session = await agent.startLoopAgentSession(toolsForAgent, prompts[0]);
- 
+
             if (!session || typeof session.newPrompt !== 'function') {
                 throw new Error('startLoopAgentSession must return an object with a newPrompt(prompt) method.');
             }
@@ -343,13 +358,13 @@ async function main() {
             } else {
                 console.warn('  Warning: session does not expose getVariables() or variables map.');
             }
- 
+
             const finalAnswer = summary.lastAnswer || '';
- 
+
             // Evaluate results
             let passed = true;
             const failureReasons = [];
- 
+
             if (!expectedFinalAnswer) {
                 console.log(`${COLORS.YELLOW}No expectedFinalAnswer specified; treating case as informational.${COLORS.RESET}`);
             } else if (String(finalAnswer).trim() === String(expectedFinalAnswer).trim()) {
@@ -360,7 +375,7 @@ async function main() {
                 const expectedStr = String(expectedFinalAnswer).trim();
                 const actualStr = String(finalAnswer).trim();
                 const looksLikeCommand = /\s/.test(expectedStr);
- 
+
                 if (usesShell && looksLikeCommand) {
                     const semanticallyEqual = await checkShellCommandEquivalence(
                         agent,
@@ -369,7 +384,7 @@ async function main() {
                         description,
                         prompts,
                     );
- 
+
                     if (semanticallyEqual) {
                         console.log('  Shell command is semantically equivalent to expected.');
                     } else {
@@ -385,7 +400,7 @@ async function main() {
                     );
                 }
             }
- 
+
             if (passed) {
                 passedCases += 1;
                 console.log(`${COLORS.GREEN}✅ Passed!${COLORS.RESET}`);
