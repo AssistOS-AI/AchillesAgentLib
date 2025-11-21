@@ -8,7 +8,7 @@ import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
 envAutoConfig();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SKILLS_FILE = path.join(__dirname, 'detectIntents', 'skillsDescription.json');
+const SKILLS_DESC_PATH = path.join(__dirname, 'detectIntents', 'skillsDescription.json');
 const CASES_DIR = path.join(__dirname, 'detectIntents');
 const FAILURES_FILE_PATH = path.join(__dirname, 'detectIntents/.edi_failures');
 
