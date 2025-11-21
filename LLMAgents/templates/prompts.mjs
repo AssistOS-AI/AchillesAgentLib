@@ -47,12 +47,13 @@ User Prompt:
 
 Instructions:
 1. Analyze the user prompt to identify distinct actions or intents.
-   - Do NOT separate intents like "Modify this AND clarify that" if they are about the same subject; merge the clarification or context into the primary skill (e.g., 'modifyRequirement').
    - Only extract multiple intents for the same subject if they represent fundamentally different operations (e.g., 'addRequirement' vs 'prioritizeRequirement').
    - If a user requests a requirement change AND specifies a priority (e.g., "This is critical"), generate TWO separate skills: one for the change and one for 'prioritizeRequirement'.
    - For 'linkRequirements', if multiple links are requested, describe ALL of them in the parameter.
-   - For 'generateTestCases', if the user asks for tests to be generated, always map this intent.
+   - Do NOT invent 'linkRequirements' unless the user explicitly asks to create or update links. Requests for reports, proofs, audits, or summaries do NOT imply new links.
+   - For 'generateTestCases', if the user asks for tests to be made, always map this intent.
    - Ensure the subject/parameter for each skill is always clear, self-contained, and well-defined.
+   - CRITICAL: Keep all qualifiers and scope phrases verbatim. Do NOT generalize or drop specifics, environment names, component names, IDs, directions , etc. . 
 
    Example of splitting intents:
    - Input: "Add a new NFS for encryption. This is critical."
@@ -60,22 +61,27 @@ Instructions:
 
 2. Map each identified intent to one of the available skills.
 
-3. Extract the specific parameters or description for the skill from the prompt. 
-   CRITICAL: The parameter description must be SELF-CONTAINED. It should include all relevant details from the user prompt so the skill can be executed without further context.
-   - for example when the use is prioritizing and saying very high priority do not simply to simple say " high priority"
+3. Extract the specific description for the skill from the prompt. 
+   CRITICAL: The description must be SELF-CONTAINED. It should include all details (names, places, ID's, acronyms, etc) from the user prompt so the skill can be executed without further context. 
+   If in doubt, copy the full clause from the user prompt into the description.
+   - for example: Set priority to high for NFS: All external API calls must have a fallback mechanism to prevent system-wide failures. Your skill description should be:
+    Set priority to high for the NFS that is about external API calls which must have a fallback mechanism to prevent system wide failures
    
 4. Output a JSON object where:
    - Keys are the names of the matched skills.
-   - Values are the self-contained descriptions/parameters for that skill.
-
+   - Values are the self-contained descriptions for that skill.
+   
+Example input:
+The current NFS-001, 'System uptime must be 99.9%', needs to be updated to 'System uptime must be 99.99% for critical services'. This is a high priority change. Also, we need to add a new URS: 'Users can save their preferences for dashboard widgets.'
 Example Output:
 {
-  "addRequirement": "add a new URS for the user profile page stating 'The user must be able to upload a profile picture not exceeding 5MB.'",
-  "prioritizeRequirement": "set priority to High for the new URS regarding user profile picture upload size limit."
-}
+    "modifyRequirement": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'.",
+    "prioritizeRequirement": "set priority to High for the modified NFS-001 regarding system uptime.",
+    "addRequirement": "add a new URS: 'Users can save their preferences for dashboard widgets.'"
+ }
 
 Respond ONLY with the JSON object.`;
-};
+}
 
 const buildAgenticSessionPlannerPrompt = (options) => {
     const {

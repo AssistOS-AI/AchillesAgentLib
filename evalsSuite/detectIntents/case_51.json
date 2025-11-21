@@ -1,7 +1,7 @@
 {
-  "prompt": "We have an upcoming audit. I need a full report showing how URS-105 maps down to the functional specs and test cases to prove we didn't miss anything.",
+  "prompt": "We have an upcoming audit. Create tests for URS-105 to prove we didn't miss anything and also I need a full report showing how URS-105 maps down to the functional specs.",
   "expected": {
-    "generateTraceabilityMatrix": "generate a Requirement Traceability Matrix (RTM) report specifically for URS-105 to show lineage to functional specs and test cases.",
-    "generateTestCases": "generate validation or verification test protocols for URS-105 to prove to prove compliance during the audit."
+    "generateTraceabilityMatrix": "generate a Requirement Traceability Matrix (RTM) report specifically for URS-105 to show lineage to functional specs.",
+    "generateTestCases": "generate tests for URS-105 to prove to prove we didn't miss anything."
   }
 }

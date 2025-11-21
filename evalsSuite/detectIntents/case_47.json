@@ -2,6 +2,6 @@
   "prompt": "Add a new DS for the logging module. Then generate IQ tests for it.",
   "expected": {
     "addRequirement": "add a new DS for the logging module.",
-    "generateTestCases": "generate Installation Qualification (IQ) tests for the new DS for the logging module."
+    "generateTestCases": "generate Installation Qualification (IQ) tests for the logging module."
   }
 }
