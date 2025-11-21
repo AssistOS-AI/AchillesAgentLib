@@ -379,6 +379,7 @@ test('DBTableSkillsSubsystem: Execute CREATE operation', async (t) => {
         }
     });
 
+    console.log('CREATE Result:', JSON.stringify(result, null, 2));
     assert.ok(result, 'Result should exist');
     assert.equal(result.skill, 'customers-dbtable', 'Skill name should match');
     assert.ok(result.result, 'Result.result should exist');

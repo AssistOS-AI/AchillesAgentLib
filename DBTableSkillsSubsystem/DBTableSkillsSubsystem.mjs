@@ -241,10 +241,54 @@ Respond with JSON:
     /**
      * Create execution context with all field functions available
      */
-    createExecutionContext(functions) {
-        // If functions are already compiled (from module import), return global functions directly
+    createExecutionContext(functions, tableName) {
+        const dbAdapter = this.dbAdapter;
+
+        // If functions are already compiled (from module import), enhance them with DB operations
         if (functions.global && typeof functions.global.selectRecords === 'function') {
-            return functions.global;
+            // Add DB operation functions to the existing context
+            const enhanced = { ...functions.global };
+
+            // Override selectRecords to use dbAdapter
+            enhanced.selectRecords = async function selectRecords(filter) {
+                if (!dbAdapter || typeof dbAdapter.query !== 'function') {
+                    console.warn('DBAdapter not available, returning empty array');
+                    return [];
+                }
+                try {
+                    const records = await dbAdapter.query(tableName, filter);
+                    return Array.isArray(records) ? records : [];
+                } catch (error) {
+                    console.error('Error querying ' + tableName + ':', error);
+                    return [];
+                }
+            };
+
+            // Add insertRecord function
+            enhanced.insertRecord = async function insertRecord(record) {
+                if (!dbAdapter || typeof dbAdapter.insert !== 'function') {
+                    throw new Error('DBAdapter not available for insert operation');
+                }
+                return await dbAdapter.insert(tableName, record);
+            };
+
+            // Add updateRecord function
+            enhanced.updateRecord = async function updateRecord(id, data) {
+                if (!dbAdapter || typeof dbAdapter.update !== 'function') {
+                    throw new Error('DBAdapter not available for update operation');
+                }
+                return await dbAdapter.update(tableName, id, data);
+            };
+
+            // Add deleteRecord function
+            enhanced.deleteRecord = async function deleteRecord(id) {
+                if (!dbAdapter || typeof dbAdapter.delete !== 'function') {
+                    throw new Error('DBAdapter not available for delete operation');
+                }
+                return await dbAdapter.delete(tableName, id);
+            };
+
+            return enhanced;
         }
 
         // Build a code string that defines all field functions and returns an object with global functions
@@ -254,7 +298,7 @@ Respond with JSON:
         const allEnumerators = Object.values(functions.enumerators || {}).join('\n\n');
         const allDerivators = Object.values(functions.derivators || {}).join('\n\n');
 
-        const contextCode = `(function() {
+        const contextCode = `(function(dbAdapter, tableName) {
 ${allPresenters}
 
 ${allResolvers}
@@ -265,7 +309,44 @@ ${allEnumerators}
 
 ${allDerivators}
 
-${functions.global.selectRecords || ''}
+// Override selectRecords to use dbAdapter
+async function selectRecords(filter) {
+    if (!dbAdapter || typeof dbAdapter.query !== 'function') {
+        console.warn('DBAdapter not available, returning empty array');
+        return [];
+    }
+    try {
+        const records = await dbAdapter.query(tableName, filter);
+        return Array.isArray(records) ? records : [];
+    } catch (error) {
+        console.error('Error querying ' + tableName + ':', error);
+        return [];
+    }
+}
+
+// Override insertRecord to use dbAdapter
+async function insertRecord(record) {
+    if (!dbAdapter || typeof dbAdapter.insert !== 'function') {
+        throw new Error('DBAdapter not available for insert operation');
+    }
+    return await dbAdapter.insert(tableName, record);
+}
+
+// Override updateRecord to use dbAdapter
+async function updateRecord(id, data) {
+    if (!dbAdapter || typeof dbAdapter.update !== 'function') {
+        throw new Error('DBAdapter not available for update operation');
+    }
+    return await dbAdapter.update(tableName, id, data);
+}
+
+// Override deleteRecord to use dbAdapter
+async function deleteRecord(id) {
+    if (!dbAdapter || typeof dbAdapter.delete !== 'function') {
+        throw new Error('DBAdapter not available for delete operation');
+    }
+    return await dbAdapter.delete(tableName, id);
+}
 
 ${functions.global.prepareRecord || ''}
 
@@ -281,9 +362,12 @@ return {
     prepareRecord: typeof prepareRecord !== 'undefined' ? prepareRecord : null,
     validateRecord: typeof validateRecord !== 'undefined' ? validateRecord : null,
     presentRecord: typeof presentRecord !== 'undefined' ? presentRecord : null,
-    selectRecords: typeof selectRecords !== 'undefined' ? selectRecords : null
+    selectRecords: selectRecords,
+    insertRecord: insertRecord,
+    updateRecord: updateRecord,
+    deleteRecord: deleteRecord
 };
-})()`;
+})(dbAdapter, tableName)`;
 
         return eval(contextCode);
     }
@@ -296,7 +380,8 @@ return {
         const newRecord = operation.data || {};
 
         // Create execution context with all functions
-        const execContext = this.createExecutionContext(functions);
+        const tableName = parsedSkill.tableName || 'unknown';
+        const execContext = this.createExecutionContext(functions, tableName);
 
         // Generate primary key if needed
         if (execContext.generatePKValues) {
@@ -318,15 +403,31 @@ return {
             };
         }
 
-        // Present record for user confirmation
-        const presented = await execContext.presentRecord(prepared);
+        // Actually insert the record into the database
+        try {
+            const insertResult = await execContext.insertRecord(prepared);
 
-        return {
-            success: true,
-            operation: 'CREATE',
-            record: presented,
-            requiresConfirmation: true
-        };
+            // Merge the insert result (which may just be { id }) with the prepared data
+            // to get a complete record for presentation
+            const insertedRecord = { ...prepared, ...insertResult };
+
+            // Present the inserted record
+            const presented = await execContext.presentRecord(insertedRecord);
+
+            return {
+                success: true,
+                operation: 'CREATE',
+                record: presented,
+                requiresConfirmation: true,
+                message: `Successfully created ${parsedSkill.tableName || 'record'}`
+            };
+        } catch (error) {
+            return {
+                success: false,
+                operation: 'CREATE',
+                error: error.message || 'Failed to insert record'
+            };
+        }
     }
 
     /**
@@ -334,9 +435,10 @@ return {
      */
     async executeUpdateFlow(parsedSkill, functions, operation, context) {
         // Create execution context with all functions
-        const execContext = this.createExecutionContext(functions);
+        const tableName = parsedSkill.tableName || 'unknown';
+        const execContext = this.createExecutionContext(functions, tableName);
 
-        // Get existing record (simulation)
+        // Get existing record from database
         const existing = await execContext.selectRecords(operation.filter);
 
         if (!existing || existing.length === 0) {
@@ -364,16 +466,39 @@ return {
             };
         }
 
-        // Present record for user confirmation
-        const presented = await execContext.presentRecord(prepared);
+        // Actually update the record in the database
+        try {
+            // Get the primary key field name
+            const primaryKey = parsedSkill.primaryKey || `${parsedSkill.tableName}_id`;
+            const recordId = existing[0][primaryKey];
 
-        return {
-            success: true,
-            operation: 'UPDATE',
-            record: presented,
-            original: existing[0],
-            requiresConfirmation: true
-        };
+            if (!recordId) {
+                throw new Error(`Primary key ${primaryKey} not found in record`);
+            }
+
+            const updateResult = await execContext.updateRecord(recordId, prepared);
+
+            // Merge the update result with the prepared data to get a complete record
+            const updatedRecord = { ...prepared, ...updateResult };
+
+            // Present the updated record
+            const presented = await execContext.presentRecord(updatedRecord);
+
+            return {
+                success: true,
+                operation: 'UPDATE',
+                record: presented,
+                original: existing[0],
+                requiresConfirmation: true,
+                message: `Successfully updated ${parsedSkill.tableName || 'record'}`
+            };
+        } catch (error) {
+            return {
+                success: false,
+                operation: 'UPDATE',
+                error: error.message || 'Failed to update record'
+            };
+        }
     }
 
     /**
@@ -381,7 +506,8 @@ return {
      */
     async executeSelectFlow(parsedSkill, functions, operation, context) {
         // Create execution context with all functions
-        const execContext = this.createExecutionContext(functions);
+        const tableName = parsedSkill.tableName || 'unknown';
+        const execContext = this.createExecutionContext(functions, tableName);
 
         // Select records
         const records = await execContext.selectRecords(operation.filter);
@@ -404,7 +530,8 @@ return {
      */
     async executeDeleteFlow(parsedSkill, functions, operation, context) {
         // Create execution context with all functions
-        const execContext = this.createExecutionContext(functions);
+        const tableName = parsedSkill.tableName || 'unknown';
+        const execContext = this.createExecutionContext(functions, tableName);
 
         // Select records to delete
         const records = await execContext.selectRecords(operation.filter);
@@ -417,18 +544,38 @@ return {
             };
         }
 
-        // Present records for confirmation
-        const presented = await Promise.all(
-            records.map(record => execContext.presentRecord(record))
-        );
+        // Actually delete the records from the database
+        try {
+            // Get the primary key field name
+            const primaryKey = parsedSkill.primaryKey || `${parsedSkill.tableName}_id`;
+            const deletedRecords = [];
 
-        return {
-            success: true,
-            operation: 'DELETE',
-            records: presented,
-            count: presented.length,
-            requiresConfirmation: true
-        };
+            for (const record of records) {
+                const recordId = record[primaryKey];
+                if (!recordId) {
+                    throw new Error(`Primary key ${primaryKey} not found in record`);
+                }
+
+                await execContext.deleteRecord(recordId);
+                const presented = await execContext.presentRecord(record);
+                deletedRecords.push(presented);
+            }
+
+            return {
+                success: true,
+                operation: 'DELETE',
+                records: deletedRecords,
+                count: deletedRecords.length,
+                requiresConfirmation: true,
+                message: `Successfully deleted ${deletedRecords.length} ${parsedSkill.tableName || 'record'}(s)`
+            };
+        } catch (error) {
+            return {
+                success: false,
+                operation: 'DELETE',
+                error: error.message || 'Failed to delete records'
+            };
+        }
     }
 
     /**
