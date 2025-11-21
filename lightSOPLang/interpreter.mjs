@@ -40,7 +40,7 @@ function ensureOnFail(onFail) {
     if (typeof onFail === 'function') {
         return onFail;
     }
-    return () => {};
+    return () => { };
 }
 
 function extractOptions(onFailOrOptions, maybeOptions) {
@@ -295,7 +295,7 @@ export class LightSOPLangInterpreter {
 
     _scheduleRun() {
         const runPromise = this._runQueue.then(() => this._run());
-        this._runQueue = runPromise.catch(() => {});
+        this._runQueue = runPromise.catch(() => { });
         this.ready = runPromise;
         return runPromise;
     }
@@ -448,12 +448,13 @@ export class LightSOPLangInterpreter {
         lines.push('LightSOPLang Syntax Rules:');
         lines.push('1. Each step is a variable declaration starting with \'@\'.');
         lines.push('2. Format: @variableName commandName arg1 arg2 ...');
-        lines.push('3. Arguments can be literals (strings/numbers) or variables ($varName).');
-        lines.push('4. Dependencies are implicit: if you use $var1 in a command, it runs after @var1 is computed.');
-        lines.push('5. Do not use control structures like \'if\' or \'for\'. Use dependencies to order execution.');
-        lines.push('6. Do NOT declare variables for input values that are directly specified in the prompt - use literals directly.');
-        lines.push('7. Use consistent, descriptive variable names that match when referencing ($varName).');
-        lines.push('8. Output ONLY the code block, no markdown fences, no explanations.');
+        lines.push('3. Use SPACE to separate arguments. Do NOT use parentheses "()" or commas ",".');
+        lines.push('4. Arguments can be literals (strings/numbers) or variables ($varName).');
+        lines.push('5. Dependencies are implicit: if you use $var1 in a command, it runs after @var1 is computed.');
+        lines.push('6. Do not use control structures like \'if\' or \'for\'. Use dependencies to order execution.');
+        lines.push('7. Do NOT declare variables for input values that are directly specified in the prompt - use literals directly.');
+        lines.push('8. Use consistent, descriptive variable names that match when referencing ($varName).');
+        lines.push('9. Output ONLY the code block, no markdown fences, no explanations.');
         lines.push('');
         lines.push('Guidelines:');
         lines.push('- Assume required input values are available as variables (e.g. $input, $A, $B) or use literals if the prompt specifies values.');

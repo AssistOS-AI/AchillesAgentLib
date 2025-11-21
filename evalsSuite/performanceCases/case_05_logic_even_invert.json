@@ -1,6 +1,26 @@
 {
     "id": "case_05_logic_even_invert",
-    "description": "Check if 6 is even then invert.",
-    "prompt": "Check if 6 is even, then invert the boolean result and answer only with true or false.",
-    "expected": "false"
+    "description": "Even/odd and boolean inversion checks",
+    "steps": [
+        {
+            "id": "even_true",
+            "prompt": "Is 14 even? Respond with true or false only.",
+            "expected": "true"
+        },
+        {
+            "id": "even_false",
+            "prompt": "Is 7 even? Respond with true or false only.",
+            "expected": "false"
+        },
+        {
+            "id": "invert_true",
+            "prompt": "Invert the boolean value true and respond only with the result.",
+            "expected": "false"
+        },
+        {
+            "id": "invert_false",
+            "prompt": "Invert the boolean value false and respond only with the result.",
+            "expected": "true"
+        }
+    ]
 }

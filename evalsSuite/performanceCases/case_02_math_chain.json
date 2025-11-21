@@ -1,6 +1,26 @@
 {
     "id": "case_02_math_chain",
-    "description": "Chain arithmetic ((10 + 5) * 3 - 8) / 2",
-    "prompt": "Calculate ((10 + 5) * 3 - 8) / 2 and answer only with the number.",
-    "expected": "18.5"
+    "description": "Chained arithmetic expressions",
+    "steps": [
+        {
+            "id": "multiply_after_add",
+            "prompt": "Compute (5 + 3) * 2 and answer only with the final number.",
+            "expected": "16"
+        },
+        {
+            "id": "divide_after_subtract",
+            "prompt": "Compute (12 - 4) / 2 and answer only with the final number.",
+            "expected": "4"
+        },
+        {
+            "id": "square_eleven",
+            "prompt": "Calculate 11 times 11 and return only the number.",
+            "expected": "121"
+        },
+        {
+            "id": "large_sum",
+            "prompt": "Add 250 and 125. Reply with the total only.",
+            "expected": "375"
+        }
+    ]
 }

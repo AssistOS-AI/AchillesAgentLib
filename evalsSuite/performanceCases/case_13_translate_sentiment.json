@@ -1,0 +1,10 @@
+{
+    "id": "case_13_translate_sentiment",
+    "description": "Translate a negative text and then analyze the sentiment of the translation.",
+    "steps": [
+        {
+            "prompt": "I visited the new restaurant downtown last night, and it was an absolute disaster from start to finish. The waiter was rude and ignored us for twenty minutes before taking our order. When the food finally arrived, it was cold, undercooked, and tasted terrible. The atmosphere was loud and chaotic, making it impossible to have a conversation. I complained to the manager, but he was dismissive and didn't offer any apology. I have never been so disappointed in a dining experience in my life. I will definitely never go back there again. Translate this entire text to Spanish. Then, analyze the sentiment of the translated text.",
+            "expected": "NEGATIVE"
+        }
+    ]
+}

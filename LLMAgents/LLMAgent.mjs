@@ -5,7 +5,6 @@ import {
     responseToJSON,
 } from './markdown.mjs';
 import { defaultLLMInvokerStrategy, cancelRequests } from '../utils/LLMClient.mjs';
-import { logLLMInteraction } from '../utils/LLMLogger.mjs';
 import {
     buildInterpretMessagePrompt,
     buildDetectIntentsPrompt,
@@ -15,6 +14,7 @@ import { AgenticSession } from './AgenticSession.mjs';
 import { SOPAgenticSession } from './SOPAgenticSession.mjs';
 import { stripCodeFence } from './LLMAgentHelpers.mjs';
 import {
+    extraComplete,
     extraDoTask,
     extraDoTaskWithReview,
     extraDoTaskWithHumanReview,
@@ -43,6 +43,8 @@ class LLMAgent {
         this._debugEnabled = false;
         this._debugLogger = null;
         this._debugCounter = 0;
+        this._inputCounter = 0;
+        this._outputCounter = 0;
     }
 
     parseMarkdownKeyValues(markdown) {
@@ -143,121 +145,26 @@ class LLMAgent {
         return ['fast'];
     }
 
+    getInputCounter() {
+        return this._inputCounter;
+    }
+
+    getOutputCounter() {
+        return this._outputCounter;
+    }
+
+    _recordInputChars(count = 0) {
+        const safe = Number.isFinite(count) ? count : 0;
+        this._inputCounter += Math.max(0, safe);
+    }
+
+    _recordOutputChars(count = 0) {
+        const safe = Number.isFinite(count) ? count : 0;
+        this._outputCounter += Math.max(0, safe);
+    }
+
     async complete(options = {}) {
-        const {
-            prompt,
-            history = [],
-            mode = process.env.DEFAULT_MODEL_TYPE === 'deep' ? 'deep' : 'fast',
-            model = null,
-            context = {},
-            ...invokerExtras
-        } = options;
-
-        if (!prompt || typeof prompt !== 'string') {
-            throw new Error('complete requires a prompt string.');
-        }
-
-        const requestId = this._debugEnabled ? this._nextDebugRequestId() : null;
-        const startedAt = Date.now();
-        const emit = (event) => {
-            if (!requestId) {
-                return;
-            }
-            this._emitDebugEvent({
-                id: requestId,
-                method: 'complete',
-                ...event,
-            });
-        };
-
-        if (this._processingCallbacks?.onStart) {
-            try {
-                this._processingCallbacks.onStart();
-            } catch (error) {
-                // Silently ignore callback errors
-            }
-        }
-
-        let responseMetadata = null;
-        try {
-            const conversation = Array.isArray(history) ? history.slice() : [];
-            emit({
-                phase: 'request',
-                mode,
-                model,
-                prompt,
-                history: conversation,
-                context,
-                options: invokerExtras,
-            });
-            const response = await this.invokerStrategy({
-                prompt,
-                history: conversation,
-                mode,
-                model,
-                agent: this,
-                context,
-                ...invokerExtras,
-            });
-
-            if (this._processingCallbacks?.onEnd) {
-                try {
-                    this._processingCallbacks.onEnd();
-                } catch (error) {
-                    // Silently ignore callback errors
-                }
-            }
-
-            let finalResponse = null;
-            if (typeof response === 'string') {
-                finalResponse = response;
-            } else if (response && typeof response === 'object' && typeof response.output === 'string') {
-                responseMetadata = response;
-                finalResponse = response.output;
-            } else {
-                throw new Error('LLMAgent invokerStrategy must return a string response.');
-            }
-            emit({
-                phase: 'response',
-                output: finalResponse,
-            });
-            const loggedModel = responseMetadata?.model
-                || this.invokerStrategy?.getLastInvocationDetails?.()?.model
-                || model
-                || 'auto';
-            const loggedMode = responseMetadata?.mode || mode;
-            logLLMInteraction({
-                prompt,
-                response: finalResponse,
-                model: loggedModel,
-                mode: loggedMode,
-                durationMs: Date.now() - startedAt,
-            });
-            return finalResponse;
-        } catch (error) {
-            emit({
-                phase: 'error',
-                error: error?.message || String(error),
-            });
-            if (this._processingCallbacks?.onEnd) {
-                try {
-                    this._processingCallbacks.onEnd();
-                } catch (callbackError) {
-                    // Silently ignore callback errors
-                }
-            }
-            const lastInvocation = this.invokerStrategy?.getLastInvocationDetails?.() || null;
-            const loggedModel = lastInvocation?.model || responseMetadata?.model || model || 'auto';
-            const loggedMode = lastInvocation?.mode || responseMetadata?.mode || mode;
-            logLLMInteraction({
-                prompt,
-                response: error?.message || '',
-                model: loggedModel,
-                mode: loggedMode,
-                durationMs: Date.now() - startedAt,
-            });
-            throw error;
-        }
+        return extraComplete(this, options);
     }
 
     cancel() {

@@ -1,13 +1,16 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fork } from 'node:child_process';
 import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
 import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
 
 envAutoConfig();
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const CASES_DIR = path.join(__dirname, 'performanceCases');
+import { PERFORMANCE_TOOLS } from './performanceCases/performanceTools.mjs';
 
 const COLORS = {
     RESET: '\x1b[0m',
@@ -16,398 +19,536 @@ const COLORS = {
     YELLOW: '\x1b[33m',
 };
 
-// Low-level tools for SOPLang execution
-const SOP_TOOLS = {
-    add: {
-        description: 'Adds two numbers and returns the sum as text.',
-        handler: async (a, b) => String(Number(a) + Number(b)),
-    },
-    multiply: {
-        description: 'Multiplies two numbers and returns the product.',
-        handler: async (a, b) => String(Number(a) * Number(b)),
-    },
-    subtract: {
-        description: 'Subtracts the second number from the first, result as text.',
-        handler: async (a, b) => String(Number(a) - Number(b)),
-    },
-    divide: {
-        description: 'Divides the first number by the second, Infinity if divisor is zero.',
-        handler: async (a, b) => {
-            const numB = Number(b);
-            if (numB === 0) return 'Infinity';
-            return String(Number(a) / numB);
-        },
-    },
-    reverse: {
-        description: 'Reverses the provided text.',
-        handler: async (text) => String(text).split('').reverse().join(''),
-    },
-    uppercase: {
-        description: 'Converts the provided text to uppercase.',
-        handler: async (text) => String(text).toUpperCase(),
-    },
-    lowercase: {
-        description: 'Converts the provided text to lowercase.',
-        handler: async (text) => String(text).toLowerCase(),
-    },
-    length: {
-        description: 'Returns the character length of the provided text.',
-        handler: async (text) => String(String(text).length),
-    },
-    concat: {
-        description: 'Concatenates two strings.',
-        handler: async (a, b) => String(a) + String(b),
-    },
-    isEven: {
-        description: 'Returns true if the provided integer is even.',
-        handler: async (n) => (Number.parseInt(n, 10) % 2 === 0 ? 'true' : 'false'),
-    },
-    invert: {
-        description: 'Inverts a boolean string (true/false).',
-        handler: async (bool) => (String(bool).trim() === 'true' ? 'false' : 'true'),
-    },
-    extractEmail: {
-        description: 'Extracts the first e-mail address from text.',
-        handler: async (text) => {
-            const match = String(text).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-            return match ? match[0] : '';
-        },
-    },
-    getDomain: {
-        description: 'Extracts the domain portion of an e-mail address.',
-        handler: async (email) => {
-            const parts = String(email).split('@');
-            return parts.length > 1 ? parts[1] : '';
-        },
-    },
+const SESSION_LABELS = {
+    sop: 'SOPLang',
+    loop: 'Loop',
 };
 
+let lastStatusLength = 0;
+function writeProgress(text) {
+    const safe = text || '';
+    const padded = safe.length < lastStatusLength
+        ? `${safe}${' '.repeat(lastStatusLength - safe.length)}`
+        : safe;
+    process.stdout.write(`\r${padded}`);
+    lastStatusLength = padded.length;
+}
+
+function clearProgressLine() {
+    if (!lastStatusLength) {
+        return;
+    }
+    process.stdout.write(`\r${' '.repeat(lastStatusLength)}\r`);
+    lastStatusLength = 0;
+}
+
+function startProgress(label) {
+    const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    let idx = 0;
+    let lastMessage = '';
+    const started = Date.now();
+    const timer = setInterval(() => {
+        const elapsed = Date.now() - started;
+        const frame = frames[idx % frames.length];
+        idx += 1;
+        const suffix = lastMessage ? ` | ${lastMessage}` : '';
+        writeProgress(`${frame} ${label} ... ${elapsed}ms${suffix}`);
+    }, 150);
+    return {
+        stop: () => {
+            clearInterval(timer);
+            clearProgressLine();
+        },
+        setMessage: (msg) => {
+            if (typeof msg !== 'string') {
+                return;
+            }
+            const trimmed = msg.trim().replace(/\s+/g, ' ');
+            lastMessage = trimmed.length > 0 ? trimmed.slice(0, 120) : '';
+        },
+    };
+}
+
+// Low-level tools for SOPLang execution
+
+
 const SOP_SKILL_DESCRIPTIONS = Object.fromEntries(
-    Object.entries(SOP_TOOLS).map(([name, spec]) => [name, spec.description]),
+    Object.entries(PERFORMANCE_TOOLS).map(([name, spec]) => [name, spec.description]),
 );
 
-function createSOPCommandsRegistry() {
+function createSOPCommandsRegistry(agent) {
     return {
         async executeCommand(payload, response) {
             const { command, args } = payload;
-            const spec = SOP_TOOLS[command];
+            // eslint-disable-next-line no-console
+            console.log(`[SOP executeCommand] command=${command}, args=${JSON.stringify(args)}`);
+            const spec = PERFORMANCE_TOOLS[command];
             if (!spec) {
                 return response.fail(`Unknown command: ${command}`);
             }
             try {
-                const value = await spec.handler(...(args ?? []));
+                const value = await spec.handler(agent, ...(args ?? []));
                 return response.success(value);
             } catch (error) {
                 return response.fail(error.message || String(error));
             }
         },
-        listCommands: () => Object.entries(SOP_TOOLS).map(([name, spec]) => ({
+        listCommands: () => Object.entries(PERFORMANCE_TOOLS).map(([name, spec]) => ({
             name,
             description: spec.description,
         })),
     };
 }
 
-// High-level tools for agentic loop sessions
-const LOOP_TOOLS = {
-    math: {
-        description: 'Understands natural language arithmetic problems and returns the numeric result as text.',
-        handler: async ({ prompt, agent }) => {
-            const instruction = [
-                'You are a precise math solver.',
-                'Solve the following problem and respond ONLY with the final numeric result.',
-                'Do not explain your reasoning. Do not add extra text.',
-                '',
-                prompt,
-            ].join('\n');
 
-            const result = await agent.complete({
-                prompt: instruction,
-                mode: 'fast',
-                context: { intent: 'perf-tool-math' },
-            });
 
-            return String(result).trim();
-        },
-    },
-    text: {
-        description: 'Performs simple text transformations and returns only the final text.',
-        handler: async ({ prompt, agent }) => {
-            const instruction = [
-                'You are a text utility tool.',
-                'Follow the instruction and respond ONLY with the requested text.',
-                'Do not add explanations.',
-                '',
-                prompt,
-            ].join('\n');
+function parseArgs() {
+    const args = process.argv.slice(2);
+    let times = 1;
+    let debug = false;
 
-            const result = await agent.complete({
-                prompt: instruction,
-                mode: 'fast',
-                context: { intent: 'perf-tool-text' },
-            });
-
-            return String(result).trim();
-        },
-    },
-    email: {
-        description: 'Extracts email addresses or domains from natural language text.',
-        handler: async ({ prompt, agent }) => {
-            const instruction = [
-                'You are an email analysis tool.',
-                'Extract the requested email address or domain and respond ONLY with that value.',
-                'Do not add explanations.',
-                '',
-                prompt,
-            ].join('\n');
-
-            const result = await agent.complete({
-                prompt: instruction,
-                mode: 'fast',
-                context: { intent: 'perf-tool-email' },
-            });
-
-            return String(result).trim();
-        },
-    },
-};
-
-function parseRunsArg() {
-    const arg = process.argv[2];
-    if (!arg) {
-        return 3;
+    if (args.includes('--help') || args.includes('-h')) {
+        // eslint-disable-next-line no-console
+        console.log([
+            'Usage: node evalsSuite/evalAgenticPerformance.mjs [--times N] [--case N] [--debug]',
+            '',
+            'Options:',
+            '  --times, -t <N>    Run each case N times (default: 1)',
+            '  --case, -c <N>     Run only case number N (e.g. 1 for case_01)',
+            '  --debug, -d        Do not silence worker stdout/stderr',
+            '  --help, -h         Show this help message',
+        ].join('\n'));
+        process.exit(0);
     }
-    const n = Number.parseInt(arg, 10);
-    if (Number.isNaN(n) || n <= 0) {
-        return 3;
+
+    let caseNum = null;
+
+    for (let i = 0; i < args.length; i += 1) {
+        const arg = args[i];
+        if (arg === '--debug' || arg === '-d') {
+            debug = true;
+        } else if (arg === '--runs' || arg === '-r' || arg === '--times' || arg === '-t') {
+            const next = args[i + 1];
+            const parsed = Number.parseInt(next, 10);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                times = parsed;
+                i += 1;
+            }
+        } else if (arg === '--case' || arg === '-c') {
+            const next = args[i + 1];
+            const parsed = Number.parseInt(next, 10);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                caseNum = parsed;
+                i += 1;
+            }
+        } else {
+            const parsed = Number.parseInt(arg, 10);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                times = parsed;
+            }
+        }
     }
-    return n;
+
+    return { times, debug, caseNum };
+}
+
+async function loadPerformanceCaseFromFile(filePath) {
+    const raw = await fs.readFile(filePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
+    const normalizedSteps = steps.length
+        ? steps
+        : [{
+            prompt: parsed.prompt || '',
+            expected: parsed.expected ?? '',
+        }];
+
+    return {
+        file: path.basename(filePath),
+        id: parsed.id || path.basename(filePath).replace(/\.json$/, ''),
+        description: parsed.description || '',
+        steps: normalizedSteps.map((step, index) => ({
+            prompt: step.prompt || '',
+            expected: step.expected ?? '',
+            id: step.id || `step_${index + 1}`,
+        })),
+    };
 }
 
 async function loadPerformanceCases() {
     const files = await fs.readdir(CASES_DIR);
     const cases = [];
     for (const file of files.filter((f) => f.endsWith('.json')).sort()) {
-        const raw = await fs.readFile(path.join(CASES_DIR, file), 'utf8');
-        const parsed = JSON.parse(raw);
-        cases.push({
-            file,
-            id: parsed.id || file.replace(/\.json$/, ''),
-            description: parsed.description || '',
-            prompt: parsed.prompt || '',
-            expected: parsed.expected ?? '',
-        });
+        const caseData = await loadPerformanceCaseFromFile(path.join(CASES_DIR, file));
+        cases.push(caseData);
     }
     return cases;
 }
 
 function normalizeValue(value) {
-    return String(value ?? '').trim();
+    return String(value ?? '').trim().toLowerCase();
 }
 
-async function runSOPCase(agent, testCase) {
-    const started = Date.now();
-    const details = {
-        plan: '',
-        variables: {},
-        matchedVariable: null,
-        answer: '',
+function charsToTokens(chars) {
+    return Math.ceil((chars || 0) / 4);
+}
+
+function formatBytesFromChars(chars) {
+    const bytes = chars || 0;
+    if (bytes >= 1_048_576) {
+        return `${(bytes / 1_048_576).toFixed(2)} MB`;
+    }
+    if (bytes >= 1024) {
+        return `${(bytes / 1024).toFixed(2)} KB`;
+    }
+    return `${bytes} B`;
+}
+
+function silentConsoleWhenNeeded(debugEnabled) {
+    if (debugEnabled) {
+        return () => { };
+    }
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    console.log = () => { };
+    console.warn = () => { };
+    return () => {
+        console.log = originalLog;
+        console.warn = originalWarn;
     };
+}
+
+async function evaluateSOPStep(session, step) {
+    const summary = await session.getVariables() || {};
+    const variables = summary.variables || {};
+    const normalizedExpected = normalizeValue(step.expected);
+    let matchedValue = null;
+    if (normalizedExpected && normalizeValue(summary.lastAnswer) === normalizedExpected) {
+        matchedValue = summary.lastAnswer;
+    }
+
+    if (!matchedValue) {
+        for (const [varName, value] of Object.entries(variables)) {
+            if (normalizeValue(value) === normalizedExpected) {
+                matchedValue = value;
+                summary.matchedVariable = varName;
+                break;
+            }
+        }
+    }
+
+    return {
+        ok: matchedValue !== null,
+        expected: step.expected,
+        answer: matchedValue ?? summary.lastAnswer ?? '',
+        variables,
+        plan: summary.lastPlan || summary.plan || '',
+    };
+}
+
+async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
+    const started = Date.now();
+    const agent = new LLMAgent({ name: `SOP-${testCase.id}-run${runIndex + 1}` });
+    const stepResults = [];
 
     try {
-        const commandsRegistry = createSOPCommandsRegistry();
+        const steps = testCase.steps || [];
+        if (!steps.length) {
+            throw new Error('No steps defined for case.');
+        }
+        const commandsRegistry = createSOPCommandsRegistry(agent);
         const session = await agent.startSOPLangAgentSession(
             SOP_SKILL_DESCRIPTIONS,
-            testCase.prompt,
+            steps[0].prompt,
             { commandsRegistry },
         );
-        details.plan = await session.getSOPLangPlan();
-        const summary = await session.getVariables();
-        details.variables = summary.variables || {};
-        details.answer = summary.lastAnswer || details.variables.lastAnswer || '';
 
-        const normalizedExpected = normalizeValue(testCase.expected);
-        const match = Object.entries(details.variables).find(([, value]) => normalizeValue(value) === normalizedExpected);
+        onProgress(`SOP: ${steps[0].id || 'step1'}`);
+        // Evaluate initial prompt
+        // eslint-disable-next-line no-await-in-loop
+        stepResults.push(await evaluateSOPStep(session, steps[0]));
 
-        if (match) {
-            details.matchedVariable = match[0];
-            details.answer = match[1];
-            return {
-                ok: true,
-                duration: Date.now() - started,
-                error: null,
-                details,
-            };
+        for (let i = 1; i < steps.length; i += 1) {
+            onProgress(`SOP: ${steps[i].id || `step${i + 1}`}`);
+            // eslint-disable-next-line no-await-in-loop
+            await session.newPrompt(steps[i].prompt);
+            // eslint-disable-next-line no-await-in-loop
+            stepResults.push(await evaluateSOPStep(session, steps[i]));
         }
 
-        return {
-            ok: false,
-            duration: Date.now() - started,
-            error: null,
-            details,
-        };
-    } catch (error) {
-        return {
-            ok: false,
-            duration: Date.now() - started,
-            error,
-            details,
-        };
-    }
-}
-
-async function runLoopCase(agent, testCase) {
-    const started = Date.now();
-    const details = { answer: '' };
-
-    try {
-        const session = await agent.startLoopAgentSession(LOOP_TOOLS, testCase.prompt, {});
-        const summary = (await session.getVariables()) || {};
-        details.answer = summary.lastAnswer || '';
-
-        const ok = normalizeValue(details.answer) === normalizeValue(testCase.expected);
+        const ok = stepResults.every((step) => step.ok);
         return {
             ok,
-            duration: Date.now() - started,
+            durationMs: Date.now() - started,
+            inputChars: agent.getInputCounter(),
+            outputChars: agent.getOutputCounter(),
+            steps: stepResults,
             error: null,
-            details,
         };
     } catch (error) {
         return {
             ok: false,
-            duration: Date.now() - started,
-            error,
-            details,
+            durationMs: Date.now() - started,
+            inputChars: agent.getInputCounter(),
+            outputChars: agent.getOutputCounter(),
+            steps: stepResults,
+            error: error?.message || String(error),
         };
     }
 }
 
-function logRunResult(kind, testCase, runIndex, runsPerCase, result, expected) {
-    const prefix = `[${kind}] ${testCase.id} run ${runIndex + 1}/${runsPerCase}`;
-    if (result.ok) {
-        const answer = result.details?.answer ? ` -> "${result.details.answer}"` : '';
-        const extra = (kind === 'SOPLang' && result.details?.matchedVariable)
-            ? ` (matched @${result.details.matchedVariable})`
-            : '';
-        console.log(`${COLORS.GREEN}${prefix}: PASS in ${result.duration}ms${answer}${extra}${COLORS.RESET}`);
-        return;
-    }
+async function evaluateLoopStep(session, step) {
+    const summary = await session.getVariables() || {};
+    const normalizedExpected = normalizeValue(step.expected);
+    const normalizedAnswer = normalizeValue(summary.lastAnswer);
+    const ok = normalizedExpected ? normalizedExpected === normalizedAnswer : false;
+    return {
+        ok,
+        expected: step.expected,
+        answer: summary.lastAnswer ?? '',
+        variables: summary,
+    };
+}
 
-    const color = result.error ? COLORS.RED : COLORS.YELLOW;
-    const reason = result.error
-        ? `ERROR: ${result.error.message || result.error}`
-        : `Mismatch. Expected "${expected}", got "${result.details?.answer ?? ''}"`;
+async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
+    const started = Date.now();
+    const agent = new LLMAgent({ name: `Loop-${testCase.id}-run${runIndex + 1}` });
+    const stepResults = [];
 
-    console.log(`${color}${prefix}: ${reason} (${result.duration}ms)${COLORS.RESET}`);
+    try {
+        const steps = testCase.steps || [];
+        if (!steps.length) {
+            throw new Error('No steps defined for case.');
+        }
+        const session = await agent.startLoopAgentSession(PERFORMANCE_TOOLS, steps[0].prompt, {});
 
-    if (kind === 'SOPLang' && result.details?.plan) {
-        console.log('  Generated plan:');
-        console.log(result.details.plan);
-    }
-    if (result.details?.variables && Object.keys(result.details.variables).length && !result.error) {
-        console.log('  Variables:', result.details.variables);
+        onProgress(`Loop: ${steps[0].id || 'step1'}`);
+        // Evaluate initial prompt
+        // eslint-disable-next-line no-await-in-loop
+        stepResults.push(await evaluateLoopStep(session, steps[0]));
+
+        for (let i = 1; i < steps.length; i += 1) {
+            onProgress(`Loop: ${steps[i].id || `step${i + 1}`}`);
+            // eslint-disable-next-line no-await-in-loop
+            await session.newPrompt(steps[i].prompt);
+            // eslint-disable-next-line no-await-in-loop
+            stepResults.push(await evaluateLoopStep(session, steps[i]));
+        }
+
+        const ok = stepResults.every((step) => step.ok);
+        return {
+            ok,
+            durationMs: Date.now() - started,
+            inputChars: agent.getInputCounter(),
+            outputChars: agent.getOutputCounter(),
+            steps: stepResults,
+            error: null,
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            durationMs: Date.now() - started,
+            inputChars: agent.getInputCounter(),
+            outputChars: agent.getOutputCounter(),
+            steps: stepResults,
+            error: error?.message || String(error),
+        };
     }
 }
 
-function updateStats(bucket, result) {
-    bucket.runs += 1;
-    bucket.totalMs += result.duration;
-    if (result.ok) {
-        bucket.successMs += result.duration;
-    } else {
-        bucket.errors += 1;
+async function runWorker() {
+    const debug = process.env.AGENTIC_DEBUG === 'true';
+    const caseFile = process.env.AGENTIC_CASE;
+    const runIndex = Number.parseInt(process.env.AGENTIC_RUN, 10) || 0;
+
+    try {
+        if (!caseFile) {
+            throw new Error('Missing case file path for worker.');
+        }
+        const testCase = await loadPerformanceCaseFromFile(caseFile);
+        const sendProgress = (message) => {
+            if (typeof process.send === 'function') {
+                process.send({ type: 'progress', message });
+            }
+        };
+
+        const sopResult = await runSOPCase(testCase, runIndex, sendProgress);
+        const loopResult = await runLoopCase(testCase, runIndex, sendProgress);
+
+        const payload = {
+            caseId: testCase.id,
+            runIndex,
+            sop: sopResult,
+            loop: loopResult,
+        };
+
+        if (typeof process.send === 'function') {
+            process.send({ type: 'result', payload });
+        } else {
+            // eslint-disable-next-line no-console
+            console.log(JSON.stringify(payload, null, 2));
+        }
+        process.exit(0);
+    } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('[AgenticPerformance worker] Fatal error:', error);
+        process.exit(1);
     }
 }
 
-function printCaseHeader(testCase) {
-    console.log(`\n===== ${testCase.id} =====`);
-    console.log(`Description: ${testCase.description}`);
-    console.log(`Prompt: ${testCase.prompt}`);
-    console.log(`Expected answer: ${testCase.expected}`);
+function runCaseInChild(testCase, runIndex, debug, onOutput = null) {
+    return new Promise((resolve, reject) => {
+        const child = fork(__filename, [], {
+            env: {
+                ...process.env,
+                AGENTIC_PERF_WORKER: '1',
+                AGENTIC_CASE: path.join(CASES_DIR, testCase.file),
+                AGENTIC_RUN: String(runIndex),
+                AGENTIC_DEBUG: debug ? 'true' : 'false',
+            },
+            stdio: debug ? 'inherit' : ['ignore', 'pipe', 'pipe', 'ipc'],
+        });
+
+        let resolved = false;
+        child.on('message', (message) => {
+            if (message?.type === 'progress' && typeof onOutput === 'function') {
+                onOutput(message.message);
+                return;
+            }
+            if (message?.type === 'result') {
+                resolved = true;
+                resolve(message.payload);
+            }
+        });
+        if (!debug) {
+            const handleChunk = (chunk) => {
+                if (typeof onOutput !== 'function') {
+                    return;
+                }
+                const text = chunk.toString('utf8');
+                const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+                if (!lines.length) {
+                    return;
+                }
+                const lastLine = lines[lines.length - 1];
+                onOutput(lastLine);
+            };
+            child.stdout?.on('data', handleChunk);
+            child.stderr?.on('data', handleChunk);
+        }
+        child.on('error', (error) => {
+            if (!resolved) {
+                reject(error);
+            }
+        });
+        child.on('exit', (code) => {
+            if (!resolved) {
+                reject(new Error(`Worker exited with code ${code}`));
+            }
+        });
+    });
 }
 
-function printFinalSummary(stats, runsPerCase) {
-    let sopErrors = 0;
-    let loopErrors = 0;
-    let sopTotalMs = 0;
-    let loopTotalMs = 0;
-    let sopSuccessMs = 0;
-    let loopSuccessMs = 0;
+function printRunResult(label, result) {
+    const color = result.ok ? COLORS.GREEN : COLORS.RED;
+    const inputTokens = charsToTokens(result.inputChars);
+    const outputTokens = charsToTokens(result.outputChars);
+    const status = result.ok ? 'PASS' : 'FAIL';
+    const errorText = result.error ? ` | error: ${result.error}` : '';
+    // eslint-disable-next-line no-console
+    console.log(`${color}[${label}] ${status} in ${result.durationMs}ms | sent=${inputTokens} tok, recv=${outputTokens} tok${errorText}${COLORS.RESET}`);
+}
 
-    for (const s of stats) {
-        sopErrors += s.sop.errors;
-        loopErrors += s.loop.errors;
-        sopTotalMs += s.sop.totalMs;
-        loopTotalMs += s.loop.totalMs;
-        sopSuccessMs += s.sop.successMs;
-        loopSuccessMs += s.loop.successMs;
-    }
+function printHeader(testCase, runIndex, runsPerCase) {
+    const label = `[Test] ${testCase.id} (${runIndex + 1}/${runsPerCase})`;
+    // eslint-disable-next-line no-console
+    console.log(`${COLORS.YELLOW}${label}: ${testCase.description}${COLORS.RESET}`);
+}
 
-    const totalRuns = runsPerCase * stats.length;
-    const sopOkRuns = totalRuns - sopErrors;
-    const loopOkRuns = totalRuns - loopErrors;
-
-    console.log('\n===== AgenticPerformance Summary =====');
-    console.log(`Cases: ${stats.length}, runs per case: ${runsPerCase}`);
-    console.log(`SOPLang (startSOPLangAgentSession): totalRuns=${totalRuns}, errors=${sopErrors}, totalTime=${sopTotalMs}ms, avgPerRun=${(sopTotalMs / totalRuns).toFixed(1)}ms, avg(ok)=${sopOkRuns ? (sopSuccessMs / sopOkRuns).toFixed(1) : 'n/a'}ms`);
-    console.log(`Loop (startLoopAgentSession): totalRuns=${totalRuns}, errors=${loopErrors}, totalTime=${loopTotalMs}ms, avgPerRun=${(loopTotalMs / totalRuns).toFixed(1)}ms, avg(ok)=${loopOkRuns ? (loopSuccessMs / loopOkRuns).toFixed(1) : 'n/a'}ms`);
+function printSummary(totals) {
+    // eslint-disable-next-line no-console
+    console.log('\n==== Summary ====');
+    ['sop', 'loop'].forEach((key) => {
+        const stats = totals[key];
+        const label = SESSION_LABELS[key];
+        const totalSeconds = (stats.durationMs / 1000).toFixed(2);
+        const failures = stats.failures;
+        const runs = stats.runs;
+        const inputHuman = formatBytesFromChars(stats.inputChars);
+        const outputHuman = formatBytesFromChars(stats.outputChars);
+        // eslint-disable-next-line no-console
+        console.log(`${label}: runs=${runs}, failures=${failures}, duration=${totalSeconds}s, input=${inputHuman}, output=${outputHuman}`);
+    });
 }
 
 async function main() {
-    const runsPerCase = parseRunsArg();
-    console.log(`[AgenticPerformance] Runs per case: ${runsPerCase}`);
+    if (process.env.AGENTIC_PERF_WORKER === '1') {
+        await runWorker();
+        return;
+    }
 
-    const agent = new LLMAgent({ name: 'AgenticPerformance' });
-    const cases = await loadPerformanceCases();
+    const { times, debug, caseNum } = parseArgs();
+    // eslint-disable-next-line no-console
+    console.log('Hint: run with --help to see available options.');
+    // eslint-disable-next-line no-console
+    console.log(`[AgenticPerformance] Runs per case: ${times}${debug ? ' (debug)' : ''}${caseNum ? ` | Case: ${caseNum}` : ''}`);
+
+    let cases = await loadPerformanceCases();
+    if (caseNum) {
+        cases = cases.filter((c) => {
+            const match = c.id.match(/case_(\d+)/);
+            return match && Number.parseInt(match[1], 10) === caseNum;
+        });
+    }
 
     if (!cases.length) {
+        // eslint-disable-next-line no-console
         console.log('No performance cases found.');
         return;
     }
 
-    const stats = cases.map((testCase) => ({
-        id: testCase.id,
-        description: testCase.description,
-        expected: testCase.expected,
-        sop: {
-            runs: 0,
-            errors: 0,
-            totalMs: 0,
-            successMs: 0,
-        },
-        loop: {
-            runs: 0,
-            errors: 0,
-            totalMs: 0,
-            successMs: 0,
-        },
-    }));
+    const totals = {
+        sop: { runs: 0, failures: 0, durationMs: 0, inputChars: 0, outputChars: 0 },
+        loop: { runs: 0, failures: 0, durationMs: 0, inputChars: 0, outputChars: 0 },
+    };
 
-    for (let i = 0; i < cases.length; i += 1) {
-        const testCase = cases[i];
-        const stat = stats[i];
-
-        printCaseHeader(testCase);
-
-        for (let run = 0; run < runsPerCase; run += 1) {
-            // SOPLang plan + execution
+    for (const testCase of cases) {
+        for (let runIndex = 0; runIndex < times; runIndex += 1) {
+            const runningLabel = `[Running] ${testCase.id} (${runIndex + 1}/${times})`;
+            const progress = debug ? { stop: () => { }, setMessage: () => { } } : startProgress(runningLabel);
+            if (debug) {
+                clearProgressLine();
+            }
+            printHeader(testCase, runIndex, times);
             // eslint-disable-next-line no-await-in-loop
-            const sopResult = await runSOPCase(agent, testCase);
-            logRunResult('SOPLang', testCase, run, runsPerCase, sopResult, testCase.expected);
-            updateStats(stat.sop, sopResult);
+            const result = await runCaseInChild(testCase, runIndex, debug, progress.setMessage);
+            progress.stop();
+            printRunResult(SESSION_LABELS.sop, result.sop);
+            printRunResult(SESSION_LABELS.loop, result.loop);
 
-            // Loop agent session
-            // eslint-disable-next-line no-await-in-loop
-            const loopResult = await runLoopCase(agent, testCase);
-            logRunResult('Loop', testCase, run, runsPerCase, loopResult, testCase.expected);
-            updateStats(stat.loop, loopResult);
+            totals.sop.runs += 1;
+            totals.sop.durationMs += result.sop.durationMs;
+            totals.sop.inputChars += result.sop.inputChars;
+            totals.sop.outputChars += result.sop.outputChars;
+            if (!result.sop.ok) {
+                totals.sop.failures += 1;
+            }
+
+            totals.loop.runs += 1;
+            totals.loop.durationMs += result.loop.durationMs;
+            totals.loop.inputChars += result.loop.inputChars;
+            totals.loop.outputChars += result.loop.outputChars;
+            if (!result.loop.ok) {
+                totals.loop.failures += 1;
+            }
         }
     }
 
-    printFinalSummary(stats, runsPerCase);
+    printSummary(totals);
 }
 
 main().catch((err) => {
+    // eslint-disable-next-line no-console
     console.error('[AgenticPerformance] Fatal error:', err);
     process.exit(1);
 });

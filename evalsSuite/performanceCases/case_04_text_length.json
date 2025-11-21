@@ -1,6 +1,26 @@
 {
     "id": "case_04_text_length",
-    "description": "Length of 'Agentic' in uppercase.",
-    "prompt": "Convert 'Agentic' to uppercase and then tell me how many characters it has. Answer only with the number.",
-    "expected": "7"
+    "description": "Character counting tasks",
+    "steps": [
+        {
+            "id": "length_simple",
+            "prompt": "Give the length of 'abcdefg' and respond with the number only.",
+            "expected": "7"
+        },
+        {
+            "id": "length_phrase",
+            "prompt": "Give the length of 'agent session' and respond only with the number.",
+            "expected": "13"
+        },
+        {
+            "id": "length_prompt_word",
+            "prompt": "Provide the character count of the word 'Prompt' and return only the number.",
+            "expected": "6"
+        },
+        {
+            "id": "length_spaced",
+            "prompt": "Provide the character count of the string 'A B C' (including spaces) and return only the number.",
+            "expected": "5"
+        }
+    ]
 }

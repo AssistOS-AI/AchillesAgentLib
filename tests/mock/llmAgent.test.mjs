@@ -91,3 +91,21 @@ test('LLMAgentRegistry manages agents and defaults', async () => {
     registry.clear();
     assert.equal(registry.list().length, 0);
 });
+
+test('LLMAgent tracks character traffic per instance', async () => {
+    const agent = new LLMAgent({
+        name: 'CounterAgent',
+        invokerStrategy: async () => 'ok',
+    });
+
+    const history = [{ role: 'system', message: 'init run' }];
+    await agent.complete({ prompt: 'Hello', history });
+
+    assert.equal(agent.getInputCounter(), 23);
+    assert.equal(agent.getOutputCounter(), 2);
+
+    await agent.complete({ prompt: 'Next one' });
+
+    assert.equal(agent.getInputCounter(), 31);
+    assert.equal(agent.getOutputCounter(), 4);
+});
