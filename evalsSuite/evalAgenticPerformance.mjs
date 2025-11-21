@@ -10,7 +10,7 @@ envAutoConfig();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CASES_DIR = path.join(__dirname, 'performanceCases');
-import { PERFORMANCE_TOOLS } from './performanceCases/performanceTools.mjs';
+import { PERFORMANCE_TOOLS } from './tools/allTools.mjs';
 
 const COLORS = {
     RESET: '\x1b[0m',
@@ -77,6 +77,13 @@ const SOP_SKILL_DESCRIPTIONS = Object.fromEntries(
 );
 
 function createSOPCommandsRegistry(agent) {
+    if (agent) {
+        if (agent.__toolState instanceof Map) {
+            agent.__toolState.clear();
+        } else {
+            agent.__toolState = new Map();
+        }
+    }
     return {
         async executeCommand(payload, response) {
             const { command, args } = payload;
@@ -219,30 +226,17 @@ function silentConsoleWhenNeeded(debugEnabled) {
 }
 
 async function evaluateSOPStep(session, step) {
-    const summary = await session.getVariables() || {};
-    const variables = summary.variables || {};
+    const answer = session.getLastResult();
     const normalizedExpected = normalizeValue(step.expected);
-    let matchedValue = null;
-    if (normalizedExpected && normalizeValue(summary.lastAnswer) === normalizedExpected) {
-        matchedValue = summary.lastAnswer;
-    }
-
-    if (!matchedValue) {
-        for (const [varName, value] of Object.entries(variables)) {
-            if (normalizeValue(value) === normalizedExpected) {
-                matchedValue = value;
-                summary.matchedVariable = varName;
-                break;
-            }
-        }
-    }
+    const normalizedAnswer = normalizeValue(answer);
+    const ok = normalizedExpected ? normalizedExpected === normalizedAnswer : false;
 
     return {
-        ok: matchedValue !== null,
+        ok,
         expected: step.expected,
-        answer: matchedValue ?? summary.lastAnswer ?? '',
-        variables,
-        plan: summary.lastPlan || summary.plan || '',
+        answer: answer ?? '',
+        variables: {}, // No longer tracking internal variables for validation
+        plan: session.getSOPLangPlan() || '',
     };
 }
 
@@ -298,15 +292,15 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
 }
 
 async function evaluateLoopStep(session, step) {
-    const summary = await session.getVariables() || {};
+    const answer = session.getLastResult();
     const normalizedExpected = normalizeValue(step.expected);
-    const normalizedAnswer = normalizeValue(summary.lastAnswer);
+    const normalizedAnswer = normalizeValue(answer);
     const ok = normalizedExpected ? normalizedExpected === normalizedAnswer : false;
     return {
         ok,
         expected: step.expected,
-        answer: summary.lastAnswer ?? '',
-        variables: summary,
+        answer: answer ?? '',
+        variables: {},
     };
 }
 

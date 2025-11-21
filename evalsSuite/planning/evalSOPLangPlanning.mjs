@@ -3,12 +3,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
-import { createCommandsRegistry } from './utils/sopTestCommands.mjs';
+import { createPlanningCommandsRegistry } from './utils/sopTestCommands.mjs';
 
 envAutoConfig();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CASES_DIR = path.join(__dirname, 'onlySOPLangPlan');
+const CASES_DIR = path.join(__dirname, 'startSOPLangAgentSession');
 
 const COLORS = {
     RESET: '\x1b[0m',
@@ -58,7 +58,7 @@ function evaluateOutputs(expectedOutput = {}, variables = {}, lastAnswer = null)
 async function runCase(agent, caseFile, caseData) {
     const prompts = buildPromptList(caseData);
     const skillDescriptions = caseData.tools || {};
-    const commandsRegistry = createCommandsRegistry(skillDescriptions);
+    const commandsRegistry = createPlanningCommandsRegistry(agent, skillDescriptions);
 
     const session = await agent.startSOPLangAgentSession(skillDescriptions, prompts[0], {
         planOnly: false,
@@ -95,8 +95,8 @@ async function main() {
             'Usage: node evalsSuite/planning/evalSOPLangPlanning.mjs',
             '',
             'Runs full startSOPLangAgentSession flows (with the interpreter) using the cases in',
-            'evalsSuite/planning/onlySOPLangPlan and validates the resulting variables/lastAnswer',
-            'against the expectedOutput block declared in each case file.',
+            'evalsSuite/planning/startSOPLangAgentSession and validates the resulting variables',
+            'or lastAnswer against the expectedOutput block declared in each case file.',
         ].join('\n'));
         return;
     }

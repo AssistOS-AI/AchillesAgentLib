@@ -1,4 +1,5 @@
 import { extractJson } from '../markdown.mjs';
+import { RETURN_RESPONSE_TOOL } from '../constants.mjs';
 
 const buildInterpretMessagePrompt = (intents, instructions) => {
     const promptSections = [
@@ -145,13 +146,13 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push('');
     lines.push('Guidelines:');
     lines.push('- Use "call_tool" to obtain NEW information or perform additional calculations.');
-    lines.push('- If the most recent tool result already answers the current user instruction, use "final_answer" and set "answer" to that result instead of calling the tool again.');
+    lines.push(`- When you have the final response, schedule a "call_tool" action for "${RETURN_RESPONSE_TOOL}" and pass ONLY the final text (no additional wording) in "toolPrompt". This tool MUST be used exactly once per prompt.`);
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
     lines.push('- Only use "cannot_complete" when the goal truly cannot be achieved with any combination of available tools.');
     lines.push('- If the user instruction explicitly mentions a tool by name (for example "use the stringLength tool"), you MUST call that tool at least once in this turn before using "final_answer".');
     lines.push('');
     lines.push('Decide the next action. If more computation via tools is needed, use "call_tool".');
-    lines.push('If you are confident you have the final answer for the current instruction, use "final_answer".');
+    lines.push(`If you are confident you have the final answer for the current instruction, call "${RETURN_RESPONSE_TOOL}" with that text instead of using "final_answer". The text must be the exact final response only.`);
     lines.push('If the task cannot be completed with the available tools, use "cannot_complete".');
     lines.push('Respond ONLY with the JSON object, no extra text.');
 

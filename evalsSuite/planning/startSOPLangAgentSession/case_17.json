@@ -1,0 +1,12 @@
+{
+    "description": "Chained flaky tools",
+    "tools": {
+        "flakyAdd": "Adds numbers but may fail the first time.",
+        "flakyUppercase": "Uppercases text but may fail the first time.",
+        "concat": "Concatenates two strings."
+    },
+    "prompt": "Add 1 and 4 with flakyAdd (retry if it says to), convert 'done' to uppercase with flakyUppercase, then concatenate the sum and text as '<sum>: <text>'.",
+    "expectedOutput": {
+        "result": "5: DONE"
+    }
+}

@@ -1,9 +1,11 @@
 {
-  "description": "Translation chain",
-  "tools": {
-    "translate": "Translates text to target language",
-    "checkGrammar": "Checks grammar of text"
-  },
-  "prompt": "Translate the input to French, check the grammar, then translate that result to Spanish.",
-  "expectedPlan": "@french translate $input \"French\"\n@checked checkGrammar $french\n@spanish translate $checked \"Spanish\""
+    "description": "Logic gate",
+    "tools": {
+        "isEven": "Returns 'true' if number is even, 'false' otherwise. Args: num",
+        "invert": "Returns 'false' if input is 'true', 'true' if 'false'. Args: bool"
+    },
+    "prompt": "Check if 5 is even, then invert the result.",
+    "expectedOutput": {
+        "final": "true"
+    }
 }

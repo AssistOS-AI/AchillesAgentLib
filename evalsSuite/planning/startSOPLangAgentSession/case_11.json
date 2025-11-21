@@ -1,9 +1,13 @@
 {
-  "description": "Variable assignment",
-  "tools": {
-    "fetchData": "Fetches data using a timeout",
-    "assign": "Assigns a value to a variable"
-  },
-  "prompt": "Set a timeout of 5000ms and fetch data using that timeout.",
-  "expectedPlan": "@timeout assign 5000\n@data fetchData $timeout"
+    "description": "Text analysis with contains check",
+    "tools": {
+        "uppercase": "Converts text to uppercase. Args: text",
+        "contains": "Checks if first string contains second. Args: haystack, needle",
+        "length": "Returns the length of the string. Args: text",
+        "substring": "Extracts substring from position with length. Args: text, start, length"
+    },
+    "prompt": "Convert 'hello world' to uppercase, check if it contains 'WORLD', get the length of the original string, then extract first 3 characters from uppercase version.",
+    "expectedOutput": {
+        "lastAnswer": "HEL"
+    }
 }

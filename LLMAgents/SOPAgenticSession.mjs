@@ -1,5 +1,10 @@
 import { LightSOPLangInterpreter } from '../lightSOPLang/interpreter.mjs';
 import { buildSOPAgenticInstructions } from './templates/sopAgenticSessionPrompts.mjs';
+import {
+    RETURN_RESPONSE_TOOL,
+    RETURN_RESPONSE_DESCRIPTION,
+    normalizeResponsePayload,
+} from './constants.mjs';
 
 class SOPAgenticSession {
     constructor({ agent, skillsDescription, options = {} }) {
@@ -9,9 +14,21 @@ class SOPAgenticSession {
         if (!skillsDescription || typeof skillsDescription !== 'object') {
             throw new Error('SOPAgenticSession requires a skillsDescription object.');
         }
+        if (Object.prototype.hasOwnProperty.call(skillsDescription, RETURN_RESPONSE_TOOL)) {
+            throw new Error(`Tool name "${RETURN_RESPONSE_TOOL}" is reserved by the agent runtime.`);
+        }
+
+        if (agent) {
+            if (agent.__toolState instanceof Map) {
+                agent.__toolState.clear();
+            } else {
+                agent.__toolState = new Map();
+            }
+        }
 
         this.agent = agent;
-        this.skillsDescription = skillsDescription;
+        this.skillsDescription = { ...skillsDescription };
+        this.skillsDescription[RETURN_RESPONSE_TOOL] = RETURN_RESPONSE_DESCRIPTION;
         const planOnlyFlag = options.planOnly ?? options.generatePlanOnly ?? false;
         this.options = {
             ...options,
@@ -25,13 +42,14 @@ class SOPAgenticSession {
             || this.executionInterpreterOptions
             || {};
         this.commandsRegistry = options.commandsRegistry && typeof options.commandsRegistry === 'object'
-            ? options.commandsRegistry
+            ? this._wrapExecutionRegistry(options.commandsRegistry)
             : null;
         this.planCommandsRegistry = this._createPlanCommandsRegistry();
 
         this.history = [];
         this.currentPlan = '';
         this.lastExecution = null;
+        this._lastReturnResponse = null;
     }
 
     async newPrompt(userPrompt) {
@@ -61,19 +79,19 @@ class SOPAgenticSession {
             await this._runPlan(this.currentPlan);
         }
 
-        return { plan: this.currentPlan };
+        return { plan: this.currentPlan, answer: this.getLastResult() };
+    }
+
+    getLastResult() {
+        return this.lastExecution?.lastAnswer ?? null;
     }
 
     async getVariables() {
-        const base = { lastPlan: this.currentPlan };
-        if (this.lastExecution) {
-            return {
-                ...base,
-                variables: this.lastExecution.variables,
-                lastAnswer: this.lastExecution.lastAnswer ?? null,
-            };
-        }
-        return base;
+        return {
+            lastPlan: this.currentPlan,
+            lastAnswer: this.lastExecution?.lastAnswer ?? null,
+            status: this.lastExecution ? 'active' : 'idle',
+        };
     }
 
     async getPlan() {
@@ -95,6 +113,7 @@ class SOPAgenticSession {
         if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmAgent')) {
             interpreterOptions.llmAgent = this.agent;
         }
+        this._lastReturnResponse = null;
         const interpreter = new LightSOPLangInterpreter(
             planSource,
             this.commandsRegistry,
@@ -107,8 +126,9 @@ class SOPAgenticSession {
         }
         this.lastExecution = {
             variables,
-            lastAnswer: variables.lastAnswer ?? null,
+            lastAnswer: this._lastReturnResponse ?? variables.lastAnswer ?? null,
         };
+        this._lastReturnResponse = null;
     }
 
     async _generatePlanFromEnglish(instructions) {
@@ -141,6 +161,34 @@ ${trimmed}`;
                 name,
                 description,
             })),
+        };
+    }
+
+    _wrapExecutionRegistry(registry) {
+        if (typeof registry.executeCommand !== 'function' || typeof registry.listCommands !== 'function') {
+            throw new Error('commandsRegistry must provide executeCommand and listCommands functions.');
+        }
+        const executeCommand = registry.executeCommand.bind(registry);
+        const listCommands = registry.listCommands.bind(registry);
+        return {
+            executeCommand: async (payload, responder) => {
+                if (payload?.command === RETURN_RESPONSE_TOOL) {
+                    const text = normalizeResponsePayload(payload?.args?.[0] ?? '');
+                    this._lastReturnResponse = text;
+                    return responder.success(text);
+                }
+                return executeCommand(payload, responder);
+            },
+            listCommands: () => {
+                const commands = listCommands() || [];
+                if (!commands.some((cmd) => (cmd?.name || cmd?.command) === RETURN_RESPONSE_TOOL)) {
+                    commands.push({
+                        name: RETURN_RESPONSE_TOOL,
+                        description: RETURN_RESPONSE_DESCRIPTION,
+                    });
+                }
+                return commands;
+            },
         };
     }
 

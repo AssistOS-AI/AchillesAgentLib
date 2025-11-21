@@ -1,0 +1,11 @@
+{
+    "description": "Flaky addition recovery",
+    "tools": {
+        "flakyAdd": "Adds numbers but may fail the first time. Retry the same plan if it reports a transient failure.",
+        "multiply": "Multiplies two numbers."
+    },
+    "prompt": "Use flakyAdd to add 2 and 3 even if it fails once, multiply the result by 2, then return the final number.",
+    "expectedOutput": {
+        "result": "10"
+    }
+}

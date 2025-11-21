@@ -1,67 +1,75 @@
-const TOOL_IMPLEMENTATIONS = {
-    add: async (a, b) => String(Number(a) + Number(b)),
-    multiply: async (a, b) => String(Number(a) * Number(b)),
-    subtract: async (a, b) => String(Number(a) - Number(b)),
-    divide: async (a, b) => {
-        const divisor = Number(b);
-        if (divisor === 0) {
-            return 'Infinity';
-        }
-        return String(Number(a) / divisor);
-    },
-    reverse: async (text) => String(text).split('').reverse().join(''),
-    uppercase: async (text) => String(text).toUpperCase(),
-    lowercase: async (text) => String(text).toLowerCase(),
-    length: async (text) => String(String(text).length),
-    concat: async (a, b) => `${String(a)}${String(b)}`,
-    substring: async (text, start, len) => {
-        const begin = Number(start);
-        const take = Number(len);
-        return String(text).substring(begin, begin + take);
-    },
-    contains: async (haystack, needle) => (String(haystack).includes(String(needle)) ? 'true' : 'false'),
-    isEven: async (value) => (Number(value) % 2 === 0 ? 'true' : 'false'),
-    invert: async (value) => (String(value).trim() === 'true' ? 'false' : 'true'),
-    and: async (a, b) => (String(a).trim() === 'true' && String(b).trim() === 'true' ? 'true' : 'false'),
-    or: async (a, b) => (String(a).trim() === 'true' || String(b).trim() === 'true' ? 'true' : 'false'),
-    extractEmail: async (text) => {
-        const match = String(text).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        return match ? match[0] : '';
-    },
-    getDomain: async (email) => {
-        const parts = String(email).split('@');
-        return parts.length > 1 ? parts[1] : '';
-    },
-};
+import { PERFORMANCE_TOOLS } from '../../tools/allTools.mjs';
+import {
+    RETURN_RESPONSE_TOOL,
+    RETURN_RESPONSE_DESCRIPTION,
+} from '../../../LLMAgents/constants.mjs';
 
-function createCommandsRegistry(tools = {}) {
-    const allowed = Object.keys(tools || {});
-    const whitelist = allowed.length
-        ? allowed.filter((name) => Object.prototype.hasOwnProperty.call(TOOL_IMPLEMENTATIONS, name))
-        : Object.keys(TOOL_IMPLEMENTATIONS);
-    const allowedSet = new Set(whitelist);
+/**
+ * Build a commands registry for SOP execution tests.
+ *
+ * @param {LLMAgent} agent
+ * @param {Object} toolsConfiguration Tool descriptions defined in the case file.
+ * @returns {{executeCommand: Function, listCommands: Function}}
+ */
+function createPlanningCommandsRegistry(agent, toolsConfiguration = {}) {
+    if (agent) {
+        if (agent.__toolState instanceof Map) {
+            agent.__toolState.clear();
+        } else {
+            agent.__toolState = new Map();
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(toolsConfiguration, RETURN_RESPONSE_TOOL)) {
+        throw new Error(`Tool name "${RETURN_RESPONSE_TOOL}" is reserved by the agent runtime.`);
+    }
+    const requestedTools = Object.keys(toolsConfiguration || {});
+    const mergedNames = requestedTools.concat(RETURN_RESPONSE_TOOL);
+    const availableEntries = mergedNames.map((name) => {
+        if (name === RETURN_RESPONSE_TOOL) {
+            return [name, { description: RETURN_RESPONSE_DESCRIPTION }];
+        }
+        const spec = PERFORMANCE_TOOLS[name];
+        if (!spec) {
+            throw new Error(`Unknown tool "${name}" referenced in planning test configuration.`);
+        }
+        return [name, spec];
+    });
+
+    const commandMap = availableEntries.reduce((acc, [name, spec]) => {
+        acc[name] = spec;
+        return acc;
+    }, {});
 
     return {
         async executeCommand(payload, response) {
             const { command, args } = payload;
-            if (!allowedSet.has(command)) {
+            if (command === RETURN_RESPONSE_TOOL) {
+                const text = normalizeResponsePayload(args?.[0] ?? '');
+                if (agent && agent.currentSession) {
+                    agent.currentSession.lastAnswer = text;
+                }
+                return response.success(text);
+            }
+            const spec = commandMap[command];
+            if (!spec) {
                 return response.fail(`Unknown command: ${command}`);
             }
-            const handler = TOOL_IMPLEMENTATIONS[command];
             try {
-                const value = await handler(...(args ?? []));
+                const value = await spec.handler(agent, ...(args ?? []));
                 return response.success(value);
             } catch (error) {
-                return response.fail(error.message || String(error));
+                return response.fail(error?.message || String(error));
             }
         },
-        listCommands: () => whitelist.map((name) => ({
+        listCommands: () => availableEntries.map(([name]) => ({
             name,
-            description: tools?.[name] || '',
+            description: name === RETURN_RESPONSE_TOOL
+                ? RETURN_RESPONSE_DESCRIPTION
+                : toolsConfiguration?.[name] || PERFORMANCE_TOOLS[name].description || '',
         })),
     };
 }
 
 export {
-    createCommandsRegistry,
+    createPlanningCommandsRegistry,
 };

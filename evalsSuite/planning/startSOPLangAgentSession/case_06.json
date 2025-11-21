@@ -1,11 +1,13 @@
 {
-  "description": "Image processing pipeline",
-  "tools": {
-    "loadImage": "Loads an image from path",
-    "resize": "Resizes image to dimensions",
-    "grayscale": "Converts image to grayscale",
-    "save": "Saves image to path"
-  },
-  "prompt": "Load 'photo.jpg', resize to 100x100, make it grayscale, and save as 'icon.png'.",
-  "expectedPlan": "@img loadImage \"photo.jpg\"\n@resized resize $img 100 100\n@gray grayscale $resized\n@saved save $gray \"icon.png\""
+    "description": "Multi-step text processing",
+    "tools": {
+        "reverse": "Reverses the input string. Args: text",
+        "uppercase": "Converts text to uppercase. Args: text",
+        "lowercase": "Converts text to lowercase. Args: text",
+        "length": "Returns the length of the string. Args: text"
+    },
+    "prompt": "Take the string 'Hello World', reverse it, convert to uppercase, then get its length.",
+    "expectedOutput": {
+        "lastAnswer": "11"
+    }
 }

@@ -10,7 +10,7 @@ import {
     buildDetectIntentsPrompt,
     extractJson,
 } from './templates/prompts.mjs';
-import { AgenticSession } from './AgenticSession.mjs';
+import { LoopAgentSession } from './AgenticSession.mjs';
 import { SOPAgenticSession } from './SOPAgenticSession.mjs';
 import { stripCodeFence } from './LLMAgentHelpers.mjs';
 import {
@@ -308,7 +308,7 @@ ${promptText}`
             throw new Error('startLoopAgentSession requires an initial prompt string.');
         }
 
-        const session = new AgenticSession({
+        const session = new LoopAgentSession({
             agent: this,
             tools,
             options,

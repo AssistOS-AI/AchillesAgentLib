@@ -303,6 +303,7 @@ async function main() {
 
     let totalCases = 0;
     let passedCases = 0;
+    const failedCases = [];
 
 
     for (const caseFile of cases) {
@@ -403,14 +404,16 @@ async function main() {
 
             if (passed) {
                 passedCases += 1;
-                console.log(`${COLORS.GREEN}✅ Passed!${COLORS.RESET}`);
+                console.log(`${COLORS.GREEN}✅ ${caseFile} passed${COLORS.RESET}`);
             } else {
-                console.log(`${COLORS.RED}❌ Failed${COLORS.RESET}`);
+                failedCases.push(caseFile);
+                console.log(`${COLORS.RED}❌ ${caseFile} failed${COLORS.RESET}`);
                 failureReasons.forEach((reason) => console.log(`  ${reason}`));
                 console.log('  Session summary:', summary);
             }
         } catch (err) {
-            console.error(`${COLORS.RED}Execution Error in ${caseFile}:${COLORS.RESET}`, err.message);
+            failedCases.push(caseFile);
+            console.error(`${COLORS.RED}❌ ${caseFile} execution error:${COLORS.RESET}`, err.message);
         }
 
         totalCases += 1;
@@ -418,6 +421,11 @@ async function main() {
 
     console.log('\n=== Summary ===');
     console.log(`Passed: ${passedCases}/${totalCases}`);
+    if (failedCases.length) {
+        console.log(`Failed cases (${failedCases.length}): ${failedCases.join(', ')}`);
+    } else {
+        console.log('Failed cases: none');
+    }
 }
 
 main().catch((err) => {

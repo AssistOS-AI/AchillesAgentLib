@@ -1,10 +1,28 @@
+import { RETURN_RESPONSE_TOOL } from '../constants.mjs';
+
+const FINAL_RESPONSE_NOTE = [
+    `- Finish every plan with "@lastAnswer ${RETURN_RESPONSE_TOOL} <final text>" so the runtime knows the final response.`,
+    '- The argument must contain ONLY the final response text, no extra explanation.',
+    '- Do not include final responses outside of this command.',
+].join('\n');
+
 const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '' }) => {
     const rawPrompt = typeof userPrompt === 'string' ? userPrompt : '';
     const promptText = rawPrompt.trim();
     const existingPlan = typeof currentPlan === 'string' ? currentPlan.trim() : '';
 
     if (!existingPlan) {
-        return rawPrompt;
+        return [
+            'You are generating a new LightSOPLang plan.',
+            '',
+            'User requirement:',
+            promptText,
+            '',
+            'Instructions:',
+            '- Emit ONLY valid LightSOPLang code.',
+            '- Use descriptive variable names and preserve context between steps.',
+            FINAL_RESPONSE_NOTE,
+        ].join('\n');
     }
 
     const lines = [];
@@ -23,6 +41,7 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '' }) => {
     lines.push('- If the new requirement changes the behaviour of an existing step, you may update that step\'s declaration.');
     lines.push('- When you update declarations, the runtime will automatically recalculate the affected variables based on dependencies.');
     lines.push('- Avoid deleting existing steps unless they are clearly obsolete for all requirements.');
+    lines.push(FINAL_RESPONSE_NOTE);
     lines.push('');
     lines.push('Emit ONLY valid LightSOPLang code for the updated plan, with all steps needed for the combined behaviour.');
 

@@ -1,16 +1,35 @@
 import { buildAgenticSessionPlannerPrompt, extractJson } from './templates/prompts.mjs';
+import {
+    RETURN_RESPONSE_TOOL,
+    RETURN_RESPONSE_DESCRIPTION,
+    normalizeResponsePayload,
+} from './constants.mjs';
 
-class AgenticSession {
+class LoopAgentSession {
     constructor({ agent, tools, options = {} }) {
         if (!agent) {
-            throw new Error('AgenticSession requires an LLMAgent instance.');
+            throw new Error('LoopAgentSession requires an LLMAgent instance.');
         }
         if (!tools || typeof tools !== 'object') {
-            throw new Error('AgenticSession requires a tools object.');
+            throw new Error('LoopAgentSession requires a tools object.');
+        }
+        if (Object.prototype.hasOwnProperty.call(tools, RETURN_RESPONSE_TOOL)) {
+            throw new Error(`Tool name "${RETURN_RESPONSE_TOOL}" is reserved by the agent runtime.`);
+        }
+
+        if (agent) {
+            if (agent.__toolState instanceof Map) {
+                agent.__toolState.clear();
+            } else {
+                agent.__toolState = new Map();
+            }
         }
 
         this.agent = agent;
-        this.tools = tools;
+        this.tools = {
+            ...tools,
+            [RETURN_RESPONSE_TOOL]: this._buildReturnResponseTool(),
+        };
         this.options = {
             maxStepsPerTurn: Number.isFinite(options.maxStepsPerTurn)
                 ? options.maxStepsPerTurn
@@ -26,6 +45,7 @@ class AgenticSession {
         this.errorCount = 0;
         this.status = 'idle';
         this.lastAnswer = null;
+        this._pendingReturnResponse = null;
     }
 
     async newPrompt(userPrompt) {
@@ -56,6 +76,10 @@ class AgenticSession {
         return answer;
     }
 
+    getLastResult() {
+        return this.lastAnswer;
+    }
+
     async getVariables() {
         return {
             lastAnswer: this.lastAnswer,
@@ -77,26 +101,39 @@ class AgenticSession {
                 const toolPrompt = decision.toolPrompt || userPrompt;
 
                 try {
-                    const result = await this._executeTool(toolName, toolPrompt, turn);
+                    const toolResult = await this._executeTool(toolName, toolPrompt, turn);
+                    const displayResult = toolResult && toolResult.__returnResponse
+                        ? toolResult.text
+                        : toolResult;
                     turn.usedTools = true;
                     turn.steps.push({
                         type: 'tool_result',
                         tool: toolName,
                         prompt: toolPrompt,
-                        result,
+                        result: displayResult,
                     });
 
                     if (turn._lastToolName === toolName
-                        && String(turn._lastToolResult) === String(result)) {
+                        && String(turn._lastToolResult) === String(displayResult)) {
                         turn._sameToolRepeatCount = (turn._sameToolRepeatCount || 1) + 1;
                     } else {
                         turn._lastToolName = toolName;
-                        turn._lastToolResult = result;
+                        turn._lastToolResult = displayResult;
                         turn._sameToolRepeatCount = 1;
                     }
 
+                    if (toolResult && toolResult.__returnResponse) {
+                        const final = toolResult.text;
+                        turn.finalAnswer = final;
+                        turn.status = 'done';
+                        this.status = 'active';
+                        this.lastAnswer = final;
+                        this.history.push({ type: 'final_answer', answer: final });
+                        return final;
+                    }
+
                     if (turn._sameToolRepeatCount >= 3) {
-                        const final = String(result);
+                        const final = String(displayResult);
                         turn.finalAnswer = final;
                         turn.status = 'done';
                         this.status = 'active';
@@ -150,6 +187,7 @@ class AgenticSession {
 
                 const answer = (decision && decision.answer) || '';
                 turn.finalAnswer = answer;
+                this.lastAnswer = answer;
                 turn.status = 'done';
                 this.status = 'active';
                 this.history.push({ type: 'final_answer', answer });
@@ -241,7 +279,7 @@ class AgenticSession {
         this.toolCalls.push({
             tool: toolName,
             prompt: toolPrompt,
-            result,
+            result: result && result.__returnResponse ? result.text : result,
         });
         this.history.push({
             type: 'tool',
@@ -252,8 +290,22 @@ class AgenticSession {
 
         return result;
     }
+
+    _buildReturnResponseTool() {
+        return {
+            description: RETURN_RESPONSE_DESCRIPTION,
+            handler: async (_agent, payload) => {
+                const text = normalizeResponsePayload(payload);
+                this.lastAnswer = text;
+                return {
+                    __returnResponse: true,
+                    text,
+                };
+            },
+        };
+    }
 }
 
 export {
-    AgenticSession,
+    LoopAgentSession,
 };

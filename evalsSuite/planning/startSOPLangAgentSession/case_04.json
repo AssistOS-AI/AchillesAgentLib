@@ -1,10 +1,11 @@
 {
-  "description": "Approval workflow",
-  "tools": {
-    "submitRequest": "Submits a new request",
-    "managerApproval": "Requests manager approval",
-    "financeApproval": "Requests finance approval"
-  },
-  "prompt": "Submit a request. If manager approves, send to finance.",
-  "expectedPlan": "@request submitRequest $input\n@managerOutcome managerApproval $request\n@financeOutcome financeApproval $managerOutcome"
+    "description": "Data extraction",
+    "tools": {
+        "extractEmail": "Extracts email from text. Args: text",
+        "getDomain": "Returns the domain part of an email. Args: email"
+    },
+    "prompt": "Get the domain from the email in this text: 'Contact us at support@example.com for help.'",
+    "expectedOutput": {
+        "domain": "example.com"
+    }
 }

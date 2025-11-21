@@ -6,11 +6,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SUITES = [
     {
-        name: 'onlySOPLangPlan',
-        script: 'planning/evalPlanAndExecute.mjs',
-        description: 'Plan-only LightSOPLang generation compared to expected templates',
-    },
-    {
         name: 'startSOPLangAgentSession',
         script: 'planning/evalSOPLangPlanning.mjs',
         description: 'Full SOP session execution with the test command registry',
@@ -89,7 +84,6 @@ async function main() {
             suiteDescriptions,
             '',
             'Each suite exercises a different workflow:',
-            '  • onlySOPLangPlan          – Generates LightSOPLang plans (planOnly mode) and compares them to expected plan templates.',
             '  • startSOPLangAgentSession – Runs LightSOPLang sessions with the interpreter to validate actual execution output.',
             '  • startLoopAgentSession    – Runs the multi-turn agentic loop tests with tool execution.',
         ].join('\n'));

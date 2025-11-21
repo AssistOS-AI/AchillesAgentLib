@@ -1,11 +1,13 @@
 {
-  "description": "Code review automation",
-  "tools": {
-    "fetchPR": "Fetches Pull Request details",
-    "lint": "Runs linter on code",
-    "runTests": "Runs unit tests",
-    "postComment": "Posts a comment to the PR. Args: pr, message_parts..."
-  },
-  "prompt": "Get PR #123, run lint and tests. Then post a comment with the results.",
-  "expectedPlan": "@pr fetchPR 123\n@lintResult lint $pr\n@testResult runTests $pr\n@comment postComment $pr \"Lint Results:\" $lintResult \"Test Results:\" $testResult"
+    "description": "Email processing pipeline",
+    "tools": {
+        "extractEmail": "Extracts the first email from text. Args: text",
+        "getDomain": "Gets domain from email. Args: email",
+        "lowercase": "Converts text to lowercase. Args: text",
+        "length": "Returns the length of the string. Args: text"
+    },
+    "prompt": "From 'Contact SUPPORT@EXAMPLE.COM for help', extract the email, get its domain, convert domain to lowercase, then get the length.",
+    "expectedOutput": {
+        "len": "11"
+    }
 }

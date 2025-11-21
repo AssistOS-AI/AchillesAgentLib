@@ -1,10 +1,11 @@
 {
-  "description": "Data filtering pipeline",
-  "tools": {
-    "fetchData": "Fetches dataset by name",
-    "filter": "Filters data based on condition",
-    "count": "Counts items in data"
-  },
-  "prompt": "Get users, keep only active ones, and tell me how many there are.",
-  "expectedPlan": "@users fetchData \"users\"\n@activeUsers filter $users \"active == true\"\n@activeCount count $activeUsers"
+    "description": "Text processing",
+    "tools": {
+        "reverse": "Reverses the input string. Args: text",
+        "uppercase": "Converts text to uppercase. Args: text"
+    },
+    "prompt": "Reverse the string 'hello' and then make it uppercase.",
+    "expectedOutput": {
+        "final": "OLLEH"
+    }
 }

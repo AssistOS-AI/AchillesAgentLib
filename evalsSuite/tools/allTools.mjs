@@ -1,3 +1,10 @@
+
+import {
+    RETURN_RESPONSE_TOOL,
+    RETURN_RESPONSE_DESCRIPTION,
+    normalizeResponsePayload,
+} from '../../LLMAgents/constants.mjs';
+
 async function resolveArguments(agent, args, instruction, schema, regexPatterns = []) {
     // If we are in a Loop session (indicated by agent.currentSession),
     // and the arguments don't look like structured data, use LLM to extract.
@@ -79,7 +86,29 @@ async function resolveArguments(agent, args, instruction, schema, regexPatterns 
     throw new Error(`Failed to extract arguments for instruction: "${prompt}". Expected schema: ${JSON.stringify(schema)}`);
 }
 
-export const PERFORMANCE_TOOLS = {
+const getToolStateBucket = (agent) => {
+    if (!agent) {
+        return null;
+    }
+    if (agent.__toolState instanceof Map) {
+        return agent.__toolState;
+    }
+    agent.__toolState = new Map();
+    return agent.__toolState;
+};
+
+const getToolState = (agent, toolName) => {
+    const bucket = getToolStateBucket(agent);
+    if (!bucket) {
+        return null;
+    }
+    if (!bucket.has(toolName)) {
+        bucket.set(toolName, { count: 0, data: null });
+    }
+    return bucket.get(toolName);
+};
+
+const BASE_PERFORMANCE_TOOLS = {
     add: {
         description: 'Adds two numbers. Usage: add(a, b) or add("a, b")',
         handler: async (agent, ...args) => {
@@ -180,6 +209,16 @@ export const PERFORMANCE_TOOLS = {
             return String(String(text).length);
         },
     },
+    substring: {
+        description: 'Extracts a substring given text, start, and length. Usage: substring(text, start, length)',
+        handler: async (agent, ...args) => {
+            const resolved = await resolveArguments(agent, args, 'Extract text, start index, and length for substring.', ['text', 'number', 'number']);
+            const [text, start, length] = resolved;
+            const begin = Number(start);
+            const take = Number(length);
+            return String(text).substring(begin, begin + take);
+        },
+    },
     concat: {
         description: 'Concatenates two strings. Usage: concat(a, b) or concat("a, b")',
         handler: async (agent, ...args) => {
@@ -188,6 +227,14 @@ export const PERFORMANCE_TOOLS = {
             ]);
             const [a, b] = resolved;
             return String(a) + String(b);
+        },
+    },
+    contains: {
+        description: 'Checks if the first string contains the second string.',
+        handler: async (agent, ...args) => {
+            const resolved = await resolveArguments(agent, args, 'Extract haystack and needle strings.', ['string', 'string']);
+            const [haystack, needle] = resolved;
+            return String(haystack).includes(String(needle)) ? 'true' : 'false';
         },
     },
     isEven: {
@@ -339,4 +386,53 @@ export const PERFORMANCE_TOOLS = {
             return String(result).trim();
         },
     },
+    flakyAdd: {
+        description: 'Adds two numbers but may fail the first time with a transient error.',
+        handler: async (agent, ...args) => {
+            const resolved = await resolveArguments(agent, args, 'Extract two numbers to add.', ['number', 'number']);
+            const [a, b] = resolved;
+            const state = getToolState(agent, 'flakyAdd');
+            state.count = (state.count || 0) + 1;
+            if (state.count === 1) {
+                throw new Error('flakyAdd encountered a transient failure. Regenerate or retry the same plan.');
+            }
+            return String(Number(a) + Number(b));
+        },
+    },
+    flakyUppercase: {
+        description: 'Converts text to uppercase but fails the first time to simulate flaky dependencies.',
+        handler: async (agent, ...args) => {
+            const resolved = await resolveArguments(agent, args, 'Extract the text content to be uppercased.', ['text']);
+            const text = resolved[0];
+            const state = getToolState(agent, 'flakyUppercase');
+            state.count = (state.count || 0) + 1;
+            if (state.count === 1) {
+                throw new Error('flakyUppercase could not acquire the transform service. Try again.');
+            }
+            return String(text).toUpperCase();
+        },
+    },
+    and: {
+        description: 'Logical AND of two booleans.',
+        handler: async (agent, ...args) => {
+            const resolved = await resolveArguments(agent, args, 'Extract two boolean values (true/false).', ['boolean', 'boolean']);
+            const [a, b] = resolved.map((val) => String(val).trim().toLowerCase() === 'true');
+            return (a && b) ? 'true' : 'false';
+        },
+    },
+    or: {
+        description: 'Logical OR of two booleans.',
+        handler: async (agent, ...args) => {
+            const resolved = await resolveArguments(agent, args, 'Extract two boolean values (true/false).', ['boolean', 'boolean']);
+            const [a, b] = resolved.map((val) => String(val).trim().toLowerCase() === 'true');
+            return (a || b) ? 'true' : 'false';
+        },
+    },
+
+};
+
+const PERFORMANCE_TOOLS = { ...BASE_PERFORMANCE_TOOLS };
+
+export {
+    PERFORMANCE_TOOLS,
 };

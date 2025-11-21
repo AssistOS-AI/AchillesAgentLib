@@ -1,13 +1,13 @@
 {
-    "description": "Complex arithmetic with multiple operations",
+    "description": "Complex arithmetic with division",
     "tools": {
         "add": "Adds two numbers. Args: num1, num2",
-        "multiply": "Multiplies two numbers. Args: num1, num2",
         "subtract": "Subtracts second number from first. Args: num1, num2",
+        "multiply": "Multiplies two numbers. Args: num1, num2",
         "divide": "Divides first number by second. Args: num1, num2"
     },
-    "prompt": "Calculate ((10 + 5) * 3 - 8) / 2.",
+    "prompt": "Calculate (15 + 5) / (10 - 3) * 2.",
     "expectedOutput": {
-        "result": "18.5"
+        "result": "5.714285714285714"
     }
 }
