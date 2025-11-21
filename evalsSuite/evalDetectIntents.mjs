@@ -8,7 +8,7 @@ import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
 envAutoConfig();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SKILLS_FILE = path.join(__dirname, 'detectIntents', 'skillsDescription.json');
+const SKILLS_DESC_PATH = path.join(__dirname, 'detectIntents', 'skillsDescription.json');
 const CASES_DIR = path.join(__dirname, 'detectIntents');
 const FAILURES_FILE_PATH = path.join(__dirname, 'detectIntents/.edi_failures');
 
@@ -245,7 +245,7 @@ Description 1 (Expected): "${expected}"
 Description 2 (Actual): "${actual}"
 
 Do these two descriptions convey essentially the same meaning and intent?
-Consider acronyms/abbreviations vs. their expanded forms as equivalent (e.g., NFS vs Non Functional Specification, API vs Application Programming Interface).
+Treat all acronyms/abbreviations as matches to their expanded forms (e.g., NFS = Non Functional Specification, API = Application Programming Interface, DS = Design Specification). If an acronym matches in syntax with the extended form wherever they might be in the 2 strings, treat it as a match.
 Ignore minor phrasing differences. Focus on whether the core action and key details (IDs, priorities, specific texts) are preserved. If the actual text includes extra clarifications but does not contradict the expected action, treat it as a match.
 
 Respond with exactly "YES" or "NO" and  a reason if "NO".`;
