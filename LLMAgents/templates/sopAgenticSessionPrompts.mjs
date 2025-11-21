@@ -1,9 +1,10 @@
 import { RETURN_RESPONSE_TOOL } from '../constants.mjs';
 
 const FINAL_RESPONSE_NOTE = [
-    `- Finish every plan with "@lastAnswer ${RETURN_RESPONSE_TOOL} <final text>" so the runtime knows the final response.`,
-    '- The argument must contain ONLY the final response text, no extra explanation.',
-    '- Do not include final responses outside of this command.',
+    `- Finish every plan with EXACTLY ONE line of the form "@lastAnswer ${RETURN_RESPONSE_TOOL} <final text>" so the runtime knows the final response.`,
+    '- The argument must contain ONLY the final user-visible response text (or a single variable reference like "$finalResult"), no extra explanation.',
+    '- Do not include additional final responses outside of this command.',
+    '- Do not prefix the value with phrases like "The result is" unless the user explicitly asked for that wording.',
 ].join('\n');
 
 const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '' }) => {

@@ -196,7 +196,12 @@ export class LightSOPLangInterpreter {
                 previousCode: null,
             });
             if (this.onPlanGenerated) {
-                this.onPlanGenerated(generated);
+                this.onPlanGenerated({
+                    code: generated,
+                    previousCode: null,
+                    reason: 'initial',
+                    attempt: 0,
+                });
             }
             if (this.generateOnly) {
                 // For generate-only mode, store the code and resolve immediately
@@ -225,11 +230,15 @@ export class LightSOPLangInterpreter {
         if (this.englishContext) {
             this.englishContext.lastCode = code;
         }
-
+ 
         const seenNames = new Set();
         const changedVariables = [];
-
+        let returnResponseDeclarations = 0;
+ 
         for (const [name, declaration] of declarations) {
+            if (declaration.command === RETURN_RESPONSE_TOOL) {
+                returnResponseDeclarations += 1;
+            }
             let variable = this.variables.get(name);
             if (!variable) {
                 variable = new VariableState(name);
@@ -243,6 +252,11 @@ export class LightSOPLangInterpreter {
             }
             seenNames.add(name);
         }
+ 
+        if (this.englishContext && returnResponseDeclarations === 0) {
+            throw new Error('LightSOPLang plans generated from #!english must include at least one "returnResponse" declaration (for example "@lastAnswer returnResponse <final text>").');
+        }
+
 
         for (const name of Array.from(this.variables.keys())) {
             if (name === 'input' && this.inputValue !== undefined && !seenNames.has('input')) {
@@ -404,7 +418,12 @@ export class LightSOPLangInterpreter {
         }
 
         if (this.onPlanGenerated) {
-            this.onPlanGenerated(newCode);
+            this.onPlanGenerated({
+                code: newCode,
+                previousCode: this.currentSourceCode,
+                reason,
+                attempt: this.englishContext.attempt,
+            });
         }
         this.updateCode(newCode, { preserveEnglish: true });
         return true;

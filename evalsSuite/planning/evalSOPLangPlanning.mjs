@@ -59,11 +59,16 @@ async function runCase(agent, caseFile, caseData) {
     const prompts = buildPromptList(caseData);
     const skillDescriptions = caseData.tools || {};
     const commandsRegistry = createPlanningCommandsRegistry(agent, skillDescriptions);
-
+ 
+    const beforeInput = agent.getInputCounter ? agent.getInputCounter() : 0;
+    const beforeOutput = agent.getOutputCounter ? agent.getOutputCounter() : 0;
+    const startTime = Date.now();
+ 
     const session = await agent.startSOPLangAgentSession(skillDescriptions, prompts[0], {
         planOnly: false,
         commandsRegistry,
     });
+
     for (let i = 1; i < prompts.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
         await session.newPrompt(prompts[i]);
@@ -71,21 +76,58 @@ async function runCase(agent, caseFile, caseData) {
 
     const summary = await session.getVariables();
     const variables = summary?.variables || {};
-    const lastAnswer = summary?.lastAnswer ?? null;
-
+ 
+    const lastAnswerFromGetter = typeof session.getLastResult === 'function'
+        ? session.getLastResult()
+        : (summary?.lastAnswer ?? null);
+    const lastAnswerFromSummary = summary?.lastAnswer ?? null;
+    if (lastAnswerFromSummary !== null
+        && lastAnswerFromSummary !== undefined
+        && lastAnswerFromGetter !== null
+        && lastAnswerFromGetter !== undefined
+        && String(lastAnswerFromGetter) !== String(lastAnswerFromSummary)) {
+        throw new Error(`SOPSession invariant violated: getLastResult() ("${lastAnswerFromGetter}")`
+            + ` differs from getVariables().lastAnswer ("${lastAnswerFromSummary}")`);
+    }
+ 
+    const lastAnswer = lastAnswerFromGetter;
+ 
     const evaluation = evaluateOutputs(caseData.expectedOutput, variables, lastAnswer);
+ 
+    const endTime = Date.now();
+    const afterInput = agent.getInputCounter ? agent.getInputCounter() : beforeInput;
+    const afterOutput = agent.getOutputCounter ? agent.getOutputCounter() : beforeOutput;
+    const durationMs = endTime - startTime;
+    const deltaInput = afterInput - beforeInput;
+    const deltaOutput = afterOutput - beforeOutput;
+ 
     if (!evaluation.ok) {
-        console.log(`${COLORS.RED}❌ ${caseFile} failed expectations.${COLORS.RESET}`);
+        console.log(`${COLORS.RED}❌ ${caseFile} failed expectations. [${durationMs} ms, LLM chars in/out +${deltaInput}/+${deltaOutput}]${COLORS.RESET}`);
         evaluation.missing.forEach((entry) => {
             console.log(`${COLORS.YELLOW}- Expected ${entry.key} = ${entry.expected}${COLORS.RESET}`);
             console.log(`${COLORS.RED}  Actual: ${entry.actual ?? '(missing)'}${COLORS.RESET}`);
         });
+ 
+        try {
+            const plan = typeof session.getPlan === 'function'
+                ? await session.getPlan()
+                : '(no plan available)';
+            console.log(`${COLORS.YELLOW}--- Generated SOP plan for ${caseFile} ---${COLORS.RESET}`);
+            console.log(plan || '(empty plan)');
+            console.log(`${COLORS.YELLOW}--- End of SOP plan ---${COLORS.RESET}`);
+        } catch (planError) {
+            console.log(`${COLORS.RED}[evalSOPLangPlanning] Failed to retrieve plan: ${planError.message}${COLORS.RESET}`);
+        }
+ 
+        console.log(`  Duration: ${durationMs} ms`);
+        console.log(`  LLM chars in/out: +${deltaInput} / +${deltaOutput}`);
         return false;
     }
-
-    console.log(`${COLORS.GREEN}✅ ${caseFile} produced the expected output.${COLORS.RESET}`);
+ 
+    console.log(`${COLORS.GREEN}✅ ${caseFile} produced the expected output. [${durationMs} ms, LLM chars in/out +${deltaInput}/+${deltaOutput}]${COLORS.RESET}`);
     return true;
 }
+
 
 async function main() {
     console.log('Hint: run with --help to see available options.');

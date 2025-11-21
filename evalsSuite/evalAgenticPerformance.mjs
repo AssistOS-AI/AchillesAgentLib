@@ -93,8 +93,11 @@ function createSOPCommandsRegistry(agent) {
             if (!spec) {
                 return response.fail(`Unknown command: ${command}`);
             }
+            const prompt = Array.isArray(args)
+                ? args.map((v) => (v === null || v === undefined ? '' : String(v))).join(' ')
+                : (args === null || args === undefined ? '' : String(args));
             try {
-                const value = await spec.handler(agent, ...(args ?? []));
+                const value = await spec.handler(agent, prompt);
                 return response.success(value);
             } catch (error) {
                 return response.fail(error.message || String(error));
@@ -231,12 +234,16 @@ async function evaluateSOPStep(session, step) {
     const normalizedAnswer = normalizeValue(answer);
     const ok = normalizedExpected ? normalizedExpected === normalizedAnswer : false;
 
+    const plan = typeof session.getPlan === 'function'
+        ? await session.getPlan()
+        : '';
+ 
     return {
         ok,
         expected: step.expected,
         answer: answer ?? '',
         variables: {}, // No longer tracking internal variables for validation
-        plan: session.getSOPLangPlan() || '',
+        plan,
     };
 }
 

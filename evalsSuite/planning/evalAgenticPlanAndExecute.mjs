@@ -329,14 +329,19 @@ async function main() {
         }
 
         console.log(`\nRunning ${caseFile}: ${description}`);
-
+ 
+        const beforeInput = agent.getInputCounter ? agent.getInputCounter() : 0;
+        const beforeOutput = agent.getOutputCounter ? agent.getOutputCounter() : 0;
+        const startTime = Date.now();
+ 
         try {
             if (!Array.isArray(prompts) || prompts.length === 0) {
                 throw new Error('Each case must provide at least one prompt.');
             }
-
+ 
             // Start agentic session with first prompt
             const session = await agent.startLoopAgentSession(toolsForAgent, prompts[0]);
+
 
             if (!session || typeof session.newPrompt !== 'function') {
                 throw new Error('startLoopAgentSession must return an object with a newPrompt(prompt) method.');
@@ -358,8 +363,23 @@ async function main() {
             } else {
                 console.warn('  Warning: session does not expose getVariables() or variables map.');
             }
+ 
+            const lastAnswerFromGetter = typeof session.getLastResult === 'function'
+                ? session.getLastResult()
+                : undefined;
+            const lastAnswerFromSummary = summary.lastAnswer;
+ 
+            if (lastAnswerFromGetter !== undefined
+                && lastAnswerFromSummary !== undefined
+                && String(lastAnswerFromGetter) !== String(lastAnswerFromSummary)) {
+                throw new Error(`LoopAgentSession invariant violated: getLastResult() ("${lastAnswerFromGetter}")`
+                    + ` differs from getVariables().lastAnswer ("${lastAnswerFromSummary}")`);
+            }
+ 
+            const finalAnswer = (lastAnswerFromGetter !== undefined
+                ? lastAnswerFromGetter
+                : (lastAnswerFromSummary || ''));
 
-            const finalAnswer = summary.lastAnswer || '';
 
             // Evaluate results
             let passed = true;
@@ -401,22 +421,33 @@ async function main() {
                 }
             }
 
+            const endTime = Date.now();
+            const afterInput = agent.getInputCounter ? agent.getInputCounter() : beforeInput;
+            const afterOutput = agent.getOutputCounter ? agent.getOutputCounter() : beforeOutput;
+            const durationMs = endTime - startTime;
+            const deltaInput = afterInput - beforeInput;
+            const deltaOutput = afterOutput - beforeOutput;
+ 
             if (passed) {
                 passedCases += 1;
-                console.log(`${COLORS.GREEN}✅ ${caseFile} passed${COLORS.RESET}`);
+                console.log(`${COLORS.GREEN}✅ ${caseFile} passed [${durationMs} ms, LLM chars in/out +${deltaInput}/+${deltaOutput}]${COLORS.RESET}`);
             } else {
                 failedCases.push(caseFile);
-                console.log(`${COLORS.RED}❌ ${caseFile} failed${COLORS.RESET}`);
+                console.log(`${COLORS.RED}❌ ${caseFile} failed [${durationMs} ms, LLM chars in/out +${deltaInput}/+${deltaOutput}]${COLORS.RESET}`);
                 failureReasons.forEach((reason) => console.log(`  ${reason}`));
                 console.log('  Session summary:', summary);
             }
+ 
+            console.log(`  Duration: ${durationMs} ms`);
+            console.log(`  LLM chars in/out: +${deltaInput} / +${deltaOutput}`);
         } catch (err) {
             failedCases.push(caseFile);
             console.error(`${COLORS.RED}❌ ${caseFile} execution error:${COLORS.RESET}`, err.message);
         }
-
+ 
         totalCases += 1;
     }
+
 
     console.log('\n=== Summary ===');
     console.log(`Passed: ${passedCases}/${totalCases}`);

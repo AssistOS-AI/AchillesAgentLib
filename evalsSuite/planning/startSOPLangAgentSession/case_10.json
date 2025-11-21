@@ -8,6 +8,7 @@
     },
     "prompt": "Add 3 and 4, multiply the result by 2, check if the final number is even, then invert that boolean.",
     "expectedOutput": {
-        "lastAnswer": "true"
-    }
+        "lastAnswer": "false"
+     }
+
 }

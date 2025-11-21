@@ -73,19 +73,26 @@ class LoopAgentSession {
 
         const answer = await this._runLoopForPrompt(userPrompt, turn);
         this.lastAnswer = answer;
+ 
+        const invariantAnswer = this.getLastResult();
+        if (invariantAnswer !== this.lastAnswer) {
+            throw new Error('LoopAgentSession invariant violated: getLastResult() mismatch with lastAnswer.');
+        }
+ 
         return answer;
     }
-
+ 
     getLastResult() {
         return this.lastAnswer;
     }
-
+ 
     async getVariables() {
         return {
-            lastAnswer: this.lastAnswer,
+            lastAnswer: this.getLastResult(),
             status: this.status,
         };
     }
+
 
     async _runLoopForPrompt(userPrompt, turn) {
         const { maxStepsPerTurn, maxErrors } = this.options;

@@ -5,32 +5,48 @@ import {
     normalizeResponsePayload,
 } from '../../LLMAgents/constants.mjs';
 
-async function resolveArguments(agent, args, instruction, schema, regexPatterns = []) {
+async function resolveArguments(agent, prompt, instruction, schema, regexPatterns = []) {
     // If we are in a Loop session (indicated by agent.currentSession),
     // and the arguments don't look like structured data, use LLM to extract.
 
     const isLoop = !!agent.currentSession;
-    const input = args.length === 1 ? args[0] : args;
+    const input = String(prompt ?? '');
 
     // eslint-disable-next-line no-console
-    console.log(`[resolveArguments] isLoop=${isLoop}, args=${JSON.stringify(args)}, instruction="${instruction}"`);
+    console.log(`[resolveArguments] isLoop=${isLoop}, prompt=${JSON.stringify(input)}, instruction="${instruction}"`);
 
     if (!isLoop) {
-        // SOP mode: Expect exact arguments
-        // Sometimes SOP adapter might pass a single string "a, b" if it came from a planner that formatted it so.
-        if (args.length === 1 && typeof args[0] === 'string' && args[0].includes(',')) {
-            return args[0].split(',').map(x => x.trim());
+        // SOP mode: Planner is expected to provide compact, parser-friendly arguments.
+        // Heuristics:
+        //  - Single-argument tools: return the whole input as one argument.
+        //  - Multi-argument tools: prefer comma-separated values, otherwise split on whitespace.
+        const trimmed = input.trim();
+        if (!trimmed) {
+            return [];
         }
-        return args;
+        if (schema.length <= 1) {
+            return [trimmed];
+        }
+        if (trimmed.includes(',')) {
+            const parts = trimmed.split(',').map((x) => x.trim()).filter(Boolean);
+            if (parts.length >= schema.length) {
+                return parts.slice(0, schema.length);
+            }
+        }
+        const parts = trimmed.split(/\s+/).filter(Boolean);
+        if (parts.length >= schema.length) {
+            return parts.slice(0, schema.length);
+        }
+        return [trimmed];
     }
 
     // Loop mode: Input is likely a natural language instruction.
     // We need to extract arguments.
-    const prompt = String(input);
+    const loopPrompt = input;
 
     // 1. Try Regex Patterns
     for (const pattern of regexPatterns) {
-        const match = prompt.match(pattern);
+        const match = loopPrompt.match(pattern);
         if (match) {
             // Assume capture groups correspond to schema order
             // If schema has 2 items, we expect at least 2 capture groups.
@@ -45,13 +61,11 @@ async function resolveArguments(agent, args, instruction, schema, regexPatterns 
     }
 
     // 2. Optimization: Try to parse "a, b" or simple numbers if schema matches
-    if (args.length === 1) {
-        const parts = prompt.split(',');
-        if (parts.length > 1 && parts.every(p => !isNaN(parseFloat(p)))) {
-            // eslint-disable-next-line no-console
-            console.log('[resolveArguments] Simple comma split matched numbers');
-            return parts.map(p => p.trim());
-        }
+    const partsForLoop = loopPrompt.split(',');
+    if (partsForLoop.length > 1 && partsForLoop.every((p) => !Number.isNaN(Number.parseFloat(p)))) {
+        // eslint-disable-next-line no-console
+        console.log('[resolveArguments] Simple comma split matched numbers');
+        return partsForLoop.map((p) => p.trim());
     }
 
     // 3. Use LLM to extract
@@ -111,8 +125,8 @@ const getToolState = (agent, toolName) => {
 const BASE_PERFORMANCE_TOOLS = {
     add: {
         description: 'Adds two numbers. Usage: add(a, b) or add("a, b")',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract two numbers to add.', ['number', 'number'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract two numbers to add.', ['number', 'number'], [
                 /add\s+(\d+)\s+and\s+(\d+)/i,
                 /(\d+)\s*\+\s*(\d+)/
             ]);
@@ -122,8 +136,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     multiply: {
         description: 'Multiplies two numbers. Usage: multiply(a, b) or multiply("a, b")',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract two numbers to multiply.', ['number', 'number'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract two numbers to multiply.', ['number', 'number'], [
                 /multiply\s+(\d+)\s+by\s+(\d+)/i,
                 /(\d+)\s*\*\s*(\d+)/
             ]);
@@ -133,8 +147,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     subtract: {
         description: 'Subtracts the second number from the first. Usage: subtract(a, b) or subtract("a, b")',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract two numbers: [minuend, subtrahend].', ['number', 'number'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract two numbers: [minuend, subtrahend].', ['number', 'number'], [
                 /(\d+)\s*-\s*(\d+)/
             ]);
             // If regex matched "Subtract 7 from 20", we might get [7, 20] if we added that regex.
@@ -155,8 +169,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     divide: {
         description: 'Divides the first number by the second. Usage: divide(a, b) or divide("a, b")',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract two numbers: [numerator, denominator].', ['number', 'number'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract two numbers: [numerator, denominator].', ['number', 'number'], [
                 /divide\s+(\d+)\s+by\s+(\d+)/i,
                 /(\d+)\s*\/\s*(\d+)/
             ]);
@@ -168,8 +182,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     reverse: {
         description: 'Reverses the provided text.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract the text content to be reversed.', ['text'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract the text content to be reversed.', ['text'], [
                 /reverse\s+(?:the\s+text\s+)?['"]?(.+?)['"]?$/i
             ]);
             const text = resolved[0];
@@ -178,8 +192,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     uppercase: {
         description: 'Converts the provided text to uppercase.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract the text content to be uppercased.', ['text'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract the text content to be uppercased.', ['text'], [
                 /uppercase\s+(?:the\s+text\s+)?['"]?(.+?)['"]?$/i,
                 /convert\s+(?:['"]?(.+?)['"]?)\s+to\s+uppercase/i
             ]);
@@ -189,8 +203,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     lowercase: {
         description: 'Converts the provided text to lowercase.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract the text content to be lowercased.', ['text'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract the text content to be lowercased.', ['text'], [
                 /lowercase\s+(?:the\s+text\s+)?['"]?(.+?)['"]?$/i,
                 /convert\s+(?:['"]?(.+?)['"]?)\s+to\s+lowercase/i
             ]);
@@ -200,8 +214,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     length: {
         description: 'Returns the character length of the provided text.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract the text content to count length.', ['text'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract the text content to count length.', ['text'], [
                 /length\s+of\s+(?:the\s+text\s+)?['"]?(.+?)['"]?$/i,
                 /count\s+characters\s+in\s+['"]?(.+?)['"]?$/i
             ]);
@@ -211,8 +225,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     substring: {
         description: 'Extracts a substring given text, start, and length. Usage: substring(text, start, length)',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract text, start index, and length for substring.', ['text', 'number', 'number']);
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract text, start index, and length for substring.', ['text', 'number', 'number']);
             const [text, start, length] = resolved;
             const begin = Number(start);
             const take = Number(length);
@@ -221,8 +235,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     concat: {
         description: 'Concatenates two strings. Usage: concat(a, b) or concat("a, b")',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract two strings to concatenate.', ['string', 'string'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract two strings to concatenate.', ['string', 'string'], [
                 /concatenate\s+['"]?(.+?)['"]?\s+and\s+['"]?(.+?)['"]?$/i
             ]);
             const [a, b] = resolved;
@@ -231,16 +245,16 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     contains: {
         description: 'Checks if the first string contains the second string.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract haystack and needle strings.', ['string', 'string']);
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract haystack and needle strings.', ['string', 'string']);
             const [haystack, needle] = resolved;
             return String(haystack).includes(String(needle)) ? 'true' : 'false';
         },
     },
     isEven: {
         description: 'Returns true if the provided integer is even.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract the integer to check.', ['number'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract the integer to check.', ['number'], [
                 /is\s+(\d+)\s+even/i,
                 /check\s+if\s+(\d+)\s+is\s+even/i
             ]);
@@ -250,8 +264,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     invert: {
         description: 'Inverts a boolean string (true/false).',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract the boolean value (true/false) to invert.', ['boolean'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract the boolean value (true/false) to invert.', ['boolean'], [
                 /invert\s+(true|false)/i
             ]);
             const bool = resolved[0];
@@ -260,16 +274,16 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     extractEmail: {
         description: 'Extracts the first e-mail address from text.',
-        handler: async (agent, ...args) => {
-            const text = args.join(' ');
+        handler: async (agent, prompt) => {
+            const text = String(prompt ?? '');
             const match = String(text).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
             return match ? match[0] : '';
         },
     },
     getDomain: {
         description: 'Extracts the domain portion of an e-mail address.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract the email address to get domain from.', ['email'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract the email address to get domain from.', ['email'], [
                 /domain\s+of\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i
             ]);
             const email = resolved[0];
@@ -279,8 +293,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     analyzeSentiment: {
         description: 'Analyzes the sentiment of the text (POSITIVE, NEGATIVE, NEUTRAL).',
-        handler: async (agent, ...args) => {
-            const text = args.join(' ');
+        handler: async (agent, prompt) => {
+            const text = String(prompt ?? '');
             const instruction = [
                 'Analyze the sentiment of the following text.',
                 'Respond ONLY with one of: POSITIVE, NEGATIVE, NEUTRAL.',
@@ -298,8 +312,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     translateText: {
         description: 'Translates text to a specified language. Usage: translateText(targetLang, text)',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract target language and text to translate.', ['targetLang', 'text'], [
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract target language and text to translate.', ['targetLang', 'text'], [
                 /translate\s+['"]?(.+?)['"]?\s+to\s+(\w+)$/i // "Translate 'hello' to Spanish" -> captures [text, lang]. Wait, schema is [targetLang, text].
                 // Regex captures [text, lang]. We need to swap.
                 // resolveArguments returns captures in order.
@@ -333,8 +347,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     classifyTopic: {
         description: 'Classifies text into one of: Finance, Health, Technology, Sports.',
-        handler: async (agent, ...args) => {
-            const text = args.join(' ');
+        handler: async (agent, prompt) => {
+            const text = String(prompt ?? '');
             const instruction = [
                 'Classify the following text into one of these topics: Finance, Health, Technology, Sports.',
                 'Respond ONLY with the topic name.',
@@ -351,8 +365,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     extractNames: {
         description: 'Extracts person names from text. Returns comma-separated list.',
-        handler: async (agent, ...args) => {
-            const text = args.join(' ');
+        handler: async (agent, prompt) => {
+            const text = String(prompt ?? '');
             const instruction = [
                 'Extract all person names from the following text.',
                 'Respond ONLY with a comma-separated list of names.',
@@ -370,8 +384,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     summarizeContent: {
         description: 'Summarizes text into a single sentence.',
-        handler: async (agent, ...args) => {
-            const text = args.join(' ');
+        handler: async (agent, prompt) => {
+            const text = String(prompt ?? '');
             const instruction = [
                 'Summarize the following text into exactly one sentence.',
                 'Respond ONLY with the summary.',
@@ -388,8 +402,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     flakyAdd: {
         description: 'Adds two numbers but may fail the first time with a transient error.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract two numbers to add.', ['number', 'number']);
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract two numbers to add.', ['number', 'number']);
             const [a, b] = resolved;
             const state = getToolState(agent, 'flakyAdd');
             state.count = (state.count || 0) + 1;
@@ -401,8 +415,8 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     flakyUppercase: {
         description: 'Converts text to uppercase but fails the first time to simulate flaky dependencies.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract the text content to be uppercased.', ['text']);
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract the text content to be uppercased.', ['text']);
             const text = resolved[0];
             const state = getToolState(agent, 'flakyUppercase');
             state.count = (state.count || 0) + 1;
@@ -414,16 +428,16 @@ const BASE_PERFORMANCE_TOOLS = {
     },
     and: {
         description: 'Logical AND of two booleans.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract two boolean values (true/false).', ['boolean', 'boolean']);
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract two boolean values (true/false).', ['boolean', 'boolean']);
             const [a, b] = resolved.map((val) => String(val).trim().toLowerCase() === 'true');
             return (a && b) ? 'true' : 'false';
         },
     },
     or: {
         description: 'Logical OR of two booleans.',
-        handler: async (agent, ...args) => {
-            const resolved = await resolveArguments(agent, args, 'Extract two boolean values (true/false).', ['boolean', 'boolean']);
+        handler: async (agent, prompt) => {
+            const resolved = await resolveArguments(agent, prompt, 'Extract two boolean values (true/false).', ['boolean', 'boolean']);
             const [a, b] = resolved.map((val) => String(val).trim().toLowerCase() === 'true');
             return (a || b) ? 'true' : 'false';
         },
