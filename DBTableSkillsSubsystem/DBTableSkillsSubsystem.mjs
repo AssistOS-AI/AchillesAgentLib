@@ -99,6 +99,31 @@ export class DBTableSkillsSubsystem {
             throw new Error(`Invalid skill definition for "${name}": ${validation.errors.join(', ')}`);
         }
 
+        // Register model with DB Adapter if available
+        if (this.dbAdapter) {
+            try {
+                if (typeof this.dbAdapter.addType === 'function') {
+                    await this.dbAdapter.addType({
+                        [parsedSkill.tableName]: parsedSkill.fields
+                    });
+                } else if (typeof this.dbAdapter.addModel === 'function') {
+                    await this.dbAdapter.addModel({
+                        name: parsedSkill.tableName,
+                        fields: parsedSkill.fields,
+                        description: parsedSkill.tablePurpose
+                    });
+                }
+            } catch (error) {
+                const msg = error.message || '';
+                if (msg.includes('already exists') || msg.includes('Refusing to overwrite') || msg.includes('Function create')) {
+                    // Model already registered, this is fine
+                } else {
+                    console.warn(`Failed to register model "${parsedSkill.tableName}" with DB adapter:`, msg);
+                }
+                // Continue anyway
+            }
+        }
+
         // Generate functions if needed
         let functions;
         const generatedPath = tskillPath ? path.join(path.dirname(tskillPath), 'tskill.generated.mjs') : null;
@@ -299,15 +324,6 @@ Respond with JSON:
         const allDerivators = Object.values(functions.derivators || {}).join('\n\n');
 
         const contextCode = `(function(dbAdapter, tableName) {
-${allPresenters}
-
-${allResolvers}
-
-${allValidators}
-
-${allEnumerators}
-
-${allDerivators}
 
 // Override selectRecords to use dbAdapter
 async function selectRecords(filter) {
@@ -369,7 +385,15 @@ return {
 };
 })(dbAdapter, tableName)`;
 
-        return eval(contextCode);
+        // Debug generated code
+        // console.log('Generated Context Code:', contextCode);
+        try {
+            return eval(contextCode);
+        } catch (e) {
+            console.error('Error evaluating context code:', e);
+            console.error('Code was:', contextCode);
+            throw e;
+        }
     }
 
     /**
