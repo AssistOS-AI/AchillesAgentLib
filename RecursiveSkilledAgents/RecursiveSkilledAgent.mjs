@@ -141,6 +141,9 @@ export class RecursiveSkilledAgent {
         skillFilter = null,
         logger = console,
         dbAdapter = null,
+        onProcessingBegin = null,
+        onProcessingProgress = null,
+        onProcessingEnd = null,
     } = {}) {
         if (skilledAgent && !(skilledAgent instanceof SkilledAgent)) {
             throw new TypeError('RecursiveSkilledAgent requires a SkilledAgent instance.');
@@ -150,6 +153,10 @@ export class RecursiveSkilledAgent {
         this.startDir = startDir;
         this.skillFilter = typeof skillFilter === 'function' ? skillFilter : (() => true);
         this.dbAdapter = dbAdapter;
+        this.onProcessingBegin = typeof onProcessingBegin === 'function' ? onProcessingBegin : null;
+        this.onProcessingProgress = typeof onProcessingProgress === 'function' ? onProcessingProgress : null;
+        this.onProcessingEnd = typeof onProcessingEnd === 'function' ? onProcessingEnd : null;
+        this._isProcessing = false; // Track if we're already processing to prevent nested callbacks
 
         this.aggregatorAgent = skilledAgent
             || createSkilledAgent({ ...skilledAgentOptions });
@@ -356,6 +363,36 @@ export class RecursiveSkilledAgent {
             this.skillAliases.set(alias, skillRecord);
             this.skillToSubsystem.set(alias, type);
         });
+    }
+
+    _invokeProcessingBegin() {
+        if (this.onProcessingBegin) {
+            try {
+                this.onProcessingBegin();
+            } catch (error) {
+                this.logger?.warn?.(`[RecursiveSkilledAgent] onProcessingBegin callback error: ${error.message}`);
+            }
+        }
+    }
+
+    _invokeProcessingProgress() {
+        if (this.onProcessingProgress) {
+            try {
+                this.onProcessingProgress();
+            } catch (error) {
+                this.logger?.warn?.(`[RecursiveSkilledAgent] onProcessingProgress callback error: ${error.message}`);
+            }
+        }
+    }
+
+    _invokeProcessingEnd() {
+        if (this.onProcessingEnd) {
+            try {
+                this.onProcessingEnd();
+            } catch (error) {
+                this.logger?.warn?.(`[RecursiveSkilledAgent] onProcessingEnd callback error: ${error.message}`);
+            }
+        }
     }
 
     getSkillRecord(identifier) {
@@ -598,69 +635,84 @@ export class RecursiveSkilledAgent {
     }
 
     async executeWithReviewMode(taskDescription, options = {}, reviewMode = 'none') {
-        if (this.pendingPreparations && this.pendingPreparations.length) {
-            const toAwait = this.pendingPreparations;
-            this.pendingPreparations = [];
-            await Promise.all(toAwait);
+        // Only invoke callbacks at the top level, not for nested calls
+        const isTopLevel = !this._isProcessing;
+        if (isTopLevel) {
+            this._isProcessing = true;
+            this._invokeProcessingBegin();
         }
 
-        const {
-            skillName = null,
-            promptReader = null,
-            subsystemType = null, // retained for backwards compatibility
-            ...forward
-        } = options || {};
-
-        if (!skillName) {
-            return this.executeWithoutExplicitSkill(taskDescription, forward, reviewMode);
-        }
-
-        const skillRecord = this.getSkillRecord(skillName);
-        if (!skillRecord) {
-            throw new Error(`Skill "${skillName}" is not registered.`);
-        }
-
-        const subsystem = this.ensureSubsystem(skillRecord.type);
-
-        const args = { ...(forward.args || {}) };
-        const hasOwn = (name) => Object.prototype.hasOwnProperty.call(args, name);
-        const injectArg = (name) => {
-            if (typeof name === 'string' && name && !hasOwn(name)) {
-                args[name] = taskDescription;
+        try {
+            if (this.pendingPreparations && this.pendingPreparations.length) {
+                const toAwait = this.pendingPreparations;
+                this.pendingPreparations = [];
+                await Promise.all(toAwait);
             }
-        };
 
-        if (skillRecord.metadata?.defaultArgument) {
-            injectArg(skillRecord.metadata.defaultArgument);
+            const {
+                skillName = null,
+                promptReader = null,
+                subsystemType = null, // retained for backwards compatibility
+                ...forward
+            } = options || {};
+
+            if (!skillName) {
+                return await this.executeWithoutExplicitSkill(taskDescription, forward, reviewMode);
+            }
+
+            const skillRecord = this.getSkillRecord(skillName);
+            if (!skillRecord) {
+                throw new Error(`Skill "${skillName}" is not registered.`);
+            }
+
+            const subsystem = this.ensureSubsystem(skillRecord.type);
+
+            const args = { ...(forward.args || {}) };
+            const hasOwn = (name) => Object.prototype.hasOwnProperty.call(args, name);
+            const injectArg = (name) => {
+                if (typeof name === 'string' && name && !hasOwn(name)) {
+                    args[name] = taskDescription;
+                }
+            };
+
+            if (skillRecord.metadata?.defaultArgument) {
+                injectArg(skillRecord.metadata.defaultArgument);
+            }
+
+            if (skillRecord.type === 'interactive') {
+                const requiredList = Array.isArray(skillRecord.requiredArguments)
+                    ? skillRecord.requiredArguments
+                    : [];
+                requiredList.forEach(injectArg);
+            }
+
+            if (!Object.keys(args).length) {
+                args.input = taskDescription;
+            }
+
+            const execution = await subsystem.executeSkillPrompt({
+                skillRecord,
+                recursiveAgent: this,
+                promptText: taskDescription,
+                options: {
+                    ...forward,
+                    args,
+                    promptReader: promptReader || this.promptReader,
+                },
+            });
+
+            return {
+                ...execution,
+                reviewMode,
+                subsystem: skillRecord.type,
+            };
+        } finally {
+            // Only invoke end callback and reset flag at the top level
+            if (isTopLevel) {
+                this._invokeProcessingEnd();
+                this._isProcessing = false;
+            }
         }
-
-        if (skillRecord.type === 'interactive') {
-            const requiredList = Array.isArray(skillRecord.requiredArguments)
-                ? skillRecord.requiredArguments
-                : [];
-            requiredList.forEach(injectArg);
-        }
-
-        if (!Object.keys(args).length) {
-            args.input = taskDescription;
-        }
-
-        const execution = await subsystem.executeSkillPrompt({
-            skillRecord,
-            recursiveAgent: this,
-            promptText: taskDescription,
-            options: {
-                ...forward,
-                args,
-                promptReader: promptReader || this.promptReader,
-            },
-        });
-
-        return {
-            ...execution,
-            reviewMode,
-            subsystem: skillRecord.type,
-        };
     }
 
     async executePrompt(promptDescription, options = {}) {
