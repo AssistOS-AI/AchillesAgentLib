@@ -55,7 +55,7 @@ const handleCommand = async (cli, commandLine) => {
         const desired = (commandArgs[0] || '').toLowerCase();
         if (desired === 'fast' || desired === 'deep') {
             cli.defaultModelMode = desired;
-            process.env.DEFAULT_MODEL_TYPE = desired;
+            process.env.ACHILLES_DEFAULT_MODEL_TYPE = desired;
             cli.output.write(`${cli.colors.info}[info] Default LLM mode set to ${desired}.${cli.colors.reset}\n`);
         } else {
             cli.output.write(`${cli.colors.warn}[warn] Usage: /model fast|deep${cli.colors.reset}\n`);

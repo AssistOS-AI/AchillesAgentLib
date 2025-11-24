@@ -13,7 +13,7 @@ async function extraComplete(agent, options = {}) {
     const {
         prompt,
         history = [],
-        mode = process.env.DEFAULT_MODEL_TYPE === 'deep' ? 'deep' : 'fast',
+        mode = process.env.ACHILLES_DEFAULT_MODEL_TYPE === 'deep' ? 'deep' : 'fast',
         model = null,
         context = {},
         ...invokerExtras

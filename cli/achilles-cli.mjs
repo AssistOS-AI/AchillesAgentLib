@@ -118,7 +118,7 @@ class AchillesCLI {
             : new LLMAgent();
         setupLLMDebugging(this);
 
-        this.defaultModelMode = process.env.DEFAULT_MODEL_TYPE === 'deep' ? 'deep' : 'fast';
+        this.defaultModelMode = process.env.ACHILLES_DEFAULT_MODEL_TYPE === 'deep' ? 'deep' : 'fast';
         this.specLanguage = this.normalizeLanguageInput(process.env.DEFAULT_SPEC_LANGUAGE) || 'english';
         this.bootstrapCompleted = false;
         this.interactive = Boolean(interactive);
