@@ -1,5 +1,7 @@
-const RETURN_RESPONSE_TOOL = 'returnResponse';
-const RETURN_RESPONSE_DESCRIPTION = 'Return the final response that should be shown to the user.';
+const FINAL_ANSWER_TOOL = 'final_answer';
+const FINAL_ANSWER_DESCRIPTION = 'Return the final response that should be shown to the user.';
+const CANNOT_COMPLETE_TOOL = 'cannot_complete';
+const CANNOT_COMPLETE_DESCRIPTION = 'Signal that the task cannot be completed and include a reason.';
 
 const normalizeResponsePayload = (value, fallback = '') => {
     if (typeof value === 'string') {
@@ -23,7 +25,9 @@ const normalizeResponsePayload = (value, fallback = '') => {
 };
 
 export {
-    RETURN_RESPONSE_TOOL,
-    RETURN_RESPONSE_DESCRIPTION,
+    FINAL_ANSWER_TOOL,
+    FINAL_ANSWER_DESCRIPTION,
+    CANNOT_COMPLETE_TOOL,
+    CANNOT_COMPLETE_DESCRIPTION,
     normalizeResponsePayload,
 };

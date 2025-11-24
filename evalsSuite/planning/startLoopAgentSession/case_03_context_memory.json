@@ -1,14 +1,14 @@
 {
-  "description": "Context memory across prompts (numeric then string length)",
-  "tools": {
-    "math": "Understands natural language arithmetic problems and returns the numeric result as text.",
-    "text": "Can build simple strings based on instructions.",
-    "stringLength": "Computes the exact character length of the most recently produced text, avoiding counting mistakes."
-  },
-  "prompts": [
-    "Compute 7 + 8 and remember the result.",
-    "Create the text '<result> items' using the remembered number.",
-    "Now use the stringLength tool on the text you just created to compute how many characters are in that text and answer only with the number."
-  ],
-  "expectedFinalAnswer": "8"
+    "systemPrompt": "Context memory across prompts (numeric then string length)",
+    "tools": {
+        "math": "Understands natural language arithmetic problems and returns the numeric result as text.",
+        "text": "Can build simple strings based on instructions.",
+        "stringLength": "Computes the exact character length of the most recently produced text, avoiding counting mistakes."
+    },
+    "prompts": [
+        "Compute 7 + 8 and remember the result.",
+        "Create the text '<result> items' using the remembered number.",
+        "Now use the stringLength tool on the text you just created to compute how many characters are in that text and answer only with the number."
+    ],
+    "expectedFinalAnswer": "8"
 }

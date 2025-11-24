@@ -1,5 +1,5 @@
 {
-    "description": "String transformation pipeline",
+    "systemPrompt": "String transformation pipeline",
     "tools": {
         "reverse": "Reverses the input string. Args: text",
         "lowercase": "Converts text to lowercase. Args: text",

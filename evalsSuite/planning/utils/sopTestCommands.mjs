@@ -1,7 +1,10 @@
 import { PERFORMANCE_TOOLS } from '../../tools/allTools.mjs';
 import {
-    RETURN_RESPONSE_TOOL,
-    RETURN_RESPONSE_DESCRIPTION,
+    FINAL_ANSWER_TOOL,
+    FINAL_ANSWER_DESCRIPTION,
+    CANNOT_COMPLETE_TOOL,
+    CANNOT_COMPLETE_DESCRIPTION,
+    normalizeResponsePayload,
 } from '../../../LLMAgents/constants.mjs';
 
 /**
@@ -19,14 +22,19 @@ function createPlanningCommandsRegistry(agent, toolsConfiguration = {}) {
             agent.__toolState = new Map();
         }
     }
-    if (Object.prototype.hasOwnProperty.call(toolsConfiguration, RETURN_RESPONSE_TOOL)) {
-        throw new Error(`Tool name "${RETURN_RESPONSE_TOOL}" is reserved by the agent runtime.`);
-    }
+    [FINAL_ANSWER_TOOL, CANNOT_COMPLETE_TOOL].forEach((reserved) => {
+        if (Object.prototype.hasOwnProperty.call(toolsConfiguration, reserved)) {
+            throw new Error(`Tool name "${reserved}" is reserved by the agent runtime.`);
+        }
+    });
     const requestedTools = Object.keys(toolsConfiguration || {});
-    const mergedNames = requestedTools.concat(RETURN_RESPONSE_TOOL);
+    const mergedNames = requestedTools.concat([FINAL_ANSWER_TOOL, CANNOT_COMPLETE_TOOL]);
     const availableEntries = mergedNames.map((name) => {
-        if (name === RETURN_RESPONSE_TOOL) {
-            return [name, { description: RETURN_RESPONSE_DESCRIPTION }];
+        if (name === FINAL_ANSWER_TOOL) {
+            return [name, { description: FINAL_ANSWER_DESCRIPTION }];
+        }
+        if (name === CANNOT_COMPLETE_TOOL) {
+            return [name, { description: CANNOT_COMPLETE_DESCRIPTION }];
         }
         const spec = PERFORMANCE_TOOLS[name];
         if (!spec) {
@@ -43,12 +51,19 @@ function createPlanningCommandsRegistry(agent, toolsConfiguration = {}) {
     return {
         async executeCommand(payload, response) {
             const { command, args } = payload;
-            if (command === RETURN_RESPONSE_TOOL) {
+            if (command === FINAL_ANSWER_TOOL) {
                 const text = normalizeResponsePayload(args?.[0] ?? '');
                 if (agent && agent.currentSession) {
                     agent.currentSession.lastAnswer = text;
                 }
                 return response.success(text);
+            }
+            if (command === CANNOT_COMPLETE_TOOL) {
+                const text = normalizeResponsePayload(args?.[0] ?? '');
+                if (agent && agent.currentSession) {
+                    agent.currentSession.lastAnswer = text;
+                }
+                return response.fail(text);
             }
             const spec = commandMap[command];
             if (!spec) {
@@ -67,8 +82,10 @@ function createPlanningCommandsRegistry(agent, toolsConfiguration = {}) {
         },
         listCommands: () => availableEntries.map(([name]) => ({
             name,
-            description: name === RETURN_RESPONSE_TOOL
-                ? RETURN_RESPONSE_DESCRIPTION
+            description: name === FINAL_ANSWER_TOOL
+                ? FINAL_ANSWER_DESCRIPTION
+                : name === CANNOT_COMPLETE_TOOL
+                    ? CANNOT_COMPLETE_DESCRIPTION
                 : toolsConfiguration?.[name] || PERFORMANCE_TOOLS[name].description || '',
         })),
     };

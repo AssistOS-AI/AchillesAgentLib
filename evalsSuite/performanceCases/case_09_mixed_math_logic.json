@@ -1,6 +1,6 @@
 {
     "id": "case_09_mixed_math_logic",
-    "description": "Mixing math with even checks",
+    "systemPrompt": "Mixing math with even checks",
     "steps": [
         {
             "id": "add_step",

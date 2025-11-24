@@ -1,5 +1,5 @@
 {
-    "description": "Complex arithmetic with division",
+    "systemPrompt": "Complex arithmetic with division",
     "tools": {
         "add": "Adds two numbers. Args: num1, num2",
         "subtract": "Subtracts second number from first. Args: num1, num2",

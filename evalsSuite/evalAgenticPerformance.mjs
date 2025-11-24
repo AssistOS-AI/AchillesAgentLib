@@ -165,6 +165,8 @@ function parseArgs() {
 async function loadPerformanceCaseFromFile(filePath) {
     const raw = await fs.readFile(filePath, 'utf8');
     const parsed = JSON.parse(raw);
+    const systemPrompt = parsed.systemPrompt || '';
+    const description = parsed.systemPrompt || parsed.description || '';
     const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
     const normalizedSteps = steps.length
         ? steps
@@ -176,7 +178,8 @@ async function loadPerformanceCaseFromFile(filePath) {
     return {
         file: path.basename(filePath),
         id: parsed.id || path.basename(filePath).replace(/\.json$/, ''),
-        description: parsed.description || '',
+        description,
+        systemPrompt,
         steps: normalizedSteps.map((step, index) => ({
             prompt: step.prompt || '',
             expected: step.expected ?? '',
@@ -261,7 +264,7 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
         const session = await agent.startSOPLangAgentSession(
             SOP_SKILL_DESCRIPTIONS,
             steps[0].prompt,
-            { commandsRegistry },
+            { commandsRegistry, systemPrompt: testCase.systemPrompt },
         );
 
         onProgress(`SOP: ${steps[0].id || 'step1'}`);
@@ -321,7 +324,9 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
         if (!steps.length) {
             throw new Error('No steps defined for case.');
         }
-        const session = await agent.startLoopAgentSession(PERFORMANCE_TOOLS, steps[0].prompt, {});
+        const session = await agent.startLoopAgentSession(PERFORMANCE_TOOLS, steps[0].prompt, {
+            systemPrompt: testCase.systemPrompt,
+        });
 
         onProgress(`Loop: ${steps[0].id || 'step1'}`);
         // Evaluate initial prompt

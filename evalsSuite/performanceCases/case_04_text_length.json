@@ -1,6 +1,6 @@
 {
     "id": "case_04_text_length",
-    "description": "Character counting tasks",
+    "systemPrompt": "Character counting tasks",
     "steps": [
         {
             "id": "length_simple",

@@ -21,7 +21,7 @@ import {
 } from './executionMonitor.mjs';
 import { cancelEuristic } from './cancelHeuristic.mjs';
 import { createCommandResponder } from './responseBuilder.mjs';
-import { RETURN_RESPONSE_TOOL } from '../LLMAgents/constants.mjs';
+import { FINAL_ANSWER_TOOL, CANNOT_COMPLETE_TOOL } from '../LLMAgents/constants.mjs';
 
 function ensureCommandsRegistry(commandsRegistry) {
     if (!commandsRegistry || typeof commandsRegistry !== 'object') {
@@ -233,11 +233,11 @@ export class LightSOPLangInterpreter {
  
         const seenNames = new Set();
         const changedVariables = [];
-        let returnResponseDeclarations = 0;
+        let finalDeclarations = 0;
  
         for (const [name, declaration] of declarations) {
-            if (declaration.command === RETURN_RESPONSE_TOOL) {
-                returnResponseDeclarations += 1;
+            if (declaration.command === FINAL_ANSWER_TOOL || declaration.command === CANNOT_COMPLETE_TOOL) {
+                finalDeclarations += 1;
             }
             let variable = this.variables.get(name);
             if (!variable) {
@@ -246,15 +246,17 @@ export class LightSOPLangInterpreter {
             }
             const signatureChanged = variable.signature !== declaration.signature;
             variable.updateFromDeclaration(declaration);
-            const needsReset = declaration.command === RETURN_RESPONSE_TOOL || name === 'lastAnswer';
+            const needsReset = declaration.command === FINAL_ANSWER_TOOL
+                || declaration.command === CANNOT_COMPLETE_TOOL
+                || name === 'lastAnswer';
             if (signatureChanged || needsReset) {
                 changedVariables.push(variable);
             }
             seenNames.add(name);
         }
- 
-        if (this.englishContext && returnResponseDeclarations === 0) {
-            throw new Error('LightSOPLang plans generated from #!english must include at least one "returnResponse" declaration (for example "@lastAnswer returnResponse <final text>").');
+
+        if (this.englishContext && finalDeclarations === 0) {
+            throw new Error(`LightSOPLang plans generated from #!english must include at least one "${FINAL_ANSWER_TOOL}" or "${CANNOT_COMPLETE_TOOL}" declaration (for example "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>").`);
         }
 
 
@@ -491,7 +493,7 @@ export class LightSOPLangInterpreter {
         lines.push('- Create a generic plan that would work for any input of that type.');
         lines.push('- IMPORTANT: Link skill parameters to available variables or context from the prompt. If a variable holds an entity (like a PR or Ticket) or a result from a previous step, use that variable as an argument for subsequent commands instead of literals, to maintain context.');
         lines.push('- IMPORTANT: Do NOT use variable interpolation inside strings (e.g., "Result: $var"). LightSOPLang does NOT support this. Instead, pass strings and variables as separate arguments (e.g., "Result:" $var).');
-        lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${RETURN_RESPONSE_TOOL} <final text>" so the runtime knows the final response. Do not emit final responses in any other way.`);
+        lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" so the runtime knows the final response. Do not emit final responses in any other way.`);
         lines.push('');
         if (context.reason === 'initial') {
             lines.push('Generate an initial script that meets the instructions.');
@@ -528,6 +530,7 @@ export class LightSOPLangInterpreter {
                 lines.push(`- ${variable.name}: ${variable.status} => ${variable.value}`);
             }
         }
+        lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" or "@lastAnswer ${CANNOT_COMPLETE_TOOL} <reason>" so the runtime knows the final response. Do not emit final responses in any other way.`);
         lines.push('Respond with only valid LightSOPLang code, no explanations.');
         return lines.join('\n');
     }

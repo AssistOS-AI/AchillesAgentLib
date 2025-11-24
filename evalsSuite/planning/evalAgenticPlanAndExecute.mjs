@@ -311,6 +311,7 @@ async function main() {
 
         const {
             description,
+            systemPrompt = '',
             tools: toolDefinitions,
             prompts,
             expectedFinalAnswer,
@@ -328,7 +329,8 @@ async function main() {
             };
         }
 
-        console.log(`\nRunning ${caseFile}: ${description}`);
+        const descriptionText = description || systemPrompt || '';
+        console.log(`\nRunning ${caseFile}: ${descriptionText}`);
  
         const beforeInput = agent.getInputCounter ? agent.getInputCounter() : 0;
         const beforeOutput = agent.getOutputCounter ? agent.getOutputCounter() : 0;
@@ -340,7 +342,9 @@ async function main() {
             }
  
             // Start agentic session with first prompt
-            const session = await agent.startLoopAgentSession(toolsForAgent, prompts[0]);
+            const session = await agent.startLoopAgentSession(toolsForAgent, prompts[0], {
+                systemPrompt,
+            });
 
 
             if (!session || typeof session.newPrompt !== 'function') {

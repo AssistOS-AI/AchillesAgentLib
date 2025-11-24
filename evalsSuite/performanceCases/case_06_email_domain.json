@@ -1,6 +1,6 @@
 {
     "id": "case_06_email_domain",
-    "description": "Email extraction and domain derivation",
+    "systemPrompt": "Email extraction and domain derivation",
     "steps": [
         {
             "id": "email_extract_one",

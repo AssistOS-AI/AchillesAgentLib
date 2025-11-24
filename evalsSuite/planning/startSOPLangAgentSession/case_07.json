@@ -1,5 +1,5 @@
 {
-    "description": "String manipulation with concatenation",
+    "systemPrompt": "String manipulation with concatenation",
     "tools": {
         "reverse": "Reverses the input string. Args: text",
         "uppercase": "Converts text to uppercase. Args: text",

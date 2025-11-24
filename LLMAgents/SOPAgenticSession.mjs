@@ -1,8 +1,10 @@
 import { LightSOPLangInterpreter } from '../lightSOPLang/interpreter.mjs';
 import { buildSOPAgenticInstructions } from './templates/sopAgenticSessionPrompts.mjs';
 import {
-    RETURN_RESPONSE_TOOL,
-    RETURN_RESPONSE_DESCRIPTION,
+    FINAL_ANSWER_TOOL,
+    FINAL_ANSWER_DESCRIPTION,
+    CANNOT_COMPLETE_TOOL,
+    CANNOT_COMPLETE_DESCRIPTION,
     normalizeResponsePayload,
 } from './constants.mjs';
 
@@ -14,9 +16,11 @@ class SOPAgenticSession {
         if (!skillsDescription || typeof skillsDescription !== 'object') {
             throw new Error('SOPAgenticSession requires a skillsDescription object.');
         }
-        if (Object.prototype.hasOwnProperty.call(skillsDescription, RETURN_RESPONSE_TOOL)) {
-            throw new Error(`Tool name "${RETURN_RESPONSE_TOOL}" is reserved by the agent runtime.`);
-        }
+        [FINAL_ANSWER_TOOL, CANNOT_COMPLETE_TOOL].forEach((reserved) => {
+            if (Object.prototype.hasOwnProperty.call(skillsDescription, reserved)) {
+                throw new Error(`Tool name "${reserved}" is reserved by the agent runtime.`);
+            }
+        });
 
         if (agent) {
             if (agent.__toolState instanceof Map) {
@@ -28,7 +32,8 @@ class SOPAgenticSession {
 
         this.agent = agent;
         this.skillsDescription = { ...skillsDescription };
-        this.skillsDescription[RETURN_RESPONSE_TOOL] = RETURN_RESPONSE_DESCRIPTION;
+        this.skillsDescription[FINAL_ANSWER_TOOL] = FINAL_ANSWER_DESCRIPTION;
+        this.skillsDescription[CANNOT_COMPLETE_TOOL] = CANNOT_COMPLETE_DESCRIPTION;
         const planOnlyFlag = options.planOnly ?? options.generatePlanOnly ?? false;
         this.options = {
             ...options,
@@ -45,11 +50,12 @@ class SOPAgenticSession {
             ? this._wrapExecutionRegistry(options.commandsRegistry)
             : null;
         this.planCommandsRegistry = this._createPlanCommandsRegistry();
+        this.systemPrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
 
         this.history = [];
         this.currentPlan = '';
         this.lastExecution = null;
-        this._lastReturnResponse = null;
+        this._lastFinalAnswer = null;
         this.maxPlanAttempts = Number.isFinite(options.maxPlanAttempts)
             ? options.maxPlanAttempts
             : 3;
@@ -73,6 +79,7 @@ class SOPAgenticSession {
             const baseInstructions = buildSOPAgenticInstructions({
                 currentPlan: this.currentPlan,
                 userPrompt,
+                systemPrompt: this.systemPrompt,
             });
  
             const feedbackBlock = this._buildExecutionFeedbackComment(lastFeedback);
@@ -171,12 +178,12 @@ class SOPAgenticSession {
         if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmAgent')) {
             interpreterOptions.llmAgent = this.agent;
         }
-        this._lastReturnResponse = null;
-        let interpreter;
-        try {
-            interpreter = new LightSOPLangInterpreter(
-                planSource,
-                this.commandsRegistry,
+            this._lastFinalAnswer = null;
+            let interpreter;
+            try {
+                interpreter = new LightSOPLangInterpreter(
+                    planSource,
+                    this.commandsRegistry,
                 interpreterOptions,
             );
             await interpreter.ready;
@@ -201,9 +208,9 @@ class SOPAgenticSession {
         const derivedLastAnswer = this._deriveLastAnswerFromVariables(variables);
         this.lastExecution = {
             variables,
-            lastAnswer: this._lastReturnResponse ?? derivedLastAnswer,
+            lastAnswer: this._lastFinalAnswer ?? derivedLastAnswer,
         };
-        this._lastReturnResponse = null;
+        this._lastFinalAnswer = null;
         const hasFailures = collectedFailures.length > 0;
         const failures = hasFailures ? collectedFailures : [];
         return { hasFailures, failures };
@@ -262,7 +269,7 @@ class SOPAgenticSession {
         }
         lines.push('Please update ONLY the LightSOPLang code to fix these issues.');
         lines.push('You may retry failing commands, adjust arguments, or add new steps.');
-        lines.push('Keep using "@lastAnswer returnResponse <final text>" as the final step.');
+        lines.push(`Keep using "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" as the final step, or "@lastAnswer ${CANNOT_COMPLETE_TOOL} <reason>" when truly impossible.`);
         return lines.join('\n');
     }
  
@@ -395,19 +402,31 @@ ${trimmed}`;
         const listCommands = registry.listCommands.bind(registry);
         return {
             executeCommand: async (payload, responder) => {
-                if (payload?.command === RETURN_RESPONSE_TOOL) {
+                if (payload?.command === FINAL_ANSWER_TOOL) {
                     const text = normalizeResponsePayload(payload?.args?.[0] ?? '');
-                    this._lastReturnResponse = text;
+                    this._lastFinalAnswer = text;
                     return responder.success(text);
+                }
+                if (payload?.command === CANNOT_COMPLETE_TOOL) {
+                    const text = normalizeResponsePayload(payload?.args?.[0] ?? '');
+                    this._lastFinalAnswer = text;
+                    return responder.fail(text);
                 }
                 return executeCommand(payload, responder);
             },
             listCommands: () => {
                 const commands = listCommands() || [];
-                if (!commands.some((cmd) => (cmd?.name || cmd?.command) === RETURN_RESPONSE_TOOL)) {
+                const names = commands.map((cmd) => cmd?.name || cmd?.command);
+                if (!names.includes(FINAL_ANSWER_TOOL)) {
                     commands.push({
-                        name: RETURN_RESPONSE_TOOL,
-                        description: RETURN_RESPONSE_DESCRIPTION,
+                        name: FINAL_ANSWER_TOOL,
+                        description: FINAL_ANSWER_DESCRIPTION,
+                    });
+                }
+                if (!names.includes(CANNOT_COMPLETE_TOOL)) {
+                    commands.push({
+                        name: CANNOT_COMPLETE_TOOL,
+                        description: CANNOT_COMPLETE_DESCRIPTION,
                     });
                 }
                 return commands;

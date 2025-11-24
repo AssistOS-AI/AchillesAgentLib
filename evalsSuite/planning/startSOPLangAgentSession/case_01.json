@@ -1,5 +1,5 @@
 {
-    "description": "Simple arithmetic",
+    "systemPrompt": "Simple arithmetic",
     "tools": {
         "add": "Adds two numbers. Args: num1, num2",
         "multiply": "Multiplies two numbers. Args: num1, num2"

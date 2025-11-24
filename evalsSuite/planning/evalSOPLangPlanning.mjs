@@ -67,6 +67,7 @@ async function runCase(agent, caseFile, caseData) {
     const session = await agent.startSOPLangAgentSession(skillDescriptions, prompts[0], {
         planOnly: false,
         commandsRegistry,
+        systemPrompt: caseData.systemPrompt || '',
     });
 
     for (let i = 1; i < prompts.length; i += 1) {

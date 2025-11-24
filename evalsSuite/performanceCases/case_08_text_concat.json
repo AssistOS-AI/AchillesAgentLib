@@ -1,6 +1,6 @@
 {
     "id": "case_08_text_concat",
-    "description": "Concatenation and case toggling",
+    "systemPrompt": "Concatenation and case toggling",
     "steps": [
         {
             "id": "concat_hw",

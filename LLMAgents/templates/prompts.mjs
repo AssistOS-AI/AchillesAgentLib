@@ -1,5 +1,5 @@
 import { extractJson } from '../markdown.mjs';
-import { RETURN_RESPONSE_TOOL } from '../constants.mjs';
+import { FINAL_ANSWER_TOOL } from '../constants.mjs';
 
 const buildInterpretMessagePrompt = (intents, instructions) => {
     const promptSections = [
@@ -90,6 +90,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         history,
         toolCalls,
         userPrompt,
+        systemPrompt = '',
     } = options;
 
     const toolNames = tools ? Object.keys(tools) : [];
@@ -99,13 +100,17 @@ const buildAgenticSessionPlannerPrompt = (options) => {
 
     const lines = [];
     lines.push('You are an agentic planner that decides which tools to call.');
+    if (systemPrompt && typeof systemPrompt === 'string') {
+        lines.push('');
+        lines.push('System prompt / context:');
+        lines.push(systemPrompt);
+    }
     lines.push('You must reason step by step and emit ONLY a JSON object.');
     lines.push('JSON schema:');
     lines.push('{');
-    lines.push('  "action": "call_tool" | "final_answer" | "cannot_complete",');
-    lines.push('  "tool": "<toolName or null>",');
+    lines.push('  "action": "call_tool",');
+    lines.push('  "tool": "<toolName>",');
     lines.push('  "toolPrompt": "<instruction for the tool>",');
-    lines.push('  "answer": "<final answer text, for final_answer or cannot_complete>",');
     lines.push('  "reason": "<short explanation>"');
     lines.push('}');
     lines.push('');
@@ -151,16 +156,13 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     }
     lines.push('');
     lines.push('Guidelines:');
-    lines.push('- Use "call_tool" to obtain NEW information or perform additional calculations.');
-    lines.push(`- When you have the final response, schedule a "call_tool" action for "${RETURN_RESPONSE_TOOL}" and pass ONLY the final text (no additional wording) in "toolPrompt". This tool MUST be used exactly once per prompt.`);
+    lines.push('- Use "call_tool" to obtain NEW information or perform calculations.');
+    lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" with ONLY the final text in "toolPrompt" (no extra wording).`);
+    lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" with a short reason in "toolPrompt".`);
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
-    lines.push('- Only use "cannot_complete" when the goal truly cannot be achieved with any combination of available tools.');
-    lines.push('- If the user instruction explicitly mentions a tool by name (for example "use the stringLength tool"), you MUST call that tool at least once in this turn before using "final_answer".');
+    lines.push('- If the user instruction explicitly mentions a tool by name, you MUST call that tool at least once in this turn before finishing.');
     lines.push('');
-    lines.push('Decide the next action. If more computation via tools is needed, use "call_tool".');
-    lines.push(`If you are confident you have the final answer for the current instruction, call "${RETURN_RESPONSE_TOOL}" with that text instead of using "final_answer". The text must be the exact final response only.`);
-    lines.push('If the task cannot be completed with the available tools, use "cannot_complete".');
-    lines.push('Respond ONLY with the JSON object, no extra text.');
+    lines.push('Decide the next action. Respond ONLY with the JSON object, no extra text.');
 
     return lines.join('\n');
 };

@@ -1,6 +1,6 @@
 {
     "id": "case_07_email_domain_length",
-    "description": "Email/domain plus length calculations",
+    "systemPrompt": "Email/domain plus length calculations",
     "steps": [
         {
             "id": "domain_first",

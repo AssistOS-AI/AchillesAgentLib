@@ -1,6 +1,6 @@
 {
     "id": "case_05_logic_even_invert",
-    "description": "Even/odd and boolean inversion checks",
+    "systemPrompt": "Even/odd and boolean inversion checks",
     "steps": [
         {
             "id": "even_true",

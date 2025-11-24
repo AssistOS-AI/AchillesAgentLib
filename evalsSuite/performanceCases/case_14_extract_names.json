@@ -1,6 +1,6 @@
 {
     "id": "case_14_extract_names",
-    "description": "Extract names from a narrative text.",
+    "systemPrompt": "Extract names from a narrative text.",
     "steps": [
         {
             "prompt": "The project kickoff meeting was attended by several key stakeholders from different departments. Alice Johnson, the project manager, started the meeting by outlining the goals and timeline. Bob Smith, the lead developer, raised some concerns about the technical feasibility of the proposed features. Charlie Brown, the design lead, presented the initial mockups for the user interface. During the break, Dave Wilson from marketing discussed the promotional strategy with Eve Davis. Later, Frank Miller joined the call remotely to provide input on the legal compliance aspects. Finally, Grace Lee, the CEO, gave her approval to proceed with the project.",

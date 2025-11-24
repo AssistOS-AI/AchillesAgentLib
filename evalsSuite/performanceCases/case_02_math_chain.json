@@ -1,6 +1,6 @@
 {
     "id": "case_02_math_chain",
-    "description": "Chained arithmetic expressions",
+    "systemPrompt": "Chained arithmetic expressions",
     "steps": [
         {
             "id": "multiply_after_add",

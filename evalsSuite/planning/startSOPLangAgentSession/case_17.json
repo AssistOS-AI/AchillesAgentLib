@@ -1,5 +1,5 @@
 {
-    "description": "Chained flaky tools",
+    "systemPrompt": "Chained flaky tools",
     "tools": {
         "flakyAdd": "Adds numbers but may fail the first time.",
         "flakyUppercase": "Uppercases text but may fail the first time.",

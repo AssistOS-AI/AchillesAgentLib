@@ -1,5 +1,5 @@
 {
-    "description": "Mixed math and logic",
+    "systemPrompt": "Mixed math and logic",
     "tools": {
         "add": "Adds two numbers. Args: num1, num2",
         "multiply": "Multiplies two numbers. Args: num1, num2",
@@ -9,6 +9,5 @@
     "prompt": "Add 3 and 4, multiply the result by 2, check if the final number is even, then invert that boolean.",
     "expectedOutput": {
         "lastAnswer": "false"
-     }
-
+    }
 }

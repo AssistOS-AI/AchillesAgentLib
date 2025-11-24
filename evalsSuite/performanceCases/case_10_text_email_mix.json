@@ -1,6 +1,6 @@
 {
     "id": "case_10_text_email_mix",
-    "description": "Combining text transforms with email parsing",
+    "systemPrompt": "Combining text transforms with email parsing",
     "steps": [
         {
             "id": "uppercase_start",

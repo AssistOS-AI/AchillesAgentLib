@@ -1,6 +1,6 @@
 {
     "id": "case_01_math_simple",
-    "description": "Multiple basic arithmetic checks",
+    "systemPrompt": "Multiple basic arithmetic checks",
     "steps": [
         {
             "id": "add_simple",

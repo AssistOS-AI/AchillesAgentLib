@@ -1,5 +1,5 @@
 {
-    "description": "Complex boolean logic",
+    "systemPrompt": "Complex boolean logic",
     "tools": {
         "isEven": "Returns 'true' if number is even, 'false' otherwise. Args: num",
         "invert": "Returns 'false' if input is 'true', 'true' if 'false'. Args: bool",

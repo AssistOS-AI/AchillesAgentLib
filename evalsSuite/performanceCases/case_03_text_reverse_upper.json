@@ -1,6 +1,6 @@
 {
     "id": "case_03_text_reverse_upper",
-    "description": "Text reversal and case conversions",
+    "systemPrompt": "Text reversal and case conversions",
     "steps": [
         {
             "id": "reverse_word",

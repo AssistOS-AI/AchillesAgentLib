@@ -1,15 +1,15 @@
 {
-  "description": "Complex workflow: email extraction, domain and length",
-  "tools": {
-    "email": "Can extract email addresses and domains from natural language text.",
-    "text": "Can build simple strings based on instructions.",
-    "stringLength": "Computes the exact character length of the most recently produced text, avoiding counting mistakes."
-  },
-  "prompts": [
-    "From the sentence 'Contact support@example.com for help', extract the email address and remember it.",
-    "From that email address, get only the domain name and remember it.",
-    "Create the text 'Domain: <DOMAIN>' using the remembered domain in uppercase.",
-    "Finally, use the stringLength tool on the text you just created to compute how many characters are in that final text and answer only with the number."
-  ],
-  "expectedFinalAnswer": "19"
+    "systemPrompt": "Complex workflow: email extraction, domain and length",
+    "tools": {
+        "email": "Can extract email addresses and domains from natural language text.",
+        "text": "Can build simple strings based on instructions.",
+        "stringLength": "Computes the exact character length of the most recently produced text, avoiding counting mistakes."
+    },
+    "prompts": [
+        "From the sentence 'Contact support@example.com for help', extract the email address and remember it.",
+        "From that email address, get only the domain name and remember it.",
+        "Create the text 'Domain: <DOMAIN>' using the remembered domain in uppercase.",
+        "Finally, use the stringLength tool on the text you just created to compute how many characters are in that final text and answer only with the number."
+    ],
+    "expectedFinalAnswer": "19"
 }

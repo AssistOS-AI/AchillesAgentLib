@@ -1,5 +1,5 @@
 {
-    "description": "Text analysis with contains check",
+    "systemPrompt": "Text analysis with contains check",
     "tools": {
         "uppercase": "Converts text to uppercase. Args: text",
         "contains": "Checks if first string contains second. Args: haystack, needle",

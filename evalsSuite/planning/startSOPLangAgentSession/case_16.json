@@ -1,5 +1,5 @@
 {
-    "description": "Flaky uppercase service",
+    "systemPrompt": "Flaky uppercase service",
     "tools": {
         "flakyUppercase": "Converts text to uppercase but might fail the first time.",
         "concat": "Concatenates two strings."

@@ -1,7 +1,7 @@
 
 import {
-    RETURN_RESPONSE_TOOL,
-    RETURN_RESPONSE_DESCRIPTION,
+    FINAL_ANSWER_TOOL,
+    FINAL_ANSWER_DESCRIPTION,
     normalizeResponsePayload,
 } from '../../LLMAgents/constants.mjs';
 

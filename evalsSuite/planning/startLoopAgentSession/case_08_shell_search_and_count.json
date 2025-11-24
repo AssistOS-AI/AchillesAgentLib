@@ -1,11 +1,11 @@
 {
-  "description": "Search for matching lines across files and compute a total count conceptually",
-  "tools": {
-    "shell": "Generic shell skill that can propose and reason about Linux commands to search and aggregate information in a temporary workspace."
-  },
-  "prompts": [
-    "In a temporary workspace you have three files: app.log with 3 lines containing the word ERROR, api.log with 5 lines containing ERROR, and notes.txt with 2 lines containing ERROR. Using Linux commands conceptually (e.g. grep, wc, pipes), what single command from the workspace root would you use to compute the total number of lines containing the word ERROR (case-sensitive) across all files? Answer only with the command.",
-    "Assuming that the command you suggested is correct, what numeric output would it print when run in this workspace? Answer only with the number."
-  ],
-  "expectedFinalAnswer": "10"
+    "systemPrompt": "Search for matching lines across files and compute a total count conceptually",
+    "tools": {
+        "shell": "Generic shell skill that can propose and reason about Linux commands to search and aggregate information in a temporary workspace."
+    },
+    "prompts": [
+        "In a temporary workspace you have three files: app.log with 3 lines containing the word ERROR, api.log with 5 lines containing ERROR, and notes.txt with 2 lines containing ERROR. Using Linux commands conceptually (e.g. grep, wc, pipes), what single command from the workspace root would you use to compute the total number of lines containing the word ERROR (case-sensitive) across all files? Answer only with the command.",
+        "Assuming that the command you suggested is correct, what numeric output would it print when run in this workspace? Answer only with the number."
+    ],
+    "expectedFinalAnswer": "10"
 }

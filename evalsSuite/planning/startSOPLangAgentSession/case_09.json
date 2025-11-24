@@ -1,5 +1,5 @@
 {
-    "description": "Email processing pipeline",
+    "systemPrompt": "Email processing pipeline",
     "tools": {
         "extractEmail": "Extracts the first email from text. Args: text",
         "getDomain": "Gets domain from email. Args: email",

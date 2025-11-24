@@ -1,5 +1,5 @@
 {
-    "description": "Complex arithmetic with multiple operations",
+    "systemPrompt": "Complex arithmetic with multiple operations",
     "tools": {
         "add": "Adds two numbers. Args: num1, num2",
         "multiply": "Multiplies two numbers. Args: num1, num2",

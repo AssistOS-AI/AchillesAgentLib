@@ -1,5 +1,5 @@
 {
-    "description": "Flaky addition recovery",
+    "systemPrompt": "Flaky addition recovery",
     "tools": {
         "flakyAdd": "Adds numbers but may fail the first time. Retry the same plan if it reports a transient failure.",
         "multiply": "Multiplies two numbers."

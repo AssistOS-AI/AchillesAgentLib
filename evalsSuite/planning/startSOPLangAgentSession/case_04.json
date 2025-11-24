@@ -1,5 +1,5 @@
 {
-    "description": "Data extraction",
+    "systemPrompt": "Data extraction",
     "tools": {
         "extractEmail": "Extracts email from text. Args: text",
         "getDomain": "Returns the domain part of an email. Args: email"

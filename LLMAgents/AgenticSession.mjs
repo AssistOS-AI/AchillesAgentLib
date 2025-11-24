@@ -1,7 +1,9 @@
 import { buildAgenticSessionPlannerPrompt, extractJson } from './templates/prompts.mjs';
 import {
-    RETURN_RESPONSE_TOOL,
-    RETURN_RESPONSE_DESCRIPTION,
+    FINAL_ANSWER_TOOL,
+    FINAL_ANSWER_DESCRIPTION,
+    CANNOT_COMPLETE_TOOL,
+    CANNOT_COMPLETE_DESCRIPTION,
     normalizeResponsePayload,
 } from './constants.mjs';
 
@@ -13,9 +15,11 @@ class LoopAgentSession {
         if (!tools || typeof tools !== 'object') {
             throw new Error('LoopAgentSession requires a tools object.');
         }
-        if (Object.prototype.hasOwnProperty.call(tools, RETURN_RESPONSE_TOOL)) {
-            throw new Error(`Tool name "${RETURN_RESPONSE_TOOL}" is reserved by the agent runtime.`);
-        }
+        [FINAL_ANSWER_TOOL, CANNOT_COMPLETE_TOOL].forEach((reserved) => {
+            if (Object.prototype.hasOwnProperty.call(tools, reserved)) {
+                throw new Error(`Tool name "${reserved}" is reserved by the agent runtime.`);
+            }
+        });
 
         if (agent) {
             if (agent.__toolState instanceof Map) {
@@ -28,7 +32,8 @@ class LoopAgentSession {
         this.agent = agent;
         this.tools = {
             ...tools,
-            [RETURN_RESPONSE_TOOL]: this._buildReturnResponseTool(),
+            [FINAL_ANSWER_TOOL]: this._buildFinalAnswerTool(),
+            [CANNOT_COMPLETE_TOOL]: this._buildCannotCompleteTool(),
         };
         this.options = {
             maxStepsPerTurn: Number.isFinite(options.maxStepsPerTurn)
@@ -45,7 +50,7 @@ class LoopAgentSession {
         this.errorCount = 0;
         this.status = 'idle';
         this.lastAnswer = null;
-        this._pendingReturnResponse = null;
+        this.systemPrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
     }
 
     async newPrompt(userPrompt) {
@@ -109,7 +114,7 @@ class LoopAgentSession {
 
                 try {
                     const toolResult = await this._executeTool(toolName, toolPrompt, turn);
-                    const displayResult = toolResult && toolResult.__returnResponse
+                    const displayResult = toolResult && (toolResult.__finalAnswer || toolResult.__cannotComplete)
                         ? toolResult.text
                         : toolResult;
                     turn.usedTools = true;
@@ -129,13 +134,14 @@ class LoopAgentSession {
                         turn._sameToolRepeatCount = 1;
                     }
 
-                    if (toolResult && toolResult.__returnResponse) {
+                    if (toolResult && (toolResult.__finalAnswer || toolResult.__cannotComplete)) {
                         const final = toolResult.text;
                         turn.finalAnswer = final;
-                        turn.status = 'done';
-                        this.status = 'active';
+                        turn.status = toolResult.__cannotComplete ? 'failed' : 'done';
+                        this.status = toolResult.__cannotComplete ? 'failed' : 'active';
                         this.lastAnswer = final;
-                        this.history.push({ type: 'final_answer', answer: final });
+                        const entryType = toolResult.__cannotComplete ? 'cannot_complete' : 'final_answer';
+                        this.history.push({ type: entryType, answer: final });
                         return final;
                     }
 
@@ -167,48 +173,21 @@ class LoopAgentSession {
                 continue;
             }
 
-            if (action === 'final_answer') {
-                const hasTools = this.tools && Object.keys(this.tools).length > 0;
-                const toolNames = hasTools ? Object.keys(this.tools) : [];
-                const userMentionsTool = toolNames.some((name) => (
-                    typeof userPrompt === 'string'
-                    && userPrompt.toLowerCase().includes(name.toLowerCase())
-                ));
-
-                if (userMentionsTool && !turn.usedTools) {
-                    this.errorCount += 1;
-                    turn.steps.push({
-                        type: 'planner_error',
-                        error: 'final_answer requested without using the explicitly mentioned tool',
-                    });
-                    if (this.errorCount >= maxErrors) {
-                        const message = 'Too many planner errors, aborting.';
-                        turn.finalAnswer = message;
-                        turn.status = 'failed';
-                        this.status = 'failed';
-                        return message;
-                    }
-                    // eslint-disable-next-line no-continue
-                    continue;
+            if (action === 'final_answer' || action === 'cannot_complete') {
+                this.errorCount += 1;
+                turn.steps.push({
+                    type: 'planner_error',
+                    error: 'Use the reserved tools final_answer or cannot_complete via call_tool to end the turn.',
+                });
+                if (this.errorCount >= maxErrors) {
+                    const message = 'Too many planner errors, aborting.';
+                    turn.finalAnswer = message;
+                    turn.status = 'failed';
+                    this.status = 'failed';
+                    return message;
                 }
-
-                const answer = (decision && decision.answer) || '';
-                turn.finalAnswer = answer;
-                this.lastAnswer = answer;
-                turn.status = 'done';
-                this.status = 'active';
-                this.history.push({ type: 'final_answer', answer });
-                return answer;
-            }
-
-            if (action === 'cannot_complete') {
-                const answer = (decision && (decision.answer || decision.reason))
-                    || 'Agent cannot complete the task.';
-                turn.finalAnswer = answer;
-                turn.status = 'failed';
-                this.status = 'failed';
-                this.history.push({ type: 'cannot_complete', answer });
-                return answer;
+                // eslint-disable-next-line no-continue
+                continue;
             }
 
             this.errorCount += 1;
@@ -239,6 +218,7 @@ class LoopAgentSession {
             history: this.history,
             toolCalls: this.toolCalls,
             userPrompt,
+            systemPrompt: this.systemPrompt,
         });
 
         const raw = await this.agent.complete({
@@ -286,7 +266,7 @@ class LoopAgentSession {
         this.toolCalls.push({
             tool: toolName,
             prompt: toolPrompt,
-            result: result && result.__returnResponse ? result.text : result,
+            result: result && (result.__finalAnswer || result.__cannotComplete) ? result.text : result,
         });
         this.history.push({
             type: 'tool',
@@ -298,14 +278,28 @@ class LoopAgentSession {
         return result;
     }
 
-    _buildReturnResponseTool() {
+    _buildFinalAnswerTool() {
         return {
-            description: RETURN_RESPONSE_DESCRIPTION,
+            description: FINAL_ANSWER_DESCRIPTION,
             handler: async (_agent, payload) => {
                 const text = normalizeResponsePayload(payload);
                 this.lastAnswer = text;
                 return {
-                    __returnResponse: true,
+                    __finalAnswer: true,
+                    text,
+                };
+            },
+        };
+    }
+
+    _buildCannotCompleteTool() {
+        return {
+            description: CANNOT_COMPLETE_DESCRIPTION,
+            handler: async (_agent, payload) => {
+                const text = normalizeResponsePayload(payload, 'Agent cannot complete the task.');
+                this.lastAnswer = text;
+                return {
+                    __cannotComplete: true,
                     text,
                 };
             },

@@ -1,6 +1,6 @@
 {
     "id": "case_12_topic_resolution",
-    "description": "Identify the topic of the final resolution in a multi-topic narrative.",
+    "systemPrompt": "Identify the topic of the final resolution in a multi-topic narrative.",
     "steps": [
         {
             "prompt": "The patient arrived at the emergency room complaining of severe chest pains and shortness of breath. The medical team immediately performed an EKG and several blood tests to diagnose the condition. It was determined that the patient needed an expensive surgical procedure to correct a heart defect. The hospital administration contacted the patient's insurance provider to get authorization for the surgery. The insurance company initially denied the claim, citing a pre-existing condition clause in the policy. The hospital's billing department spent days negotiating with the insurance representatives. There were also some technical issues with the insurance portal that delayed the document submission. Finally, after a long battle, the insurance company agreed to cover the full cost of the procedure. The payment was processed immediately, and the financial dispute was resolved.",
