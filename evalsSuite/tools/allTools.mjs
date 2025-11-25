@@ -12,8 +12,15 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
     const isLoop = !!agent.currentSession;
     const input = String(prompt ?? '');
 
-    // eslint-disable-next-line no-console
-    console.log(`[resolveArguments] isLoop=${isLoop}, prompt=${JSON.stringify(input)}, instruction="${instruction}"`);
+    const debugEnabled = process.env.AGENTIC_DEBUG === 'true';
+    const debugLog = (...args) => {
+        if (debugEnabled) {
+            // eslint-disable-next-line no-console
+            console.log(...args);
+        }
+    };
+
+    debugLog(`[resolveArguments] isLoop=${isLoop}, prompt=${JSON.stringify(input)}, instruction="${instruction}"`);
 
     if (!isLoop) {
         // SOP mode: Planner is expected to provide compact, parser-friendly arguments.
@@ -53,8 +60,7 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
             // match[0] is full match, match[1] is first group.
             const captured = match.slice(1);
             if (captured.length >= schema.length) {
-                // eslint-disable-next-line no-console
-                console.log(`[resolveArguments] Regex matched: ${pattern}`);
+                debugLog(`[resolveArguments] Regex matched: ${pattern}`);
                 return captured.map(c => c.trim());
             }
         }
@@ -63,8 +69,7 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
     // 2. Optimization: Try to parse "a, b" or simple numbers if schema matches
     const partsForLoop = loopPrompt.split(',');
     if (partsForLoop.length > 1 && partsForLoop.every((p) => !Number.isNaN(Number.parseFloat(p)))) {
-        // eslint-disable-next-line no-console
-        console.log('[resolveArguments] Simple comma split matched numbers');
+        debugLog('[resolveArguments] Simple comma split matched numbers');
         return partsForLoop.map((p) => p.trim());
     }
 
@@ -88,9 +93,8 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
     try {
         const parsed = JSON.parse(result);
         if (Array.isArray(parsed)) {
-            // eslint-disable-next-line no-console
-            console.log(`[resolveArguments] LLM extraction success: ${JSON.stringify(parsed)}`);
-            return parsed;
+        debugLog(`[resolveArguments] LLM extraction success: ${JSON.stringify(parsed)}`);
+        return parsed;
         }
     } catch (e) {
         // ignore

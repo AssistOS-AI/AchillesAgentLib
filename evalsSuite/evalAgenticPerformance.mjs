@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fork } from 'node:child_process';
+import readline from 'node:readline';
 import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,18 +28,27 @@ const SESSION_LABELS = {
 let lastStatusLength = 0;
 function writeProgress(text) {
     const safe = text || '';
-    const padded = safe.length < lastStatusLength
-        ? `${safe}${' '.repeat(lastStatusLength - safe.length)}`
-        : safe;
-    process.stdout.write(`\r${padded}`);
-    lastStatusLength = padded.length;
+    if (process.stdout.isTTY) {
+        readline.cursorTo(process.stdout, 0);
+        readline.clearLine(process.stdout, 0);
+        process.stdout.write(safe);
+    } else {
+        // Best-effort overwrite when stdout is not a TTY.
+        process.stdout.write(`\r${safe}`);
+    }
+    lastStatusLength = safe.length;
 }
 
 function clearProgressLine() {
     if (!lastStatusLength) {
         return;
     }
-    process.stdout.write(`\r${' '.repeat(lastStatusLength)}\r`);
+    if (process.stdout.isTTY) {
+        readline.cursorTo(process.stdout, 0);
+        readline.clearLine(process.stdout, 0);
+    } else {
+        process.stdout.write('\r');
+    }
     lastStatusLength = 0;
 }
 
@@ -326,6 +336,7 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
         }
         const session = await agent.startLoopAgentSession(PERFORMANCE_TOOLS, steps[0].prompt, {
             systemPrompt: testCase.systemPrompt,
+            initialExpected: steps[0].expected,
         });
 
         onProgress(`Loop: ${steps[0].id || 'step1'}`);
@@ -336,9 +347,15 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
         for (let i = 1; i < steps.length; i += 1) {
             onProgress(`Loop: ${steps[i].id || `step${i + 1}`}`);
             // eslint-disable-next-line no-await-in-loop
-            await session.newPrompt(steps[i].prompt);
+            await session.newPrompt(steps[i].prompt, {
+                expected: steps[i].expected,
+            });
             // eslint-disable-next-line no-await-in-loop
             stepResults.push(await evaluateLoopStep(session, steps[i]));
+        }
+
+        if (session.finalizeFailures) {
+            await session.finalizeFailures();
         }
 
         const ok = stepResults.every((step) => step.ok);

@@ -42,6 +42,9 @@ class LoopAgentSession {
             maxErrors: Number.isFinite(options.maxErrors) ? options.maxErrors : 5,
             mode: options.mode || 'fast',
             model: options.model || null,
+            maxRetriesPerTurn: Number.isFinite(options.maxRetriesPerTurn)
+                ? options.maxRetriesPerTurn
+                : 3,
         };
 
         this.turns = [];
@@ -51,12 +54,19 @@ class LoopAgentSession {
         this.status = 'idle';
         this.lastAnswer = null;
         this.systemPrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
+        this.failedTurns = [];
     }
 
-    async newPrompt(userPrompt) {
+    async newPrompt(userPrompt, options = {}) {
         if (!userPrompt || typeof userPrompt !== 'string') {
             throw new Error('newPrompt requires a prompt string.');
         }
+        const expected = typeof options.expected === 'string' || typeof options.expected === 'number'
+            ? String(options.expected)
+            : null;
+        const maxRetries = Number.isFinite(options.maxRetries)
+            ? options.maxRetries
+            : this.options.maxRetriesPerTurn;
 
         // Session-level logging for incoming prompts
         // eslint-disable-next-line no-console
@@ -71,6 +81,10 @@ class LoopAgentSession {
             _lastToolName: null,
             _lastToolResult: null,
             _sameToolRepeatCount: 0,
+            expected,
+            retryCount: 0,
+            maxRetries,
+            failed: false,
         };
         this.turns.push(turn);
         this.history.push({ type: 'user', prompt: userPrompt });
@@ -95,7 +109,23 @@ class LoopAgentSession {
         return {
             lastAnswer: this.getLastResult(),
             status: this.status,
+            failedTurns: this.failedTurns.length,
         };
+    }
+    
+    hasFailedTurns() {
+        return this.failedTurns.length > 0;
+    }
+
+    async finalizeFailures() {
+        if (!this.hasFailedTurns()) {
+            return null;
+        }
+        try {
+            return await this._executeTool(CANNOT_COMPLETE_TOOL, 'One or more steps failed validation.');
+        } catch {
+            return null;
+        }
     }
 
 
@@ -136,13 +166,50 @@ class LoopAgentSession {
 
                     if (toolResult && (toolResult.__finalAnswer || toolResult.__cannotComplete)) {
                         const final = toolResult.text;
-                        turn.finalAnswer = final;
-                        turn.status = toolResult.__cannotComplete ? 'failed' : 'done';
-                        this.status = toolResult.__cannotComplete ? 'failed' : 'active';
-                        this.lastAnswer = final;
-                        const entryType = toolResult.__cannotComplete ? 'cannot_complete' : 'final_answer';
-                        this.history.push({ type: entryType, answer: final });
-                        return final;
+                        const expected = turn.expected;
+                        const normalize = (v) => String(v ?? '').trim().toLowerCase();
+                        const matchesExpected = expected === null
+                            ? true
+                            : normalize(final) === normalize(expected);
+
+                        if (toolResult.__cannotComplete) {
+                            turn.finalAnswer = final;
+                            turn.status = 'failed';
+                            this.status = 'failed';
+                            this.lastAnswer = final;
+                            this.failedTurns.push(turn);
+                            this.history.push({ type: 'cannot_complete', answer: final });
+                            return final;
+                        }
+
+                        if (matchesExpected) {
+                            turn.finalAnswer = final;
+                            turn.status = 'done';
+                            this.status = 'active';
+                            this.lastAnswer = final;
+                            this.history.push({ type: 'final_answer', answer: final });
+                            return final;
+                        }
+
+                        // Validation failed: record and retry if allowed
+                        turn.retryCount += 1;
+                        this.history.push({
+                            type: 'validation_failed',
+                            expected,
+                            actual: final,
+                            retryCount: turn.retryCount,
+                        });
+                        if (turn.retryCount >= turn.maxRetries) {
+                            turn.finalAnswer = final;
+                            turn.status = 'failed';
+                            this.status = 'active';
+                            this.lastAnswer = final;
+                            this.failedTurns.push(turn);
+                            this.history.push({ type: 'final_answer', answer: final, validationFailed: true });
+                            return final;
+                        }
+                        // Retry by continuing the loop
+                        continue;
                     }
 
                     if (turn._sameToolRepeatCount >= 3) {
@@ -209,6 +276,7 @@ class LoopAgentSession {
         turn.status = 'failed';
         this.status = 'failed';
         this.history.push({ type: 'timeout', message: fallback });
+        this.failedTurns.push(turn);
         return fallback;
     }
 

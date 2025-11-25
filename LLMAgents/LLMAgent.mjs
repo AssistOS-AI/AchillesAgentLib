@@ -308,12 +308,14 @@ ${promptText}`
             throw new Error('startLoopAgentSession requires an initial prompt string.');
         }
 
+        const { initialExpected = null, ...sessionOptions } = options || {};
+
         const session = new LoopAgentSession({
             agent: this,
             tools,
-            options,
+            options: sessionOptions,
         });
-        await session.newPrompt(initialPrompt);
+        await session.newPrompt(initialPrompt, { expected: initialExpected });
         return session;
     }
 
