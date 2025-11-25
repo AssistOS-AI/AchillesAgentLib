@@ -8,6 +8,7 @@ import { defaultLLMInvokerStrategy, cancelRequests } from '../utils/LLMClient.mj
 import {
     buildInterpretMessagePrompt,
     buildDetectIntentsPrompt,
+    buildResolveConfirmationPrompt,
     extractJson,
 } from './templates/prompts.mjs';
 import { LoopAgentSession } from './AgenticSession.mjs';
@@ -109,6 +110,55 @@ class LLMAgent {
             ideas: ideas.length ? ideas : undefined,
             raw,
         };
+    }
+
+    async resolveConfirmation(userInput, { actionContext = null, mode = 'fast' } = {}) {
+        if (!userInput || typeof userInput !== 'string') {
+            return { decision: 'unclear', confidence: 0 };
+        }
+
+        const trimmed = userInput.trim().toLowerCase();
+        if (!trimmed) {
+            return { decision: 'unclear', confidence: 0 };
+        }
+
+        // Fast path: check common explicit responses first
+        const yesPatterns = ['yes', 'y', 'ok', 'sure', 'confirm', 'accept', 'proceed'];
+        const noPatterns = ['no', 'n', 'cancel', 'stop', 'abort', 'reject'];
+
+        if (yesPatterns.includes(trimmed)) {
+            return { decision: 'yes', confidence: 1.0 };
+        }
+        if (noPatterns.includes(trimmed)) {
+            return { decision: 'no', confidence: 1.0 };
+        }
+
+        // Use LLM for ambiguous input
+        const prompt = buildResolveConfirmationPrompt(userInput, actionContext);
+
+        try {
+            const response = await this.complete({
+                prompt,
+                mode,
+                context: { intent: 'resolve-confirmation' },
+            });
+
+            const parsed = extractJson(response);
+            if (parsed && typeof parsed.decision === 'string') {
+                const decision = parsed.decision.toLowerCase();
+                const confidence = typeof parsed.confidence === 'number'
+                    ? Math.max(0, Math.min(1, parsed.confidence))
+                    : 0.7;
+
+                if (['yes', 'no', 'unclear'].includes(decision)) {
+                    return { decision, confidence };
+                }
+            }
+        } catch (error) {
+            // Fall through to unclear on error
+        }
+
+        return { decision: 'unclear', confidence: 0 };
     }
 
     setDebugLogger(logger) {

@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 
-import { createSkilledAgent, SkilledAgent } from '../SkilledAgents/index.mjs';
+import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
+import { defaultPromptReader } from '../utils/defaultPromptReader.mjs';
 import { CodeSkillsSubsystem } from '../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
 import { InteractiveSkillsSubsystem } from '../InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs';
 import { CloudeSkillsSubsystem } from '../CloudeSkillsSubsystem/CloudeSkillsSubsystem.mjs';
@@ -135,18 +136,19 @@ function sanitiseName(value) {
 
 export class RecursiveSkilledAgent {
     constructor({
-        skilledAgent = null,
-        skilledAgentOptions = {},
+        llmAgent = null,
+        llmAgentOptions = {},
         startDir = process.cwd(),
         skillFilter = null,
         logger = console,
         dbAdapter = null,
+        promptReader = null,
         onProcessingBegin = null,
         onProcessingProgress = null,
         onProcessingEnd = null,
     } = {}) {
-        if (skilledAgent && !(skilledAgent instanceof SkilledAgent)) {
-            throw new TypeError('RecursiveSkilledAgent requires a SkilledAgent instance.');
+        if (llmAgent && !(llmAgent instanceof LLMAgent)) {
+            throw new TypeError('RecursiveSkilledAgent requires an LLMAgent instance.');
         }
 
         this.logger = logger || console;
@@ -158,21 +160,21 @@ export class RecursiveSkilledAgent {
         this.onProcessingEnd = typeof onProcessingEnd === 'function' ? onProcessingEnd : null;
         this._isProcessing = false; // Track if we're already processing to prevent nested callbacks
 
-        this.aggregatorAgent = skilledAgent
-            || createSkilledAgent({ ...skilledAgentOptions });
+        this.llmAgent = llmAgent
+            || new LLMAgent({ ...llmAgentOptions });
 
         this.subsystems = new Map();
         this.skillToSubsystem = new Map();
         this.skillCatalog = new Map();
         this.skillAliases = new Map();
-        this.promptReader = this.aggregatorAgent?.promptReader || null;
+        this.promptReader = typeof promptReader === 'function' ? promptReader : defaultPromptReader;
         this.pendingPreparations = [];
 
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
         this.debugLogger?.log('RecursiveSkilledAgent:init', {
             startDir: this.startDir,
-            hasSkilledAgent: Boolean(skilledAgent),
-            skilledAgentOptions: Object.keys(skilledAgentOptions || {}),
+            hasLLMAgent: Boolean(llmAgent),
+            llmAgentOptions: Object.keys(llmAgentOptions || {}),
         });
 
         this.registerDiscoveredSkills();
@@ -185,16 +187,16 @@ export class RecursiveSkilledAgent {
 
         let subsystem;
         if (type === 'code') {
-            subsystem = new CodeSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+            subsystem = new CodeSkillsSubsystem({ llmAgent: this.llmAgent });
         } else if (type === 'interactive') {
-            subsystem = new InteractiveSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+            subsystem = new InteractiveSkillsSubsystem({ llmAgent: this.llmAgent });
         } else if (type === 'mcp') {
-            subsystem = new MCPSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+            subsystem = new MCPSkillsSubsystem({ llmAgent: this.llmAgent });
         } else if (type === 'orchestrator') {
-            subsystem = new OrchestratorSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+            subsystem = new OrchestratorSkillsSubsystem({ llmAgent: this.llmAgent });
         } else if (type === 'dbtable') {
             subsystem = new DBTableSkillsSubsystem({
-                llmAgent: this.aggregatorAgent.llmAgent,
+                llmAgent: this.llmAgent,
                 dbAdapter: this.dbAdapter
             });
         } else {
@@ -539,8 +541,7 @@ export class RecursiveSkilledAgent {
             return null;
         }
 
-        const llmAgent = this.aggregatorAgent?.llmAgent;
-        if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
+        if (!this.llmAgent || typeof this.llmAgent.executePrompt !== 'function') {
             return this.chooseSkillByHeuristic(taskDescription, candidates);
         }
 
@@ -564,7 +565,7 @@ export class RecursiveSkilledAgent {
         );
 
         try {
-            const response = await llmAgent.executePrompt(prompt.join('\n'), {
+            const response = await this.llmAgent.executePrompt(prompt.join('\n'), {
                 mode: 'fast',
                 context: { intent: 'recursive-skill-selection' },
             });

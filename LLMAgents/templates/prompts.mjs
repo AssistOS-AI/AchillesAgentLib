@@ -84,6 +84,32 @@ Example Output:
 Respond ONLY with the JSON object.`;
 }
 
+const buildResolveConfirmationPrompt = (userInput, actionContext = null) => {
+    const lines = [
+        'Determine if the user reply indicates approval or rejection.',
+    ];
+
+    if (actionContext) {
+        lines.push(`Action being confirmed: ${actionContext}`);
+    }
+
+    lines.push(
+        '',
+        'User reply:',
+        `"${userInput}"`,
+        '',
+        'Rules:',
+        '- "yes", "y", "ok", "sure", "confirm", "accept", "proceed", "go ahead", "do it" → yes',
+        '- "no", "n", "cancel", "stop", "abort", "nevermind", "don\'t", "reject" → no',
+        '- Ambiguous or unrelated responses → unclear',
+        '',
+        'Respond ONLY with JSON:',
+        '{ "decision": "yes" | "no" | "unclear", "confidence": 0.0-1.0 }',
+    );
+
+    return lines.join('\n');
+};
+
 const buildAgenticSessionPlannerPrompt = (options) => {
     const {
         tools,
@@ -172,6 +198,7 @@ export {
     buildDoTaskPrompt,
     buildDoTaskWithReviewPrompt,
     buildDetectIntentsPrompt,
+    buildResolveConfirmationPrompt,
     buildAgenticSessionPlannerPrompt,
     extractJson,
 };

@@ -1,3 +1,4 @@
+
 import {
     buildDoTaskPrompt,
     buildDoTaskWithReviewPrompt,
@@ -142,13 +143,13 @@ ${prompt}`
         const lastInvocation = agent.invokerStrategy?.getLastInvocationDetails?.() || null;
         const loggedModel = lastInvocation?.model || responseMetadata?.model || model || 'auto';
         const loggedMode = lastInvocation?.mode || responseMetadata?.mode || mode;
-            logLLMInteraction({
-                prompt: loggedPrompt,
-                response: error?.message || '',
-                model: loggedModel,
-                mode: loggedMode,
-                durationMs: Date.now() - startedAt,
-            });
+        logLLMInteraction({
+            prompt: loggedPrompt,
+            response: error?.message || '',
+            model: loggedModel,
+            mode: loggedMode,
+            durationMs: Date.now() - startedAt,
+        });
         throw error;
     }
 }
