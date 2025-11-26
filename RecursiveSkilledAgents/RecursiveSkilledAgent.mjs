@@ -139,6 +139,7 @@ export class RecursiveSkilledAgent {
         llmAgent = null,
         llmAgentOptions = {},
         startDir = process.cwd(),
+        searchUpwards = true,
         skillFilter = null,
         logger = console,
         dbAdapter = null,
@@ -159,6 +160,7 @@ export class RecursiveSkilledAgent {
         this.onProcessingProgress = typeof onProcessingProgress === 'function' ? onProcessingProgress : null;
         this.onProcessingEnd = typeof onProcessingEnd === 'function' ? onProcessingEnd : null;
         this._isProcessing = false; // Track if we're already processing to prevent nested callbacks
+        this.searchUpwards = Boolean(searchUpwards);
 
         this.llmAgent = llmAgent
             || new LLMAgent({ ...llmAgentOptions });
@@ -211,29 +213,43 @@ export class RecursiveSkilledAgent {
         const roots = this.findAchillesSkillRoots([
             this.startDir,
             process.cwd(),
-        ]);
+        ], this.searchUpwards);
         for (const root of roots) {
             this.registerSkillsFromRoot(root);
         }
     }
 
-    findAchillesSkillRoots(startDirs = []) {
-        const visited = new Set();
+    findAchillesSkillRoots(startDirs = [], searchUpwards = true) {
         const roots = [];
+        const discovered = new Set();
+        const directionLabel = searchUpwards ? 'up' : 'down';
 
-        const collect = (startDir) => {
+        const registerCandidate = (candidate, source = null) => {
+            if (!candidate || discovered.has(candidate)) {
+                return;
+            }
+            discovered.add(candidate);
+            this.debugLogger?.log('RecursiveSkilledAgent:discoveredRoot', {
+                candidate,
+                direction: directionLabel,
+                source,
+            });
+            roots.push(candidate);
+        };
+
+        const visitedAscending = new Set();
+        const collectAscending = (startDir) => {
             if (!startDir) {
                 return;
             }
             let current = path.resolve(startDir);
             const { root } = path.parse(current);
 
-            while (!visited.has(current)) {
-                visited.add(current);
+            while (!visitedAscending.has(current)) {
+                visitedAscending.add(current);
                 const candidate = path.join(current, '.AchillesSkills');
                 if (isDirectory(candidate)) {
-                    this.debugLogger?.log('RecursiveSkilledAgent:discoveredRoot', { candidate });
-                    roots.push(candidate);
+                    registerCandidate(candidate, 'ascend');
                 }
                 if (current === root) {
                     break;
@@ -242,7 +258,121 @@ export class RecursiveSkilledAgent {
             }
         };
 
-        startDirs.forEach((dir) => collect(dir));
+        const visitedDescending = new Set();
+        const collectSkillsDescending = (startDir) => {
+            if (!startDir) {
+                return;
+            }
+            const queue = [path.resolve(startDir)];
+
+            for (let index = 0; index < queue.length; index += 1) {
+                const current = queue[index];
+                if (visitedDescending.has(current)) {
+                    continue;
+                }
+                visitedDescending.add(current);
+
+                const candidate = path.join(current, '.AchillesSkills');
+                if (isDirectory(candidate)) {
+                    registerCandidate(candidate, startDir);
+                }
+
+                let entries = [];
+                try {
+                    entries = fs.readdirSync(current, { withFileTypes: true });
+                } catch (error) {
+                    this.logger?.warn?.(`[RecursiveSkilledAgent] Failed to inspect directory ${current}: ${error.message}`);
+                    continue;
+                }
+
+                for (const entry of entries) {
+                    if (!entry.isDirectory()) {
+                        continue;
+                    }
+                    if (entry.name === '.' || entry.name === '..') {
+                        continue;
+                    }
+                    if (entry.name === 'node_modules') {
+                        continue;
+                    }
+                    if (typeof entry.isSymbolicLink === 'function' && entry.isSymbolicLink()) {
+                        continue;
+                    }
+                    const nextPath = path.join(current, entry.name);
+                    if (!visitedDescending.has(nextPath)) {
+                        queue.push(nextPath);
+                    }
+                }
+            }
+        };
+
+        const findReposRoot = (startDir) => {
+            if (!startDir) {
+                return null;
+            }
+            const queue = [path.resolve(startDir)];
+            const visited = new Set();
+
+            for (let index = 0; index < queue.length; index += 1) {
+                const current = queue[index];
+                if (visited.has(current)) {
+                    continue;
+                }
+                visited.add(current);
+
+                const baseName = path.basename(current).toLowerCase();
+                if (baseName === 'repos') {
+                    return current;
+                }
+
+                let entries = [];
+                try {
+                    entries = fs.readdirSync(current, { withFileTypes: true });
+                } catch (error) {
+                    this.logger?.warn?.(`[RecursiveSkilledAgent] Failed to inspect directory ${current}: ${error.message}`);
+                    continue;
+                }
+
+                for (const entry of entries) {
+                    if (!entry.isDirectory()) {
+                        continue;
+                    }
+                    if (entry.name === '.' || entry.name === '..') {
+                        continue;
+                    }
+                    if (entry.name === 'node_modules') {
+                        continue;
+                    }
+                    if (typeof entry.isSymbolicLink === 'function' && entry.isSymbolicLink()) {
+                        continue;
+                    }
+                    const nextPath = path.join(current, entry.name);
+                    queue.push(nextPath);
+                }
+            }
+            return null;
+        };
+
+        if (!searchUpwards) {
+            let reposRoot = null;
+            for (const dir of startDirs) {
+                reposRoot = findReposRoot(dir);
+                if (reposRoot) {
+                    break;
+                }
+            }
+
+            if (reposRoot) {
+                this.debugLogger?.log('RecursiveSkilledAgent:reposRoot', { reposRoot });
+                collectSkillsDescending(reposRoot);
+                return roots;
+            }
+
+            this.logger?.warn?.('[RecursiveSkilledAgent] No "repos" directory found during downward discovery.');
+            return roots;
+        }
+
+        startDirs.forEach((dir) => collectAscending(dir));
         return roots;
     }
 

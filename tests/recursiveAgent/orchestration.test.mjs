@@ -90,6 +90,16 @@ const FIXTURE_ROOT = path.join(
     'recursiveAgentFixtures',
 );
 
+const HIDDEN_FIXTURE_ROOT = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    'hiddenFixtures',
+);
+
+const DOWNWARD_FIXTURE_ROOT = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    'downwardFixtures',
+);
+
 function createAgent({
     startDir = FIXTURE_ROOT,
     onExecutePrompt = null,
@@ -101,6 +111,30 @@ function createAgent({
         startDir,
     });
 }
+
+test('RecursiveSkilledAgent searches downward until it reaches the repos folder', () => {
+    const agent = new RecursiveSkilledAgent({
+        startDir: DOWNWARD_FIXTURE_ROOT,
+        searchUpwards: false,
+    });
+
+    assert.ok(
+        agent.getSkillRecord('repo-planner-orchestrator'),
+        'expected repo-based skills to be registered when searching downward',
+    );
+});
+
+test('RecursiveSkilledAgent descends into hidden directories when searching downward', () => {
+    const agent = new RecursiveSkilledAgent({
+        startDir: HIDDEN_FIXTURE_ROOT,
+        searchUpwards: false,
+    });
+
+    assert.ok(
+        agent.getSkillRecord('hidden-reporter-claude'),
+        'expected hidden directories to be scanned for skills',
+    );
+});
 
 test('Orchestrator LightSOPLang scripts receive the prompt as $input', async () => {
     const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: new StubLLMAgent() });
