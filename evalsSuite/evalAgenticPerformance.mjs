@@ -16,6 +16,7 @@ const { LLMAgent } = await import('../LLMAgents/LLMAgent.mjs');
 const COLORS = {
     RESET: '\x1b[0m',
     RED: '\x1b[31m',
+    LIGHT_RED: '\x1b[91m',
     GREEN: '\x1b[32m',
     YELLOW: '\x1b[33m',
 };
@@ -260,7 +261,12 @@ async function evaluateSOPStep(session, step) {
     };
 }
 
-async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
+const logFailure = (text) => {
+    // eslint-disable-next-line no-console
+    console.log(`${COLORS.LIGHT_RED}${text}${COLORS.RESET}`);
+};
+
+async function runSOPCase(testCase, runIndex, onProgress = () => { }, debug = false) {
     const started = Date.now();
     const agent = new LLMAgent({ name: `SOP-${testCase.id}-run${runIndex + 1}` });
     const stepResults = [];
@@ -281,6 +287,9 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
         // Evaluate initial prompt
         // eslint-disable-next-line no-await-in-loop
         stepResults.push(await evaluateSOPStep(session, steps[0]));
+        if (debug && !stepResults[0].ok) {
+            logFailure(`[SOP][${testCase.id}][${steps[0].id || 'step1'}] FAIL expected="${stepResults[0].expected}" got="${stepResults[0].answer}"`);
+        }
 
         for (let i = 1; i < steps.length; i += 1) {
             onProgress(`SOP: ${steps[i].id || `step${i + 1}`}`);
@@ -288,6 +297,9 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
             await session.newPrompt(steps[i].prompt);
             // eslint-disable-next-line no-await-in-loop
             stepResults.push(await evaluateSOPStep(session, steps[i]));
+            if (debug && !stepResults[i].ok) {
+                logFailure(`[SOP][${testCase.id}][${steps[i].id || `step${i + 1}`}] FAIL expected="${stepResults[i].expected}" got="${stepResults[i].answer}"`);
+            }
         }
 
         const ok = stepResults.every((step) => step.ok);
@@ -300,6 +312,9 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
             error: null,
         };
     } catch (error) {
+        if (debug) {
+            logFailure(`[SOP][${testCase.id}] Error: ${error?.message || String(error)}`);
+        }
         return {
             ok: false,
             durationMs: Date.now() - started,
@@ -324,7 +339,7 @@ async function evaluateLoopStep(session, step) {
     };
 }
 
-async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
+async function runLoopCase(testCase, runIndex, onProgress = () => { }, debug = false) {
     const started = Date.now();
     const agent = new LLMAgent({ name: `Loop-${testCase.id}-run${runIndex + 1}` });
     const stepResults = [];
@@ -343,6 +358,9 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
         // Evaluate initial prompt
         // eslint-disable-next-line no-await-in-loop
         stepResults.push(await evaluateLoopStep(session, steps[0]));
+        if (debug && !stepResults[0].ok) {
+            logFailure(`[Loop][${testCase.id}][${steps[0].id || 'step1'}] FAIL expected="${stepResults[0].expected}" got="${stepResults[0].answer}"`);
+        }
 
         for (let i = 1; i < steps.length; i += 1) {
             onProgress(`Loop: ${steps[i].id || `step${i + 1}`}`);
@@ -352,6 +370,9 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
             });
             // eslint-disable-next-line no-await-in-loop
             stepResults.push(await evaluateLoopStep(session, steps[i]));
+            if (debug && !stepResults[i].ok) {
+                logFailure(`[Loop][${testCase.id}][${steps[i].id || `step${i + 1}`}] FAIL expected="${stepResults[i].expected}" got="${stepResults[i].answer}"`);
+            }
         }
 
         if (session.finalizeFailures) {
@@ -368,6 +389,9 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
             error: null,
         };
     } catch (error) {
+        if (debug) {
+            logFailure(`[Loop][${testCase.id}] Error: ${error?.message || String(error)}`);
+        }
         return {
             ok: false,
             durationMs: Date.now() - started,
@@ -395,8 +419,8 @@ async function runWorker() {
             }
         };
 
-        const sopResult = await runSOPCase(testCase, runIndex, sendProgress);
-        const loopResult = await runLoopCase(testCase, runIndex, sendProgress);
+        const sopResult = await runSOPCase(testCase, runIndex, sendProgress, debug);
+        const loopResult = await runLoopCase(testCase, runIndex, sendProgress, debug);
 
         const payload = {
             caseId: testCase.id,
