@@ -45,8 +45,10 @@ const parseEnabledModelList = (rawValue) => {
     return new Set(normalized);
 };
 
-const enabledFastModels = parseEnabledModelList(process.env.ACHILLES_ENABLED_FAST_MODELS);
-const enabledDeepModels = parseEnabledModelList(process.env.ACHILLES_ENABLED_DEEP_MODELS);
+function resolveEnabledSet(mode) {
+    const envVar = mode === 'deep' ? process.env.ACHILLES_ENABLED_DEEP_MODELS : process.env.ACHILLES_ENABLED_FAST_MODELS;
+    return parseEnabledModelList(envVar);
+}
 
 registerBuiltInProviders();
 await registerProvidersFromConfig(modelsConfiguration);
@@ -73,6 +75,8 @@ function buildModelCaches() {
     const recordMap = new Map();
     const fast = [];
     const deep = [];
+    const enabledFastModels = resolveEnabledSet('fast');
+    const enabledDeepModels = resolveEnabledSet('deep');
 
     const orderedNames = Array.isArray(modelsConfiguration.orderedModels) && modelsConfiguration.orderedModels.length
         ? modelsConfiguration.orderedModels
@@ -106,11 +110,31 @@ function buildModelCaches() {
         }
     }
 
-    return { recordMap, fast, deep };
+    let preferredMode = null;
+    const envDefaultMode = (process.env.ACHILLES_DEFAULT_MODEL_TYPE || '').trim().toLowerCase();
+    if (VALID_MODES.has(envDefaultMode)) {
+        preferredMode = envDefaultMode;
+    }
+
+    const defaultMode = preferredMode && ((preferredMode === 'fast' && fast.length) || (preferredMode === 'deep' && deep.length))
+        ? preferredMode
+        : (fast.length ? 'fast' : (deep.length ? 'deep' : 'fast'));
+
+    return { recordMap, fast, deep, defaultMode };
 }
 
-const { recordMap: modelRecordMap, fast: fastModelNames, deep: deepModelNames } = buildModelCaches();
-const defaultMode = fastModelNames.length ? 'fast' : (deepModelNames.length ? 'deep' : 'fast');
+let modelRecordMap;
+let fastModelNames;
+let deepModelNames;
+let defaultMode;
+
+function rebuildCaches() {
+    const caches = buildModelCaches();
+    modelRecordMap = caches.recordMap;
+    fastModelNames = caches.fast;
+    deepModelNames = caches.deep;
+    defaultMode = caches.defaultMode;
+}
 
 function normalizeModePreference(value) {
     if (typeof value !== 'string') {
@@ -162,7 +186,14 @@ function resolvePrioritizedModels({ mode, modelName }) {
     return prioritized;
 }
 
+function ensureCachesFresh() {
+    if (!modelRecordMap || !fastModelNames || !deepModelNames) {
+        rebuildCaches();
+    }
+}
+
 function getSupportedModesFromCache() {
+    ensureCachesFresh();
     const modes = [];
     if (fastModelNames.length) {
         modes.push('fast');
@@ -174,6 +205,7 @@ function getSupportedModesFromCache() {
 }
 
 export function listModelsFromCache() {
+    ensureCachesFresh();
     const clone = (names) => names.map((name) => {
         const record = modelRecordMap.get(name);
         return record ? { ...record } : null;
