@@ -141,8 +141,10 @@ function parseFallback(section = '') {
 }
 
 function buildSkillSummary(record) {
+    // Use shortName (without type suffix) for cleaner skill names in prompts
+    const displayName = record.shortName || record.name;
     return [
-        `- ${record.name}`,
+        `- ${displayName}`,
         record.descriptor?.summary ? `  Summary: ${record.descriptor.summary}` : null,
     ].filter(Boolean).join('\n');
 }
@@ -454,16 +456,32 @@ export class OrchestratorSkillsSubsystem {
             allowedSkillSummaries,
         });
 
+        // DEBUG: Log the prompt being sent to LLM
+        if (process.env.DEBUG_ORCHESTRATOR) {
+            console.log('\n[DEBUG] ========== ORCHESTRATOR PROMPT ==========');
+            console.log(prompt);
+            console.log('[DEBUG] ==========================================\n');
+        }
+
         let rawPlan;
         try {
+            // Use deep mode for better reasoning, or override with env var
+            const planMode = process.env.ACHILLES_ORCHESTRATOR_MODE || 'fast';
             rawPlan = await this.llmAgent.executePrompt(prompt, {
-                mode: 'fast',
+                mode: planMode,
                 context: {
                     intent: 'orchestrator-plan',
                     skillName: skillRecord.name,
                 },
                 responseShape: 'json',
             });
+
+            // DEBUG: Log the LLM response
+            if (process.env.DEBUG_ORCHESTRATOR) {
+                console.log('\n[DEBUG] ========== LLM RESPONSE ==========');
+                console.log(JSON.stringify(rawPlan, null, 2));
+                console.log('[DEBUG] =====================================\n');
+            }
         } catch (error) {
             const message = error?.message || String(error);
             this.debugLogger?.log('OrchestratorSkillsSubsystem:createPlan:error', {
@@ -477,17 +495,38 @@ export class OrchestratorSkillsSubsystem {
             throw new Error(`LLM response for orchestration skill "${skillRecord.name}" did not include a plan array.`);
         }
 
-        const allowedLookup = new Map(allowedSkills.map((record) => [
-            Sanitiser.sanitiseName(record.name),
-            record,
-        ]));
+        // Build lookup map with both full name and shortName for matching
+        const allowedLookup = new Map();
+        allowedSkills.forEach((record) => {
+            // Add full name
+            allowedLookup.set(Sanitiser.sanitiseName(record.name), record);
+            // Also add shortName if different
+            if (record.shortName) {
+                allowedLookup.set(Sanitiser.sanitiseName(record.shortName), record);
+            }
+        });
         const orchestratorKey = Sanitiser.sanitiseName(skillRecord.name);
+
+        // DEBUG: Log allowed skills
+        if (process.env.DEBUG_ORCHESTRATOR) {
+            console.log('\n[DEBUG] ========== ALLOWED SKILLS ==========');
+            console.log('Allowed skill keys:', Array.from(allowedLookup.keys()));
+            console.log('Orchestrator key:', orchestratorKey);
+            console.log('[DEBUG] =======================================\n');
+        }
 
         const steps = rawPlan.plan.map((step) => {
             if (!step || typeof step.skill !== 'string') {
                 throw new Error(`LLM produced an invalid orchestration step for skill "${skillRecord.name}".`);
             }
             const key = Sanitiser.sanitiseName(step.skill);
+
+            // DEBUG: Log skill selection attempt
+            if (process.env.DEBUG_ORCHESTRATOR) {
+                console.log(`[DEBUG] LLM selected skill: "${step.skill}" -> sanitized key: "${key}"`);
+                console.log(`[DEBUG] Is in allowed list: ${allowedLookup.has(key)}`);
+            }
+
             let record = allowedLookup.get(key);
             if (!record && key === orchestratorKey) {
                 record = skillRecord;
@@ -575,7 +614,11 @@ export class OrchestratorSkillsSubsystem {
 
             try {
                 log?.(`[step ${index + 1}/${total || 1}] Running ${skillRecord.name}: ${step.input || '<no prompt>'}`);
-                const nestedOptions = { ...options };
+                // Exclude 'args.input' from forwarded options - let step.input become the new input
+                // but preserve any other custom args that were passed to the orchestrator
+                const { args: originalArgs, ...restOptions } = options || {};
+                const { input: _excludedInput, ...preservedArgs } = originalArgs || {};
+                const nestedOptions = { ...restOptions, args: preservedArgs };
                 const outcome = await recursiveAgent.executeWithReviewMode(step.input || '', {
                     ...nestedOptions,
                     skillName: skillRecord.name,
