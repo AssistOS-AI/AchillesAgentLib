@@ -186,6 +186,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" with ONLY the final text in "toolPrompt" (no extra wording).`);
     lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" with a short reason in "toolPrompt".`);
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
+    lines.push('- If the most recent tool result already satisfies the current instruction or expected answer, respond with "action": "call_tool" and "tool": "final_answer" and "toolPrompt":"result". "result" should only be the result of the operations. no other strings added.');
     lines.push('- If the user instruction explicitly mentions a tool by name, you MUST call that tool at least once in this turn before finishing.');
     lines.push('');
     lines.push('Decide the next action. Respond ONLY with the JSON object, no extra text.');

@@ -1,0 +1,11 @@
+{
+    "systemPrompt": "Perform multi-step numeric reasoning with remembered intermediate results. Use the math tool to compute precise numbers.",
+    "tools": {
+        "math": "Math solver that builds a numeric expression from the instruction (can reuse previousResult)."
+    },
+    "prompts": [
+        "Step 1: Compute 18 + 24 and remember this numeric result. Answer only with the number.",
+        "Step 2: Using the remembered number, multiply it by 3. Answer only with the number."
+    ],
+    "expectedFinalAnswer": "126"
+}
