@@ -37,6 +37,7 @@ export class Spinner {
         this.startTime = null;
         this.isSpinning = false;
         this.isPaused = false;
+        this.showInterruptHint = options.showInterruptHint || false;
     }
 
     start(message = 'Processing') {
@@ -63,8 +64,14 @@ export class Spinner {
         const elapsed = this.getElapsed();
         const line = `${this.color}${frame}${COLORS.reset} ${this.message} ${COLORS.dim}${elapsed}${COLORS.reset}`;
 
-        // Clear line and write
-        this.stream.write(`\r\x1b[K${line}`);
+        if (this.showInterruptHint) {
+            // Clear current line and line below, then write both lines
+            const hint = `${COLORS.dim}   Esc to interrupt${COLORS.reset}`;
+            this.stream.write(`\r\x1b[K${line}\n\x1b[K${hint}\x1b[A\r`);
+        } else {
+            // Clear line and write
+            this.stream.write(`\r\x1b[K${line}`);
+        }
     }
 
     getElapsed() {
@@ -93,8 +100,13 @@ export class Spinner {
         clearInterval(this.timer);
         this.timer = null;
 
-        // Clear line and show cursor
-        this.stream.write('\r\x1b[K');
+        // Clear line(s) and show cursor
+        if (this.showInterruptHint) {
+            // Clear both lines (current and hint below)
+            this.stream.write('\r\x1b[K\n\x1b[K\x1b[A\r');
+        } else {
+            this.stream.write('\r\x1b[K');
+        }
         this.stream.write('\x1b[?25h');
 
         this.isPaused = true;
@@ -137,8 +149,13 @@ export class Spinner {
         this.isSpinning = false;
         this.isPaused = false;
 
-        // Clear line
-        this.stream.write('\r\x1b[K');
+        // Clear line(s)
+        if (this.showInterruptHint) {
+            // Clear both lines (current and hint below)
+            this.stream.write('\r\x1b[K\n\x1b[K\x1b[A\r');
+        } else {
+            this.stream.write('\r\x1b[K');
+        }
 
         // Show cursor
         this.stream.write('\x1b[?25h');

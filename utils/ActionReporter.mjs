@@ -52,6 +52,7 @@ export class ActionReporter {
         this.actionStack = [];
         this.stepCount = 0;
         this.totalSteps = 0;
+        this.showInterruptHint = options.showInterruptHint || false;
 
         // Track action history for debugging
         this.history = [];
@@ -196,6 +197,34 @@ export class ActionReporter {
     }
 
     /**
+     * Mark current action as interrupted by user
+     */
+    interrupted(message = 'Interrupted') {
+        const action = this.actionStack.pop();
+        if (action) {
+            this.depth = Math.max(0, this.depth - 1);
+            action.endTime = Date.now();
+            action.duration = action.endTime - action.startTime;
+            action.interrupted = true;
+            this._recordHistory('interrupted', action);
+        }
+
+        if (this.spinner) {
+            this.spinner.stop(`⚠ ${message}`);
+            this.spinner = null;
+            this.startTime = null;
+        } else if (this.mode === 'log') {
+            this.logger.log(`⚠ ${message}`);
+        }
+
+        // Clear remaining action stack
+        this.actionStack = [];
+        this.depth = 0;
+
+        return action;
+    }
+
+    /**
      * Display an info message without affecting action stack
      */
     info(message) {
@@ -267,7 +296,9 @@ export class ActionReporter {
         switch (this.mode) {
             case 'spinner':
                 if (!this.spinner) {
-                    this.spinner = createSpinner(message);
+                    this.spinner = createSpinner(message, {
+                        showInterruptHint: this.showInterruptHint,
+                    });
                 } else {
                     this.spinner.update(message);
                 }

@@ -10,7 +10,7 @@ import {
     buildIskillCodeGenPrompt,
     buildOskillCodeGenPrompt,
     buildCskillCodeGenPrompt,
-} from '../../prompts/codeGeneration.prompts.mjs';
+} from './codeGeneration.prompts.mjs';
 
 const SUPPORTED_TYPES = ['tskill', 'iskill', 'oskill', 'cskill'];
 

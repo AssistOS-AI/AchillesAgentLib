@@ -577,7 +577,7 @@ Each skill folder may include one or more descriptor files depending on the type
 
 ---
 
-## SkillManagerAgent (`cli/skill-manager-cli/`)
+## SkillManagerCli (`cli/skill-manager-cli/skill-manager/`)
 
 A specialized CLI agent for managing, generating, and testing skill definition files in `.AchillesSkills` directories.
 
@@ -585,7 +585,7 @@ A specialized CLI agent for managing, generating, and testing skill definition f
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                          SkillManagerAgent                                  │
+│                          SkillManagerCli                                    │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
 │  │                    RecursiveSkilledAgent                              │  │
 │  │  - Discovers skills from workingDir + built-in skills                │  │
@@ -617,15 +617,11 @@ A specialized CLI agent for managing, generating, and testing skill definition f
 ### File Structure
 
 ```
-cli/skill-manager-cli/
+cli/skill-manager-cli/skill-manager/
 ├── index.mjs                    # CLI entry point
-├── SkillManagerAgent.mjs        # Main agent class
+├── SkillManagerCli.mjs          # Main agent class
 ├── skillSchemas.mjs             # Schema definitions & templates
 ├── spinner.mjs                  # CLI spinner animation
-├── prompts/                     # LLM prompt templates
-│   ├── index.mjs                # Central export
-│   ├── codeGeneration.prompts.mjs  # Code generation prompts
-│   └── skillRefiner.prompts.mjs    # Skill refinement prompts
 └── .AchillesSkills/             # Built-in skills
     ├── skill-manager/           # Main orchestrator (oskill)
     ├── list-skills/             # List discovered skills
@@ -637,12 +633,14 @@ cli/skill-manager-cli/
     ├── get-template/            # Get blank templates
     ├── preview-changes/         # Show diff before writing
     ├── generate-code/           # Generate .mjs from tskill
+    │   └── codeGeneration.prompts.mjs  # Code generation prompts
     ├── test-code/               # Test generated code
     └── skill-refiner/           # Iterative improvement (oskill)
+        └── skillRefiner.prompts.mjs    # Skill refinement prompts
 
 tests/skill-manager/             # Test files (separate location)
-├── SkillManagerAgent.test.mjs
-├── SkillManagerAgent.integration.test.mjs
+├── SkillManagerCli.test.mjs
+├── SkillManagerCli.integration.test.mjs
 ├── skillModules.test.mjs
 ├── allSkills.test.mjs
 ├── codeGeneration.test.mjs
@@ -651,14 +649,14 @@ tests/skill-manager/             # Test files (separate location)
 
 ### Key Components
 
-#### SkillManagerAgent.mjs
+#### SkillManagerCli.mjs
 
 Main agent class that wraps `RecursiveSkilledAgent` for skill management.
 
 ```javascript
-import { SkillManagerAgent } from 'achillesAgentLib/cli/skill-manager-cli/SkillManagerAgent.mjs';
+import { SkillManagerCli } from 'achillesAgentLib/cli/skill-manager-cli/skill-manager/SkillManagerCli.mjs';
 
-const agent = new SkillManagerAgent({
+const agent = new SkillManagerCli({
     workingDir: '/path/to/project',  // Where user skills live
     llmAgent: customLLMAgent,        // Optional custom LLM
 });
@@ -704,17 +702,17 @@ const result = validateSkillContent(content);
 const updated = updateSkillSection(content, 'Summary', 'New summary text');
 ```
 
-#### prompts/ Directory
+#### Prompt Files (Co-located with Skills)
 
-All LLM prompts are kept in separate `.mjs` files for maintainability:
+LLM prompts are kept in `.prompts.mjs` files alongside the skills that use them:
 
 ```javascript
-// codeGeneration.prompts.mjs
+// .AchillesSkills/generate-code/codeGeneration.prompts.mjs
 export function buildCodeGenPrompt(skillName, content, sections) {
     return `Generate JavaScript/ESM code for...`;
 }
 
-// skillRefiner.prompts.mjs
+// .AchillesSkills/skill-refiner/skillRefiner.prompts.mjs
 export function buildEvaluationPrompt(testResult, requirements) { ... }
 export function buildFixesPrompt(skillContent, failures, history) { ... }
 ```
@@ -756,7 +754,7 @@ Generates `.mjs` code from `tskill.md` definitions using LLM.
 
 - Input: skill name
 - Output: `tskill.generated.mjs` file with validators, presenters, etc.
-- Uses: `prompts/codeGeneration.prompts.mjs`
+- Uses: `codeGeneration.prompts.mjs` (co-located)
 
 #### skill-refiner (oskill)
 
@@ -768,7 +766,7 @@ read skill → generate code → test → evaluate → fix → repeat
 
 - Max iterations configurable
 - Uses LLM to evaluate test results and generate fixes
-- Uses: `prompts/skillRefiner.prompts.mjs`
+- Uses: `skillRefiner.prompts.mjs` (co-located)
 
 ### CLI Usage
 
@@ -812,8 +810,8 @@ skill-manager --deep "create a tskill called inventory"
 ### Development Notes
 
 - **Do not edit `tskill.generated.mjs` directly** - Modify `tskill.md` and regenerate
-- **Prompts in separate files** - All LLM prompts in `prompts/*.prompts.mjs`
+- **Prompts co-located with skills** - Each skill that needs LLM prompts has them in the skill folder (e.g., `generate-code/codeGeneration.prompts.mjs`)
 - **Built-in skills hidden** - REPL shows only user skills by default
 - **Tests** - 211 tests across 5 test files
-- After any change in `cli/skill-manager-cli/` run the `tests/skill-manager/` tests
+- After any change in `cli/skill-manager-cli/skill-manager/` run the `tests/skill-manager/` tests
 - The files with the extensions `.generated.mjs` should never be updated directly but instead the `.md` files should be updated and the code will be automatically recreated from the markdown file.

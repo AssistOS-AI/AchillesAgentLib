@@ -6,6 +6,7 @@ import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
 import { RecursiveSkilledAgent } from '../../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import { createSpinner } from './spinner.mjs';
 import { ActionReporter } from '../../../utils/ActionReporter.mjs';
+import { HistoryManager } from './HistoryManager.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,6 +70,11 @@ export class SkillManagerCli {
             llmAgent: this.llmAgent,
             logger: this.logger,
         };
+
+        // Initialize history manager for command history persistence
+        this.historyManager = new HistoryManager({
+            workingDir: this.workingDir,
+        });
     }
 
     /**
@@ -203,13 +209,23 @@ export class SkillManagerCli {
             console.log('No user skills found. Create one with "create a skill" to get started.');
         }
 
-        console.log('\nCommands: "exit" to quit, "reload" to refresh skills, or type any instruction.\n');
+        // Show history info
+        if (this.historyManager.length > 0) {
+            console.log(`Command history: ${this.historyManager.length} entries (use ↑/↓ to navigate, "history" to view)`);
+        }
 
+        console.log('\nCommands: "exit" to quit, "reload" to refresh skills, "history" to view past commands.\n');
+
+        // Create readline interface with history support
+        // Note: readline expects history in reverse order (newest first)
         const promptOnce = () => {
             return new Promise((resolve) => {
                 const rl = readline.createInterface({
                     input: process.stdin,
                     output: process.stdout,
+                    history: this.historyManager.getAll().reverse(),
+                    historySize: this.historyManager.maxEntries,
+                    terminal: true,
                 });
                 rl.question('SkillManager> ', (answer) => {
                     rl.close();
@@ -271,14 +287,63 @@ export class SkillManagerCli {
                 continue;
             }
 
+            // History commands
+            if (input.toLowerCase() === 'history' || input.toLowerCase() === 'hist') {
+                this._showHistory();
+                continue;
+            }
+
+            if (input.toLowerCase().startsWith('history ') || input.toLowerCase().startsWith('hist ')) {
+                const arg = input.split(/\s+/).slice(1).join(' ');
+                if (arg === 'clear') {
+                    this.historyManager.clear();
+                    console.log('\nHistory cleared.\n');
+                } else if (arg.match(/^\d+$/)) {
+                    this._showHistory(parseInt(arg, 10));
+                } else {
+                    // Search history
+                    this._searchHistory(arg);
+                }
+                continue;
+            }
+
+            // Create AbortController for ESC cancellation
+            const abortController = new AbortController();
+            let wasInterrupted = false;
+
             // Create ActionReporter for real-time feedback (Claude Code style)
-            const actionReporter = new ActionReporter({ mode: 'spinner' });
+            const actionReporter = new ActionReporter({
+                mode: 'spinner',
+                showInterruptHint: true,
+            });
             this.skilledAgent.setActionReporter(actionReporter);
+
+            // Set up ESC key listener
+            const handleKeypress = (key) => {
+                // ESC key
+                if (key === '\x1b' || key === '\u001b') {
+                    wasInterrupted = true;
+                    abortController.abort();
+                }
+            };
+
+            // Enable raw mode to capture individual keypresses
+            if (process.stdin.isTTY) {
+                process.stdin.setRawMode(true);
+                process.stdin.resume();
+                process.stdin.on('data', handleKeypress);
+            }
 
             // Set up a prompt reader that pauses the reporter during user input
             this.skilledAgent.promptReader = async (prompt) => {
                 // Pause the action reporter while waiting for user input
                 actionReporter.pause();
+
+                // Temporarily disable raw mode for readline
+                if (process.stdin.isTTY) {
+                    process.stdin.setRawMode(false);
+                    process.stdin.removeListener('data', handleKeypress);
+                }
 
                 return new Promise((resolve) => {
                     const rl = readline.createInterface({
@@ -287,6 +352,11 @@ export class SkillManagerCli {
                     });
                     rl.question(prompt, (answer) => {
                         rl.close();
+                        // Re-enable raw mode and ESC listener
+                        if (process.stdin.isTTY) {
+                            process.stdin.setRawMode(true);
+                            process.stdin.on('data', handleKeypress);
+                        }
                         // Resume the action reporter after user responds
                         actionReporter.resume();
                         resolve(answer);
@@ -298,7 +368,9 @@ export class SkillManagerCli {
             actionReporter.thinking();
 
             try {
-                const result = await this.processPrompt(input);
+                const result = await this.processPrompt(input, {
+                    signal: abortController.signal,
+                });
 
                 // Show actual model used
                 const lastInvocation = this.llmAgent.invokerStrategy?.getLastInvocationDetails?.();
@@ -316,14 +388,30 @@ export class SkillManagerCli {
                 console.log(result);
                 console.log('-'.repeat(60) + '\n');
             } catch (error) {
-                const lastInvocation = this.llmAgent.invokerStrategy?.getLastInvocationDetails?.();
-                const modelInfo = lastInvocation?.model ? ` [${lastInvocation.model}]` : '';
-                actionReporter.failAction(error);
-                console.error(`\n${error.message}\n`);
+                if (wasInterrupted || error.name === 'AbortError') {
+                    actionReporter.interrupted('Operation cancelled');
+                    console.log('');
+                } else {
+                    const lastInvocation = this.llmAgent.invokerStrategy?.getLastInvocationDetails?.();
+                    const modelInfo = lastInvocation?.model ? ` [${lastInvocation.model}]` : '';
+                    actionReporter.failAction(error);
+                    console.error(`\n${error.message}\n`);
+                }
             } finally {
+                // Clean up ESC listener
+                if (process.stdin.isTTY) {
+                    process.stdin.setRawMode(false);
+                    process.stdin.removeListener('data', handleKeypress);
+                }
+
                 // Clean up reporter and prompt reader
                 this.skilledAgent.setActionReporter(null);
                 this.skilledAgent.promptReader = null;
+
+                // Save command to history (unless interrupted)
+                if (!wasInterrupted) {
+                    this.historyManager.add(input);
+                }
             }
         }
     }
@@ -335,11 +423,16 @@ export class SkillManagerCli {
 +----------------------------------------------------------+
 
 Quick Commands (no LLM):
-  list, ls        List user skills
-  list all, ls -a List all skills (including built-in)
-  reload          Refresh skills from disk
-  help            Show this help
-  exit, quit, q   Exit the CLI
+  list, ls          List user skills
+  list all, ls -a   List all skills (including built-in)
+  reload            Refresh skills from disk
+  history, hist     Show recent command history
+  history <n>       Show last n commands
+  history <query>   Search history for query
+  history clear     Clear command history
+  help              Show this help
+  exit, quit, q     Exit the CLI
+  Esc               Cancel running operation
 
 Natural Language Examples:
   "list all skills"
@@ -360,6 +453,50 @@ Skill Types:
   oskill - Orchestrator (routes to other skills)
   mskill - MCP tool integration
 `);
+    }
+
+    /**
+     * Show recent command history
+     * @param {number} count - Number of recent commands to show (default: 20)
+     */
+    _showHistory(count = 20) {
+        const recent = this.historyManager.getRecent(count);
+        if (recent.length === 0) {
+            console.log('\nNo command history yet.\n');
+            return;
+        }
+
+        console.log(`\nCommand history (last ${recent.length} of ${this.historyManager.length}):`);
+        recent.forEach(({ index, command }) => {
+            console.log(`  ${index.toString().padStart(4)}  ${command}`);
+        });
+        console.log(`\nHistory stored at: ${this.historyManager.getHistoryPath()}\n`);
+    }
+
+    /**
+     * Search command history
+     * @param {string} query - Search query
+     */
+    _searchHistory(query) {
+        const results = this.historyManager.search(query, 20);
+        if (results.length === 0) {
+            console.log(`\nNo history entries matching "${query}".\n`);
+            return;
+        }
+
+        console.log(`\nHistory entries matching "${query}":`);
+        results.forEach(({ index, command }) => {
+            console.log(`  ${index.toString().padStart(4)}  ${command}`);
+        });
+        console.log('');
+    }
+
+    /**
+     * Get the history manager instance
+     * @returns {HistoryManager}
+     */
+    getHistoryManager() {
+        return this.historyManager;
     }
 }
 

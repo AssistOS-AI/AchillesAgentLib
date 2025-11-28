@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export async function action(input, context) {
-    const { skillsDir } = context;
+    const { skillsDir, skilledAgent } = context;
 
     if (!skillsDir) {
         return 'Error: skillsDir not configured in context';
@@ -59,7 +59,19 @@ export async function action(input, context) {
         fs.writeFileSync(filePath, content, 'utf8');
 
         const action = existed ? 'Updated' : 'Created';
-        return `${action}: ${skillName}/${fileName} (${content.length} bytes)\n\nRemember to reload skills or validate after changes.`;
+
+        // Auto-reload skills so the new skill is immediately available
+        let reloadMessage = '';
+        if (skilledAgent && typeof skilledAgent.reloadSkills === 'function') {
+            try {
+                const count = skilledAgent.reloadSkills();
+                reloadMessage = `\nSkills reloaded (${count} skill(s) registered).`;
+            } catch (e) {
+                reloadMessage = '\nNote: Could not auto-reload skills. Use "reload" command.';
+            }
+        }
+
+        return `${action}: ${skillName}/${fileName} (${content.length} bytes)${reloadMessage}`;
     } catch (error) {
         return `Error writing file: ${error.message}`;
     }

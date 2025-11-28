@@ -377,8 +377,11 @@ export function validateSkillContent(content, skillType = null) {
     }
 
     // Check optional sections and warn if missing
+    // Normalize content for comparison (treat hyphens and spaces as equivalent)
+    const normalizedContent = content.toLowerCase().replace(/-/g, ' ');
     for (const section of schema.optionalSections || []) {
-        const sectionPattern = new RegExp(`##\\s+${section}`, 'i');
+        const normalizedSection = section.toLowerCase().replace(/-/g, ' ');
+        const sectionPattern = new RegExp(`##\\s+${normalizedSection.replace(/\s+/g, '[\\s-]+')}`, 'i');
         if (!sectionPattern.test(content)) {
             warnings.push(`Optional section not present: ## ${section}`);
         }
@@ -393,8 +396,9 @@ export function validateSkillContent(content, skillType = null) {
     }
 
     if (type === 'cskill') {
-        // Check for LLM mode
-        if (!content.toLowerCase().includes('## llm mode')) {
+        // Check for LLM mode (accept both "## LLM Mode" and "## LLM-Mode")
+        const hasLLMMode = /##\s+llm[\s-]+mode/i.test(content);
+        if (!hasLLMMode) {
             warnings.push('Code skill should specify ## LLM Mode (fast or deep)');
         }
     }

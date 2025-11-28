@@ -4,9 +4,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { realpathSync } from 'node:fs';
 import { SkillManagerCli } from './SkillManagerCli.mjs';
+import { HistoryManager } from './HistoryManager.mjs';
 
-// Re-export the class for library usage
-export { SkillManagerCli };
+// Re-export classes for library usage
+export { SkillManagerCli, HistoryManager };
 
 // CLI entry point when run directly
 async function main() {
@@ -97,6 +98,10 @@ OPTIONS:
 MODES:
   REPL Mode          Run without a prompt to enter interactive mode
   Single-shot Mode   Pass a prompt as arguments to execute and exit
+
+HISTORY:
+  Command history is stored per working directory in .skill-manager-history
+  Use ↑/↓ arrows to navigate history, "history" command to view/search
 
 BUILT-IN SKILLS:
   list-skills        List all registered skills

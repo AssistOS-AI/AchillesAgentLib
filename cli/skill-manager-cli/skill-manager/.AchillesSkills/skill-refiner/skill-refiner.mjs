@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { detectSkillType, parseSkillSections } from '../../skillSchemas.mjs';
-import { buildEvaluationPrompt, buildFixesPrompt } from '../../prompts/skillRefiner.prompts.mjs';
+import { buildEvaluationPrompt, buildFixesPrompt } from './skillRefiner.prompts.mjs';
 
 /**
  * Parse input to extract skill name, requirements, and options
