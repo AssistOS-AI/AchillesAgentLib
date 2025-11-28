@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { SkillManagerAgent } from '../../SkillManagerAgent/SkillManagerAgent.mjs';
+import { SkillManagerAgent } from '../../cli/skill-manager-cli/SkillManagerAgent.mjs';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -159,7 +159,7 @@ fast
 
         it('should execute list-skills action directly', async () => {
             // Import action directly like other tests do
-            const { action } = await import('../../SkillManagerAgent/.AchillesSkills/list-skills/list-skills.mjs');
+            const { action } = await import('../../cli/skill-manager-cli/.AchillesSkills/list-skills/list-skills.mjs');
 
             const result = await action('', {
                 skilledAgent: agent.skilledAgent,
@@ -173,7 +173,7 @@ fast
 
         it('should execute get-template action directly', async () => {
             // Import action directly like other tests do
-            const { action } = await import('../../SkillManagerAgent/.AchillesSkills/get-template/get-template.mjs');
+            const { action } = await import('../../cli/skill-manager-cli/.AchillesSkills/get-template/get-template.mjs');
 
             const result = await action('cskill', {
                 skilledAgent: agent.skilledAgent,
@@ -381,7 +381,7 @@ This skill has no prompt section.
         });
 
         // Import and call list-skills action directly
-        const { action } = await import('../../SkillManagerAgent/.AchillesSkills/list-skills/list-skills.mjs');
+        const { action } = await import('../../cli/skill-manager-cli/.AchillesSkills/list-skills/list-skills.mjs');
         const result = await action('', {
             skilledAgent: agent.skilledAgent,
             llmAgent: agent.llmAgent,

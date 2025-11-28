@@ -26,7 +26,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SKILLS_BASE = path.join(__dirname, '../../SkillManagerAgent/.AchillesSkills');
+const SKILLS_BASE = path.join(__dirname, '../../cli/skill-manager-cli/.AchillesSkills');
 
 // ============================================================================
 // skillSchemas.mjs Tests
@@ -37,7 +37,7 @@ describe('skillSchemas.mjs - Schema Utilities', () => {
     let SKILL_TYPES, SKILL_TEMPLATES;
 
     before(async () => {
-        const schemas = await import('../../SkillManagerAgent/skillSchemas.mjs');
+        const schemas = await import('../../cli/skill-manager-cli/skillSchemas.mjs');
         detectSkillType = schemas.detectSkillType;
         validateSkillContent = schemas.validateSkillContent;
         parseSkillSections = schemas.parseSkillSections;
@@ -208,7 +208,7 @@ describe('list-skills module - Extended Tests', () => {
     let action;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/list-skills/list-skills.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/list-skills/list-skills.mjs');
         action = module.action;
     });
 
@@ -270,7 +270,7 @@ describe('read-skill module - Extended Tests', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/read-skill/read-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/read-skill/read-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_read_ext_' + Date.now());
@@ -338,7 +338,7 @@ describe('write-skill module - Extended Tests', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/write-skill/write-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/write-skill/write-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_write_ext_' + Date.now());
@@ -419,7 +419,7 @@ describe('delete-skill module - Extended Tests', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/delete-skill/delete-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/delete-skill/delete-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_delete_ext_' + Date.now());
@@ -469,7 +469,7 @@ describe('validate-skill module - Extended Tests', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/validate-skill/validate-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/validate-skill/validate-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_validate_ext_' + Date.now());
@@ -535,7 +535,7 @@ describe('get-template module - Extended Tests', () => {
     let action;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/get-template/get-template.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/get-template/get-template.mjs');
         action = module.action;
     });
 
@@ -577,7 +577,7 @@ describe('update-section module - Extended Tests', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/update-section/update-section.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/update-section/update-section.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_updatesec_ext_' + Date.now());
@@ -656,6 +656,68 @@ describe('update-section module - Extended Tests', () => {
         assert.ok(content.includes('## NewSection'));
         assert.ok(content.includes('Brand new content'));
     });
+
+    it('should trigger code regeneration when .generated.mjs exists', async () => {
+        const skillDir = path.join(tempSkillsDir, 'RegenSkill');
+        fs.mkdirSync(skillDir);
+        fs.writeFileSync(path.join(skillDir, 'iskill.md'), '# Regen\n\n## Summary\nOriginal summary\n\n## Commands\n\n### test\nTest command');
+        // Create a .generated.mjs file to trigger regeneration
+        fs.writeFileSync(path.join(skillDir, 'regen.generated.mjs'), 'export const specs = {};');
+
+        const mockAgent = {
+            getSkillRecord: () => ({
+                skillDir,
+                filePath: path.join(skillDir, 'iskill.md'),
+            }),
+        };
+
+        // Mock llmAgent for code generation
+        const mockLlm = {
+            executePrompt: async () => 'export const specs = { name: "regen" };\nexport async function action() { return "test"; }',
+        };
+
+        const result = await action(JSON.stringify({
+            skillName: 'RegenSkill',
+            section: 'Summary',
+            content: 'Updated summary',
+        }), { skillsDir: tempSkillsDir, skilledAgent: mockAgent, llmAgent: mockLlm });
+
+        // Check that the section was updated
+        const content = fs.readFileSync(path.join(skillDir, 'iskill.md'), 'utf8');
+        assert.ok(content.includes('Updated summary'));
+
+        // Check that regeneration was triggered (message should mention it)
+        assert.ok(
+            result.includes('regeneration') || result.includes('Detected existing generated code'),
+            `Should mention regeneration. Got: ${result}`
+        );
+    });
+
+    it('should not trigger regeneration when no .generated.mjs exists', async () => {
+        const skillDir = path.join(tempSkillsDir, 'NoRegenSkill');
+        fs.mkdirSync(skillDir);
+        fs.writeFileSync(path.join(skillDir, 'cskill.md'), '# NoRegen\n\n## Summary\nOriginal');
+
+        const mockAgent = {
+            getSkillRecord: () => ({
+                skillDir,
+                filePath: path.join(skillDir, 'cskill.md'),
+            }),
+        };
+
+        const result = await action(JSON.stringify({
+            skillName: 'NoRegenSkill',
+            section: 'Summary',
+            content: 'Updated',
+        }), { skillsDir: tempSkillsDir, skilledAgent: mockAgent });
+
+        // Should NOT mention regeneration
+        assert.ok(
+            !result.includes('regeneration') && !result.includes('Detected existing generated code'),
+            `Should not mention regeneration when no .generated.mjs exists. Got: ${result}`
+        );
+        assert.ok(result.includes('Updated section'));
+    });
 });
 
 // ============================================================================
@@ -668,7 +730,7 @@ describe('preview-changes module - Extended Tests', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/preview-changes/preview-changes.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/preview-changes/preview-changes.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_preview_ext_' + Date.now());
@@ -756,7 +818,7 @@ describe('execute-skill module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/execute-skill/execute-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/execute-skill/execute-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_execute_' + Date.now());
@@ -875,7 +937,7 @@ describe('generate-code module - Extended Tests', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/generate-code/generate-code.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/generate-code/generate-code.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_gencode_ext_' + Date.now());
@@ -930,7 +992,7 @@ describe('test-code module - Extended Tests', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/test-code/test-code.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/test-code/test-code.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_testcode_ext_' + Date.now());
@@ -998,7 +1060,7 @@ describe('skill-refiner module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../SkillManagerAgent/.AchillesSkills/skill-refiner/skill-refiner.mjs');
+        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/skill-refiner/skill-refiner.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_refiner_' + Date.now());
@@ -1320,7 +1382,7 @@ export async function action(args, context) {
 `);
 
         // Import the execute-skill action
-        const executeModule = await import('../../SkillManagerAgent/.AchillesSkills/execute-skill/execute-skill.mjs');
+        const executeModule = await import('../../cli/skill-manager-cli/.AchillesSkills/execute-skill/execute-skill.mjs');
         const executeAction = executeModule.action;
 
         // Create a mock skilledAgent that simulates the updated InteractiveSkillsSubsystem behavior
@@ -1413,7 +1475,7 @@ export async function action(args, context) {
 `);
 
         // Import the execute-skill action
-        const executeModule = await import('../../SkillManagerAgent/.AchillesSkills/execute-skill/execute-skill.mjs');
+        const executeModule = await import('../../cli/skill-manager-cli/.AchillesSkills/execute-skill/execute-skill.mjs');
         const executeAction = executeModule.action;
 
         const mockAgent = {
@@ -1504,19 +1566,19 @@ describe('Skills Integration - Complete Workflow', () => {
         tempSkillsDir = path.join(tempDir, '.AchillesSkills');
         fs.mkdirSync(tempSkillsDir, { recursive: true });
 
-        const listModule = await import('../../SkillManagerAgent/.AchillesSkills/list-skills/list-skills.mjs');
+        const listModule = await import('../../cli/skill-manager-cli/.AchillesSkills/list-skills/list-skills.mjs');
         listAction = listModule.action;
 
-        const readModule = await import('../../SkillManagerAgent/.AchillesSkills/read-skill/read-skill.mjs');
+        const readModule = await import('../../cli/skill-manager-cli/.AchillesSkills/read-skill/read-skill.mjs');
         readAction = readModule.action;
 
-        const writeModule = await import('../../SkillManagerAgent/.AchillesSkills/write-skill/write-skill.mjs');
+        const writeModule = await import('../../cli/skill-manager-cli/.AchillesSkills/write-skill/write-skill.mjs');
         writeAction = writeModule.action;
 
-        const validateModule = await import('../../SkillManagerAgent/.AchillesSkills/validate-skill/validate-skill.mjs');
+        const validateModule = await import('../../cli/skill-manager-cli/.AchillesSkills/validate-skill/validate-skill.mjs');
         validateAction = validateModule.action;
 
-        const deleteModule = await import('../../SkillManagerAgent/.AchillesSkills/delete-skill/delete-skill.mjs');
+        const deleteModule = await import('../../cli/skill-manager-cli/.AchillesSkills/delete-skill/delete-skill.mjs');
         deleteAction = deleteModule.action;
     });
 

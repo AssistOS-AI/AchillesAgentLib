@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { SkillManagerAgent } from '../../SkillManagerAgent/SkillManagerAgent.mjs';
+import { SkillManagerAgent } from '../../cli/skill-manager-cli/SkillManagerAgent.mjs';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
