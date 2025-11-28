@@ -80,12 +80,14 @@ ${content}
 export const specs = {
     name: '${skillName}',
     description: '[From Summary section]',
+    needConfirmation: false, // Set to false if "needConfirmation: false" in Settings section
     arguments: {
-        // Each argument from "Required Arguments" or "Arguments" section
+        // Each argument from "Commands" or "Arguments" section
+        // Arguments in square brackets like [topic] are optional (required: false)
         argumentName: {
             description: 'What this argument is for',
             type: 'string', // optional: string, number, boolean, date
-            required: true, // true if in Required Arguments
+            required: true, // false if argument is in square brackets like [argName]
             // Optional properties:
             // validator: (value) => error string or null,
             // enumerator: async () => ['option1', 'option2'],
@@ -122,9 +124,14 @@ If present, use it as the system prompt when calling llmAgent.executePrompt().
 - Include JSDoc comments
 
 ## Important:
-- Parse the "Required Arguments" or "Arguments" section to build the arguments object
+- Parse the "Commands" or "Arguments" section to build the arguments object
+- Arguments in square brackets like [topic] are OPTIONAL (required: false)
 - Use the "Prompt" section content as guidance for the action implementation
 - If the skill needs LLM, call: await llmAgent.executePrompt(prompt, { mode: 'fast' })
+- Parse the "Settings" section for configuration:
+  - If "needConfirmation: false" is present, set specs.needConfirmation = false
+  - This allows the skill to execute immediately without user confirmation
+- Parse the "Instructions" section for execution behavior guidance
 
 Generate ONLY the JavaScript code, no markdown code blocks, no explanations.`;
 }

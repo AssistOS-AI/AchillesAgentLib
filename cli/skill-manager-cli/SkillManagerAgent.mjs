@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
-import { RecursiveSkilledAgent } from '../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
+import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
+import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import { createSpinner } from './spinner.mjs';
+import { ActionReporter } from '../../utils/ActionReporter.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -150,6 +151,25 @@ export class SkillManagerAgent {
     }
 
     /**
+     * Set an ActionReporter for real-time feedback
+     * @param {ActionReporter} reporter - The reporter instance (or null to disable)
+     */
+    setActionReporter(reporter) {
+        this.skilledAgent.setActionReporter(reporter);
+    }
+
+    /**
+     * Create and return an ActionReporter configured for this agent
+     * @param {Object} options - Reporter options
+     * @returns {ActionReporter}
+     */
+    createActionReporter(options = {}) {
+        const reporter = new ActionReporter(options);
+        this.setActionReporter(reporter);
+        return reporter;
+    }
+
+    /**
      * Start interactive REPL
      */
     async startREPL() {
@@ -251,14 +271,46 @@ export class SkillManagerAgent {
                 continue;
             }
 
-            const spinner = createSpinner('Thinking');
+            // Create ActionReporter for real-time feedback (Claude Code style)
+            const actionReporter = new ActionReporter({ mode: 'spinner' });
+            this.skilledAgent.setActionReporter(actionReporter);
+
+            // Set up a prompt reader that pauses the reporter during user input
+            this.skilledAgent.promptReader = async (prompt) => {
+                // Pause the action reporter while waiting for user input
+                actionReporter.pause();
+
+                return new Promise((resolve) => {
+                    const rl = readline.createInterface({
+                        input: process.stdin,
+                        output: process.stdout,
+                    });
+                    rl.question(prompt, (answer) => {
+                        rl.close();
+                        // Resume the action reporter after user responds
+                        actionReporter.resume();
+                        resolve(answer);
+                    });
+                });
+            };
+
+            // Start with initial "Thinking" action
+            actionReporter.thinking();
+
             try {
                 const result = await this.processPrompt(input);
 
                 // Show actual model used
                 const lastInvocation = this.llmAgent.invokerStrategy?.getLastInvocationDetails?.();
                 const modelInfo = lastInvocation?.model ? ` [${lastInvocation.model}]` : '';
-                spinner.succeed(`Done${modelInfo}`);
+
+                // Complete any remaining actions and show final status
+                actionReporter.reset();
+                const elapsed = actionReporter.history.length > 0
+                    ? actionReporter.history[actionReporter.history.length - 1]?.duration
+                    : null;
+                const durationInfo = elapsed ? ` (${(elapsed / 1000).toFixed(1)}s)` : '';
+                console.log(`✓ Done${modelInfo}${durationInfo}`);
 
                 console.log('-'.repeat(60));
                 console.log(result);
@@ -266,8 +318,12 @@ export class SkillManagerAgent {
             } catch (error) {
                 const lastInvocation = this.llmAgent.invokerStrategy?.getLastInvocationDetails?.();
                 const modelInfo = lastInvocation?.model ? ` [${lastInvocation.model}]` : '';
-                spinner.fail(`Error${modelInfo}`);
+                actionReporter.failAction(error);
                 console.error(`\n${error.message}\n`);
+            } finally {
+                // Clean up reporter and prompt reader
+                this.skilledAgent.setActionReporter(null);
+                this.skilledAgent.promptReader = null;
             }
         }
     }

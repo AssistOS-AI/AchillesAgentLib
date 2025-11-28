@@ -3,11 +3,11 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { LLMAgent } from '../LLMAgents/index.mjs';
-import { SkilledAgent } from '../SkilledAgents/index.mjs';
-import { RecursiveSkilledAgent } from '../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
+import { LLMAgent } from 'achillesAgentLib/LLMAgents';
+import { SkilledAgent } from 'achillesAgentLib/SkilledAgents';
+import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import GampRSP from './GampRSP.mjs';
-import { configureLLMLogger } from '../utils/LLMLogger.mjs';
+import { configureLLMLogger } from '../../utils/LLMLogger.mjs';
 import MemoryManager from './helpers/MemoryManager.mjs';
 import {
     initHistory,

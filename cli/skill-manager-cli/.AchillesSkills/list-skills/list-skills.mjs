@@ -2,7 +2,7 @@
  * List Skills - Returns all registered skills from the catalog
  */
 
-import { Sanitiser } from '../../../utils/Sanitiser.mjs';
+import { Sanitiser } from '../../../../utils/Sanitiser.mjs';
 
 export async function action(input, context) {
     const { skilledAgent } = context;

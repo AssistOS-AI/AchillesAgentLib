@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { MemoryContainer } from '../../MemoryContainer/MemoryContainer.mjs';
+import { MemoryContainer } from '../../../MemoryContainer/MemoryContainer.mjs';
 
 const HISTORY_FILE_KEYS = {
     global: 'global_memory',

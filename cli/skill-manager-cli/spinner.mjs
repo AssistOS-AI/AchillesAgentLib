@@ -36,6 +36,7 @@ export class Spinner {
         this.message = '';
         this.startTime = null;
         this.isSpinning = false;
+        this.isPaused = false;
     }
 
     start(message = 'Processing') {
@@ -86,6 +87,36 @@ export class Spinner {
         return this;
     }
 
+    pause() {
+        if (!this.isSpinning || this.isPaused) return this;
+
+        clearInterval(this.timer);
+        this.timer = null;
+
+        // Clear line and show cursor
+        this.stream.write('\r\x1b[K');
+        this.stream.write('\x1b[?25h');
+
+        this.isPaused = true;
+        return this;
+    }
+
+    resume() {
+        if (!this.isPaused || !this.isSpinning) return this;
+
+        this.isPaused = false;
+
+        // Hide cursor and restart animation
+        this.stream.write('\x1b[?25l');
+
+        this.timer = setInterval(() => {
+            this.render();
+            this.frameIndex = (this.frameIndex + 1) % this.frames.length;
+        }, this.interval);
+
+        return this;
+    }
+
     succeed(message) {
         return this.stop(`${COLORS.green}✓${COLORS.reset} ${message || this.message}`);
     }
@@ -104,6 +135,7 @@ export class Spinner {
         clearInterval(this.timer);
         this.timer = null;
         this.isSpinning = false;
+        this.isPaused = false;
 
         // Clear line
         this.stream.write('\r\x1b[K');

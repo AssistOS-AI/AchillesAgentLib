@@ -19,8 +19,13 @@ export async function action(input, context) {
 
     // Parse skill name
     let skillName = null;
-    if (typeof input === 'string' && input.trim()) {
-        skillName = input.trim();
+    if (typeof input === 'string') {
+        try {
+            const parsed = JSON.parse(input);
+            skillName = parsed.skillName || parsed.name;
+        } catch (e) {
+            skillName = input.trim();
+        }
     } else if (input && typeof input === 'object') {
         skillName = input.skillName || input.name;
     }
