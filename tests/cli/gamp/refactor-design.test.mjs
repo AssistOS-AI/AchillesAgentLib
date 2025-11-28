@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import refactorDesign from '../../../cli/achilles-cli/.AchillesSkills/gamp/refactor-design/refactor-design.js';
@@ -8,6 +8,13 @@ import ignoreFiles from '../../../cli/achilles-cli/.AchillesSkills/gamp/ignore-f
 import GampRSP from '../../../cli/achilles-cli/GampRSP.mjs';
 
 const TEMP_ROOT = path.join(process.cwd(), 'tests', '.tmp', 'cli-gamp');
+
+// Cleanup temp directories after all tests complete
+after(() => {
+    if (fs.existsSync(TEMP_ROOT)) {
+        fs.rmSync(TEMP_ROOT, { recursive: true, force: true });
+    }
+});
 
 const makeWorkspace = () => {
     fs.mkdirSync(TEMP_ROOT, { recursive: true });

@@ -5,9 +5,33 @@ import { fileURLToPath } from 'node:url';
 import { realpathSync } from 'node:fs';
 import { SkillManagerCli } from './SkillManagerCli.mjs';
 import { HistoryManager } from './HistoryManager.mjs';
+import { CommandSelector, showCommandSelector, showSkillSelector, buildCommandList } from './CommandSelector.mjs';
+import { SlashCommandHandler } from './SlashCommandHandler.mjs';
+import { REPLSession } from './REPLSession.mjs';
+import { summarizeResult, formatSlashResult } from './ResultFormatter.mjs';
+import { printHelp as printREPLHelp, showHistory, searchHistory } from './HelpPrinter.mjs';
 
-// Re-export classes for library usage
-export { SkillManagerCli, HistoryManager };
+// Re-export classes and functions for library usage
+export {
+    // Main class
+    SkillManagerCli,
+    // REPL components
+    REPLSession,
+    SlashCommandHandler,
+    // UI components
+    CommandSelector,
+    showCommandSelector,
+    showSkillSelector,
+    buildCommandList,
+    // History
+    HistoryManager,
+    // Utilities
+    summarizeResult,
+    formatSlashResult,
+    printREPLHelp,
+    showHistory,
+    searchHistory,
+};
 
 // CLI entry point when run directly
 async function main() {
@@ -17,6 +41,7 @@ async function main() {
     let workingDir = process.cwd();
     let prompt = null;
     let verbose = false;
+    let debug = false;
     let mode = 'deep';
 
     for (let i = 0; i < args.length; i++) {
@@ -29,6 +54,8 @@ async function main() {
             process.exit(0);
         } else if (arg === '--verbose' || arg === '-v') {
             verbose = true;
+        } else if (arg === '--debug') {
+            debug = true;
         } else if (arg === '--fast') {
             mode = 'fast';
         } else if (arg === '--deep') {
@@ -54,6 +81,7 @@ async function main() {
     const agent = new SkillManagerCli({
         workingDir,
         logger,
+        debug,
     });
 
     if (prompt) {
@@ -90,6 +118,7 @@ USAGE:
 OPTIONS:
   -d, --dir <path>   Working directory containing .AchillesSkills (default: cwd)
   -v, --verbose      Enable verbose logging
+  --debug            Show full JSON output (orchestrator plans, executions)
   --fast             Use fast LLM mode (cheaper, quicker)
   --deep             Use deep LLM mode (default, more capable)
   -h, --help         Show this help message

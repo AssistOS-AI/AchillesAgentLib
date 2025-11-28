@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { AchillesCLI } from '../../../cli/achilles-cli/achilles-cli.mjs';
@@ -11,6 +11,13 @@ import { PLAN_INTENT } from '../../../cli/achilles-cli/intentionToSkill.mjs';
 import { formatExecutionResult } from '../../../cli/achilles-cli/helpers/executionHelpers.mjs';
 
 const TEMP_ROOT = path.join(process.cwd(), 'tests', '.tmp', 'achilles-cli');
+
+// Cleanup temp directories after all tests complete
+after(() => {
+    if (fs.existsSync(TEMP_ROOT)) {
+        fs.rmSync(TEMP_ROOT, { recursive: true, force: true });
+    }
+});
 
 const ensureDir = (target) => {
     fs.mkdirSync(target, { recursive: true });

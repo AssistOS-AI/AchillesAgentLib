@@ -1,12 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import genericSkill from '../../../cli/achilles-cli/.AchillesSkills/gamp/generic-skill/generic-skill.js';
 import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
 
 const TEMP_ROOT = path.join(process.cwd(), 'tests', '.tmp', 'generic-skill');
+
+// Cleanup temp directories after all tests complete
+after(() => {
+    if (fs.existsSync(TEMP_ROOT)) {
+        fs.rmSync(TEMP_ROOT, { recursive: true, force: true });
+    }
+});
 
 const makeWorkspace = (label) => {
     fs.mkdirSync(TEMP_ROOT, { recursive: true });

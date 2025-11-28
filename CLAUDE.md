@@ -618,8 +618,14 @@ A specialized CLI agent for managing, generating, and testing skill definition f
 
 ```
 cli/skill-manager-cli/skill-manager/
-├── index.mjs                    # CLI entry point
+├── index.mjs                    # CLI entry point & exports
 ├── SkillManagerCli.mjs          # Main agent class
+├── REPLSession.mjs              # Interactive REPL session handler
+├── SlashCommandHandler.mjs      # Slash command definitions & execution
+├── CommandSelector.mjs          # Interactive command/skill picker
+├── HistoryManager.mjs           # Command history persistence
+├── ResultFormatter.mjs          # Output formatting utilities
+├── HelpPrinter.mjs              # Help display utilities
 ├── skillSchemas.mjs             # Schema definitions & templates
 ├── spinner.mjs                  # CLI spinner animation
 └── .AchillesSkills/             # Built-in skills
@@ -644,6 +650,7 @@ tests/skill-manager/             # Test files (separate location)
 ├── skillModules.test.mjs
 ├── allSkills.test.mjs
 ├── codeGeneration.test.mjs
+├── cliFeatures.test.mjs         # REPL, history, slash commands, selectors
 └── run-all.mjs
 ```
 
@@ -789,7 +796,43 @@ skill-manager --deep "create a tskill called inventory"
 | `list all`, `ls -a` | List all skills (including built-in) |
 | `reload` | Refresh skills from disk |
 | `help` | Show quick reference |
+| `history`, `hist` | Show command history |
+| `history <n>` | Show last n history entries |
+| `history <query>` | Search history for query |
+| `history clear` | Clear command history |
 | `exit`, `quit`, `q` | Exit REPL |
+
+### Slash Commands
+
+| Command | Description | Waits for Input |
+|---------|-------------|-----------------|
+| `/ls`, `/list` | List skills | No |
+| `/read <skill>` | Read skill definition | No |
+| `/write <skill> [type]` | Create/update skill | No |
+| `/delete <skill>` | Delete skill | No |
+| `/validate <skill>` | Validate against schema | No |
+| `/template <type>` | Get blank template | No |
+| `/generate <skill>` | Generate code from tskill | No |
+| `/test <skill>` | Test generated code | No |
+| `/exec <skill>` | Execute any skill | **Yes** |
+| `/refine <skill>` | Iteratively improve skill | **Yes** |
+| `/update <skill>` | Update skill section | **Yes** |
+| `/help`, `/?` | Show slash command help | No |
+
+### Interactive Features
+
+**Command Selector**: Typing `/` alone shows an interactive command picker with arrow key navigation.
+
+**Skill Selector**: Commands that operate on skills (`/exec`, `/refine`, `/read`, etc.) show an interactive skill picker after command selection.
+
+**Input Prompts**: Some commands wait for additional input after skill selection:
+- `/exec` - Shows skill info and prompts for input (guidance varies by skill type)
+- `/refine` - Prompts: "Describe what to improve or requirements to meet"
+- `/update` - Prompts: "Specify section name and new content"
+
+**History Navigation**: Use ↑/↓ arrow keys to navigate through command history.
+
+**Cancellation**: Press `Ctrl+C` during input prompts to cancel and return to main REPL.
 
 ### Environment Variables
 
@@ -812,6 +855,30 @@ skill-manager --deep "create a tskill called inventory"
 - **Do not edit `tskill.generated.mjs` directly** - Modify `tskill.md` and regenerate
 - **Prompts co-located with skills** - Each skill that needs LLM prompts has them in the skill folder (e.g., `generate-code/codeGeneration.prompts.mjs`)
 - **Built-in skills hidden** - REPL shows only user skills by default
-- **Tests** - 211 tests across 5 test files
+- **Tests** - 136+ tests in `cliFeatures.test.mjs` covering REPL, history, slash commands, and selectors
 - After any change in `cli/skill-manager-cli/skill-manager/` run the `tests/skill-manager/` tests
 - The files with the extensions `.generated.mjs` should never be updated directly but instead the `.md` files should be updated and the code will be automatically recreated from the markdown file.
+
+### REPL Architecture
+
+The REPL is composed of modular components:
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `REPLSession` | `REPLSession.mjs` | Main REPL loop, input handling, ESC cancellation |
+| `SlashCommandHandler` | `SlashCommandHandler.mjs` | Slash command definitions, parsing, execution |
+| `CommandSelector` | `CommandSelector.mjs` | Interactive picker with arrow keys, filtering |
+| `HistoryManager` | `HistoryManager.mjs` | Per-directory command history persistence |
+| `ResultFormatter` | `ResultFormatter.mjs` | Output formatting for skill results |
+| `HelpPrinter` | `HelpPrinter.mjs` | Help and history display utilities |
+
+**Command Flow**:
+```
+User types "/" → CommandSelector shows commands → User selects command
+    ↓
+Command needs skill? → SkillSelector shows user skills → User selects skill
+    ↓
+Command needs input? (exec/refine/update) → Show guidance → Wait for input
+    ↓
+Execute command via SlashCommandHandler
+```
