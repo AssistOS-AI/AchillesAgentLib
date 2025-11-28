@@ -29,49 +29,180 @@
     },
     "models": [
         {
-            "name": "gpt-5",
+            "name": "gpt-4",
             "provider": "openai",
-            "mode": "deep"
+            "mode": "deep",
+            "inputPrice": 30,
+            "outputPrice": 60,
+            "context": "8k"
+        },
+        {
+            "name": "gpt-4-turbo",
+            "provider": "openai",
+            "mode": "deep",
+            "inputPrice": 10,
+            "outputPrice": 30,
+            "context": "128k"
+        },
+        {
+            "name": "gpt-4o",
+            "provider": "openai",
+            "mode": "deep",
+            "inputPrice": 5,
+            "outputPrice": 15,
+            "context": "128k"
         },
         {
             "name": "gpt-4o-mini",
             "provider": "openai",
-            "mode": "fast"
-        },
-        {
-            "name": "gpt-5-mini",
-            "provider": "openai",
-            "mode": "fast"
+            "mode": "fast",
+            "inputPrice": 0.15,
+            "outputPrice": 0.6,
+            "context": "128k"
         },
         {
             "name": "gpt-4.1",
             "provider": "openai",
-            "mode": "deep"
+            "mode": "deep",
+            "inputPrice": 5,
+            "outputPrice": 15,
+            "context": "128k"
         },
         {
-            "name": "claude-opus-4-1-20250805",
-            "provider": "anthropic",
-            "mode": "deep"
+            "name": "gpt-4.1-mini",
+            "provider": "openai",
+            "mode": "fast",
+            "inputPrice": 0.3,
+            "outputPrice": 1.2,
+            "context": "128k"
         },
         {
-            "name": "claude-opus-4-20250514",
-            "provider": "anthropic",
-            "mode": "deep"
+            "name": "gpt-4.1-nano",
+            "provider": "openai",
+            "mode": "fast",
+            "inputPrice": 0.1,
+            "outputPrice": 0.4,
+            "context": "1mill"
         },
         {
-            "name": "claude-sonnet-4-20250514",
+            "name": "gpt-5",
+            "provider": "openai",
+            "mode": "deep",
+            "inputPrice": 1.25,
+            "outputPrice": 10,
+            "context": "400k"
+        },
+        {
+            "name": "gpt-5-mini",
+            "provider": "openai",
+            "mode": "fast",
+            "inputPrice": 0.25,
+            "outputPrice": 2,
+            "context": "400k"
+        },
+        {
+            "name": "gpt-5-nano",
+            "provider": "openai",
+            "mode": "fast",
+            "inputPrice": 0.05,
+            "outputPrice": 0.4,
+            "context": "400k"
+        },
+        {
+            "name": "gpt-5.1",
+            "provider": "openai",
+            "mode": "deep",
+            "inputPrice": 1.25,
+            "outputPrice": 10,
+            "context": "400k"
+        },
+        {
+            "name": "o1",
+            "provider": "openai",
+            "mode": "deep",
+            "inputPrice": 15,
+            "outputPrice": 60,
+            "context": "200k"
+        },
+        {
+            "name": "o3",
+            "provider": "openai",
+            "mode": "deep",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "context": "200k"
+        },
+        {
+            "name": "o3-mini",
+            "provider": "openai",
+            "mode": "fast",
+            "inputPrice": 1.1,
+            "outputPrice": 4.4,
+            "context": "200k"
+        },
+        {
+            "name": "o4-mini",
+            "provider": "openai",
+            "mode": "fast",
+            "inputPrice": 1.1,
+            "outputPrice": 4.4,
+            "context": "200k"
+        },
+        {
+            "name": "claude-opus-4-5",
             "provider": "anthropic",
-            "mode": "fast"
+            "mode": "deep",
+            "inputPrice": 5,
+            "outputPrice": 25,
+            "context": "200k"
+        },
+        {
+            "name": "claude-opus-4-1",
+            "provider": "anthropic",
+            "mode": "deep",
+            "inputPrice": 15,
+            "outputPrice": 75,
+            "context": "200k"
+        },
+        {
+            "name": "claude-sonnet-4-5",
+            "provider": "anthropic",
+            "mode": "fast",
+            "inputPrice": 3,
+            "outputPrice": 15,
+            "context": "200k"
+        },
+        {
+            "name": "claude-haiku-4-5",
+            "provider": "anthropic",
+            "mode": "fast",
+            "inputPrice": 1,
+            "outputPrice": 5,
+            "context": "200k"
         },
         {
             "name": "gemini-2.5-pro",
             "provider": "google",
-            "mode": "deep"
+            "mode": "deep",
+            "inputPrice": 2.5,
+            "outputPrice": 15,
+            "context": "1mill"
         },
         {
             "name": "gemini-2.5-flash",
             "provider": "google",
-            "mode": "fast"
+            "mode": "fast",
+            "inputPrice": 0.3,
+            "outputPrice": 1,
+            "context": "1mill"
+        },
+        {
+            "name": "gemini-2.5-flash-lite",
+            "provider": "google",
+            "mode": "fast",
+            "inputPrice": 0.1,
+            "outputPrice": 0.3,
+            "context": "1mill"
         },
         {
             "name": "google/gemini-2.5-flash",
