@@ -2,18 +2,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
-import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
+import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
+import { RecursiveSkilledAgent } from '../../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import { createSpinner } from './spinner.mjs';
-import { ActionReporter } from '../../utils/ActionReporter.mjs';
+import { ActionReporter } from '../../../utils/ActionReporter.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * SkillManagerAgent - A skill-based agent for managing skill definition files.
+ * SkillManagerCli - A CLI wrapper for managing skill definition files.
  *
- * This agent uses the RecursiveSkilledAgent infrastructure to discover and execute
+ * This CLI uses the RecursiveSkilledAgent infrastructure to discover and execute
  * skills from two locations:
  * 1. Built-in skills from the module's .AchillesSkills directory
  * 2. User skills from the working directory's .AchillesSkills directory
@@ -21,7 +21,7 @@ const __dirname = path.dirname(__filename);
  * All operations (list, read, write, validate, generate, test, refine) are
  * implemented as skills, with the 'skill-manager' orchestrator routing requests.
  */
-export class SkillManagerAgent {
+export class SkillManagerCli {
     constructor({
         workingDir = process.cwd(),
         llmAgent = null,
@@ -363,4 +363,4 @@ Skill Types:
     }
 }
 
-export default SkillManagerAgent;
+export default SkillManagerCli;

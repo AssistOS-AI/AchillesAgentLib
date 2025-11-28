@@ -138,10 +138,10 @@ describe('Code Generation for All Skill Types', () => {
 
     before(async () => {
         // Import action functions
-        const generateModule = await import('../../cli/skill-manager-cli/.AchillesSkills/generate-code/generate-code.mjs');
+        const generateModule = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/generate-code/generate-code.mjs');
         generateCodeAction = generateModule.action;
 
-        const testModule = await import('../../cli/skill-manager-cli/.AchillesSkills/test-code/test-code.mjs');
+        const testModule = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/test-code/test-code.mjs');
         testCodeAction = testModule.action;
 
         // Setup temp directory
@@ -482,7 +482,7 @@ describe('Code Testing for All Skill Types', () => {
     let testCodeAction;
 
     before(async () => {
-        const testModule = await import('../../cli/skill-manager-cli/.AchillesSkills/test-code/test-code.mjs');
+        const testModule = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/test-code/test-code.mjs');
         testCodeAction = testModule.action;
 
         // Setup temp directory with pre-generated code
@@ -691,10 +691,10 @@ describe('Code Generation Integration', () => {
     let testCodeAction;
 
     before(async () => {
-        const generateModule = await import('../../cli/skill-manager-cli/.AchillesSkills/generate-code/generate-code.mjs');
+        const generateModule = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/generate-code/generate-code.mjs');
         generateCodeAction = generateModule.action;
 
-        const testModule = await import('../../cli/skill-manager-cli/.AchillesSkills/test-code/test-code.mjs');
+        const testModule = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/test-code/test-code.mjs');
         testCodeAction = testModule.action;
 
         tempDir = path.join(__dirname, 'temp_integration_' + Date.now());

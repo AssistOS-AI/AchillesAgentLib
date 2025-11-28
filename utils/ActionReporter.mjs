@@ -8,7 +8,7 @@
  * - Planning and routing decisions
  */
 
-import { createSpinner } from '../cli/skill-manager-cli/spinner.mjs';
+import { createSpinner } from '../cli/skill-manager-cli/skill-manager/spinner.mjs';
 
 // Action types for categorization
 export const ActionType = {

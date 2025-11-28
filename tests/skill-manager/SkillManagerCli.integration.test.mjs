@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { SkillManagerAgent } from '../../cli/skill-manager-cli/SkillManagerAgent.mjs';
+import { SkillManagerCli } from '../../cli/skill-manager-cli/skill-manager/SkillManagerCli.mjs';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -16,10 +16,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * - Valid LLM API credentials configured
  * - Network access
  *
- * Run with: node --test SkillManagerAgent/tests/SkillManagerAgent.integration.test.mjs
+ * Run with: node --test tests/skill-manager/SkillManagerAgent.integration.test.mjs
  */
 
-describe('SkillManagerAgent Integration Tests (Real LLM Calls)', () => {
+describe('SkillManagerCli Integration Tests (Real LLM Calls)', () => {
     let tempDir;
     let skillsDir;
     let agent;
@@ -74,8 +74,8 @@ fast
         // Create real LLMAgent
         llmAgent = new LLMAgent({ name: 'integration-test-agent' });
 
-        // Create SkillManagerAgent
-        agent = new SkillManagerAgent({
+        // Create SkillManagerCli
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: llmAgent,
         });
@@ -144,7 +144,7 @@ fast
         });
     });
 
-    describe('SkillManagerAgent skill execution', () => {
+    describe('SkillManagerCli skill execution', () => {
         it('should have built-in skills registered', () => {
             const skills = agent.getSkills();
             assert.ok(skills.length > 5, 'Should have built-in skills');
@@ -159,7 +159,7 @@ fast
 
         it('should execute list-skills action directly', async () => {
             // Import action directly like other tests do
-            const { action } = await import('../../cli/skill-manager-cli/.AchillesSkills/list-skills/list-skills.mjs');
+            const { action } = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/list-skills/list-skills.mjs');
 
             const result = await action('', {
                 skilledAgent: agent.skilledAgent,
@@ -173,7 +173,7 @@ fast
 
         it('should execute get-template action directly', async () => {
             // Import action directly like other tests do
-            const { action } = await import('../../cli/skill-manager-cli/.AchillesSkills/get-template/get-template.mjs');
+            const { action } = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/get-template/get-template.mjs');
 
             const result = await action('cskill', {
                 skilledAgent: agent.skilledAgent,
@@ -257,7 +257,7 @@ export async function action({ topic }, { llmAgent }) {
 
         llmAgent = new LLMAgent({ name: 'interactive-test-agent' });
 
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: llmAgent,
         });
@@ -375,13 +375,13 @@ This skill has no prompt section.
 `
         );
 
-        const agent = new SkillManagerAgent({
+        const agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: llmAgent,
         });
 
         // Import and call list-skills action directly
-        const { action } = await import('../../cli/skill-manager-cli/.AchillesSkills/list-skills/list-skills.mjs');
+        const { action } = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/list-skills/list-skills.mjs');
         const result = await action('', {
             skilledAgent: agent.skilledAgent,
             llmAgent: agent.llmAgent,

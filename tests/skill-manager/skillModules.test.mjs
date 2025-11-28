@@ -18,7 +18,7 @@ describe('list-skills module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/list-skills/list-skills.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/list-skills/list-skills.mjs');
         action = module.action;
 
         // Create temp directory with skills
@@ -72,7 +72,7 @@ describe('read-skill module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/read-skill/read-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/read-skill/read-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_read_' + Date.now());
@@ -130,7 +130,7 @@ describe('write-skill module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/write-skill/write-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/write-skill/write-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_write_' + Date.now());
@@ -180,7 +180,7 @@ describe('delete-skill module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/delete-skill/delete-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/delete-skill/delete-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_delete_' + Date.now());
@@ -229,7 +229,7 @@ describe('validate-skill module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/validate-skill/validate-skill.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/validate-skill/validate-skill.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_validate_' + Date.now());
@@ -285,7 +285,7 @@ describe('get-template module', () => {
     let action;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/get-template/get-template.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/get-template/get-template.mjs');
         action = module.action;
     });
 
@@ -325,7 +325,7 @@ describe('update-section module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/update-section/update-section.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/update-section/update-section.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_update_' + Date.now());
@@ -383,7 +383,7 @@ describe('preview-changes module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/preview-changes/preview-changes.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/preview-changes/preview-changes.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_preview_' + Date.now());
@@ -442,7 +442,7 @@ describe('test-code module', () => {
     let tempSkillsDir;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/test-code/test-code.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/test-code/test-code.mjs');
         action = module.action;
 
         tempDir = path.join(__dirname, 'temp_testcode_' + Date.now());
@@ -506,7 +506,7 @@ describe('skill-refiner module', () => {
     let action;
 
     before(async () => {
-        const module = await import('../../cli/skill-manager-cli/.AchillesSkills/skill-refiner/skill-refiner.mjs');
+        const module = await import('../../cli/skill-manager-cli/skill-manager/.AchillesSkills/skill-refiner/skill-refiner.mjs');
         action = module.action;
     });
 

@@ -3,18 +3,18 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { SkillManagerAgent } from '../../cli/skill-manager-cli/SkillManagerAgent.mjs';
+import { SkillManagerCli } from '../../cli/skill-manager-cli/skill-manager/SkillManagerCli.mjs';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const builtInSkillsDir = path.join(__dirname, '..', '.AchillesSkills');
 
 /**
- * Unit tests for the skill-based SkillManagerAgent.
+ * Unit tests for the skill-based SkillManagerCli.
  * Tests the structural and file-system aspects without requiring actual LLM API calls.
  */
 
-describe('SkillManagerAgent - Initialization', () => {
+describe('SkillManagerCli - Initialization', () => {
     let tempDir;
     let skillsDir;
     let agent;
@@ -35,7 +35,7 @@ describe('SkillManagerAgent - Initialization', () => {
     });
 
     it('should initialize with default options', () => {
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -48,7 +48,7 @@ describe('SkillManagerAgent - Initialization', () => {
     });
 
     it('should set up builtInSkillsDir correctly', () => {
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -60,7 +60,7 @@ describe('SkillManagerAgent - Initialization', () => {
     it('should create .AchillesSkills directory if it does not exist', () => {
         const newDir = path.join(__dirname, 'temp_create_' + Date.now());
 
-        new SkillManagerAgent({
+        new SkillManagerCli({
             workingDir: newDir,
             llmAgent: realLLMAgent,
         });
@@ -71,7 +71,7 @@ describe('SkillManagerAgent - Initialization', () => {
     });
 
     it('should have context with all required properties', () => {
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -84,7 +84,7 @@ describe('SkillManagerAgent - Initialization', () => {
     });
 
     it('should use console as default logger', () => {
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -100,7 +100,7 @@ describe('SkillManagerAgent - Initialization', () => {
             error: (msg) => logs.push({ level: 'error', msg }),
         };
 
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
             logger: customLogger,
@@ -110,7 +110,7 @@ describe('SkillManagerAgent - Initialization', () => {
     });
 });
 
-describe('SkillManagerAgent - Built-in Skills Discovery', () => {
+describe('SkillManagerCli - Built-in Skills Discovery', () => {
     let tempDir;
     let agent;
     let realLLMAgent;
@@ -120,7 +120,7 @@ describe('SkillManagerAgent - Built-in Skills Discovery', () => {
         fs.mkdirSync(tempDir, { recursive: true });
         realLLMAgent = new LLMAgent({ name: 'builtin-test-agent' });
 
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -198,7 +198,7 @@ describe('SkillManagerAgent - Built-in Skills Discovery', () => {
     });
 });
 
-describe('SkillManagerAgent - getSkills method', () => {
+describe('SkillManagerCli - getSkills method', () => {
     let tempDir;
     let agent;
     let realLLMAgent;
@@ -208,7 +208,7 @@ describe('SkillManagerAgent - getSkills method', () => {
         fs.mkdirSync(tempDir, { recursive: true });
         realLLMAgent = new LLMAgent({ name: 'getskills-test-agent' });
 
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -235,7 +235,7 @@ describe('SkillManagerAgent - getSkills method', () => {
     });
 });
 
-describe('SkillManagerAgent - reloadSkills method', () => {
+describe('SkillManagerCli - reloadSkills method', () => {
     let tempDir;
     let skillsDir;
     let agent;
@@ -248,7 +248,7 @@ describe('SkillManagerAgent - reloadSkills method', () => {
         fs.mkdirSync(skillsDir);
         realLLMAgent = new LLMAgent({ name: 'reload-test-agent' });
 
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -294,7 +294,7 @@ describe('SkillManagerAgent - reloadSkills method', () => {
     });
 });
 
-describe('SkillManagerAgent - executeSkill method', () => {
+describe('SkillManagerCli - executeSkill method', () => {
     let tempDir;
     let agent;
     let realLLMAgent;
@@ -304,7 +304,7 @@ describe('SkillManagerAgent - executeSkill method', () => {
         fs.mkdirSync(tempDir, { recursive: true });
         realLLMAgent = new LLMAgent({ name: 'execute-test-agent' });
 
-        agent = new SkillManagerAgent({
+        agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -329,7 +329,7 @@ describe('SkillManagerAgent - executeSkill method', () => {
     });
 });
 
-describe('SkillManagerAgent - User Skills Discovery', () => {
+describe('SkillManagerCli - User Skills Discovery', () => {
     let tempDir;
     let skillsDir;
     let realLLMAgent;
@@ -356,7 +356,7 @@ describe('SkillManagerAgent - User Skills Discovery', () => {
             '# User Code Skill\n\n## Summary\nA user-defined code skill.'
         );
 
-        const agent = new SkillManagerAgent({
+        const agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -374,7 +374,7 @@ describe('SkillManagerAgent - User Skills Discovery', () => {
             '# User Orchestrator\n\n## Summary\nA user-defined orchestrator skill.\n\n## Instructions\nRoute requests.\n\n## Allowed-Skills\n- list-skills'
         );
 
-        const agent = new SkillManagerAgent({
+        const agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -385,7 +385,7 @@ describe('SkillManagerAgent - User Skills Discovery', () => {
     });
 });
 
-describe('SkillManagerAgent - Error Handling', () => {
+describe('SkillManagerCli - Error Handling', () => {
     let realLLMAgent;
 
     before(() => {
@@ -396,7 +396,7 @@ describe('SkillManagerAgent - Error Handling', () => {
         const baseDir = path.join('/tmp', 'achilles_missing_' + Date.now());
         const missingDir = path.join(baseDir, 'deep', 'nested');
 
-        const agent = new SkillManagerAgent({
+        const agent = new SkillManagerCli({
             workingDir: missingDir,
             llmAgent: realLLMAgent,
         });
@@ -412,7 +412,7 @@ describe('SkillManagerAgent - Error Handling', () => {
         fs.mkdirSync(tempDir, { recursive: true });
         fs.mkdirSync(path.join(tempDir, '.AchillesSkills'));
 
-        const agent = new SkillManagerAgent({
+        const agent = new SkillManagerCli({
             workingDir: tempDir,
             llmAgent: realLLMAgent,
         });
@@ -438,7 +438,7 @@ describe('SkillManagerAgent - Error Handling', () => {
         );
 
         assert.doesNotThrow(() => {
-            new SkillManagerAgent({
+            new SkillManagerCli({
                 workingDir: tempDir,
                 llmAgent: realLLMAgent,
             });

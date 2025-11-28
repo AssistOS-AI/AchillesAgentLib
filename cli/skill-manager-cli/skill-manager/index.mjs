@@ -3,10 +3,10 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { realpathSync } from 'node:fs';
-import { SkillManagerAgent } from './SkillManagerAgent.mjs';
+import { SkillManagerCli } from './SkillManagerCli.mjs';
 
 // Re-export the class for library usage
-export { SkillManagerAgent };
+export { SkillManagerCli };
 
 // CLI entry point when run directly
 async function main() {
@@ -49,8 +49,8 @@ async function main() {
         error: (msg) => console.error(`[ERROR] ${msg}`),
     };
 
-    // Initialize agent
-    const agent = new SkillManagerAgent({
+    // Initialize CLI
+    const agent = new SkillManagerCli({
         workingDir,
         logger,
     });
