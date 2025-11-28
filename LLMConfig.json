@@ -17,7 +17,7 @@
             "module": "./google.mjs"
         },
         "huggingface": {
-            "baseURL": "https://api-inference.huggingface.co/models",
+            "baseURL": "https://router.huggingface.co/models",
             "apiKeyEnv": "HUGGINGFACE_API_KEY",
             "module": "./huggingFace.mjs"
         },
@@ -205,22 +205,47 @@
             "context": "1mill"
         },
         {
-            "name": "google/gemini-2.5-flash",
+            "name": "x-ai/grok-4.1-fast:free",
             "provider": "openrouter",
-            "mode": "fast"
+            "mode": "fast",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "2mill"
         },
         {
-            "name": "anthropic/claude-sonnet-4",
+            "name": "z-ai/glm-4.5-air:free",
             "provider": "openrouter",
-            "mode": "fast"
+            "mode": "fast",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "130k"
+        },
+        {
+            "name": "google/gemini-2.5-flash",
+            "provider": "openrouter",
+            "mode": "fast",
+            "inputPrice": 0.3,
+            "outputPrice": 2.5,
+            "context": "1mill"
+        },
+        {
+            "name": "anthropic/claude-sonnet-4.5",
+            "provider": "openrouter",
+            "mode": "fast",
+            "inputPrice": 3,
+            "outputPrice": 15,
+            "context": "1mill"
         },
         {
             "name": "google/gemini-2.5-pro",
             "provider": "openrouter",
-            "mode": "deep"
+            "mode": "deep",
+            "inputPrice": 2.5,
+            "outputPrice": 15,
+            "context": "1mill"
         },
         {
-            "name": "mistralai/Mistral-7B-Instruct-v0.1",
+            "name": "PrimeIntellect/INTELLECT-3",
             "provider": "huggingface",
             "mode": "fast"
         }
