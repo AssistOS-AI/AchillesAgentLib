@@ -228,7 +228,7 @@ const BASE_PERFORMANCE_TOOLS = {
         },
     },
     substring: {
-        description: 'Extracts a substring given text, start, and length. Usage: substring(text, start, length)',
+        description: 'Extracts a substring given text, start, and length. Usage: substring(text, start, length). Note: indexes start from 0',
         handler: async (agent, prompt) => {
             const resolved = await resolveArguments(agent, prompt, 'Extract text, start index, and length for substring.', ['text', 'number', 'number']);
             const [text, start, length] = resolved;
