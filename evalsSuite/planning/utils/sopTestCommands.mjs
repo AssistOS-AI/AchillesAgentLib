@@ -70,7 +70,7 @@ function createPlanningCommandsRegistry(agent, toolsConfiguration = {}) {
                 return response.fail(`Unknown command: ${command}`);
             }
             const prompt = Array.isArray(args)
-                ? args.map((v) => (v === null || v === undefined ? '' : String(v))).join(' ')
+                ? args.map((v) => (v === null || v === undefined ? '' : String(v)))
                 : (args === null || args === undefined ? '' : String(args));
             try {
                 const value = await spec.handler(agent, prompt);

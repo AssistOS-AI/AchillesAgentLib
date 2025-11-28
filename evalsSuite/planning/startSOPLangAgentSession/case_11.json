@@ -4,7 +4,7 @@
         "uppercase": "Converts text to uppercase. Args: text",
         "contains": "Checks if first string contains second. Args: haystack, needle",
         "length": "Returns the length of the string. Args: text",
-        "substring": "Extracts substring from position with length. Args: text, start, length"
+        "substring": "Extracts substring from position with length. Args: text, start, length. Indexes start from 0"
     },
     "prompt": "Convert 'hello world' to uppercase, check if it contains 'WORLD', get the length of the original string, then extract first 3 characters from uppercase version.",
     "expectedOutput": {

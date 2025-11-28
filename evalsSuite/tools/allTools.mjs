@@ -10,7 +10,7 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
     // and the arguments don't look like structured data, use LLM to extract.
 
     const isLoop = !!agent.currentSession;
-    const input = String(prompt ?? '');
+    const input = prompt;
 
     const debugEnabled = process.env.AGENTIC_DEBUG === 'true';
     const debugLog = (...args) => {
@@ -23,11 +23,28 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
     debugLog(`[resolveArguments] isLoop=${isLoop}, prompt=${JSON.stringify(input)}, instruction="${instruction}"`);
 
     if (!isLoop) {
+        if (Array.isArray(input)) {
+            const parts = input.map((value) => (value === null || value === undefined ? '' : String(value)));
+            if (!parts.length) {
+                return [];
+            }
+            if (parts.length >= schema.length) {
+                if (schema.length === 1) {
+                    return [parts.join(' ')];
+                }
+                if (parts.length > schema.length) {
+                    const head = parts.slice(0, schema.length - 1);
+                    const tail = parts.slice(schema.length - 1).join(' ');
+                    return head.concat([tail]);
+                }
+                return parts.slice(0, schema.length);
+            }
+        }
         // SOP mode: Planner is expected to provide compact, parser-friendly arguments.
         // Heuristics:
         //  - Single-argument tools: return the whole input as one argument.
         //  - Multi-argument tools: prefer comma-separated values, otherwise split on whitespace.
-        const trimmed = input.trim();
+        const trimmed = String(input ?? '').trim();
         if (!trimmed) {
             return [];
         }
@@ -42,6 +59,10 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
         }
         const parts = trimmed.split(/\s+/).filter(Boolean);
         if (parts.length >= schema.length) {
+            if (schema.length === 2 && parts.length > 2) {
+                const [first, ...rest] = parts;
+                return [first, rest.join(' ')];
+            }
             return parts.slice(0, schema.length);
         }
         return [trimmed];

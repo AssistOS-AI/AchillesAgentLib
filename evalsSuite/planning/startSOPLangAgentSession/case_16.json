@@ -4,7 +4,7 @@
         "flakyUppercase": "Converts text to uppercase but might fail the first time.",
         "concat": "Concatenates two strings."
     },
-    "prompt": "Convert 'agent session' to uppercase even if flakyUppercase fails once, then concatenate the result with ' OK'.",
+    "prompt": "Convert 'agent session' to uppercase with flakyUppercase. If it fails try again, then concatenate the correct result with ' OK'.",
     "expectedOutput": {
         "result": "AGENT SESSION OK"
     }
