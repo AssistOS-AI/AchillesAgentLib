@@ -179,7 +179,30 @@ export class RecursiveSkilledAgent {
             llmAgentOptions: Object.keys(llmAgentOptions || {}),
         });
 
+        // ActionReporter for real-time feedback (can be set via setActionReporter or inherited from llmAgent)
+        this._actionReporter = null;
+
         this.registerDiscoveredSkills();
+    }
+
+    /**
+     * Set an ActionReporter for real-time feedback
+     * @param {ActionReporter} reporter - The reporter instance
+     */
+    setActionReporter(reporter) {
+        this._actionReporter = reporter;
+        // Also set on llmAgent if available
+        if (this.llmAgent && typeof this.llmAgent.setActionReporter === 'function') {
+            this.llmAgent.setActionReporter(reporter);
+        }
+    }
+
+    /**
+     * Get the current ActionReporter (from this instance or llmAgent)
+     * @returns {ActionReporter|null}
+     */
+    getActionReporter() {
+        return this._actionReporter || this.llmAgent?._actionReporter || null;
     }
 
     ensureSubsystem(type) {
@@ -773,6 +796,10 @@ export class RecursiveSkilledAgent {
             this._invokeProcessingBegin();
         }
 
+        // Get action reporter for real-time feedback
+        const actionReporter = this.getActionReporter();
+        let skillAction = null;
+
         try {
             if (this.pendingPreparations && this.pendingPreparations.length) {
                 const toAwait = this.pendingPreparations;
@@ -788,12 +815,26 @@ export class RecursiveSkilledAgent {
             } = options || {};
 
             if (!skillName) {
-                return await this.executeWithoutExplicitSkill(taskDescription, forward, reviewMode);
+                // Report that we're routing/planning
+                if (actionReporter && isTopLevel) {
+                    actionReporter.routing(taskDescription?.slice(0, 50) || 'request');
+                }
+                const result = await this.executeWithoutExplicitSkill(taskDescription, forward, reviewMode);
+                if (actionReporter && isTopLevel) {
+                    actionReporter.completeAction();
+                }
+                return result;
             }
 
             const skillRecord = this.getSkillRecord(skillName);
             if (!skillRecord) {
                 throw new Error(`Skill "${skillName}" is not registered.`);
+            }
+
+            // Report skill execution start
+            if (actionReporter) {
+                const displayName = skillRecord.shortName || skillRecord.name || skillName;
+                skillAction = actionReporter.executingSkill(displayName, taskDescription?.slice(0, 50));
             }
 
             const subsystem = this.ensureSubsystem(skillRecord.type);
@@ -832,11 +873,22 @@ export class RecursiveSkilledAgent {
                 },
             });
 
+            // Report skill completion
+            if (skillAction && actionReporter) {
+                actionReporter.completeAction({ skill: skillName });
+            }
+
             return {
                 ...execution,
                 reviewMode,
                 subsystem: skillRecord.type,
             };
+        } catch (error) {
+            // Report skill failure
+            if (skillAction && actionReporter) {
+                actionReporter.failAction(error);
+            }
+            throw error;
         } finally {
             // Only invoke end callback and reset flag at the top level
             if (isTopLevel) {

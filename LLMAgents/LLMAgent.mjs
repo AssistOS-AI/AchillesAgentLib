@@ -46,6 +46,23 @@ class LLMAgent {
         this._debugCounter = 0;
         this._inputCounter = 0;
         this._outputCounter = 0;
+        this._actionReporter = null;
+    }
+
+    /**
+     * Set an ActionReporter for real-time feedback
+     * @param {ActionReporter} reporter - The reporter instance
+     */
+    setActionReporter(reporter) {
+        this._actionReporter = reporter;
+    }
+
+    /**
+     * Get the current ActionReporter
+     * @returns {ActionReporter|null}
+     */
+    getActionReporter() {
+        return this._actionReporter;
     }
 
     parseMarkdownKeyValues(markdown) {

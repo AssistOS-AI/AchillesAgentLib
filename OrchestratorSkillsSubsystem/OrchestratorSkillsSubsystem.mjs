@@ -576,10 +576,20 @@ export class OrchestratorSkillsSubsystem {
         const total = plan.length || 0;
         log?.(`[plan] Prepared ${total} ${total === 1 ? 'step' : 'steps'} for ${orchestratorName}.`);
 
+        // Get action reporter for step-level feedback
+        const actionReporter = recursiveAgent?.getActionReporter?.();
+
         for (let index = 0; index < plan.length; index += 1) {
             const step = plan[index];
+            const stepNum = index + 1;
+
+            // Report step progress
+            if (actionReporter && total > 1) {
+                actionReporter.reportStep(stepNum, total, `${step.skill || step.intent || 'step'}`);
+            }
+
             if (!step.run) {
-                log?.(`[step ${index + 1}/${total || 1}] Skipping ${step.skill || step.intent || '<unknown>'} – flagged as 'run: false'.`);
+                log?.(`[step ${stepNum}/${total || 1}] Skipping ${step.skill || step.intent || '<unknown>'} – flagged as 'run: false'.`);
                 executions.push({
                     ...step,
                     skipped: true,
@@ -591,7 +601,7 @@ export class OrchestratorSkillsSubsystem {
 
             const skillRecord = this.resolveSkillRecord(step.skill, recursiveAgent);
             if (!skillRecord) {
-                log?.(`[step ${index + 1}/${total || 1}] Unable to locate skill "${step.skill}".`);
+                log?.(`[step ${stepNum}/${total || 1}] Unable to locate skill "${step.skill}".`);
                 executions.push({
                     ...step,
                     skipped: true,
@@ -602,7 +612,7 @@ export class OrchestratorSkillsSubsystem {
             }
 
             if (Sanitiser.sanitiseName(skillRecord.name) === Sanitiser.sanitiseName(orchestratorName)) {
-                log?.(`[step ${index + 1}/${total || 1}] Prevented recursive invocation of ${skillRecord.name}.`);
+                log?.(`[step ${stepNum}/${total || 1}] Prevented recursive invocation of ${skillRecord.name}.`);
                 executions.push({
                     ...step,
                     skipped: true,
@@ -613,7 +623,7 @@ export class OrchestratorSkillsSubsystem {
             }
 
             try {
-                log?.(`[step ${index + 1}/${total || 1}] Running ${skillRecord.name}: ${step.input || '<no prompt>'}`);
+                log?.(`[step ${stepNum}/${total || 1}] Running ${skillRecord.name}: ${step.input || '<no prompt>'}`);
                 // Exclude 'args.input' from forwarded options - let step.input become the new input
                 // but preserve any other custom args that were passed to the orchestrator
                 const { args: originalArgs, ...restOptions } = options || {};
@@ -624,7 +634,7 @@ export class OrchestratorSkillsSubsystem {
                     skillName: skillRecord.name,
                 }, options?.reviewMode || 'none');
 
-                log?.(`[step ${index + 1}/${total || 1}] Completed ${skillRecord.name}.`);
+                log?.(`[step ${stepNum}/${total || 1}] Completed ${skillRecord.name}.`);
                 executions.push({
                     ...step,
                     skipped: false,
@@ -632,7 +642,7 @@ export class OrchestratorSkillsSubsystem {
                     error: null,
                 });
             } catch (error) {
-                log?.(`[step ${index + 1}/${total || 1}] ${skillRecord.name} failed: ${error?.message || error}`);
+                log?.(`[step ${stepNum}/${total || 1}] ${skillRecord.name} failed: ${error?.message || error}`);
                 executions.push({
                     ...step,
                     skipped: false,
@@ -761,7 +771,21 @@ export class OrchestratorSkillsSubsystem {
         }
 
         const { logger, ...forwardOptions } = options || {};
+
+        // Report planning phase via ActionReporter
+        const actionReporter = recursiveAgent?.getActionReporter?.();
+        if (actionReporter) {
+            const skillCount = this.resolveAllowedSkills(skillRecord, recursiveAgent).length;
+            actionReporter.planningSkills(skillCount);
+        }
+
         const planData = await this.createPlan({ skillRecord, recursiveAgent, promptText });
+
+        // Report plan created
+        if (actionReporter && planData.plan?.length > 0) {
+            actionReporter.updateAction(`Planned ${planData.plan.length} step(s)`);
+        }
+
         const executions = await this.executePlanSteps({
             plan: planData.plan,
             recursiveAgent,
