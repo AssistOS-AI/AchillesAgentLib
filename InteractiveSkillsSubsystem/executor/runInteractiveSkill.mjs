@@ -41,7 +41,8 @@ export async function runInteractiveSkill({
         ? argumentDefinitions.map((def) => def.name)
         : requiredArguments.slice();
 
-    const executionOptions = { contextManager };
+    // Pass llmAgent to action so skills can use LLM capabilities
+    const executionOptions = { contextManager, llmAgent };
 
     if (!orderedNames.length) {
         return action({ ...finalArgs }, executionOptions);

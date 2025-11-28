@@ -12,8 +12,8 @@ const parseTimeout = (value, fallback) => {
 
 const SKILL_TIMEOUT_MS = parseTimeout(
     process.env.ACHILLES_SKILL_TIMEOUT
-        ?? process.env.ACHILESS_SKILL_TIMEOUT
-        ?? process.env.ACHILES_SKILL_TIMEOUT,
+    ?? process.env.ACHILESS_SKILL_TIMEOUT
+    ?? process.env.ACHILES_SKILL_TIMEOUT,
     60_000,
 );
 
@@ -172,6 +172,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
             }
         }
 
+        // Merge built-in context with passed-through context (skillsDir, skilledAgent, etc.)
         const execution = Promise.resolve(cached(input, {
             llmAgent,
             prompt,
@@ -179,6 +180,8 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
             argumentName: CODE_ARGUMENT_NAME,
             sessionMemory: context?.sessionMemory || null,
             llmMode,
+            // Pass through additional context (skillsDir, skilledAgent, workingDir, etc.)
+            ...context,
         }));
 
         const result = await withTimeout(
@@ -250,7 +253,7 @@ async function executeCodeSnippet({ skillName, code }) {
     } catch (error) {
         return String(result);
     }
-}
+} ``
 
 export class CodeSkillsSubsystem {
     constructor({ llmAgent }) {
@@ -265,8 +268,20 @@ export class CodeSkillsSubsystem {
         const argumentDescription = extractSectionContent(sections, 'argument', 'input', 'parameters') || DEFAULT_CODE_ARGUMENT_DESCRIPTION;
         const llmMode = determineMode(extractSectionContent(sections, 'llm mode', 'llm-mode', 'mode'));
         const folderName = skillDir ? path.basename(skillDir) : null;
-        const localModulePath = folderName ? path.join(skillDir, `${folderName}.js`) : null;
-        const moduleExists = localModulePath ? fs.existsSync(localModulePath) : false;
+        // Check for both .js and .mjs module files
+        let localModulePath = null;
+        let moduleExists = false;
+        if (folderName) {
+            const jsPath = path.join(skillDir, `${folderName}.js`);
+            const mjsPath = path.join(skillDir, `${folderName}.mjs`);
+            if (fs.existsSync(mjsPath)) {
+                localModulePath = mjsPath;
+                moduleExists = true;
+            } else if (fs.existsSync(jsPath)) {
+                localModulePath = jsPath;
+                moduleExists = true;
+            }
+        }
 
         skillRecord.metadata = {
             type: 'code',
@@ -310,6 +325,7 @@ export class CodeSkillsSubsystem {
         const {
             args = {},
             sessionMemory = null,
+            context = {},
         } = options;
 
         const input = typeof args[CODE_ARGUMENT_NAME] === 'string' && args[CODE_ARGUMENT_NAME].trim()
@@ -320,7 +336,8 @@ export class CodeSkillsSubsystem {
             throw new Error(`Code skill "${skillRecord.name}" requires either prompt text or the "${CODE_ARGUMENT_NAME}" argument.`);
         }
 
-        const result = await executor({ input }, { sessionMemory });
+        // Pass through the full context (including skillsDir, skilledAgent, etc.)
+        const result = await executor({ input }, { sessionMemory, ...context });
 
         return {
             skill: skillRecord.name,

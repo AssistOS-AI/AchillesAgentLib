@@ -3,9 +3,9 @@ import path from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import refactorDesign from '../../../cli/.AchillesSkills/gamp/refactor-design/refactor-design.js';
-import ignoreFiles from '../../../cli/.AchillesSkills/gamp/ignore-files/ignore-files.js';
-import GampRSP from '../../../cli/GampRSP.mjs';
+import refactorDesign from '../../../cli/achilles-cli/.AchillesSkills/gamp/refactor-design/refactor-design.js';
+import ignoreFiles from '../../../cli/achilles-cli/.AchillesSkills/gamp/ignore-files/ignore-files.js';
+import GampRSP from '../../../cli/achilles-cli/GampRSP.mjs';
 
 const TEMP_ROOT = path.join(process.cwd(), 'tests', '.tmp', 'cli-gamp');
 

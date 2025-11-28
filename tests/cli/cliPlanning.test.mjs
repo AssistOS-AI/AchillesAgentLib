@@ -4,8 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { LLMAgent } from '../../LLMAgents/index.mjs';
-import AchillesCLI from '../../cli/achilles-cli.mjs';
-import { PLAN_INTENT } from '../../intentionToSkill.mjs';
+import AchillesCLI from '../../cli/achilles-cli/achilles-cli.mjs';
+import { PLAN_INTENT } from '../../cli/achilles-cli/intentionToSkill.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

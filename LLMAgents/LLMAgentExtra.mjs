@@ -64,6 +64,15 @@ ${prompt}`
         }
     }
 
+    // Report LLM call via ActionReporter if available
+    const actionReporter = agent._actionReporter;
+    let llmAction = null;
+    if (actionReporter) {
+        const purpose = context?.intent || 'Processing';
+        const modelName = model || mode || 'auto';
+        llmAction = actionReporter.llmCall(modelName, purpose);
+    }
+
     let responseMetadata = null;
     try {
         const conversation = Array.isArray(history) ? history.slice() : [];
@@ -127,12 +136,24 @@ ${prompt}`
             mode: loggedMode,
             durationMs: Date.now() - startedAt,
         });
+
+        // Complete the action reporter action
+        if (llmAction && actionReporter) {
+            actionReporter.completeAction({ model: loggedModel, duration: Date.now() - startedAt });
+        }
+
         return finalResponse;
     } catch (error) {
         emit({
             phase: 'error',
             error: error?.message || String(error),
         });
+
+        // Report failure via ActionReporter
+        if (llmAction && actionReporter) {
+            actionReporter.failAction(error);
+        }
+
         if (agent._processingCallbacks?.onEnd) {
             try {
                 agent._processingCallbacks.onEnd();

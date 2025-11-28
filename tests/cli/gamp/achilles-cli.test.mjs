@@ -3,12 +3,12 @@ import path from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { AchillesCLI } from '../../../cli/achilles-cli.mjs';
+import { AchillesCLI } from '../../../cli/achilles-cli/achilles-cli.mjs';
 import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
 import { resetLLMLogger, logLLMInteraction } from '../../../utils/LLMLogger.mjs';
-import { withRawModePaused } from '../../../cli/helpers/inputHelpers.mjs';
-import { PLAN_INTENT } from '../../../intentionToSkill.mjs';
-import { formatExecutionResult } from '../../../cli/helpers/executionHelpers.mjs';
+import { withRawModePaused } from '../../../cli/achilles-cli/helpers/inputHelpers.mjs';
+import { PLAN_INTENT } from '../../../cli/achilles-cli/intentionToSkill.mjs';
+import { formatExecutionResult } from '../../../cli/achilles-cli/helpers/executionHelpers.mjs';
 
 const TEMP_ROOT = path.join(process.cwd(), 'tests', '.tmp', 'achilles-cli');
 

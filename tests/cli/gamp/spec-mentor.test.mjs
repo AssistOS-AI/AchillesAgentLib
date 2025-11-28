@@ -3,10 +3,10 @@ import path from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import specMentor from '../../../cli/.AchillesSkills/gamp/spec-mentor/spec-mentor.js';
-import specReview from '../../../cli/.AchillesSkills/gamp/spec-review/spec-review.js';
-import specHelp from '../../../cli/.AchillesSkills/gamp/spec-help/spec-help.js';
-import GampRSP from '../../../cli/GampRSP.mjs';
+import specMentor from '../../../cli/achilles-cli/.AchillesSkills/gamp/spec-mentor/spec-mentor.js';
+import specReview from '../../../cli/achilles-cli/.AchillesSkills/gamp/spec-review/spec-review.js';
+import specHelp from '../../../cli/achilles-cli/.AchillesSkills/gamp/spec-help/spec-help.js';
+import GampRSP from '../../../cli/achilles-cli/GampRSP.mjs';
 import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
 
 const TEMP_ROOT = path.join(process.cwd(), 'tests', '.tmp', 'spec-mentor');

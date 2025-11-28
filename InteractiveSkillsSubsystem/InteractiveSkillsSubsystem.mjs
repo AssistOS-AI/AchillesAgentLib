@@ -30,9 +30,18 @@ function recordHistoryEntry(container, entry) {
 }
 
 async function loadInteractiveModule(skillDir, shortName) {
+    // Support multiple naming conventions:
+    // 1. Exact match: Joker.mjs, Joker.js
+    // 2. Generated files: Joker.generated.mjs, joker.generated.mjs
+    // 3. Lowercase: joker.mjs, joker.js
+    const lowerName = shortName.toLowerCase();
     const candidateFiles = [
         `${shortName}.mjs`,
         `${shortName}.js`,
+        `${shortName}.generated.mjs`,
+        `${lowerName}.generated.mjs`,
+        `${lowerName}.mjs`,
+        `${lowerName}.js`,
     ];
 
     for (const fileName of candidateFiles) {

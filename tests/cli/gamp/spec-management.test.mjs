@@ -3,10 +3,10 @@ import path from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import GampRSP from '../../../cli/GampRSP.mjs';
-import updateSpecs from '../../../cli/.AchillesSkills/gamp/update-specs/update-specs.js';
-import reverseSpecs from '../../../cli/.AchillesSkills/gamp/reverse-specs/reverse-specs.js';
-import buildCode from '../../../cli/.AchillesSkills/gamp/build-code/build-code.js';
+import GampRSP from '../../../cli/achilles-cli/GampRSP.mjs';
+import updateSpecs from '../../../cli/achilles-cli/.AchillesSkills/gamp/update-specs/update-specs.js';
+import reverseSpecs from '../../../cli/achilles-cli/.AchillesSkills/gamp/reverse-specs/reverse-specs.js';
+import buildCode from '../../../cli/achilles-cli/.AchillesSkills/gamp/build-code/build-code.js';
 import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
 
 const TEMP_ROOT = path.join(process.cwd(), 'tests', '.tmp', 'spec-management');

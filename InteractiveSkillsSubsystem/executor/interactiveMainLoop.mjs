@@ -138,7 +138,7 @@ async function interactiveMainLoop(context, {
             console.log(`${prompt}\n`);
             const input = await readUserPrompt('> ');
             if (!input || !input.trim()) {
-                console.log('I did not receive any details. Let’s try again.');
+                console.log('I did not receive any details. Let\'s try again.');
                 continue;
             }
             if (context.isCancellationIntent(input)) {
@@ -159,6 +159,7 @@ async function interactiveMainLoop(context, {
 
         const summary = await buildNarrative(context);
         const confirmation = await readUserPrompt(`${summary}\n> `);
+
         if (!confirmation || !confirmation.trim()) {
             console.log('I need a response to continue.');
             continue;
