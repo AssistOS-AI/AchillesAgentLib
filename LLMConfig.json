@@ -17,7 +17,7 @@
             "module": "./google.mjs"
         },
         "huggingface": {
-            "baseURL": "https://router.huggingface.co/models",
+            "baseURL": "https://router.huggingface.co/v1/chat/completions",
             "apiKeyEnv": "HUGGINGFACE_API_KEY",
             "module": "./huggingFace.mjs"
         },
@@ -245,11 +245,35 @@
             "context": "1mill"
         },
         {
-            "name": "PrimeIntellect/INTELLECT-3",
+            "name": "google/gemma-2-2b-it",
             "provider": "huggingface",
             "mode": "fast",
-            "inputPrice": "N/A",
-            "outputPrice": "N/A",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "N/A"
+        },
+        {
+            "name": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+            "provider": "huggingface",
+            "mode": "fast",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "N/A"
+        },
+        {
+            "name": "openai/gpt-oss-120b",
+            "provider": "huggingface",
+            "mode": "fast",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "N/A"
+        },
+        {
+            "name": "zai-org/GLM-4.5V",
+            "provider": "huggingface",
+            "mode": "fast",
+            "inputPrice": 0,
+            "outputPrice": 0,
             "context": "N/A"
         }
     ]

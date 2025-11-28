@@ -1,4 +1,4 @@
-import { toHuggingFacePrompt } from '../messageAdapters/huggingFaceConversational.mjs';
+import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
 
 export async function callLLM(chatContext, options) {
     if (!options || typeof options !== 'object') {
@@ -14,37 +14,23 @@ export async function callLLM(chatContext, options) {
         throw new Error('Hugging Face provider requires a baseURL.');
     }
 
-    const normalizedBase = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
-    const url = `${normalizedBase}/${model}`;
-
-    const requestHeaders = {
-        'Content-Type': 'application/json',
-        ...(headers || {}),
-    };
-
-    if (apiKey) {
-        requestHeaders.Authorization = `Bearer ${apiKey}`;
-    }
-
+    const messages = toOpenAIChatMessages(chatContext);
     const payload = {
-        inputs: toHuggingFacePrompt(chatContext),
-        parameters: {
-            return_full_text: false,
-            max_new_tokens: 500,
-        },
+        model,
+        messages,
     };
 
     if (params && typeof params === 'object') {
-        const { parameters, ...rest } = params;
-        if (parameters && typeof parameters === 'object') {
-            payload.parameters = { ...payload.parameters, ...parameters };
-        }
-        Object.assign(payload, rest);
+        Object.assign(payload, params);
     }
 
-    const response = await fetch(url, {
+    const response = await fetch(baseURL, {
         method: 'POST',
-        headers: requestHeaders,
+        headers: {
+            Authorization: `Bearer ${apiKey || ''}`,
+            'Content-Type': 'application/json',
+            ...(headers || {}),
+        },
         body: JSON.stringify(payload),
         signal,
     });
@@ -59,9 +45,11 @@ export async function callLLM(chatContext, options) {
 
     const data = await response.json();
 
-    if (Array.isArray(data) && data[0]?.generated_text) {
-        return data[0].generated_text.trim();
+    const content = data.choices?.[0]?.message?.content;
+    if (content) {
+        return typeof content === 'string' ? content : JSON.stringify(content);
     }
+
     if (data.error) {
         throw new Error(`Hugging Face API Error: ${data.error}`);
     }
