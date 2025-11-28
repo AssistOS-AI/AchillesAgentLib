@@ -247,7 +247,10 @@
         {
             "name": "PrimeIntellect/INTELLECT-3",
             "provider": "huggingface",
-            "mode": "fast"
+            "mode": "fast",
+            "inputPrice": "N/A",
+            "outputPrice": "N/A",
+            "context": "N/A"
         }
     ]
 }
