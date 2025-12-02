@@ -169,6 +169,10 @@ const buildAgenticSessionPlannerPrompt = (options) => {
             lines.push(`FINAL: ${h.answer}`);
         } else if (h.type === 'cannot_complete') {
             lines.push(`CANNOT_COMPLETE: ${h.answer}`);
+        } else if (h.type === 'validation_failed') {
+            lines.push(`VALIDATION_FAILED: expected="${h.expected}", got="${h.actual}", retry=${h.retryCount}`);
+        } else if (h.type === 'timeout') {
+            lines.push(`TIMEOUT: ${h.reason || 'previous step exceeded time limit'}`);
         }
     }
     lines.push('');
@@ -188,6 +192,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
     lines.push('- If the most recent tool result already satisfies the current instruction or expected answer, respond with "action": "call_tool" and "tool": "final_answer" and "toolPrompt":"result". "result" should only be the result of the operations. no other strings added.');
     lines.push('- If the user instruction explicitly mentions a tool by name, you MUST call that tool at least once in this turn before finishing.');
+    lines.push('- When passing literal strings as tool arguments, do NOT wrap them in extra quotes if they are already quoted in the user text; pass the value once without adding additional quotation marks.');
     lines.push('');
     lines.push('Decide the next action. Respond ONLY with the JSON object, no extra text.');
 

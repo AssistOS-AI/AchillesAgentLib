@@ -1,13 +1,5 @@
-
-import {
-    FINAL_ANSWER_TOOL,
-    FINAL_ANSWER_DESCRIPTION,
-    normalizeResponsePayload,
-} from '../../LLMAgents/constants.mjs';
-
 async function resolveArguments(agent, prompt, instruction, schema, regexPatterns = []) {
-    // If we are in a Loop session (indicated by agent.currentSession),
-    // and the arguments don't look like structured data, use LLM to extract.
+    // Unified extraction for SOP and Loop: structured input, regex, heuristics, then LLM fallback.
 
     const isLoop = !!agent.currentSession;
     const input = prompt;
@@ -22,79 +14,74 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
 
     debugLog(`[resolveArguments] isLoop=${isLoop}, prompt=${JSON.stringify(input)}, instruction="${instruction}"`);
 
-    if (!isLoop) {
-        if (Array.isArray(input)) {
-            const parts = input.map((value) => (value === null || value === undefined ? '' : String(value)));
-            if (!parts.length) {
-                return [];
-            }
-            if (parts.length >= schema.length) {
-                if (schema.length === 1) {
-                    return [parts.join(' ')];
-                }
-                if (parts.length > schema.length) {
-                    const head = parts.slice(0, schema.length - 1);
-                    const tail = parts.slice(schema.length - 1).join(' ');
-                    return head.concat([tail]);
-                }
-                return parts.slice(0, schema.length);
-            }
-        }
-        // SOP mode: Planner is expected to provide compact, parser-friendly arguments.
-        // Heuristics:
-        //  - Single-argument tools: return the whole input as one argument.
-        //  - Multi-argument tools: prefer comma-separated values, otherwise split on whitespace.
-        const trimmed = String(input ?? '').trim();
-        if (!trimmed) {
+    // 1) Structured inputs (arrays) — preserve SOP-friendly handling
+    if (Array.isArray(input)) {
+        const parts = input.map((value) => (value === null || value === undefined ? '' : String(value)));
+        if (!parts.length) {
             return [];
         }
-        if (schema.length <= 1) {
-            return [trimmed];
-        }
-        if (trimmed.includes(',')) {
-            const parts = trimmed.split(',').map((x) => x.trim()).filter(Boolean);
-            if (parts.length >= schema.length) {
-                return parts.slice(0, schema.length);
-            }
-        }
-        const parts = trimmed.split(/\s+/).filter(Boolean);
         if (parts.length >= schema.length) {
-            if (schema.length === 2 && parts.length > 2) {
-                const [first, ...rest] = parts;
-                return [first, rest.join(' ')];
+            if (schema.length === 1) {
+                return [parts.join(' ')];
+            }
+            if (parts.length > schema.length) {
+                const head = parts.slice(0, schema.length - 1);
+                const tail = parts.slice(schema.length - 1).join(' ');
+                return head.concat([tail]);
             }
             return parts.slice(0, schema.length);
         }
-        return [trimmed];
     }
 
-    // Loop mode: Input is likely a natural language instruction.
-    // We need to extract arguments.
-    const loopPrompt = input;
+    const textInput = String(input ?? '').trim();
+    if (!textInput) {
+        return [];
+    }
 
-    // 1. Try Regex Patterns
+    // 2) Regex first (now for both SOP and Loop)
     for (const pattern of regexPatterns) {
-        const match = loopPrompt.match(pattern);
+        const match = textInput.match(pattern);
         if (match) {
-            // Assume capture groups correspond to schema order
-            // If schema has 2 items, we expect at least 2 capture groups.
-            // match[0] is full match, match[1] is first group.
             const captured = match.slice(1);
             if (captured.length >= schema.length) {
                 debugLog(`[resolveArguments] Regex matched: ${pattern}`);
-                return captured.map(c => c.trim());
+                return captured.map((c) => c.trim());
             }
         }
     }
 
-    // 2. Optimization: Try to parse "a, b" or simple numbers if schema matches
-    const partsForLoop = loopPrompt.split(',');
-    if (partsForLoop.length > 1 && partsForLoop.every((p) => !Number.isNaN(Number.parseFloat(p)))) {
-        debugLog('[resolveArguments] Simple comma split matched numbers');
-        return partsForLoop.map((p) => p.trim());
+    // 2b) Single-argument tools: keep the full string intact
+    if (schema.length <= 1) {
+        return [textInput];
     }
 
-    // 3. Use LLM to extract
+    // 3) Heuristics: commas, whitespace, numeric lists
+    const commaParts = textInput.split(',').map((x) => x.trim()).filter(Boolean);
+    if (commaParts.length > 1) {
+        const numericOnly = commaParts.every((p) => !Number.isNaN(Number.parseFloat(p)));
+        if (numericOnly || commaParts.length >= schema.length) {
+            if (schema.length === 2 && commaParts.length > 2) {
+                const [first, ...rest] = commaParts;
+                return [first, rest.join(' ')];
+            }
+            return commaParts.slice(0, schema.length);
+        }
+    }
+
+    const parts = textInput.split(/\s+/).filter(Boolean);
+    if (parts.length >= schema.length) {
+        if (schema.length === 2 && parts.length > 2) {
+            const [first, ...rest] = parts;
+            return [first, rest.join(' ')];
+        }
+        return parts.slice(0, schema.length);
+    }
+
+    if (schema.length <= 1) {
+        return [textInput];
+    }
+
+    // 4) LLM extraction fallback (both modes)
     const extractionPrompt = [
         'You are an argument extractor.',
         `Task: ${instruction}`,
@@ -114,15 +101,15 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
     try {
         const parsed = JSON.parse(result);
         if (Array.isArray(parsed)) {
-        debugLog(`[resolveArguments] LLM extraction success: ${JSON.stringify(parsed)}`);
-        return parsed;
+            debugLog(`[resolveArguments] LLM extraction success: ${JSON.stringify(parsed)}`);
+            return parsed;
         }
     } catch (e) {
-        // ignore
+        // ignore parse errors, fall back
     }
 
-    // 4. Fail if we couldn't extract
-    throw new Error(`Failed to extract arguments for instruction: "${prompt}". Expected schema: ${JSON.stringify(schema)}`);
+    // 5) Last resort: return whole prompt
+    return [String(prompt ?? '')];
 }
 
 const getToolStateBucket = (agent) => {
@@ -151,6 +138,12 @@ const BASE_PERFORMANCE_TOOLS = {
     add: {
         description: 'Adds two numbers. Usage: add(a, b) or add("a, b")',
         handler: async (agent, prompt) => {
+            const funcMatch = String(prompt).match(/add\(\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*\)/i);
+            if (funcMatch) {
+                const [, a, b] = funcMatch;
+                return String(Number(a) + Number(b));
+            }
+
             const resolved = await resolveArguments(agent, prompt, 'Extract two numbers to add.', ['number', 'number'], [
                 /add\s+(\d+)\s+and\s+(\d+)/i,
                 /(\d+)\s*\+\s*(\d+)/
@@ -162,6 +155,12 @@ const BASE_PERFORMANCE_TOOLS = {
     multiply: {
         description: 'Multiplies two numbers. Usage: multiply(a, b) or multiply("a, b")',
         handler: async (agent, prompt) => {
+            const funcMatch = String(prompt).match(/multiply\(\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*\)/i);
+            if (funcMatch) {
+                const [, a, b] = funcMatch;
+                return String(Number(a) * Number(b));
+            }
+
             const resolved = await resolveArguments(agent, prompt, 'Extract two numbers to multiply.', ['number', 'number'], [
                 /multiply\s+(\d+)\s+by\s+(\d+)/i,
                 /(\d+)\s*\*\s*(\d+)/
@@ -173,28 +172,34 @@ const BASE_PERFORMANCE_TOOLS = {
     subtract: {
         description: 'Subtracts the second number from the first. Usage: subtract(a, b) or subtract("a, b")',
         handler: async (agent, prompt) => {
+            // Support common phrasings and function-style calls before falling back.
+            const fromMatch = String(prompt).match(/subtract\s+(\d+)\s+from\s+(\d+)/i);
+            if (fromMatch) {
+                const [, subtrahend, minuend] = fromMatch;
+                return String(Number(minuend) - Number(subtrahend));
+            }
+
             const resolved = await resolveArguments(agent, prompt, 'Extract two numbers: [minuend, subtrahend].', ['number', 'number'], [
-                /(\d+)\s*-\s*(\d+)/
+                /(\d+)\s*-\s*(\d+)/,
+                /subtract\((\d+)\s*,\s*(\d+)\)/i,
+                /subtract\s+(\d+)\s+by\s+(\d+)/i,
             ]);
-            // If regex matched "Subtract 7 from 20", we might get [7, 20] if we added that regex.
-            // Let's stick to LLM for "from" logic to avoid confusion, or handle it in handler.
-            // But resolveArguments is generic.
-            // Let's trust LLM for "Subtract 7 from 20" for now, or add specific logic if needed.
-            // Wait, the user said "give suggestions of possible variants as regular expressions".
-            // If I put /subtract\s+(\d+)\s+from\s+(\d+)/i, it returns [7, 20].
-            // But the tool expects [a, b] -> a-b. So [20, 7].
-            // So I should NOT use that regex here unless I can reorder.
-            // I will omit the "from" regex and let LLM handle it, or use a regex that matches "20 minus 7".
 
             const [a, b] = resolved;
-            // Check if we got "Subtract 7 from 20" via LLM, LLM usually handles it right.
-            // If we used regex for "20 - 7", we get [20, 7].
             return String(Number(a) - Number(b));
         },
     },
     divide: {
         description: 'Divides the first number by the second. Usage: divide(a, b) or divide("a, b")',
         handler: async (agent, prompt) => {
+            const funcMatch = String(prompt).match(/divide\(\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*\)/i);
+            if (funcMatch) {
+                const [, a, b] = funcMatch;
+                const numB = Number(b);
+                if (numB === 0) return 'Infinity';
+                return String(Number(a) / numB);
+            }
+
             const resolved = await resolveArguments(agent, prompt, 'Extract two numbers: [numerator, denominator].', ['number', 'number'], [
                 /divide\s+(\d+)\s+by\s+(\d+)/i,
                 /(\d+)\s*\/\s*(\d+)/

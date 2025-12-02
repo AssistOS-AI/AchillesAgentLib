@@ -243,7 +243,7 @@ class LoopAgentSession {
             if (action === 'final_answer' || action === 'cannot_complete') {
                 this.errorCount += 1;
                 turn.steps.push({
-                    type: 'planner_error',
+                    type: 'tool_error',
                     error: 'Use the reserved tools final_answer or cannot_complete via call_tool to end the turn.',
                 });
                 if (this.errorCount >= maxErrors) {

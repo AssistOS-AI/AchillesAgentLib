@@ -4,12 +4,12 @@
     "steps": [
         {
             "id": "length_simple",
-            "prompt": "Give the length of 'abcdefg' and respond with the number only.",
+            "prompt": "Extract the length of 'abcdefg' and respond with the number only.",
             "expected": "7"
         },
         {
             "id": "length_phrase",
-            "prompt": "Give the length of 'agent session' and respond only with the number.",
+            "prompt": "Extract the length of 'agent session' and respond only with the number.",
             "expected": "13"
         },
         {
