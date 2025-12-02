@@ -61,6 +61,14 @@ try {
     console.warn(`[AchillesAgentsLib] Failed to summarise default LLM configuration: ${error.message}`);
 }
 
+// Helper functions for LLM agent registry (backwards compatibility)
+const registerLLMAgent = (config, options = {}) => llmAgentRegistry.register(config, options);
+const registerDefaultLLMAgent = (config = {}) => llmAgentRegistry.registerDefault(config);
+const getLLMAgent = (name) => llmAgentRegistry.get(name);
+const getDefaultLLMAgent = () => llmAgentRegistry.getDefault();
+const listLLMAgents = () => llmAgentRegistry.list();
+const clearLLMAgents = () => llmAgentRegistry.clear();
+
 export {
     LLMAgent,
     DEFAULT_AGENT_NAME,
@@ -71,4 +79,10 @@ export {
     classifyIntent,
     responseToJSON,
     envAutoConfig,
+    registerLLMAgent,
+    registerDefaultLLMAgent,
+    getLLMAgent,
+    getDefaultLLMAgent,
+    listLLMAgents,
+    clearLLMAgents,
 };

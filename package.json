@@ -10,14 +10,12 @@
         "./utils/PersistoClient.mjs": "./utils/PersistoClient.mjs",
         "./utils/LLMClient.mjs": "./utils/LLMClient.mjs",
         "./LLMAgents": "./LLMAgents/index.mjs",
-        "./SkilledAgents": "./SkilledAgents/index.mjs",
         "./DBTableSkillsSubsystem": "./DBTableSkillsSubsystem/index.mjs",
         "./package.json": "./package.json"
     },
     "files": [
         "index.mjs",
         "LLMAgents",
-        "SkilledAgents",
         "utils",
         "MemoryContainer",
         "RecursiveSkilledAgents",
@@ -32,5 +30,7 @@
     "scripts": {
         "test": "node tests/runAll.js"
     },
-    "devDependencies": {}
+    "dependencies": {
+        "flexsearch": "^0.8.212"
+    }
 }

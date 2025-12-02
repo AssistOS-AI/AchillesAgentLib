@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { DBTableSkillsSubsystem } from '../../DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs';
 import { parseSkillMarkdown, validateSkill } from '../../DBTableSkillsSubsystem/SkillParser.mjs';
 import { LLMAgent } from '../../LLMAgents/index.mjs';
-import { SkilledAgent } from '../../SkilledAgents/SkilledAgent.mjs';
 import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 
 const __filename = fileURLToPath(import.meta.url);

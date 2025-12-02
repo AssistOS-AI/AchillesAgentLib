@@ -4,18 +4,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { LLMAgent } from '../../LLMAgents/index.mjs';
-import { SkilledAgent } from '../../SkilledAgents/SkilledAgent.mjs';
 import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function createTestAgent() {
-    const llmAgent = new LLMAgent();
-    return new SkilledAgent({
-        llmAgent,
-        promptReader: async () => 'accept',
-    });
+function createTestLLMAgent() {
+    return new LLMAgent();
 }
 
 const shared = {
@@ -31,9 +26,9 @@ async function initializeRecursiveAgent() {
 
     shared.initialized = true;
 
-    const skilledAgent = createTestAgent();
+    const llmAgent = createTestLLMAgent();
     try {
-        await skilledAgent.llmAgent.executePrompt('Return OK', { mode: 'fast' });
+        await llmAgent.executePrompt('Return OK', { mode: 'fast' });
     } catch (error) {
         const attempts = Array.isArray(error?.attempts) ? error.attempts : [];
         const onlyMissingKeys = attempts.length > 0
@@ -51,7 +46,8 @@ async function initializeRecursiveAgent() {
 
     const startDir = path.join(__dirname, '..');
     shared.recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
+        llmAgent,
+        promptReader: async () => 'accept',
         startDir,
         skillFilter: ({ type }) => type === 'code',
     });

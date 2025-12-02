@@ -4,7 +4,6 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { LLMAgent } from 'achillesAgentLib/LLMAgents';
-import { SkilledAgent } from 'achillesAgentLib/SkilledAgents';
 import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import GampRSP from './GampRSP.mjs';
 import { configureLLMLogger } from '../../utils/LLMLogger.mjs';
@@ -145,13 +144,9 @@ class AchillesCLI {
             ...(skillDirs.length ? skillDirs : [this.workspaceRoot]),
         ].map((dir) => path.resolve(dir));
 
-        this.skilledAgent = new SkilledAgent({
+        this.recursiveAgent = new RecursiveSkilledAgent({
             llmAgent: this.llmAgent,
             promptReader: this.promptReader,
-        });
-
-        this.recursiveAgent = new RecursiveSkilledAgent({
-            skilledAgent: this.skilledAgent,
             startDir: this.skillSearchRoots[0],
         });
 
@@ -286,8 +281,8 @@ class AchillesCLI {
         this.cancelRequested = true;
         this.output.write(`${this.colors.warn}[info] Cancelling current plan: ${reason}${this.colors.reset}\n`);
         try {
-            if (this.skilledAgent && typeof this.skilledAgent.cancelTasks === 'function') {
-                this.skilledAgent.cancelTasks();
+            if (this.llmAgent && typeof this.llmAgent.cancel === 'function') {
+                this.llmAgent.cancel();
             }
         } catch {
             // ignore cancellation errors

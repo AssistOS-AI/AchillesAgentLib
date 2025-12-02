@@ -2,7 +2,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { LLMAgent } from '../../../LLMAgents/index.mjs';
-import { SkilledAgent } from '../../../SkilledAgents/SkilledAgent.mjs';
 import { RecursiveSkilledAgent } from '../../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 
 function createDefaultMatchers(additionalMatchers = []) {
@@ -216,13 +215,9 @@ export async function runInteractiveSkillScenario({
         return reply;
     };
 
-    const skilledAgent = new SkilledAgent({
+    const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
         promptReader,
-    });
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
         startDir: normalizedTestDir,
         skillFilter: ({ type }) => type === 'interactive',
     });

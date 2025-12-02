@@ -1,4 +1,4 @@
-import { createFlexSearchAdapter } from '../search/flexsearchAdapter.mjs';
+import { createFlexSearchAdapter } from '../../utils/flexsearchAdapter.mjs';
 
 const CONTEXT_DEBUG = process.env.DB_TABLE_TEST_DEBUG === 'true';
 
@@ -277,17 +277,17 @@ function friendlyName(name) {
 
 async function executeDerivatorsIfNeeded(context) {
     const { derivatorMap, normalizedArgs } = context;
-    
+
     if (!derivatorMap || derivatorMap.size === 0) {
         return;
     }
-    
+
     for (const [argName, derivatorFn] of derivatorMap.entries()) {
         // Only derive if value not already set by user
         if (context.hasValue(argName)) {
             continue;
         }
-        
+
         try {
             const currentValue = normalizedArgs[argName];
             const derivedValue = await Promise.resolve(
@@ -297,7 +297,7 @@ async function executeDerivatorsIfNeeded(context) {
                     readUserPrompt: context.readUserPrompt,
                 })
             );
-            
+
             if (derivedValue !== undefined && derivedValue !== null) {
                 normalizedArgs[argName] = derivedValue;
             }
@@ -397,7 +397,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
         aliasEntries,
         aliasToArgument,
     };
-    
+
     context.hasValue = (name) => {
         if (!Object.prototype.hasOwnProperty.call(normalizedArgs, name)) {
             return false;
@@ -437,7 +437,7 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
             if (placeholderKeywords.some(keyword => normalized === keyword || normalized.includes(keyword))) {
                 return false;
             }
-            
+
             // Check for generic 'your*' patterns that might not match the field name
             // This catches patterns like 'your_job_name', 'yourjobname', etc.
             if (normalized.startsWith('your') && normalized.length > 4) {
@@ -559,8 +559,8 @@ async function createExecutionContext({ skill, action, providedArgs = {}, llmAge
 
         if (resolverMap.has(target)) {
             try {
-                candidate = await Promise.resolve(resolverMap.get(target)(rawValue, { 
-                    argument: target, 
+                candidate = await Promise.resolve(resolverMap.get(target)(rawValue, {
+                    argument: target,
                     context,
                     readUserPrompt: context.readUserPrompt
                 }));

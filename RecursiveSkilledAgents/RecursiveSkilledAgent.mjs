@@ -11,7 +11,7 @@ import { MCPSkillsSubsystem } from '../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs
 import { OrchestratorSkillsSubsystem } from '../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 import { DBTableSkillsSubsystem } from '../DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs';
 import { Sanitiser } from '../utils/Sanitiser.mjs';
-import { createFlexSearchAdapter } from '../SkilledAgents/search/flexsearchAdapter.mjs';
+import { createFlexSearchAdapter } from '../utils/flexsearchAdapter.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 
 const SKILL_FILE_TYPES = {

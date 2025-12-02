@@ -1,5 +1,5 @@
-import { buildMissingMessage, buildNarrative } from '../../SkilledAgents/executor/messages.mjs';
-import { extractArgumentsWithLLM, interpretConfirmationWithLLM } from '../../SkilledAgents/executor/llm.mjs';
+import { buildMissingMessage, buildNarrative } from './messages.mjs';
+import { extractArgumentsWithLLM, interpretConfirmationWithLLM } from './llm.mjs';
 
 const ACCEPT_PATTERNS = [
     /\baccept\b/i,

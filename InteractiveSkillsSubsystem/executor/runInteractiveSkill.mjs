@@ -1,4 +1,4 @@
-import { createExecutionContext } from '../../SkilledAgents/executor/context.mjs';
+import { createExecutionContext } from './context.mjs';
 import { interactiveMainLoop } from './interactiveMainLoop.mjs';
 
 export async function runInteractiveSkill({
