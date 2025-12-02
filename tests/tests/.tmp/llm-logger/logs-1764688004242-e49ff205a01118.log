@@ -1,0 +1,6 @@
+2025-12-02T15:06:44.243Z,auto,fast,input,0,"short"
+2025-12-02T15:06:44.243Z,auto,fast,output,50,"ok"
+2025-12-02T15:06:44.243Z,auto,fast,input,0,"mid"
+2025-12-02T15:06:44.243Z,auto,fast,output,500,"ok"
+2025-12-02T15:06:44.244Z,auto,fast,input,0,"long"
+2025-12-02T15:06:44.244Z,auto,fast,output,15000,"ok"

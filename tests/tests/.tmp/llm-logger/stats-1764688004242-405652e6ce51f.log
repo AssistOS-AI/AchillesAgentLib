@@ -1,0 +1,56 @@
+{
+  "totalRequests": 3,
+  "tokensSent": 4,
+  "tokensReceived": 3,
+  "lastModel": "auto",
+  "lastUpdated": "2025-12-02T15:06:44.244Z",
+  "models": {
+    "auto": {
+      "requests": 3,
+      "tokensSent": 4,
+      "tokensReceived": 3
+    }
+  },
+  "buckets": {
+    "<100": {
+      "requests": 1,
+      "tokensSent": 2,
+      "tokensReceived": 1,
+      "minMs": 50,
+      "maxMs": 50,
+      "totalMs": 50
+    },
+    "<1000": {
+      "requests": 1,
+      "tokensSent": 1,
+      "tokensReceived": 1,
+      "minMs": 500,
+      "maxMs": 500,
+      "totalMs": 500
+    },
+    "<10000": {
+      "requests": 0,
+      "tokensSent": 0,
+      "tokensReceived": 0,
+      "minMs": null,
+      "maxMs": null,
+      "totalMs": 0
+    },
+    "<100000": {
+      "requests": 1,
+      "tokensSent": 1,
+      "tokensReceived": 1,
+      "minMs": 15000,
+      "maxMs": 15000,
+      "totalMs": 15000
+    },
+    ">100000": {
+      "requests": 0,
+      "tokensSent": 0,
+      "tokensReceived": 0,
+      "minMs": null,
+      "maxMs": null,
+      "totalMs": 0
+    }
+  }
+}

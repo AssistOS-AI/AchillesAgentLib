@@ -7,10 +7,12 @@
     "main": "index.mjs",
     "exports": {
         ".": "./index.mjs",
-        "./utils/PersistoClient.mjs": "./utils/PersistoClient.mjs",
-        "./utils/LLMClient.mjs": "./utils/LLMClient.mjs",
         "./LLMAgents": "./LLMAgents/index.mjs",
+        "./RecursiveSkilledAgents": "./RecursiveSkilledAgents/index.mjs",
         "./DBTableSkillsSubsystem": "./DBTableSkillsSubsystem/index.mjs",
+        "./InteractiveSkillsSubsystem": "./InteractiveSkillsSubsystem/index.mjs",
+        "./InteractiveSkillsSubsystem/*": "./InteractiveSkillsSubsystem/*",
+        "./utils/*": "./utils/*",
         "./package.json": "./package.json"
     },
     "files": [
