@@ -17,8 +17,6 @@ import { stripCodeFence } from './LLMAgentHelpers.mjs';
 import {
     extraComplete,
     extraDoTask,
-    extraDoTaskWithReview,
-    extraDoTaskWithHumanReview,
 } from './LLMAgentExtra.mjs';
 
 const DEFAULT_AGENT_NAME = 'DefaultLLMAgent';
@@ -293,7 +291,7 @@ Prompt:
 ${promptText}`
             : promptText;
 
-        const result = await this.doTask(combinedContext, promptText, {
+        const result = await extraDoTask(this, combinedContext, promptText, {
             mode,
             model,
             ...rest,
@@ -329,18 +327,6 @@ ${promptText}`
         }
 
         return result;
-    }
-
-    async doTask(agentContext, description, options = {}) {
-        return extraDoTask(this, agentContext, description, options);
-    }
-
-    async doTaskWithReview(agentContext, description, options = {}) {
-        return extraDoTaskWithReview(this, agentContext, description, options);
-    }
-
-    async doTaskWithHumanReview(agentContext, description, options = {}) {
-        return extraDoTaskWithHumanReview(this, agentContext, description, options);
     }
 
     async detectIntents(skillsDescription, userPrompt, options = {}) {

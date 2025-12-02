@@ -70,23 +70,6 @@ async function loadInteractiveModule(skillDir, shortName) {
     throw new Error(`Interactive skill module missing for skill folder ${skillDir}. Expected ${candidateFiles.join(' or ')}.`);
 }
 
-function buildHistoryFromMemory(memory) {
-    if (!memory || typeof memory.getFullContext !== 'function') {
-        return [];
-    }
-    const context = memory.getFullContext();
-    const history = [];
-    for (const entry of context) {
-        if (entry.user) {
-            history.push({ role: 'user', message: entry.user });
-        }
-        if (entry.ai) {
-            history.push({ role: 'assistant', message: entry.ai });
-        }
-    }
-    return history;
-}
-
 function createSkillScopedLLMAgent(baseAgent, memory) {
     if (!baseAgent) {
         throw new Error('InteractiveSkillsSubsystem requires a base LLMAgent instance.');
@@ -101,48 +84,6 @@ function createSkillScopedLLMAgent(baseAgent, memory) {
             skillShortMemory: memory,
         };
         return baseAgent.executePrompt(promptText, merged);
-    };
-
-    scoped.doTask = (agentContext, description, options = {}) => {
-        const merged = {
-            ...options,
-            sessionMemory: memory,
-            skillShortMemory: memory,
-        };
-        return baseAgent.doTask(agentContext, description, merged);
-    };
-
-    scoped.doTaskWithReview = (agentContext, description, options = {}) => {
-        const merged = {
-            ...options,
-            sessionMemory: memory,
-            skillShortMemory: memory,
-        };
-        return baseAgent.doTaskWithReview(agentContext, description, merged);
-    };
-
-    scoped.doTaskWithHumanReview = (agentContext, description, options = {}) => {
-        const merged = {
-            ...options,
-            sessionMemory: memory,
-            skillShortMemory: memory,
-        };
-        return baseAgent.doTaskWithHumanReview(agentContext, description, merged);
-    };
-
-    scoped.complete = async (options = {}) => {
-        if (!options || typeof options !== 'object') {
-            return baseAgent.complete(options);
-        }
-        const historyFromMemory = buildHistoryFromMemory(memory);
-        const providedHistory = Array.isArray(options.history) ? options.history : [];
-        const mergedHistory = historyFromMemory.length
-            ? [...historyFromMemory, ...providedHistory]
-            : providedHistory;
-        const mergedOptions = mergedHistory.length
-            ? { ...options, history: mergedHistory }
-            : { ...options };
-        return baseAgent.complete(mergedOptions);
     };
 
     return scoped;
