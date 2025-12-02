@@ -470,7 +470,7 @@ export class LightSOPLangInterpreter {
         lines.push('');
         lines.push('LightSOPLang Syntax Rules:');
         lines.push('1. Each step is a variable declaration starting with \'@\'.');
-        lines.push('2. Format: @variableName commandName arg1 arg2 ...');
+        lines.push('2. Format: @variableName commandName arg1 arg2 ... (a command name is REQUIRED on every line; do NOT emit lines like "@var <literal>" without a command).');
         lines.push('3. Use SPACE to separate arguments. Do NOT use parentheses "()" or commas ",".');
         lines.push('4. Arguments can be literals (strings/numbers) or variables ($varName).');
         lines.push('5. Dependencies are implicit: if you use $var1 in a command, it runs after @var1 is computed.');
@@ -478,6 +478,8 @@ export class LightSOPLangInterpreter {
         lines.push('7. Do NOT declare variables for input values that are directly specified in the prompt - use literals directly.');
         lines.push('8. Use consistent, descriptive variable names that match when referencing ($varName).');
         lines.push('9. Output ONLY the code block, no markdown fences, no explanations.');
+        lines.push('- IMPORTANT: Never wrap arguments in parentheses or separate them with commas; each argument must be its own token. Example: @out concat "hello" "world" (NOT concat("hello", "world")).');
+        lines.push('- IMPORTANT: When a string literal contains spaces, wrap it in double quotes, but still keep each argument as a separate token with no commas.');
     lines.push('');
         const commandEntries = Array.isArray(context.commands) ? context.commands : [];
         if (commandEntries.length) {

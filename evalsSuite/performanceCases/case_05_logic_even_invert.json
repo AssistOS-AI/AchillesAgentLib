@@ -14,7 +14,7 @@
         },
         {
             "id": "invert_true",
-            "prompt": "Invert the boolean value true and respond only with the result.",
+            "prompt": "Invert the boolean value 'true' and respond only with the result.",
             "expected": "false"
         },
         {

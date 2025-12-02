@@ -193,6 +193,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push('- If the most recent tool result already satisfies the current instruction or expected answer, respond with "action": "call_tool" and "tool": "final_answer" and "toolPrompt":"result". "result" should only be the result of the operations. no other strings added.');
     lines.push('- If the user instruction explicitly mentions a tool by name, you MUST call that tool at least once in this turn before finishing.');
     lines.push('- When passing literal strings as tool arguments, do NOT wrap them in extra quotes if they are already quoted in the user text; pass the value once without adding additional quotation marks.');
+    lines.push('- If the history shows any failure (validation failed, timeout, or similar), adjust your next tool call or parameters to fix it; do NOT repeat the same failing call.');
     lines.push('');
     lines.push('Decide the next action. Respond ONLY with the JSON object, no extra text.');
 
