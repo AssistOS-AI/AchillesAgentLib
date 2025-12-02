@@ -6,7 +6,7 @@ import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
 import { defaultPromptReader } from '../utils/defaultPromptReader.mjs';
 import { CodeSkillsSubsystem } from '../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
 import { InteractiveSkillsSubsystem } from '../InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs';
-import { CloudeSkillsSubsystem } from '../CloudeSkillsSubsystem/CloudeSkillsSubsystem.mjs';
+import { ClaudeSkillsSubsystem } from '../ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs';
 import { MCPSkillsSubsystem } from '../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
 import { OrchestratorSkillsSubsystem } from '../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 import { DBTableSkillsSubsystem } from '../DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs';
@@ -225,7 +225,7 @@ export class RecursiveSkilledAgent {
                 dbAdapter: this.dbAdapter
             });
         } else {
-            subsystem = new CloudeSkillsSubsystem();
+            subsystem = new ClaudeSkillsSubsystem();
         }
 
         this.subsystems.set(type, subsystem);

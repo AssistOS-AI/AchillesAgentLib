@@ -22,7 +22,7 @@
         "MemoryContainer",
         "RecursiveSkilledAgents",
         "CodeSkillsSubsystem",
-        "CloudeSkillsSubsystem",
+        "ClaudeSkillsSubsystem",
         "MCPSkillsSubsystem",
         "OrchestratorSkillsSubsystem",
         "InteractiveSkillsSubsystem",

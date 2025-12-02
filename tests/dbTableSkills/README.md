@@ -195,7 +195,7 @@ ensureSubsystem(type) {
             dbAdapter: this.dbAdapter  // Need to add dbAdapter to RecursiveSkilledAgent
         });
     } else {
-        subsystem = new CloudeSkillsSubsystem();
+        subsystem = new ClaudeSkillsSubsystem();
     }
 
     this.subsystems.set(type, subsystem);

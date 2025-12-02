@@ -3,7 +3,7 @@ export * from './utils/PersistoClient.mjs';
 export * from './MemoryContainer/index.mjs';
 export * from './RecursiveSkilledAgents/index.mjs';
 export * from './CodeSkillsSubsystem/index.mjs';
-export * from './CloudeSkillsSubsystem/index.mjs';
+export * from './ClaudeSkillsSubsystem/index.mjs';
 export * from './MCPSkillsSubsystem/index.mjs';
 export * from './OrchestratorSkillsSubsystem/index.mjs';
 export * from './InteractiveSkillsSubsystem/index.mjs';

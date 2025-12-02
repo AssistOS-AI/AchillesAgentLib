@@ -1,4 +1,4 @@
-export class CloudeSkillsSubsystem {
+export class ClaudeSkillsSubsystem {
     constructor() {
         this.type = 'claude';
     }

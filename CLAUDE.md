@@ -49,7 +49,7 @@ The main entry point and coordinator for skill-based execution.
 **Skill File Types:**
 | File | Type | Subsystem |
 |------|------|-----------|
-| `skill.md` | claude | CloudeSkillsSubsystem |
+| `skill.md` | claude | ClaudeSkillsSubsystem |
 | `cskill.md` | code | CodeSkillsSubsystem |
 | `iskill.md` | interactive | InteractiveSkillsSubsystem |
 | `mskill.md` | mcp | MCPSkillsSubsystem |
@@ -379,7 +379,7 @@ Use appropriate file tools based on the operation type.
 
 ---
 
-### 9. CloudeSkillsSubsystem (`CloudeSkillsSubsystem/CloudeSkillsSubsystem.mjs`)
+### 9. ClaudeSkillsSubsystem (`ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs`)
 
 Simple passthrough subsystem for basic Claude skills.
 
