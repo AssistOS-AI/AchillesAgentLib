@@ -147,6 +147,7 @@ export class RecursiveSkilledAgent {
         onProcessingBegin = null,
         onProcessingProgress = null,
         onProcessingEnd = null,
+        additionalSkillRoots = [],
     } = {}) {
         if (llmAgent && !(llmAgent instanceof LLMAgent)) {
             throw new TypeError('RecursiveSkilledAgent requires an LLMAgent instance.');
@@ -161,6 +162,7 @@ export class RecursiveSkilledAgent {
         this.onProcessingEnd = typeof onProcessingEnd === 'function' ? onProcessingEnd : null;
         this._isProcessing = false; // Track if we're already processing to prevent nested callbacks
         this.searchUpwards = Boolean(searchUpwards);
+        this.additionalSkillRoots = Array.isArray(additionalSkillRoots) ? additionalSkillRoots : [];
 
         this.llmAgent = llmAgent
             || new LLMAgent({ ...llmAgentOptions });
@@ -239,6 +241,13 @@ export class RecursiveSkilledAgent {
         ], this.searchUpwards);
         for (const root of roots) {
             this.registerSkillsFromRoot(root);
+        }
+
+        // Register additional skill roots (e.g., built-in skills from a library)
+        for (const root of this.additionalSkillRoots) {
+            if (isDirectory(root)) {
+                this.registerSkillsFromRoot(root);
+            }
         }
     }
 
@@ -566,6 +575,26 @@ export class RecursiveSkilledAgent {
 
     listSkillsByType(type) {
         return Array.from(this.skillCatalog.values()).filter((record) => record.type === type);
+    }
+
+    /**
+     * Get all registered skills
+     * @returns {Array} Array of skill records
+     */
+    getSkills() {
+        return Array.from(this.skillCatalog.values());
+    }
+
+    /**
+     * Reload all skills from disk, clearing and re-discovering
+     * @returns {number} The number of skills registered after reload
+     */
+    reloadSkills() {
+        this.skillCatalog.clear();
+        this.skillAliases.clear();
+        this.skillToSubsystem.clear();
+        this.registerDiscoveredSkills();
+        return this.skillCatalog.size;
     }
 
     buildSearchText(record) {

@@ -6,9 +6,10 @@
  * - Skill execution steps
  * - File operations
  * - Planning and routing decisions
+ *
+ * Note: For 'spinner' mode, you must provide a spinnerFactory option.
+ * If not provided, falls back to 'log' mode.
  */
-
-import { createSpinner } from '../cli/skill-manager-cli/skill-manager/spinner.mjs';
 
 // Action types for categorization
 export const ActionType = {
@@ -43,7 +44,19 @@ const ActionIcons = {
  */
 export class ActionReporter {
     constructor(options = {}) {
-        this.mode = options.mode || 'spinner'; // 'spinner', 'log', 'silent', 'custom'
+        // Spinner factory function - must be provided for 'spinner' mode
+        // Signature: (message, options) => spinnerInstance
+        // spinnerInstance should have: update(msg), pause(), resume(), succeed(msg), fail(msg), info(msg), stop(msg)
+        this.spinnerFactory = options.spinnerFactory || null;
+
+        // Default to 'log' mode if no spinner factory provided and spinner mode requested
+        const requestedMode = options.mode || 'log';
+        if (requestedMode === 'spinner' && !this.spinnerFactory) {
+            this.mode = 'log'; // Fallback to log mode
+        } else {
+            this.mode = requestedMode; // 'spinner', 'log', 'silent', 'custom'
+        }
+
         this.spinner = null;
         this.customHandler = options.onAction || null;
         this.logger = options.logger || console;
@@ -295,12 +308,17 @@ export class ActionReporter {
     _display(message) {
         switch (this.mode) {
             case 'spinner':
-                if (!this.spinner) {
-                    this.spinner = createSpinner(message, {
-                        showInterruptHint: this.showInterruptHint,
-                    });
+                if (this.spinnerFactory) {
+                    if (!this.spinner) {
+                        this.spinner = this.spinnerFactory(message, {
+                            showInterruptHint: this.showInterruptHint,
+                        });
+                    } else {
+                        this.spinner.update(message);
+                    }
                 } else {
-                    this.spinner.update(message);
+                    // Fallback to log if no spinner factory (shouldn't happen due to constructor check)
+                    this.logger.log(`◐ ${message}`);
                 }
                 break;
 
