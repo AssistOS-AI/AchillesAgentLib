@@ -14,7 +14,7 @@ import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { createFlexSearchAdapter } from '../utils/flexsearchAdapter.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 
-const SKILL_FILE_TYPES = {
+export const SKILL_FILE_TYPES = {
     'skill.md': { type: 'claude' },
     'iskill.md': { type: 'interactive' },
     'cskill.md': { type: 'code' },
@@ -22,6 +22,9 @@ const SKILL_FILE_TYPES = {
     'oskill.md': { type: 'orchestrator' },
     'tskill.md': { type: 'dbtable' },
 };
+
+/** List of valid skill definition filenames */
+export const SKILL_FILE_NAMES = Object.keys(SKILL_FILE_TYPES);
 
 function isReadableFile(candidate) {
     try {
@@ -583,6 +586,81 @@ export class RecursiveSkilledAgent {
      */
     getSkills() {
         return Array.from(this.skillCatalog.values());
+    }
+
+    /**
+     * Get the starting directory for this agent
+     * @returns {string} The start directory path
+     */
+    getStartDir() {
+        return this.startDir;
+    }
+
+    /**
+     * Get the skills directory path (.AchillesSkills folder)
+     * @returns {string} The skills directory path
+     */
+    getSkillsDir() {
+        return path.join(this.startDir, '.AchillesSkills');
+    }
+
+    /**
+     * Get additional skill roots (e.g., built-in skills directories)
+     * @returns {Array<string>} Array of additional skill root paths
+     */
+    getAdditionalSkillRoots() {
+        return this.additionalSkillRoots;
+    }
+
+    /**
+     * Find a skill file by skill name.
+     * Checks the catalog first, then falls back to directory search.
+     * @param {string} skillName - The skill name to find
+     * @returns {{filePath: string, type: string, record: Object|null}|null} Skill file info or null
+     */
+    findSkillFile(skillName) {
+        // Try catalog first
+        const record = this.getSkillRecord(skillName);
+        if (record?.filePath) {
+            return { filePath: record.filePath, type: record.type, record };
+        }
+
+        // Fallback to directory search
+        const skillDir = path.join(this.getSkillsDir(), skillName);
+        if (!isDirectory(skillDir)) {
+            return null;
+        }
+
+        for (const [filename, descriptor] of Object.entries(SKILL_FILE_TYPES)) {
+            const filePath = path.join(skillDir, filename);
+            if (isReadableFile(filePath)) {
+                return { filePath, type: descriptor.type, record: null };
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get user skills (excludes built-in skills from additionalSkillRoots)
+     * @returns {Array} Array of user skill records
+     */
+    getUserSkills() {
+        const builtInRoot = this.additionalSkillRoots?.[0];
+        if (!builtInRoot) {
+            return this.getSkills();
+        }
+        return this.getSkills().filter(s => !s.skillDir?.startsWith(builtInRoot));
+    }
+
+    /**
+     * Check if a skill record is a built-in skill
+     * @param {Object} skillRecord - The skill record to check
+     * @returns {boolean} True if the skill is built-in
+     */
+    isBuiltInSkill(skillRecord) {
+        const builtInRoot = this.additionalSkillRoots?.[0];
+        if (!builtInRoot) return false;
+        return skillRecord?.skillDir?.startsWith(builtInRoot) ?? false;
     }
 
     /**
