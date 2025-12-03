@@ -78,7 +78,7 @@ function unwrapCodeFence(payload) {
 }
 
 function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast' }) {
-    return async ({ input }, context) => {
+    return async (recursiveSkilledAgent, input) => {
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Code skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
@@ -143,9 +143,9 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
             throw new Error(`Code skill "${skillName}" received unsupported mode "${decision.mode}".`);
         }
 
-        if (context?.sessionMemory && typeof context.sessionMemory.appendToHistory === 'function') {
+        if (recursiveSkilledAgent?.sessionMemory && typeof recursiveSkilledAgent.sessionMemory.appendToHistory === 'function') {
             try {
-                context.sessionMemory.appendToHistory({ user: input, ai: outcome });
+                recursiveSkilledAgent.sessionMemory.appendToHistory({ user: input, ai: outcome });
             } catch (error) {
                 // Ignore context persistence issues
             }
@@ -157,7 +157,7 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
 
 function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, llmMode = 'fast' }) {
     let cached = null;
-    return async ({ input }, context) => {
+    return async (recursiveSkilledAgent, input) => {
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Code skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
@@ -172,17 +172,8 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
             }
         }
 
-        // Merge built-in context with passed-through context (skillsDir, skilledAgent, etc.)
-        const execution = Promise.resolve(cached(input, {
-            llmAgent,
-            prompt,
-            skillName,
-            argumentName: CODE_ARGUMENT_NAME,
-            sessionMemory: context?.sessionMemory || null,
-            llmMode,
-            // Pass through additional context (skillsDir, skilledAgent, workingDir, etc.)
-            ...context,
-        }));
+        // Call action with (recursiveSkilledAgent, prompt) convention
+        const execution = Promise.resolve(cached(recursiveSkilledAgent, input));
 
         const result = await withTimeout(
             execution,
@@ -336,8 +327,9 @@ export class CodeSkillsSubsystem {
             throw new Error(`Code skill "${skillRecord.name}" requires either prompt text or the "${CODE_ARGUMENT_NAME}" argument.`);
         }
 
-        // Pass through the full context (including skillsDir, skilledAgent, etc.)
-        const result = await executor({ input }, { sessionMemory, ...context });
+        // Call executor with (recursiveSkilledAgent, prompt) convention
+        const skilledAgent = context.skilledAgent || null;
+        const result = await executor(skilledAgent, input);
 
         return {
             skill: skillRecord.name,
