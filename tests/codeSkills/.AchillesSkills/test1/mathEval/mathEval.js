@@ -1,17 +1,33 @@
 import { performance } from 'node:perf_hooks';
 
-export async function action(instruction, context = {}) {
+export async function action(recursiveSkilledAgent, input) {
+    // Support both new signature (recursiveSkilledAgent, input) and legacy (instruction, context)
+    let instruction;
+    let llmAgent;
+    let prompt = '';
+    let skillName = 'math-expression-evaluator-code';
+    let llmMode = 'fast';
+    let sessionMemory = null;
+
+    if (typeof recursiveSkilledAgent === 'string') {
+        // Legacy signature: (instruction, context)
+        instruction = recursiveSkilledAgent;
+        const context = input || {};
+        llmAgent = context.llmAgent;
+        prompt = context.prompt || '';
+        skillName = context.skillName || skillName;
+        llmMode = context.llmMode || llmMode;
+        sessionMemory = context.sessionMemory || null;
+    } else {
+        // New signature: (recursiveSkilledAgent, input)
+        instruction = input;
+        llmAgent = recursiveSkilledAgent?.llmAgent;
+    }
+
     if (typeof instruction !== 'string' || !instruction.trim()) {
         throw new Error('mathEval skill requires a non-empty instruction string.');
     }
 
-    const {
-        llmAgent,
-        prompt = '',
-        skillName = 'math-expression-evaluator-code',
-        llmMode = 'fast',
-        sessionMemory = null,
-    } = context;
     if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
         throw new Error('mathEval skill requires an LLMAgent with an "executePrompt" method.');
     }

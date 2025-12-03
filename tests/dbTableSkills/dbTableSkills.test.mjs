@@ -443,13 +443,9 @@ test('RecursiveSkilledAgent: Extend to support dbtable skill type', async (t) =>
     // For this test, we'll need to manually register DBTable subsystem
     // since RecursiveSkilledAgent doesn't natively support tskill.md yet
 
-    const skilledAgent = new SkilledAgent({
+    const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent: shared.llmAgent || new MockLLMAgent(),
         promptReader: async () => 'accept',
-    });
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
         startDir: __dirname,
         skillFilter: ({ type }) => type === 'dbtable' || type === 'code',
     });
@@ -470,13 +466,9 @@ test('RecursiveSkilledAgent: Extend to support dbtable skill type', async (t) =>
 test('RecursiveSkilledAgent: Register tskill.md skill manually', async (t) => {
     await initializeShared();
 
-    const skilledAgent = new SkilledAgent({
+    const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent: shared.llmAgent || new MockLLMAgent(),
         promptReader: async () => 'accept',
-    });
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
         startDir: __dirname,
     });
 
@@ -535,13 +527,9 @@ test('E2E: Full workflow from skill discovery to execution', async (t) => {
 
     // This test demonstrates what SHOULD work once tskill.md support is added
 
-    const skilledAgent = new SkilledAgent({
+    const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent: shared.llmAgent,
         promptReader: async () => 'accept',
-    });
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
         startDir: __dirname,
         skillFilter: ({ type, filePath }) => {
             console.log(`SkillFilter called: type=${type}, filePath=${filePath}`);
@@ -814,13 +802,9 @@ test('E2E: Mock-based full workflow (works now)', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
     const mockDB = new MockDBAdapter();
 
-    const skilledAgent = new SkilledAgent({
+    const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
         promptReader: async () => 'accept',
-    });
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
         startDir: __dirname,
     });
 
@@ -892,13 +876,9 @@ test('E2E: Test CREATE operation workflow', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
     const mockDB = new MockDBAdapter();
 
-    const skilledAgent = new SkilledAgent({
+    const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
         promptReader: async () => 'accept',
-    });
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
         startDir: __dirname,
     });
 
@@ -971,13 +951,9 @@ test('E2E: Test UPDATE operation workflow', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
     const mockDB = new MockDBAdapter();
 
-    const skilledAgent = new SkilledAgent({
+    const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
         promptReader: async () => 'accept',
-    });
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
         startDir: __dirname,
     });
 
@@ -1048,13 +1024,9 @@ test('E2E: Test DELETE operation workflow', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
     const mockDB = new MockDBAdapter();
 
-    const skilledAgent = new SkilledAgent({
+    const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
         promptReader: async () => 'accept',
-    });
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        skilledAgent,
         startDir: __dirname,
     });
 

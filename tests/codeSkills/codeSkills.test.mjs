@@ -44,11 +44,10 @@ async function initializeRecursiveAgent() {
         return shared;
     }
 
-    const startDir = path.join(__dirname, '..');
     shared.recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
         promptReader: async () => 'accept',
-        startDir,
+        startDir: __dirname,
         skillFilter: ({ type }) => type === 'code',
     });
 

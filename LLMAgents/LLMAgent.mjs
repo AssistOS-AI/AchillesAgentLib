@@ -314,16 +314,16 @@ ${promptText}`
         }
 
         if (responseShape === 'json-code') {
-            try {
-                const payload = JSON.parse(result);
-                if (!payload || typeof payload !== 'object' || typeof payload.code !== 'string') {
-                    throw new Error('missing "code" property');
-                }
-                payload.code = payload.code.trim();
-                return payload;
-            } catch (error) {
-                throw new Error(`Expected JSON with code, but parsing failed: ${error.message}. Raw: ${String(result).slice(0, 200)}…`);
+            // Use extractJson to handle potential markdown code fences
+            const payload = extractJson(result);
+            if (!payload || typeof payload !== 'object') {
+                throw new Error(`Expected JSON with code, but parsing failed. Raw: ${String(result).slice(0, 200)}…`);
             }
+            if (typeof payload.code !== 'string') {
+                throw new Error('missing "code" property in JSON response');
+            }
+            payload.code = payload.code.trim();
+            return payload;
         }
 
         return result;
