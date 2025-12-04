@@ -1,143 +1,45 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 
 import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
 import { defaultPromptReader } from '../utils/defaultPromptReader.mjs';
-import { CodeSkillsSubsystem } from '../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
-import { InteractiveSkillsSubsystem } from '../InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs';
-import { ClaudeSkillsSubsystem } from '../ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs';
-import { MCPSkillsSubsystem } from '../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
-import { OrchestratorSkillsSubsystem } from '../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
-import { DBTableSkillsSubsystem } from '../DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs';
-import { Sanitiser } from '../utils/Sanitiser.mjs';
-import { createFlexSearchAdapter } from '../utils/flexsearchAdapter.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 
-export const SKILL_FILE_TYPES = {
-    'skill.md': { type: 'claude' },
-    'iskill.md': { type: 'interactive' },
-    'cskill.md': { type: 'code' },
-    'mskill.md': { type: 'mcp' },
-    'oskill.md': { type: 'orchestrator' },
-    'tskill.md': { type: 'dbtable' },
-};
+// Import extracted modules
+import { SKILL_FILE_TYPES, SKILL_FILE_NAMES } from './constants/skillFileTypes.mjs';
+import { isDirectory, isReadableFile } from './utils/fileUtils.mjs';
+import { SubsystemFactory } from './services/SubsystemFactory.mjs';
+import { SkillRegistry } from './services/SkillRegistry.mjs';
+import { SkillDiscoveryService } from './services/SkillDiscoveryService.mjs';
+import { SkillSelector } from './services/SkillSelector.mjs';
+import { SkillExecutor } from './services/SkillExecutor.mjs';
 
-/** List of valid skill definition filenames */
-export const SKILL_FILE_NAMES = Object.keys(SKILL_FILE_TYPES);
+// Re-export for backward compatibility
+export { SKILL_FILE_TYPES, SKILL_FILE_NAMES };
 
-function isReadableFile(candidate) {
-    try {
-        const stats = fs.statSync(candidate);
-        return stats.isFile();
-    } catch {
-        return false;
-    }
-}
-
-function isDirectory(candidate) {
-    try {
-        const stats = fs.statSync(candidate);
-        return stats.isDirectory();
-    } catch {
-        return false;
-    }
-}
-
-function createSectionKey(heading) {
-    return heading
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-}
-
-function parseSkillDocument(filePath) {
-    let raw = '';
-    try {
-        raw = fs.readFileSync(filePath, 'utf8');
-    } catch (error) {
-        return {
-            title: path.basename(path.dirname(filePath)),
-            summary: `Unable to read ${path.basename(filePath)}: ${error.message}`,
-            body: '',
-            sections: {},
-        };
-    }
-
-    const lines = raw.split(/\r?\n/);
-    let title = null;
-    let summary = null;
-    const bodyLines = [];
-    const sections = new Map();
-    const sectionBuffers = new Map();
-    let currentSection = null;
-
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (!title && trimmed.startsWith('#')) {
-            const headingText = trimmed.replace(/^#+\s*/, '').trim();
-            title = headingText;
-            currentSection = createSectionKey(headingText);
-            if (!sectionBuffers.has(currentSection)) {
-                sectionBuffers.set(currentSection, []);
-            }
-            continue;
-        }
-
-        const headingMatch = trimmed.match(/^#{2,}\s*(.+)$/);
-        if (headingMatch) {
-            const headingText = headingMatch[1].trim();
-            currentSection = createSectionKey(headingText);
-            if (!sectionBuffers.has(currentSection)) {
-                sectionBuffers.set(currentSection, []);
-            }
-            continue;
-        }
-
-        if (!summary && trimmed) {
-            summary = trimmed;
-        }
-
-        if (currentSection) {
-            const buffer = sectionBuffers.get(currentSection) || [];
-            buffer.push(line);
-            sectionBuffers.set(currentSection, buffer);
-        }
-
-        if (trimmed) {
-            bodyLines.push(trimmed);
-        }
-    }
-
-    if (!title) {
-        title = path.basename(path.dirname(filePath));
-    }
-
-    if (!summary) {
-        summary = `Auto-registered skill described in ${path.basename(filePath)}.`;
-    }
-
-    sectionBuffers.forEach((buffer, key) => {
-        const joined = buffer.join('\n').trim();
-        if (joined) {
-            sections.set(key, joined);
-        }
-    });
-
-    return {
-        title,
-        summary,
-        body: bodyLines.join('\n'),
-        sections: Object.fromEntries(sections),
-    };
-}
-
-function sanitiseName(value) {
-    return Sanitiser.sanitiseName(value);
-}
-
+/**
+ * RecursiveSkilledAgent - Main entry point for skill-based execution.
+ *
+ * This class acts as a facade, coordinating skill discovery, registration,
+ * selection, and execution through specialized services.
+ */
 export class RecursiveSkilledAgent {
+    /**
+     * Create a new RecursiveSkilledAgent.
+     * @param {Object} options - Agent options
+     * @param {Object} [options.llmAgent] - Pre-configured LLM agent instance
+     * @param {Object} [options.llmAgentOptions] - Options for creating a new LLM agent
+     * @param {string} [options.startDir] - Starting directory for skill discovery
+     * @param {boolean} [options.searchUpwards=true] - Search upwards through parent directories
+     * @param {Function} [options.skillFilter] - Filter function for skill inclusion
+     * @param {Object} [options.logger] - Logger instance
+     * @param {Object} [options.dbAdapter] - Database adapter for DBTableSkillsSubsystem
+     * @param {Function} [options.promptReader] - Custom prompt reader function
+     * @param {Function} [options.onProcessingBegin] - Callback when processing begins
+     * @param {Function} [options.onProcessingProgress] - Callback during processing
+     * @param {Function} [options.onProcessingEnd] - Callback when processing ends
+     * @param {string[]} [options.additionalSkillRoots] - Additional directories to scan for skills
+     */
     constructor({
         llmAgent = null,
         llmAgentOptions = {},
@@ -158,25 +60,12 @@ export class RecursiveSkilledAgent {
 
         this.logger = logger || console;
         this.startDir = startDir;
-        this.skillFilter = typeof skillFilter === 'function' ? skillFilter : (() => true);
         this.dbAdapter = dbAdapter;
-        this.onProcessingBegin = typeof onProcessingBegin === 'function' ? onProcessingBegin : null;
-        this.onProcessingProgress = typeof onProcessingProgress === 'function' ? onProcessingProgress : null;
-        this.onProcessingEnd = typeof onProcessingEnd === 'function' ? onProcessingEnd : null;
-        this._isProcessing = false; // Track if we're already processing to prevent nested callbacks
         this.searchUpwards = Boolean(searchUpwards);
         this.additionalSkillRoots = Array.isArray(additionalSkillRoots) ? additionalSkillRoots : [];
-
-        this.llmAgent = llmAgent
-            || new LLMAgent({ ...llmAgentOptions });
-
-        this.subsystems = new Map();
-        this.skillToSubsystem = new Map();
-        this.skillCatalog = new Map();
-        this.skillAliases = new Map();
         this.promptReader = typeof promptReader === 'function' ? promptReader : defaultPromptReader;
-        this.pendingPreparations = [];
 
+        // Debug logger
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
         this.debugLogger?.log('RecursiveSkilledAgent:init', {
             startDir: this.startDir,
@@ -184,412 +73,255 @@ export class RecursiveSkilledAgent {
             llmAgentOptions: Object.keys(llmAgentOptions || {}),
         });
 
-        // ActionReporter for real-time feedback (can be set via setActionReporter or inherited from llmAgent)
+        // Create or use provided LLM agent
+        this.llmAgent = llmAgent || new LLMAgent({ ...llmAgentOptions });
+
+        // Initialize services
+        this._initializeServices({
+            skillFilter,
+            onProcessingBegin,
+            onProcessingProgress,
+            onProcessingEnd,
+        });
+
+        // ActionReporter for real-time feedback
         this._actionReporter = null;
 
-        this.registerDiscoveredSkills();
+        // Run skill discovery
+        this._discoverAndRegister();
     }
 
     /**
-     * Set an ActionReporter for real-time feedback
-     * @param {ActionReporter} reporter - The reporter instance
+     * Initialize all internal services.
+     * @private
+     */
+    _initializeServices({ skillFilter, onProcessingBegin, onProcessingProgress, onProcessingEnd }) {
+        // Skill registry
+        this.registry = new SkillRegistry({
+            skillFilter,
+            debugLogger: this.debugLogger,
+        });
+
+        // Subsystem factory
+        this.subsystemFactory = new SubsystemFactory({
+            llmAgent: this.llmAgent,
+            dbAdapter: this.dbAdapter,
+        });
+
+        // Skill discovery service
+        this.discoveryService = new SkillDiscoveryService({
+            logger: this.logger,
+            debugLogger: this.debugLogger,
+            searchUpwards: this.searchUpwards,
+        });
+
+        // Skill selector
+        this.selector = new SkillSelector({
+            llmAgent: this.llmAgent,
+            logger: this.logger,
+            debugLogger: this.debugLogger,
+        });
+
+        // Skill executor
+        this.executor = new SkillExecutor({
+            registry: this.registry,
+            subsystemFactory: this.subsystemFactory,
+            selector: this.selector,
+            logger: this.logger,
+            debugLogger: this.debugLogger,
+            promptReader: this.promptReader,
+            callbacks: {
+                onBegin: onProcessingBegin,
+                onProgress: onProcessingProgress,
+                onEnd: onProcessingEnd,
+            },
+        });
+
+        // Legacy compatibility properties
+        this.subsystems = this.subsystemFactory.instances;
+        this.skillToSubsystem = this.registry.skillToSubsystem;
+        this.skillCatalog = this.registry.catalog;
+        this.skillAliases = this.registry.aliases;
+        this.pendingPreparations = this.executor.pendingPreparations;
+    }
+
+    /**
+     * Discover and register all skills.
+     * @private
+     */
+    _discoverAndRegister() {
+        const roots = this.discoveryService.findRoots(
+            [this.startDir, process.cwd()],
+            this.additionalSkillRoots
+        );
+
+        for (const root of roots) {
+            const skills = this.discoveryService.discoverFromRoot(root);
+            for (const skillRecord of skills) {
+                this._registerSkill(skillRecord);
+            }
+        }
+    }
+
+    /**
+     * Register a skill and prepare it with its subsystem.
+     * @private
+     */
+    _registerSkill(skillRecord) {
+        const registered = this.registry.register(skillRecord);
+        if (!registered) {
+            return;
+        }
+
+        // Prepare skill with its subsystem
+        const subsystem = this.subsystemFactory.get(skillRecord.type);
+        if (subsystem && typeof subsystem.prepareSkill === 'function') {
+            try {
+                const prep = subsystem.prepareSkill(skillRecord, this);
+                if (prep instanceof Promise) {
+                    this.executor.addPendingPreparation(
+                        prep.catch(error => {
+                            this.logger.warn(`[RecursiveSkilledAgent] Failed to prepare skill ${skillRecord.name}: ${error.message}`);
+                        })
+                    );
+                }
+            } catch (error) {
+                this.logger.warn(`[RecursiveSkilledAgent] Failed to prepare skill ${skillRecord.name}: ${error.message}`);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // ActionReporter Management
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Set an ActionReporter for real-time feedback.
+     * @param {Object} reporter - The reporter instance
      */
     setActionReporter(reporter) {
         this._actionReporter = reporter;
-        // Also set on llmAgent if available
+        this.executor.setActionReporter(reporter);
         if (this.llmAgent && typeof this.llmAgent.setActionReporter === 'function') {
             this.llmAgent.setActionReporter(reporter);
         }
     }
 
     /**
-     * Get the current ActionReporter (from this instance or llmAgent)
-     * @returns {ActionReporter|null}
+     * Get the current ActionReporter.
+     * @returns {Object|null} The action reporter
      */
     getActionReporter() {
         return this._actionReporter || this.llmAgent?._actionReporter || null;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Subsystem Management (Legacy API)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Get or create a subsystem instance.
+     * @param {string} type - The subsystem type
+     * @returns {Object} The subsystem instance
+     */
     ensureSubsystem(type) {
-        if (this.subsystems.has(type)) {
-            return this.subsystems.get(type);
-        }
-
-        let subsystem;
-        if (type === 'code') {
-            subsystem = new CodeSkillsSubsystem({ llmAgent: this.llmAgent });
-        } else if (type === 'interactive') {
-            subsystem = new InteractiveSkillsSubsystem({ llmAgent: this.llmAgent });
-        } else if (type === 'mcp') {
-            subsystem = new MCPSkillsSubsystem({ llmAgent: this.llmAgent });
-        } else if (type === 'orchestrator') {
-            subsystem = new OrchestratorSkillsSubsystem({ llmAgent: this.llmAgent });
-        } else if (type === 'dbtable') {
-            subsystem = new DBTableSkillsSubsystem({
-                llmAgent: this.llmAgent,
-                dbAdapter: this.dbAdapter
-            });
-        } else {
-            subsystem = new ClaudeSkillsSubsystem();
-        }
-
-        this.subsystems.set(type, subsystem);
-        return subsystem;
+        return this.subsystemFactory.get(type);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Skill Discovery (Legacy API)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Register discovered skills (re-runs discovery).
+     */
     registerDiscoveredSkills() {
-        const roots = this.findAchillesSkillRoots([
-            this.startDir,
-            process.cwd(),
-        ], this.searchUpwards);
-        for (const root of roots) {
-            this.registerSkillsFromRoot(root);
-        }
-
-        // Register additional skill roots (e.g., built-in skills from a library)
-        for (const root of this.additionalSkillRoots) {
-            if (isDirectory(root)) {
-                this.registerSkillsFromRoot(root);
-            }
-        }
-    }
-
-    findAchillesSkillRoots(startDirs = [], searchUpwards = true) {
-        const roots = [];
-        const discovered = new Set();
-        const directionLabel = searchUpwards ? 'up' : 'down';
-
-        const registerCandidate = (candidate, source = null) => {
-            if (!candidate || discovered.has(candidate)) {
-                return;
-            }
-            discovered.add(candidate);
-            this.debugLogger?.log('RecursiveSkilledAgent:discoveredRoot', {
-                candidate,
-                direction: directionLabel,
-                source,
-            });
-            roots.push(candidate);
-        };
-
-        const visitedAscending = new Set();
-        const collectAscending = (startDir) => {
-            if (!startDir) {
-                return;
-            }
-            let current = path.resolve(startDir);
-            const { root } = path.parse(current);
-
-            while (!visitedAscending.has(current)) {
-                visitedAscending.add(current);
-                const candidate = path.join(current, '.AchillesSkills');
-                if (isDirectory(candidate)) {
-                    registerCandidate(candidate, 'ascend');
-                }
-                if (current === root) {
-                    break;
-                }
-                current = path.dirname(current);
-            }
-        };
-
-        const visitedDescending = new Set();
-        const collectSkillsDescending = (startDir) => {
-            if (!startDir) {
-                return;
-            }
-            const queue = [path.resolve(startDir)];
-
-            for (let index = 0; index < queue.length; index += 1) {
-                const current = queue[index];
-                if (visitedDescending.has(current)) {
-                    continue;
-                }
-                visitedDescending.add(current);
-
-                const candidate = path.join(current, '.AchillesSkills');
-                if (isDirectory(candidate)) {
-                    registerCandidate(candidate, startDir);
-                }
-
-                let entries = [];
-                try {
-                    entries = fs.readdirSync(current, { withFileTypes: true });
-                } catch (error) {
-                    this.logger?.warn?.(`[RecursiveSkilledAgent] Failed to inspect directory ${current}: ${error.message}`);
-                    continue;
-                }
-
-                for (const entry of entries) {
-                    if (!entry.isDirectory()) {
-                        continue;
-                    }
-                    if (entry.name === '.' || entry.name === '..') {
-                        continue;
-                    }
-                    if (entry.name === 'node_modules') {
-                        continue;
-                    }
-                    if (typeof entry.isSymbolicLink === 'function' && entry.isSymbolicLink()) {
-                        continue;
-                    }
-                    const nextPath = path.join(current, entry.name);
-                    if (!visitedDescending.has(nextPath)) {
-                        queue.push(nextPath);
-                    }
-                }
-            }
-        };
-
-        const findReposRoot = (startDir) => {
-            if (!startDir) {
-                return null;
-            }
-            const queue = [path.resolve(startDir)];
-            const visited = new Set();
-
-            for (let index = 0; index < queue.length; index += 1) {
-                const current = queue[index];
-                if (visited.has(current)) {
-                    continue;
-                }
-                visited.add(current);
-
-                const baseName = path.basename(current).toLowerCase();
-                if (baseName === 'repos') {
-                    return current;
-                }
-
-                let entries = [];
-                try {
-                    entries = fs.readdirSync(current, { withFileTypes: true });
-                } catch (error) {
-                    this.logger?.warn?.(`[RecursiveSkilledAgent] Failed to inspect directory ${current}: ${error.message}`);
-                    continue;
-                }
-
-                for (const entry of entries) {
-                    if (!entry.isDirectory()) {
-                        continue;
-                    }
-                    if (entry.name === '.' || entry.name === '..') {
-                        continue;
-                    }
-                    if (entry.name === 'node_modules') {
-                        continue;
-                    }
-                    if (typeof entry.isSymbolicLink === 'function' && entry.isSymbolicLink()) {
-                        continue;
-                    }
-                    const nextPath = path.join(current, entry.name);
-                    queue.push(nextPath);
-                }
-            }
-            return null;
-        };
-
-        if (!searchUpwards) {
-            let reposRoot = null;
-            for (const dir of startDirs) {
-                reposRoot = findReposRoot(dir);
-                if (reposRoot) {
-                    break;
-                }
-            }
-
-            if (reposRoot) {
-                this.debugLogger?.log('RecursiveSkilledAgent:reposRoot', { reposRoot });
-                collectSkillsDescending(reposRoot);
-                return roots;
-            }
-
-            this.logger?.warn?.('[RecursiveSkilledAgent] No "repos" directory found during downward discovery.');
-            return roots;
-        }
-
-        startDirs.forEach((dir) => collectAscending(dir));
-        return roots;
-    }
-
-    registerSkillsFromRoot(rootDir) {
-        let entries = [];
-        try {
-            entries = fs.readdirSync(rootDir, { withFileTypes: true });
-        } catch (error) {
-            this.logger.warn(`[RecursiveSkilledAgent] Failed to read skills directory ${rootDir}: ${error.message}`);
-            return;
-        }
-
-        for (const entry of entries) {
-            if (!entry.isDirectory()) {
-                continue;
-            }
-            const skillDir = path.join(rootDir, entry.name);
-            this.registerSkillFromDirectory(skillDir);
-        }
-    }
-
-    registerSkillFromDirectory(skillDir) {
-        let descriptorFound = false;
-        for (const [filename, descriptor] of Object.entries(SKILL_FILE_TYPES)) {
-            const filePath = path.join(skillDir, filename);
-            if (!isReadableFile(filePath)) {
-                continue;
-            }
-
-            descriptorFound = true;
-            this.registerSkillFromFile({
-                filePath,
-                type: descriptor.type,
-                skillDir,
-            });
-        }
-
-        if (descriptorFound) {
-            return;
-        }
-
-        let entries = [];
-        try {
-            entries = fs.readdirSync(skillDir, { withFileTypes: true });
-        } catch (error) {
-            this.logger.warn(`[RecursiveSkilledAgent] Failed to inspect nested skill folder ${skillDir}: ${error.message}`);
-            return;
-        }
-
-        for (const entry of entries) {
-            if (!entry.isDirectory()) {
-                continue;
-            }
-            const nestedDir = path.join(skillDir, entry.name);
-            this.registerSkillFromDirectory(nestedDir);
-        }
-    }
-
-    registerSkillFromFile({ filePath, type, skillDir }) {
-        const descriptor = parseSkillDocument(filePath);
-        const shortName = path.basename(skillDir);
-        const baseName = sanitiseName(descriptor?.title || shortName);
-        const canonicalName = sanitiseName(`${baseName}-${type}`) || sanitiseName(`${shortName}-${type}`);
-
-        const shouldInclude = this.skillFilter({
-            type,
-            filePath,
-            skillDir,
-            title: descriptor?.title,
-            summary: descriptor?.summary,
-            sections: descriptor?.sections,
-        });
-        if (!shouldInclude) {
-            return;
-        }
-
-        const skillRecord = {
-            name: canonicalName,
-            type,
-            descriptor,
-            filePath,
-            skillDir,
-            shortName,
-            metadata: null,
-        };
-
-        const aliases = new Set([
-            canonicalName,
-            sanitiseName(canonicalName),
-            shortName,
-            sanitiseName(shortName),
-            baseName,
-        ].filter(Boolean));
-
-        this.debugLogger?.log('RecursiveSkilledAgent:registerSkill', {
-            name: canonicalName,
-            type,
-            aliases: Array.from(aliases),
-        });
-
-        const subsystem = this.ensureSubsystem(type);
-        if (subsystem && typeof subsystem.prepareSkill === 'function') {
-            try {
-                const prep = subsystem.prepareSkill(skillRecord, this);
-                if (prep instanceof Promise) {
-                    this.pendingPreparations.push(
-                        prep.catch(error => {
-                            this.logger.warn(`[RecursiveSkilledAgent] Failed to prepare skill ${canonicalName}: ${error.message}`);
-                        })
-                    );
-                }
-            } catch (error) {
-                this.logger.warn(`[RecursiveSkilledAgent] Failed to prepare skill ${canonicalName}: ${error.message}`);
-            }
-        }
-
-        this.skillCatalog.set(canonicalName, skillRecord);
-
-        aliases.forEach((alias) => {
-            this.skillAliases.set(alias, skillRecord);
-            this.skillToSubsystem.set(alias, type);
-        });
-    }
-
-    _invokeProcessingBegin() {
-        if (this.onProcessingBegin) {
-            try {
-                this.onProcessingBegin();
-            } catch (error) {
-                this.logger?.warn?.(`[RecursiveSkilledAgent] onProcessingBegin callback error: ${error.message}`);
-            }
-        }
-    }
-
-    _invokeProcessingProgress() {
-        if (this.onProcessingProgress) {
-            try {
-                this.onProcessingProgress();
-            } catch (error) {
-                this.logger?.warn?.(`[RecursiveSkilledAgent] onProcessingProgress callback error: ${error.message}`);
-            }
-        }
-    }
-
-    _invokeProcessingEnd() {
-        if (this.onProcessingEnd) {
-            try {
-                this.onProcessingEnd();
-            } catch (error) {
-                this.logger?.warn?.(`[RecursiveSkilledAgent] onProcessingEnd callback error: ${error.message}`);
-            }
-        }
-    }
-
-    getSkillRecord(identifier) {
-        if (!identifier || typeof identifier !== 'string') {
-            return null;
-        }
-        const normalized = sanitiseName(identifier);
-        const record = this.skillAliases.get(normalized) || null;
-        this.debugLogger?.log('RecursiveSkilledAgent:getSkillRecord', {
-            identifier,
-            normalized,
-            resolved: record?.name || null,
-        });
-        return record;
-    }
-
-    listSkillsByType(type) {
-        return Array.from(this.skillCatalog.values()).filter((record) => record.type === type);
+        this._discoverAndRegister();
     }
 
     /**
-     * Get all registered skills
-     * @returns {Array} Array of skill records
+     * Find .AchillesSkills roots from start directories.
+     * @param {string[]} startDirs - Directories to start from
+     * @param {boolean} searchUpwards - Whether to search upwards
+     * @returns {string[]} Array of root directories
+     */
+    findAchillesSkillRoots(startDirs = [], searchUpwards = true) {
+        const service = new SkillDiscoveryService({
+            logger: this.logger,
+            debugLogger: this.debugLogger,
+            searchUpwards,
+        });
+        return service.findRoots(startDirs, []);
+    }
+
+    /**
+     * Register skills from a root directory.
+     * @param {string} rootDir - The root directory
+     */
+    registerSkillsFromRoot(rootDir) {
+        const skills = this.discoveryService.discoverFromRoot(rootDir);
+        for (const skillRecord of skills) {
+            this._registerSkill(skillRecord);
+        }
+    }
+
+    /**
+     * Register skill from a directory.
+     * @param {string} skillDir - The skill directory
+     */
+    registerSkillFromDirectory(skillDir) {
+        const skills = this.discoveryService.discoverFromDirectory(skillDir);
+        for (const skillRecord of skills) {
+            this._registerSkill(skillRecord);
+        }
+    }
+
+    /**
+     * Register a skill from a specific file.
+     * @param {Object} options
+     * @param {string} options.filePath - Path to the skill file
+     * @param {string} options.type - Skill type
+     * @param {string} options.skillDir - Skill directory
+     */
+    registerSkillFromFile({ filePath, type, skillDir }) {
+        const skills = this.discoveryService.discoverFromDirectory(skillDir);
+        for (const skillRecord of skills) {
+            this._registerSkill(skillRecord);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Skill Catalog Access
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Get a skill record by name or alias.
+     * @param {string} identifier - Skill name or alias
+     * @returns {Object|null} The skill record
+     */
+    getSkillRecord(identifier) {
+        return this.registry.get(identifier);
+    }
+
+    /**
+     * List skills by type.
+     * @param {string} type - The skill type
+     * @returns {Object[]} Array of skill records
+     */
+    listSkillsByType(type) {
+        return this.registry.listByType(type);
+    }
+
+    /**
+     * Get all registered skills.
+     * @returns {Object[]} Array of skill records
      */
     getSkills() {
-        return Array.from(this.skillCatalog.values());
+        return this.registry.getAll();
     }
 
     /**
-     * Get the starting directory for this agent
+     * Get the starting directory.
      * @returns {string} The start directory path
      */
     getStartDir() {
@@ -597,7 +329,7 @@ export class RecursiveSkilledAgent {
     }
 
     /**
-     * Get the skills directory path (.AchillesSkills folder)
+     * Get the skills directory path (.AchillesSkills folder).
      * @returns {string} The skills directory path
      */
     getSkillsDir() {
@@ -605,8 +337,8 @@ export class RecursiveSkilledAgent {
     }
 
     /**
-     * Get additional skill roots (e.g., built-in skills directories)
-     * @returns {Array<string>} Array of additional skill root paths
+     * Get additional skill roots.
+     * @returns {string[]} Array of additional skill root paths
      */
     getAdditionalSkillRoots() {
         return this.additionalSkillRoots;
@@ -614,18 +346,15 @@ export class RecursiveSkilledAgent {
 
     /**
      * Find a skill file by skill name.
-     * Checks the catalog first, then falls back to directory search.
-     * @param {string} skillName - The skill name to find
-     * @returns {{filePath: string, type: string, record: Object|null}|null} Skill file info or null
+     * @param {string} skillName - The skill name
+     * @returns {{filePath: string, type: string, record: Object|null}|null} Skill file info
      */
     findSkillFile(skillName) {
-        // Try catalog first
         const record = this.getSkillRecord(skillName);
         if (record?.filePath) {
             return { filePath: record.filePath, type: record.type, record };
         }
 
-        // Fallback to directory search
         const skillDir = path.join(this.getSkillsDir(), skillName);
         if (!isDirectory(skillDir)) {
             return null;
@@ -641,382 +370,143 @@ export class RecursiveSkilledAgent {
     }
 
     /**
-     * Get user skills (excludes built-in skills from additionalSkillRoots)
-     * @returns {Array} Array of user skill records
+     * Get user skills (excludes built-in skills).
+     * @returns {Object[]} Array of user skill records
      */
     getUserSkills() {
         const builtInRoot = this.additionalSkillRoots?.[0];
-        if (!builtInRoot) {
-            return this.getSkills();
-        }
-        return this.getSkills().filter(s => !s.skillDir?.startsWith(builtInRoot));
+        return this.registry.getUserSkills(builtInRoot);
     }
 
     /**
-     * Check if a skill record is a built-in skill
-     * @param {Object} skillRecord - The skill record to check
-     * @returns {boolean} True if the skill is built-in
+     * Check if a skill is built-in.
+     * @param {Object} skillRecord - The skill record
+     * @returns {boolean} True if built-in
      */
     isBuiltInSkill(skillRecord) {
         const builtInRoot = this.additionalSkillRoots?.[0];
-        if (!builtInRoot) return false;
-        return skillRecord?.skillDir?.startsWith(builtInRoot) ?? false;
+        return this.registry.isBuiltIn(skillRecord, builtInRoot);
     }
 
     /**
-     * Reload all skills from disk, clearing and re-discovering
-     * @returns {number} The number of skills registered after reload
+     * Reload all skills from disk.
+     * @returns {number} Number of skills registered
      */
     reloadSkills() {
-        this.skillCatalog.clear();
-        this.skillAliases.clear();
-        this.skillToSubsystem.clear();
-        this.registerDiscoveredSkills();
-        return this.skillCatalog.size;
+        this.registry.clear();
+        this._discoverAndRegister();
+        return this.registry.size;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Skill Selection
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Build searchable text from a skill record.
+     * @param {Object} record - The skill record
+     * @returns {string} Combined searchable text
+     */
     buildSearchText(record) {
-        return [
-            record.descriptor?.title,
-            record.descriptor?.summary,
-            record.descriptor?.body,
-        ].filter(Boolean).join(' ');
+        return this.selector.buildSearchText(record);
     }
 
+    /**
+     * Select an orchestrator for a task.
+     * @param {string} taskDescription - The task description
+     * @returns {Object|null} The selected orchestrator
+     */
     selectOrchestratorForPrompt(taskDescription) {
         const orchestrators = this.listSkillsByType('orchestrator');
-        if (!orchestrators.length) {
-            return null;
-        }
-
-        const index = createFlexSearchAdapter({ tokenize: 'forward' });
-        orchestrators.forEach((record, idx) => {
-            try {
-                index.add(String(idx), this.buildSearchText(record));
-            } catch (error) {
-                this.logger.warn(`[RecursiveSkilledAgent] Failed to index orchestrator ${record.name}: ${error.message}`);
-            }
-        });
-
-        this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:start', {
-            taskDescription,
-            orchestratorCount: orchestrators.length,
-        });
-
-        const query = typeof taskDescription === 'string' ? taskDescription.trim() : '';
-        if (query) {
-            try {
-                const matches = index.search(query, { limit: 1 }) || [];
-            if (matches.length) {
-                const [best] = matches;
-                const position = Number.parseInt(typeof best === 'object' ? best.id ?? best.doc ?? best.key : best, 10);
-                if (Number.isInteger(position) && orchestrators[position]) {
-                    this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:searchMatch', {
-                        method: 'index-position',
-                        match: orchestrators[position].name,
-                    });
-                    return orchestrators[position];
-                }
-                const label = typeof best === 'string' ? best : String(best);
-                const found = orchestrators.find((record) => sanitiseName(record.name) === sanitiseName(label) || sanitiseName(record.shortName) === sanitiseName(label));
-                if (found) {
-                    this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:searchMatch', {
-                        method: 'label',
-                        match: found.name,
-                    });
-                    return found;
-                }
-            }
-        } catch (error) {
-            this.logger.warn(`[RecursiveSkilledAgent] Orchestrator search failed: ${error.message}`);
-            }
-        }
-
-        const tokens = query
-            ? query.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 2)
-            : [];
-
-        if (!tokens.length) {
-            const selected = orchestrators[0] || null;
-            if (selected) {
-                this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:default', {
-                    reason: 'no-tokens',
-                    match: selected.name,
-                });
-            }
-            return selected;
-        }
-
-        const scored = orchestrators
-            .map((record) => {
-                const haystack = this.buildSearchText(record).toLowerCase();
-                let score = 0;
-                tokens.forEach((token) => {
-                    if (haystack.includes(token)) {
-                        score += 1;
-                    }
-                });
-                return { record, score };
-            })
-            .sort((a, b) => b.score - a.score);
-
-        const best = scored.length && scored[0].score > 0 ? scored[0].record : orchestrators[0] || null;
-        if (best) {
-            this.debugLogger?.log('RecursiveSkilledAgent:selectOrchestrator:scored', {
-                match: best.name,
-            });
-        }
-        return best;
+        return this.selector.selectOrchestrator(taskDescription, orchestrators);
     }
 
+    /**
+     * Choose a skill by heuristic.
+     * @param {string} taskDescription - The task description
+     * @param {Object[]} candidates - Candidate skills
+     * @returns {Object|null} The selected skill
+     */
     chooseSkillByHeuristic(taskDescription, candidates) {
-        if (!candidates.length) {
-            return null;
-        }
-        const query = typeof taskDescription === 'string' ? taskDescription.trim().toLowerCase() : '';
-        if (!query) {
-            return candidates[0];
-        }
-        const tokens = query.split(/[^a-z0-9]+/).filter((token) => token.length > 2);
-        if (!tokens.length) {
-            return candidates[0];
-        }
-        const scored = candidates
-            .map((record) => {
-                const haystack = this.buildSearchText(record).toLowerCase();
-                let score = 0;
-                tokens.forEach((token) => {
-                    if (haystack.includes(token)) {
-                        score += 1;
-                    }
-                });
-                return { record, score };
-            })
-            .sort((a, b) => b.score - a.score);
-        return scored.length && scored[0].score > 0 ? scored[0].record : candidates[0];
+        return this.selector.chooseByHeuristic(taskDescription, candidates);
     }
 
+    /**
+     * Choose a skill using LLM.
+     * @param {string} taskDescription - The task description
+     * @param {Object[]} candidates - Candidate skills
+     * @returns {Promise<Object|null>} The selected skill
+     */
     async chooseSkillWithLLM(taskDescription, candidates) {
-        if (!candidates.length) {
-            return null;
-        }
-
-        if (!this.llmAgent || typeof this.llmAgent.executePrompt !== 'function') {
-            return this.chooseSkillByHeuristic(taskDescription, candidates);
-        }
-
-        const prompt = [
-            '# Skill Selection',
-            'Choose the single best skill for the request.',
-            '',
-            '## Request',
-            taskDescription || '<empty>',
-            '',
-            '## Available Skills',
-        ];
-
-        candidates.forEach((record) => {
-            prompt.push(`- ${record.name}: ${record.descriptor?.summary || 'No summary provided.'}`);
-        });
-
-        prompt.push(
-            '',
-            'Respond with either the exact skill name or the word "none".',
-        );
-
-        try {
-            const response = await this.llmAgent.executePrompt(prompt.join('\n'), {
-                mode: 'fast',
-                context: { intent: 'recursive-skill-selection' },
-            });
-
-            if (typeof response === 'string') {
-                const trimmed = response.trim();
-                if (!trimmed || trimmed.toLowerCase() === 'none') {
-                    return null;
-                }
-                const normalized = sanitiseName(trimmed.split(/[\s\r\n]+/)[0]);
-                return candidates.find((record) =>
-                    sanitiseName(record.name) === normalized
-                    || sanitiseName(record.shortName) === normalized) || null;
-            }
-        } catch (error) {
-            this.logger.warn(`[RecursiveSkilledAgent] Skill selection via LLM failed: ${error.message}`);
-        }
-
-        return this.chooseSkillByHeuristic(taskDescription, candidates);
+        return this.selector.chooseWithLLM(taskDescription, candidates);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Skill Execution
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Execute without an explicit skill.
+     * @param {string} taskDescription - The task description
+     * @param {Object} forwardOptions - Options to forward
+     * @param {string} reviewMode - Review mode
+     * @returns {Promise<Object>} The execution result
+     */
     async executeWithoutExplicitSkill(taskDescription, forwardOptions, reviewMode) {
-        this.debugLogger?.log('RecursiveSkilledAgent:executeWithoutExplicitSkill', {
-            taskDescription,
-            reviewMode,
-        });
-
-        const orchestratorRecord = this.selectOrchestratorForPrompt(taskDescription);
-        if (orchestratorRecord) {
-            const subsystem = this.ensureSubsystem('orchestrator');
-            const execution = await subsystem.executeSkillPrompt({
-                skillRecord: orchestratorRecord,
-                recursiveAgent: this,
-                promptText: taskDescription,
-                options: {
-                    ...forwardOptions,
-                    reviewMode,
-                },
-            });
-            this.debugLogger?.log('RecursiveSkilledAgent:executeWithoutExplicitSkill:orchestrator', {
-                selected: orchestratorRecord.name,
-                reviewMode,
-            });
-            return {
-                ...execution,
-                reviewMode,
-                subsystem: orchestratorRecord.type,
-            };
-        }
-
-        const candidates = Array.from(this.skillCatalog.values());
-        this.debugLogger?.log('RecursiveSkilledAgent:executeWithoutExplicitSkill:fallback-selection', {
-            candidateCount: candidates.length,
-        });
-        const selected = await this.chooseSkillWithLLM(taskDescription, candidates);
-
-        if (selected) {
-            this.debugLogger?.log('RecursiveSkilledAgent:executeWithoutExplicitSkill:llm-selected', {
-                selected: selected.name,
-            });
-            return this.executeWithReviewMode(taskDescription, {
-                ...forwardOptions,
-                skillName: selected.name,
-            }, reviewMode);
-        }
-
-        throw new Error('Unable to determine an appropriate skill for the request.');
+        return this.executor.executeWithoutExplicitSkill(taskDescription, forwardOptions, reviewMode, this);
     }
 
+    /**
+     * Execute with a specific review mode.
+     * @param {string} taskDescription - The task description
+     * @param {Object} options - Execution options
+     * @param {string} reviewMode - Review mode ('none', 'llm', 'human')
+     * @returns {Promise<Object>} The execution result
+     */
     async executeWithReviewMode(taskDescription, options = {}, reviewMode = 'none') {
-        // Only invoke callbacks at the top level, not for nested calls
-        const isTopLevel = !this._isProcessing;
-        if (isTopLevel) {
-            this._isProcessing = true;
-            this._invokeProcessingBegin();
-        }
-
-        // Get action reporter for real-time feedback
-        const actionReporter = this.getActionReporter();
-        let skillAction = null;
-
-        try {
-            if (this.pendingPreparations && this.pendingPreparations.length) {
-                const toAwait = this.pendingPreparations;
-                this.pendingPreparations = [];
-                await Promise.all(toAwait);
-            }
-
-            const {
-                skillName = null,
-                promptReader = null,
-                subsystemType = null, // retained for backwards compatibility
-                ...forward
-            } = options || {};
-
-            if (!skillName) {
-                // Report that we're routing/planning
-                if (actionReporter && isTopLevel) {
-                    actionReporter.routing(taskDescription?.slice(0, 50) || 'request');
-                }
-                const result = await this.executeWithoutExplicitSkill(taskDescription, forward, reviewMode);
-                if (actionReporter && isTopLevel) {
-                    actionReporter.completeAction();
-                }
-                return result;
-            }
-
-            const skillRecord = this.getSkillRecord(skillName);
-            if (!skillRecord) {
-                throw new Error(`Skill "${skillName}" is not registered.`);
-            }
-
-            // Report skill execution start
-            if (actionReporter) {
-                const displayName = skillRecord.shortName || skillRecord.name || skillName;
-                skillAction = actionReporter.executingSkill(displayName, taskDescription?.slice(0, 50));
-            }
-
-            const subsystem = this.ensureSubsystem(skillRecord.type);
-
-            const args = { ...(forward.args || {}) };
-            const hasOwn = (name) => Object.prototype.hasOwnProperty.call(args, name);
-            const injectArg = (name) => {
-                if (typeof name === 'string' && name && !hasOwn(name)) {
-                    args[name] = taskDescription;
-                }
-            };
-
-            if (skillRecord.metadata?.defaultArgument) {
-                injectArg(skillRecord.metadata.defaultArgument);
-            }
-
-            if (skillRecord.type === 'interactive') {
-                const requiredList = Array.isArray(skillRecord.requiredArguments)
-                    ? skillRecord.requiredArguments
-                    : [];
-                requiredList.forEach(injectArg);
-            }
-
-            if (!Object.keys(args).length) {
-                args.input = taskDescription;
-            }
-
-            const execution = await subsystem.executeSkillPrompt({
-                skillRecord,
-                recursiveAgent: this,
-                promptText: taskDescription,
-                options: {
-                    ...forward,
-                    args,
-                    promptReader: promptReader || this.promptReader,
-                },
-            });
-
-            // Report skill completion
-            if (skillAction && actionReporter) {
-                actionReporter.completeAction({ skill: skillName });
-            }
-
-            return {
-                ...execution,
-                reviewMode,
-                subsystem: skillRecord.type,
-            };
-        } catch (error) {
-            // Report skill failure
-            if (skillAction && actionReporter) {
-                actionReporter.failAction(error);
-            }
-            throw error;
-        } finally {
-            // Only invoke end callback and reset flag at the top level
-            if (isTopLevel) {
-                this._invokeProcessingEnd();
-                this._isProcessing = false;
-            }
-        }
+        return this.executor.execute(taskDescription, options, reviewMode, this);
     }
 
+    /**
+     * Execute a prompt (no review).
+     * @param {string} promptDescription - The prompt
+     * @param {Object} options - Execution options
+     * @returns {Promise<Object>} The execution result
+     */
     async executePrompt(promptDescription, options = {}) {
         return this.executeWithReviewMode(promptDescription, options, 'none');
     }
 
+    /**
+     * Execute with LLM review.
+     * @param {string} taskDescription - The task description
+     * @param {Object} options - Execution options
+     * @returns {Promise<Object>} The execution result
+     */
     async executePromptWithReview(taskDescription, options = {}) {
         return this.executeWithReviewMode(taskDescription, options, 'llm');
     }
 
+    /**
+     * Execute with human review.
+     * @param {string} taskDescription - The task description
+     * @param {Object} options - Execution options
+     * @returns {Promise<Object>} The execution result
+     */
     async executePromptWithHumanReview(taskDescription, options = {}) {
         return this.executeWithReviewMode(taskDescription, options, 'human');
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // User Interaction
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Read a multi-line user prompt from stdin.
+     * @param {Object} options
+     * @param {string} [options.prompt] - The prompt message
+     * @returns {Promise<string>} The user input
+     */
     async readUserPrompt({ prompt = 'Enter multi-line prompt (blank line or END to finish):' } = {}) {
         const rl = readline.createInterface({
             input: process.stdin,
@@ -1045,5 +535,59 @@ export class RecursiveSkilledAgent {
                 resolve(lines.join('\n'));
             });
         });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Processing Callbacks (Legacy API)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * @private
+     */
+    _invokeProcessingBegin() {
+        this.executor._invokeBegin();
+    }
+
+    /**
+     * @private
+     */
+    _invokeProcessingProgress() {
+        this.executor._invokeProgress();
+    }
+
+    /**
+     * @private
+     */
+    _invokeProcessingEnd() {
+        this.executor._invokeEnd();
+    }
+
+    // Legacy getters for callback properties
+    get onProcessingBegin() {
+        return this.executor.callbacks.onBegin;
+    }
+
+    set onProcessingBegin(fn) {
+        this.executor.callbacks.onBegin = typeof fn === 'function' ? fn : null;
+    }
+
+    get onProcessingProgress() {
+        return this.executor.callbacks.onProgress;
+    }
+
+    set onProcessingProgress(fn) {
+        this.executor.callbacks.onProgress = typeof fn === 'function' ? fn : null;
+    }
+
+    get onProcessingEnd() {
+        return this.executor.callbacks.onEnd;
+    }
+
+    set onProcessingEnd(fn) {
+        this.executor.callbacks.onEnd = typeof fn === 'function' ? fn : null;
+    }
+
+    get skillFilter() {
+        return this.registry.skillFilter;
     }
 }

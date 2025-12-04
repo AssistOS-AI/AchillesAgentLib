@@ -307,7 +307,7 @@ export class CodeSkillsSubsystem {
         this.executors.set(skillRecord.name, executor);
     }
 
-    async executeSkillPrompt({ skillRecord, promptText, options = {} }) {
+    async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options = {} }) {
         const executor = this.executors.get(skillRecord.name);
         if (!executor) {
             throw new Error(`Executor not prepared for code skill "${skillRecord.name}".`);
@@ -316,7 +316,6 @@ export class CodeSkillsSubsystem {
         const {
             args = {},
             sessionMemory = null,
-            context = {},
         } = options;
 
         const input = typeof args[CODE_ARGUMENT_NAME] === 'string' && args[CODE_ARGUMENT_NAME].trim()
@@ -328,8 +327,7 @@ export class CodeSkillsSubsystem {
         }
 
         // Call executor with (recursiveSkilledAgent, prompt) convention
-        const skilledAgent = context.skilledAgent || null;
-        const result = await executor(skilledAgent, input);
+        const result = await executor(recursiveAgent, input);
 
         return {
             skill: skillRecord.name,
