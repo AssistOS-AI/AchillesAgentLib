@@ -19,8 +19,34 @@ export async function callLLM(chatContext, options) {
 
     const convertedContext = toGeminiPayload(chatContext);
     const payload = { ...convertedContext };
+
     if (params && typeof params === 'object') {
-        Object.assign(payload, params);
+        const {
+            temperature,
+            topP,
+            topK,
+            maxOutputTokens,
+            candidateCount,
+            stopSequences,
+            ...restParams
+        } = params;
+
+        const generationConfig = {};
+        if (temperature !== undefined) generationConfig.temperature = temperature;
+        if (topP !== undefined) generationConfig.topP = topP;
+        if (topK !== undefined) generationConfig.topK = topK;
+        if (maxOutputTokens !== undefined) generationConfig.maxOutputTokens = maxOutputTokens;
+        if (candidateCount !== undefined) generationConfig.candidateCount = candidateCount;
+        if (Array.isArray(stopSequences) && stopSequences.length) {
+            generationConfig.stopSequences = stopSequences;
+        }
+        if (Object.keys(generationConfig).length) {
+            payload.generationConfig = {
+                ...(payload.generationConfig || {}),
+                ...generationConfig,
+            };
+        }
+        Object.assign(payload, restParams);
     }
 
     const normalizedBase = baseURL.endsWith('/') ? baseURL : `${baseURL}/`;

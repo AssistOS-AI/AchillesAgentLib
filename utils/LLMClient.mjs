@@ -114,24 +114,24 @@ function buildModelCaches() {
         preferredMode = envDefaultMode;
     }
 
-    const defaultMode = preferredMode && ((preferredMode === 'fast' && fast.length) || (preferredMode === 'deep' && deep.length))
+    const setMode = preferredMode && ((preferredMode === 'fast' && fast.length) || (preferredMode === 'deep' && deep.length))
         ? preferredMode
         : (fast.length ? 'fast' : (deep.length ? 'deep' : 'fast'));
 
-    return { recordMap, fast, deep, defaultMode };
+    return { recordMap, fast, deep, setMode };
 }
 
 let modelRecordMap;
 let fastModelNames;
 let deepModelNames;
-let defaultMode;
+let setMode;
 
 function rebuildCaches() {
     const caches = buildModelCaches();
     modelRecordMap = caches.recordMap;
     fastModelNames = caches.fast;
     deepModelNames = caches.deep;
-    defaultMode = caches.defaultMode;
+    setMode = caches.setMode;
 }
 
 function normalizeModePreference(value) {
@@ -182,6 +182,15 @@ function resolvePrioritizedModels({ mode, modelName }) {
     fallbackList.forEach(push);
 
     return prioritized;
+}
+
+export function getPrioritizedModels() {
+    rebuildCaches();
+    const selectionRequest = {
+        mode: setMode,
+        modelName: null,
+    };
+    return resolvePrioritizedModels(selectionRequest);
 }
 
 function ensureCachesFresh() {
@@ -367,7 +376,7 @@ export function createDefaultLLMInvokerStrategy() {
         const normalizedPreferences = normalizeInvocationPreferences({ mode, model });
         const effectiveMode = normalizedPreferences.mode
             || normalizeModePreference(mode)
-            || defaultMode;
+            || setMode;
 
         const selectionRequest = {
             mode: effectiveMode,
