@@ -4,37 +4,37 @@
             "baseURL": "https://api.openai.com/v1/chat/completions",
             "apiKeyEnv": "OPENAI_API_KEY",
             "defaultModel": "gpt-5-mini",
-            "module": "./openai.mjs"
+            "module": "./utils/LLMProviders/providers/openai.mjs"
         },
         "anthropic": {
             "baseURL": "https://api.anthropic.com/v1/messages",
             "apiKeyEnv": "ANTHROPIC_API_KEY",
-            "module": "./anthropic.mjs"
+            "module": "./utils/LLMProviders/providers/anthropic.mjs"
         },
         "google": {
             "baseURL": "https://generativelanguage.googleapis.com/v1beta/models/",
             "apiKeyEnv": "GEMINI_API_KEY",
-            "module": "./google.mjs"
+            "module": "./utils/LLMProviders/providers/google.mjs"
         },
         "huggingface": {
             "baseURL": "https://router.huggingface.co/v1/chat/completions",
             "apiKeyEnv": "HUGGINGFACE_API_KEY",
-            "module": "./huggingFace.mjs"
+            "module": "./utils/LLMProviders/providers/huggingFace.mjs"
         },
         "openrouter": {
             "baseURL": "https://openrouter.ai/api/v1/chat/completions",
             "apiKeyEnv": "OPENROUTER_API_KEY",
-            "module": "./openai.mjs"
+            "module": "./utils/LLMProviders/providers/openai.mjs"
         },
         "xai": {
             "baseURL": "https://api.x.ai/v1/chat/completions",
             "apiKeyEnv": "XAI_API_KEY",
-            "module": "./openai.mjs"
+            "module": "./utils/LLMProviders/providers/openai.mjs"
         },
         "mistral": {
             "baseURL": "https://api.mistral.ai/v1/chat/completions",
             "apiKeyEnv": "MISTRAL_API_KEY",
-            "module": "./openai.mjs"
+            "module": "./utils/LLMProviders/providers/openai.mjs"
         }
     },
     "models": [
