@@ -1,6 +1,5 @@
 import { loadModelsConfiguration } from './LLMProviders/providers/modelsConfigLoader.mjs';
 export { loadModelsConfiguration };
-import { registerBuiltInProviders } from './LLMProviders/providers/index.mjs';
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
 
@@ -50,7 +49,6 @@ function resolveEnabledSet(mode) {
     return parseEnabledModelList(envVar);
 }
 
-registerBuiltInProviders();
 await registerProvidersFromConfig(modelsConfiguration);
 
 const llmCalls = [];

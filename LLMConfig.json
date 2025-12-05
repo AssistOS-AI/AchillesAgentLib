@@ -25,6 +25,16 @@
             "baseURL": "https://openrouter.ai/api/v1/chat/completions",
             "apiKeyEnv": "OPENROUTER_API_KEY",
             "module": "./openai.mjs"
+        },
+        "xai": {
+            "baseURL": "https://api.x.ai/v1/chat/completions",
+            "apiKeyEnv": "XAI_API_KEY",
+            "module": "./openai.mjs"
+        },
+        "mistral": {
+            "baseURL": "https://api.mistral.ai/v1/chat/completions",
+            "apiKeyEnv": "MISTRAL_API_KEY",
+            "module": "./openai.mjs"
         }
     },
     "models": [
@@ -251,6 +261,62 @@
             "inputPrice": 0,
             "outputPrice": 0,
             "context": "N/A"
+        },
+        {
+            "name": "grok-4-1-fast-reasoning",
+            "provider": "xai",
+            "mode": "fast",
+            "inputPrice": 0.2,
+            "outputPrice": 0.5,
+            "context": "2mill"
+        },
+        {
+            "name": "grok-4-1-fast-non-reasoning",
+            "provider": "xai",
+            "mode": "fast",
+            "inputPrice": 0.2,
+            "outputPrice": 0.5,
+            "context": "2mill"
+        },
+        {
+            "name": "mistral-large-2512",
+            "provider": "mistral",
+            "mode": "deep",
+            "inputPrice": 0.5,
+            "outputPrice": 1.5,
+            "context": "256k"
+        },
+        {
+            "name": "mistral-medium-2508",
+            "provider": "mistral",
+            "mode": "deep",
+            "inputPrice": 0.4,
+            "outputPrice": 2,
+            "context": "128k"
+        },
+        {
+            "name": "ministral-8b-2512",
+            "provider": "mistral",
+            "mode": "fast",
+            "inputPrice": 0.15,
+            "outputPrice": 0.15,
+            "context": "256k"
+        },
+        {
+            "name": "mistral-small-2506",
+            "provider": "mistral",
+            "mode": "fast",
+            "inputPrice": 0.1,
+            "outputPrice": 0.3,
+            "context": "128k"
+        },
+        {
+            "name": "ministral-3b-2512",
+            "provider": "mistral",
+            "mode": "fast",
+            "inputPrice": 0.1,
+            "outputPrice": 0.1,
+            "context": "256k"
         }
     ]
 }

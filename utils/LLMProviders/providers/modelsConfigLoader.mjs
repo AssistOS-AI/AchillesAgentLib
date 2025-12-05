@@ -5,16 +5,6 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const DEFAULT_PROVIDER_ENV_MAP = {
-    openai: 'OPENAI_API_KEY',
-    google: 'GEMINI_API_KEY',
-    anthropic: 'ANTHROPIC_API_KEY',
-    mistral: 'MISTRAL_API_KEY',
-    openrouter: 'OPENROUTER_API_KEY',
-    deepseek: 'DEEPSEEK_API_KEY',
-    huggingface: 'HUGGINGFACE_API_KEY',
-};
-
 const VALID_MODES = new Set(['fast', 'deep']);
 const DEFAULT_CONFIG_FILENAME = 'LLMConfig.json';
 const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../../', DEFAULT_CONFIG_FILENAME);
@@ -88,9 +78,9 @@ function normalizeProvider(providerKey, entry, issues, options) {
     }
 
     const config = entry && typeof entry === 'object' ? entry : {};
-    const apiKeyEnv = selectString(config.apiKeyEnv, DEFAULT_PROVIDER_ENV_MAP[providerKey]);
+    const apiKeyEnv = config.apiKeyEnv;
     if (!apiKeyEnv) {
-        issues.warnings.push(`Provider "${providerKey}" does not declare apiKeyEnv and no fallback is known.`);
+        issues.warnings.push(`Provider "${providerKey}" does not declare apiKeyEnv.`);
     }
 
     const baseURL = selectString(config.baseURL, null);

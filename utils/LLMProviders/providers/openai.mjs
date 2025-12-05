@@ -1,19 +1,25 @@
 import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
 
+function deriveProviderLabel(baseURL) {
+    const match = baseURL.match(/https?:\/\/api\.([^/]+)\/v1\//i);
+    return match?.[1] || 'OpenAI';
+}
+
 export async function callLLM(chatContext, options) {
     if (!options || typeof options !== 'object') {
         throw new Error('OpenAI provider requires invocation options.');
     }
 
     const { model, apiKey, baseURL, signal, params, headers } = options;
+    const providerLabel = deriveProviderLabel(baseURL);
     if (!model) {
-        throw new Error('OpenAI provider requires a model name.');
+        throw new Error(`${providerLabel} provider requires a model name.`);
     }
     if (!apiKey) {
-        throw new Error('OpenAI provider requires an API key.');
+        throw new Error(`${providerLabel} provider requires an API key.`);
     }
     if (!baseURL) {
-        throw new Error('OpenAI provider requires a baseURL.');
+        throw new Error(`${providerLabel} provider requires a baseURL.`);
     }
 
     const convertedContext = toOpenAIChatMessages(chatContext);
@@ -39,12 +45,12 @@ export async function callLLM(chatContext, options) {
 
     if (!response.ok) {
         const errorBody = await response.text();
-        throw new Error(`OpenAI API Error (${response.status}): ${errorBody}`);
+        throw new Error(`${providerLabel} API Error (${response.status}): ${errorBody}`);
     }
 
     const data = await response.json();
     if (data.error) {
-        throw new Error(JSON.stringify(data.error));
+        throw new Error(`${providerLabel} API Error: ${JSON.stringify(data.error)}`);
     }
     return data.choices?.[0]?.message?.content;
 }
