@@ -11,6 +11,7 @@ export function parseSkillMarkdown(content) {
     const skill = {
         tableName: '',
         tablePurpose: '',
+        instructions: '',  // LLM instructions for query interpretation
         fields: {},
         derivedFields: {},
         indexes: [],
@@ -82,6 +83,17 @@ export function parseSkillMarkdown(content) {
             continue;
         }
 
+        // Handle instructions section (## Instructions)
+        if (trimmedLine.match(/^##\s+Instructions$/i)) {
+            saveCurrentContent();
+            currentSection = 'instructions';
+            currentField = null;
+            currentSubSection = null;
+            currentContent = [];
+            sectionDepth = 2;
+            continue;
+        }
+
         // Handle field definition (### FieldName)
         const fieldMatch = trimmedLine.match(/^###\s+(.+)$/);
         if (fieldMatch && currentSection === 'fields') {
@@ -127,6 +139,8 @@ export function parseSkillMarkdown(content) {
 
         if (currentSection === 'tablePurpose' && !currentField) {
             skill.tablePurpose = content;
+        } else if (currentSection === 'instructions' && !currentField) {
+            skill.instructions = content;
         } else if (currentSection === 'relationships' && !currentField) {
             parseRelationships(content, skill);
         } else if (currentSection === 'businessRules' && !currentField) {
