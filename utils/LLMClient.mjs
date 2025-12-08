@@ -75,6 +75,8 @@ function buildModelCaches() {
     const deep = [];
     const enabledFastModels = resolveEnabledSet('fast');
     const enabledDeepModels = resolveEnabledSet('deep');
+    const defaultFastModel = modelsConfiguration.defaultFastModel || null;
+    const defaultDeepModel = modelsConfiguration.defaultDeepModel || null;
 
     const orderedNames = Array.isArray(modelsConfiguration.orderedModels) && modelsConfiguration.orderedModels.length
         ? modelsConfiguration.orderedModels
@@ -105,6 +107,28 @@ function buildModelCaches() {
             deep.push(record.name);
         } else {
             fast.push(record.name);
+        }
+    }
+
+    const prioritizeDefault = (list, preferred) => {
+        const idx = list.indexOf(preferred);
+        if (idx > 0) {
+            list.splice(idx, 1);
+            list.unshift(preferred);
+        }
+    };
+
+    if (!enabledFastModels && defaultFastModel && recordMap.has(defaultFastModel)) {
+        const record = recordMap.get(defaultFastModel);
+        if (record.mode === 'fast') {
+            prioritizeDefault(fast, defaultFastModel);
+        }
+    }
+
+    if (!enabledDeepModels && defaultDeepModel && recordMap.has(defaultDeepModel)) {
+        const record = recordMap.get(defaultDeepModel);
+        if (record.mode === 'deep') {
+            prioritizeDefault(deep, defaultDeepModel);
         }
     }
 

@@ -1,9 +1,10 @@
 {
+    "defaultFastModel": "gpt-5-mini",
+    "defaultDeepModel": "gpt-5.1",
     "providers": {
         "openai": {
             "baseURL": "https://api.openai.com/v1/chat/completions",
             "apiKeyEnv": "OPENAI_API_KEY",
-            "defaultModel": "gpt-5-mini",
             "module": "./utils/LLMProviders/providers/openai.mjs"
         },
         "anthropic": {

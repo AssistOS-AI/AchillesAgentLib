@@ -35,6 +35,8 @@ export function normalizeConfig(rawConfig, options = {}) {
     const models = new Map();
     const providerModels = new Map();
     const orderedModelNames = [];
+    const defaultFastModel = selectString(rawConfig?.defaultFastModel, null);
+    const defaultDeepModel = selectString(rawConfig?.defaultDeepModel, null);
 
     const rawProviders = rawConfig?.providers && typeof rawConfig.providers === 'object' ? rawConfig.providers : {};
     const rawModels = Array.isArray(rawConfig?.models) ? rawConfig.models : [];
@@ -62,6 +64,31 @@ export function normalizeConfig(rawConfig, options = {}) {
 
     validateProviders(providers, models, providerModels, issues);
 
+    const validatedDefaults = {
+        defaultFastModel: null,
+        defaultDeepModel: null,
+    };
+    if (defaultFastModel) {
+        const model = models.get(defaultFastModel);
+        if (!model) {
+            issues.warnings.push(`Default fast model "${defaultFastModel}" is not defined in ${DEFAULT_CONFIG_FILENAME}.`);
+        } else if (model.mode !== 'fast') {
+            issues.warnings.push(`Default fast model "${defaultFastModel}" is not configured as a fast model.`);
+        } else {
+            validatedDefaults.defaultFastModel = defaultFastModel;
+        }
+    }
+    if (defaultDeepModel) {
+        const model = models.get(defaultDeepModel);
+        if (!model) {
+            issues.warnings.push(`Default deep model "${defaultDeepModel}" is not defined in ${DEFAULT_CONFIG_FILENAME}.`);
+        } else if (model.mode !== 'deep') {
+            issues.warnings.push(`Default deep model "${defaultDeepModel}" is not configured as a deep model.`);
+        } else {
+            validatedDefaults.defaultDeepModel = defaultDeepModel;
+        }
+    }
+
     return {
         providers,
         models,
@@ -69,6 +96,7 @@ export function normalizeConfig(rawConfig, options = {}) {
         issues,
         raw: rawConfig,
         orderedModels: orderedModelNames,
+        ...validatedDefaults,
     };
 }
 
