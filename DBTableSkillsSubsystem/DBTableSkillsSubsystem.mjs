@@ -130,25 +130,37 @@ export class DBTableSkillsSubsystem {
 
         if (generatedPath && fs.existsSync(generatedPath)) {
             try {
-                // Load existing generated file
-                // Use timestamp to bypass cache
-                const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
-                const imported = await import(moduleUrl);
+                // Check if tskill.md is newer than generated file using timestamps
+                const tskillStat = await fs.promises.stat(tskillPath);
+                const generatedStat = await fs.promises.stat(generatedPath);
+                const needsRegeneration = tskillStat.mtimeMs > generatedStat.mtimeMs;
 
-                // Check if content matches
-                if (imported.tskillSource === content) {
+                if (!needsRegeneration) {
+                    // Load existing generated file (use timestamp to bypass module cache)
+                    const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
+                    const imported = await import(moduleUrl);
                     functions = imported.functions;
                 } else {
-                    // Content changed, regenerate with context
-                    console.log(`Regenerating skill "${name}" due to changes...`);
+                    // tskill.md is newer, regenerate with context
+                    console.log(`Regenerating skill "${name}" - tskill.md was modified...`);
+
+                    // Try to load old functions for context
+                    let oldFunctions = null;
+                    try {
+                        const oldModuleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
+                        const oldImported = await import(oldModuleUrl);
+                        oldFunctions = oldImported.functions;
+                    } catch (e) {
+                        // Old file has errors, proceed without context
+                    }
+
                     const generatedFunctions = await generateAllFunctions(name, parsedSkill, this.llmAgent, {
-                        oldFunctions: imported.functions,
-                        oldTskill: imported.tskillSource,
+                        oldFunctions,
                         newTskill: content
                     });
 
-                    // Serialize and write
-                    const fileContent = serializeFunctions(generatedFunctions, content);
+                    // Serialize and write (no longer includes tskillSource)
+                    const fileContent = serializeFunctions(generatedFunctions);
                     await fs.promises.writeFile(generatedPath, fileContent, 'utf-8');
 
                     // Re-import to get compiled functions
@@ -168,7 +180,7 @@ export class DBTableSkillsSubsystem {
             });
 
             if (generatedPath) {
-                const fileContent = serializeFunctions(generatedFunctions, content);
+                const fileContent = serializeFunctions(generatedFunctions);
                 await fs.promises.writeFile(generatedPath, fileContent, 'utf-8');
 
                 const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
