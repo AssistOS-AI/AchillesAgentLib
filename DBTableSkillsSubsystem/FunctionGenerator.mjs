@@ -450,8 +450,15 @@ export async function generateAllFunctions(tableName, skill, llmAgent, context =
         global: {}
     };
 
+    const fieldNames = Object.keys(skill.fields);
+    const totalFields = fieldNames.length;
+    let currentField = 0;
+
     // Generate field-specific functions
     for (const [fieldName, fieldDef] of Object.entries(skill.fields)) {
+        currentField++;
+        process.stdout.write(`  [${currentField}/${totalFields}] Generating functions for field: ${fieldName}...`);
+        const fieldStart = Date.now();
         const fieldContext = {
             ...context,
             oldCode: context.oldFunctions?.fieldNamePresenters?.[`fieldNamePresenter_${fieldName}`] ||
@@ -515,6 +522,9 @@ export async function generateAllFunctions(tableName, skill, llmAgent, context =
                     oldCode: context.oldFunctions?.derivators?.[`derivator_${fieldName}`]
                 });
         }
+
+        const elapsed = ((Date.now() - fieldStart) / 1000).toFixed(1);
+        console.log(` done (${elapsed}s)`);
     }
 
     // Generate global functions

@@ -6,6 +6,111 @@ import vm from 'node:vm';
 import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
 import { generateAllFunctions, serializeFunctions } from './FunctionGenerator.mjs';
 
+/**
+ * Extract Code Generation Prompt from .specs.md content
+ */
+function extractCodeGenPrompt(specsContent) {
+    if (!specsContent) return null;
+    const match = specsContent.match(/##\s+Code\s+Generation\s+Prompt\s*\n([\s\S]*?)(?=\n##\s+|$)/i);
+    return match ? match[1].trim() : null;
+}
+
+/**
+ * Apply template variables to a prompt
+ */
+function applyTemplateVars(template, vars) {
+    let result = template;
+    for (const [key, value] of Object.entries(vars)) {
+        const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+        const stringValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+        result = result.replace(placeholder, stringValue);
+    }
+    return result;
+}
+
+/**
+ * Generate all code in a single LLM call using .specs.md prompt or default
+ */
+async function generateCodeSingleShot(skillName, skillDir, tskillContent, llmAgent) {
+    const specsPath = path.join(skillDir, '.specs.md');
+    let specsContent = null;
+    let codeGenPrompt = null;
+
+    // Try to load .specs.md
+    if (fs.existsSync(specsPath)) {
+        try {
+            specsContent = fs.readFileSync(specsPath, 'utf-8');
+            codeGenPrompt = extractCodeGenPrompt(specsContent);
+        } catch (e) {
+            // Ignore read errors
+        }
+    }
+
+    // Build the prompt
+    let prompt;
+    if (codeGenPrompt) {
+        // Use custom prompt from .specs.md
+        prompt = applyTemplateVars(codeGenPrompt, {
+            skillName,
+            entityName: skillName.replace(/-skill.*$/, '').replace(/-tskill$/, '').toLowerCase(),
+            content: tskillContent,
+        });
+    } else {
+        // Use default comprehensive prompt
+        prompt = `Generate JavaScript/ESM code for a database table skill.
+
+## Skill Name: ${skillName}
+
+## Skill Definition:
+${tskillContent}
+
+## Requirements:
+1. Generate clean, modern ESM code (export functions, no CommonJS)
+2. Include all validators defined in the skill (validator_<fieldName>)
+3. Include all enumerators defined in the skill (enumerator_<fieldName>)
+4. Include all presenters defined in the skill (presenter_<fieldName>)
+5. Include generatePKValues function for auto-generating primary keys
+6. Include prepareRecord function (async) for pre-DB transformation
+7. Include validateRecord function that runs all validators and returns {isValid, errors}
+
+## Validator Format:
+Validators must return JSON.stringify({field, error, value}) on error or empty string '' if valid.
+
+## Expected Exports:
+- generatePKValues(record, existingRecords) - returns object with generated PK field
+- prepareRecord(record, context) - async, transforms record before DB insert
+- validateRecord(record) - returns {isValid: boolean, errors: Array}
+- validator_<fieldName>(value, record) - returns error JSON string or empty string
+- enumerator_<fieldName>(context) - returns array of allowed values
+- presenter_<fieldName>(value, record) - returns formatted display value
+- default export with all functions
+
+Generate ONLY the JavaScript code, no markdown code blocks, no explanations.`;
+    }
+
+    console.log(`  Generating all code in single LLM call...`);
+    const startTime = Date.now();
+
+    const generatedCode = await llmAgent.executePrompt(prompt, {
+        responseShape: 'code',
+        mode: 'deep',
+    });
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`  Code generated in ${elapsed}s`);
+
+    // Clean up response - remove markdown code blocks if present
+    let code = generatedCode;
+    if (typeof code === 'string') {
+        code = code
+            .replace(/^```(?:javascript|js|mjs)?\n?/i, '')
+            .replace(/\n?```$/i, '')
+            .trim();
+    }
+
+    return code;
+}
+
 const DEFAULT_TIMEOUT_MS = 60000;
 const DB_TABLE_ARGUMENT_NAME = 'prompt';
 
@@ -141,32 +246,20 @@ export class DBTableSkillsSubsystem {
                     const imported = await import(moduleUrl);
                     functions = imported.functions;
                 } else {
-                    // tskill.md is newer, regenerate with context
+                    // tskill.md is newer, regenerate using single-shot LLM call
                     console.log(`Regenerating skill "${name}" - tskill.md was modified...`);
 
-                    // Try to load old functions for context
-                    let oldFunctions = null;
-                    try {
-                        const oldModuleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
-                        const oldImported = await import(oldModuleUrl);
-                        oldFunctions = oldImported.functions;
-                    } catch (e) {
-                        // Old file has errors, proceed without context
-                    }
+                    // Generate all code in a single LLM call
+                    const generatedCode = await generateCodeSingleShot(name, skillDir, content, this.llmAgent);
 
-                    const generatedFunctions = await generateAllFunctions(name, parsedSkill, this.llmAgent, {
-                        oldFunctions,
-                        newTskill: content
-                    });
-
-                    // Serialize and write (no longer includes tskillSource)
-                    const fileContent = serializeFunctions(generatedFunctions);
-                    await fs.promises.writeFile(generatedPath, fileContent, 'utf-8');
+                    // Write the generated code
+                    await fs.promises.writeFile(generatedPath, generatedCode, 'utf-8');
+                    console.log(`  Written to: ${generatedPath}`);
 
                     // Re-import to get compiled functions
                     const newModuleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                     const newImported = await import(newModuleUrl);
-                    functions = newImported.functions;
+                    functions = newImported.default || newImported;
                 }
             } catch (error) {
                 console.error(`Error loading generated skill "${name}":`, error);
@@ -175,19 +268,22 @@ export class DBTableSkillsSubsystem {
         }
 
         if (!functions) {
-            const generatedFunctions = await generateAllFunctions(name, parsedSkill, this.llmAgent, {
-                newTskill: content
-            });
+            console.log(`Generating skill "${name}" for the first time...`);
+
+            // Generate all code in a single LLM call
+            const generatedCode = await generateCodeSingleShot(name, skillDir, content, this.llmAgent);
 
             if (generatedPath) {
-                const fileContent = serializeFunctions(generatedFunctions);
-                await fs.promises.writeFile(generatedPath, fileContent, 'utf-8');
+                await fs.promises.writeFile(generatedPath, generatedCode, 'utf-8');
+                console.log(`  Written to: ${generatedPath}`);
 
                 const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                 const imported = await import(moduleUrl);
-                functions = imported.functions;
+                functions = imported.default || imported;
             } else {
-                functions = generatedFunctions;
+                // Fallback: evaluate code in memory (not recommended)
+                console.warn(`  Warning: No output path for skill "${name}", code not persisted`);
+                functions = {};
             }
         }
 
