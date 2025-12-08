@@ -72,6 +72,7 @@ ${tskillContent}
 5. Include generatePKValues function for auto-generating primary keys
 6. Include prepareRecord function (async) for pre-DB transformation
 7. Include validateRecord function that runs all validators and returns {isValid, errors}
+8. Include presentRecord function (async) that formats an entire record for display by calling all presenter_* functions
 
 ## Validator Format:
 Validators must return JSON.stringify({field, error, value}) on error or empty string '' if valid.
@@ -80,10 +81,11 @@ Validators must return JSON.stringify({field, error, value}) on error or empty s
 - generatePKValues(record, existingRecords) - returns object with generated PK field
 - prepareRecord(record, context) - async, transforms record before DB insert
 - validateRecord(record) - returns {isValid: boolean, errors: Array}
+- presentRecord(record) - async, returns record with all fields formatted using presenter functions
 - validator_<fieldName>(value, record) - returns error JSON string or empty string
 - enumerator_<fieldName>(context) - returns array of allowed values
 - presenter_<fieldName>(value, record) - returns formatted display value
-- default export with all functions
+- functions object with: { global: { generatePKValues, prepareRecord, validateRecord, presentRecord, ... } }
 
 Generate ONLY the JavaScript code, no markdown code blocks, no explanations.`;
     }
@@ -235,19 +237,32 @@ export class DBTableSkillsSubsystem {
 
         if (generatedPath && fs.existsSync(generatedPath)) {
             try {
-                // Check if tskill.md is newer than generated file using timestamps
+                // Check if tskill.md or .specs.md is newer than generated file using timestamps
                 const tskillStat = await fs.promises.stat(tskillPath);
                 const generatedStat = await fs.promises.stat(generatedPath);
-                const needsRegeneration = tskillStat.mtimeMs > generatedStat.mtimeMs;
+                let needsRegeneration = tskillStat.mtimeMs > generatedStat.mtimeMs;
+                let regenReason = 'tskill.md was modified';
+
+                // Also check .specs.md if it exists
+                const specsPath = path.join(path.dirname(tskillPath), '.specs.md');
+                if (!needsRegeneration && fs.existsSync(specsPath)) {
+                    const specsStat = await fs.promises.stat(specsPath);
+                    if (specsStat.mtimeMs > generatedStat.mtimeMs) {
+                        needsRegeneration = true;
+                        regenReason = '.specs.md was modified';
+                    }
+                }
 
                 if (!needsRegeneration) {
                     // Load existing generated file (use timestamp to bypass module cache)
                     const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                     const imported = await import(moduleUrl);
-                    functions = imported.functions;
+                    // Support both formats: { functions: { global: ... } } or flat { prepareRecord, ... }
+                    const rawFunctions = imported.functions || imported.default || imported;
+                    functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
                 } else {
-                    // tskill.md is newer, regenerate using single-shot LLM call
-                    console.log(`Regenerating skill "${name}" - tskill.md was modified...`);
+                    // Source file is newer, regenerate using single-shot LLM call
+                    console.log(`Regenerating skill "${name}" - ${regenReason}...`);
 
                     // Generate all code in a single LLM call
                     const generatedCode = await generateCodeSingleShot(name, skillDir, content, this.llmAgent);
@@ -259,7 +274,9 @@ export class DBTableSkillsSubsystem {
                     // Re-import to get compiled functions
                     const newModuleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                     const newImported = await import(newModuleUrl);
-                    functions = newImported.default || newImported;
+                    // Support both formats: { functions: { global: ... } } or flat { prepareRecord, ... }
+                    const rawFunctions = newImported.default || newImported;
+                    functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
                 }
             } catch (error) {
                 console.error(`Error loading generated skill "${name}":`, error);
@@ -279,11 +296,13 @@ export class DBTableSkillsSubsystem {
 
                 const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                 const imported = await import(moduleUrl);
-                functions = imported.default || imported;
+                // Support both formats: { functions: { global: ... } } or flat { prepareRecord, ... }
+                const rawFunctions = imported.default || imported;
+                functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
             } else {
                 // Fallback: evaluate code in memory (not recommended)
                 console.warn(`  Warning: No output path for skill "${name}", code not persisted`);
-                functions = {};
+                functions = { global: {} };
             }
         }
 
@@ -377,8 +396,18 @@ Respond with JSON:
     createExecutionContext(functions, tableName) {
         const dbAdapter = this.dbAdapter;
 
+        // Debug: Log what we received
+        console.log('[DBTable DEBUG] createExecutionContext called for table:', tableName);
+        console.log('[DBTable DEBUG] functions keys:', Object.keys(functions || {}));
+        console.log('[DBTable DEBUG] functions.global keys:', Object.keys(functions?.global || {}));
+        console.log('[DBTable DEBUG] typeof functions.global.prepareRecord:', typeof functions?.global?.prepareRecord);
+        console.log('[DBTable DEBUG] typeof functions.global.presentRecord:', typeof functions?.global?.presentRecord);
+
         // If functions are already compiled (from module import), enhance them with DB operations
-        if (functions.global && typeof functions.global.selectRecords === 'function') {
+        // Check for prepareRecord or presentRecord since these are what the generated code exports
+        // (selectRecords is not exported by generated code - it's added by this context)
+        if (functions.global && (typeof functions.global.prepareRecord === 'function' || typeof functions.global.presentRecord === 'function')) {
+            console.log('[DBTable DEBUG] Using compiled functions path');
             // Add DB operation functions to the existing context
             const enhanced = { ...functions.global };
 
@@ -421,9 +450,12 @@ Respond with JSON:
                 return await dbAdapter.delete(tableName, id);
             };
 
+            console.log('[DBTable DEBUG] Enhanced keys:', Object.keys(enhanced));
+            console.log('[DBTable DEBUG] typeof enhanced.presentRecord:', typeof enhanced.presentRecord);
             return enhanced;
         }
 
+        console.log('[DBTable DEBUG] Using code string building path (fallback)');
         // Build a code string that defines all field functions and returns an object with global functions
         const allPresenters = Object.values(functions.presenters || {}).join('\n\n');
         const allResolvers = Object.values(functions.resolvers || {}).join('\n\n');
