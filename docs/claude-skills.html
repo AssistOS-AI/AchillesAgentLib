@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Skill System Overview","href":"overview.html"},
+            {"label":"Claude Skills"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Claude Skills</h1>
+            <p>
+                Claude skills are lightweight descriptors that surface documentation-like responses without executing any code or calling the LLM. They
+                act as reference cards for teams and allow the agent to return a formatted summary and body when users ask for quick guidance.
+            </p>
+            <nav class="page-links" aria-label="Skill families">
+                <a href="claude-skills.html" aria-current="page">Claude Skills</a>
+                <a href="interactive-skills.html">Interactive Skills</a>
+                <a href="dbtable-skills.html">DBTable Skills</a>
+                <a href="orchestration-skills.html">Orchestration Skills</a>
+                <a href="mcp-skills.html">MCP Skills</a>
+                <a href="code-skills.html">Code Skills</a>
+            </nav>
+        </section>
+
+        <section>
+            <h2>Where They Live</h2>
+            <p>
+                Each Claude skill lives under <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/skill.md</code>. There is no JavaScript entrypoint to
+                write—the Markdown alone is enough for discovery and execution by <code>ClaudeSkillsSubsystem</code>.
+            </p>
+<pre><code># Runbook: Reset Database Passwords
+
+## Summary
+How to reset a customer database password in production.
+
+## Body
+Use this guide when a customer cannot authenticate to their managed database cluster.
+1. Verify caller identity via support ticket.
+2. Rotate credentials through the admin portal.
+3. Confirm the rotation and note the timestamp in the incident log.
+</code></pre>
+            <p>
+                The first heading becomes the title; <strong>Summary</strong> and <strong>Body</strong> sections populate the metadata that the subsystem
+                returns when the skill is invoked.
+            </p>
+        </section>
+
+        <section>
+            <h2>Execution Behaviour</h2>
+            <p>
+                When invoked, Claude skills bypass the language model and simply return the descriptor content:
+            </p>
+            <ul>
+                <li><strong>Result shape:</strong> <code>{ summary, details, type: "claude" }</code></li>
+                <li><strong>Memory:</strong> No session memory is created.</li>
+                <li><strong>Side effects:</strong> None—perfect for quick references, onboarding notes, or capability catalogs.</li>
+            </ul>
+            <p>
+                Because they are deterministic and cheap to run, Claude skills make excellent landing points in orchestrators that need to explain a capability
+                or expose help text before branching to heavier flows.
+            </p>
+        </section>
+
+        <section>
+            <h2>Authoring Tips</h2>
+            <ul>
+                <li>Use concise summaries; keep the body instructional and scannable.</li>
+                <li>Group related skills under domain folders to keep discovery organised.</li>
+                <li>Pair with orchestration skills when you want a “help” intent that returns documentation before collecting inputs.</li>
+            </ul>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

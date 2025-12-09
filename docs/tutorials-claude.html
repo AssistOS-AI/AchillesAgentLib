@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Skill Tutorial · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Tutorials","href":"tutorials.html"},
+            {"label":"Claude Skills Tutorial"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Claude Skills Tutorial</h1>
+            <p>Author simple descriptor-only skills that return summaries and bodies without invoking the LLM.</p>
+            <nav class="page-links" aria-label="Tutorial navigation">
+                <a href="tutorials-claude.html" aria-current="page">Claude</a>
+                <a href="tutorials-interactive.html">Interactive</a>
+                <a href="tutorials-orchestration.html">Orchestration</a>
+                <a href="tutorials-mcp.html">MCP</a>
+                <a href="tutorials-code.html">Code</a>
+            </nav>
+        </section>
+
+        <section>
+            <h2>Repository Layout</h2>
+            <p>
+                Claude skills live under <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/</code> and require only a <code>skill.md</code> descriptor.
+                No JavaScript entrypoint is needed; <code>ClaudeSkillsSubsystem</code> returns the descriptor content directly.
+            </p>
+<pre><code>.AchillesSkills/
+└── docs/
+    └── runbook/
+        └── skill.md</code></pre>
+        </section>
+
+        <section>
+            <h2>Descriptor: <code>skill.md</code></h2>
+            <p>
+                The Markdown file provides a title (first heading), a summary, and a body. These fields are returned as metadata and a static result when the skill runs.
+            </p>
+<pre><code># Reset Database Passwords
+
+## Summary
+Steps for rotating a managed database password.
+
+## Body
+1. Verify the caller in the ticketing system.
+2. Rotate credentials in the admin portal.
+3. Confirm rotation and note the timestamp in the incident log.</code></pre>
+            <p>
+                When invoked, the runtime responds with the summary or title as the headline and the body text as details—no LLM calls or code execution.
+            </p>
+        </section>
+
+        <section>
+            <h2>Execution Behaviour</h2>
+            <ol>
+                <li><code>RecursiveSkilledAgent</code> discovers the descriptor and registers it under the folder name.</li>
+                <li><code>ClaudeSkillsSubsystem</code> prepares metadata (title, summary, sections).</li>
+                <li>Executing the skill returns <code>{ summary, details, type: 'claude' }</code> with <code>sessionMemory: null</code>.</li>
+            </ol>
+            <p>
+                This makes Claude skills ideal for help content, runbooks, or capability cards that should be deterministic and free to call.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

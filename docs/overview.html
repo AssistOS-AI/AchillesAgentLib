@@ -18,6 +18,7 @@
             <h1>Skill System Overview</h1>
             <p>This overview explains how Achilles Agents organises skills, repositories, and execution layers into a coherent orchestration platform.</p>
             <nav class="page-links" aria-label="Skill families">
+                <a href="claude-skills.html">Claude Skills</a>
                 <a href="interactive-skills.html">Interactive Skills</a>
                 <a href="dbtable-skills.html">DBTable Skills</a>
                 <a href="orchestration-skills.html">Orchestration Skills</a>
@@ -53,10 +54,13 @@
                     supervises nested plans and cancellations.</li>
             </ol>
             <p>
-                The flow can be visualised as:
+                The flow aligns with the runtime architecture:
             </p>
-            <pre><code>User Intent ─► Skill Discovery ─► Plan Construction (script or LLM)
-           └─────────► Argument Collection ─► Validated Execution ─► Observability & Memory</code></pre>
+            <pre><code>RecursiveSkilledAgent
+  ├─ Skill Discovery: scan .AchillesSkills/* for skill.md, cskill.md, iskill.md, mskill.md, oskill.md, tskill.md
+  ├─ Subsystem Router: claude | code | interactive | mcp | orchestrator | dbtable
+  ├─ LLMAgent: shared completion/review + session memory
+  └─ Execution: plan (LightSOPLang or LLM) → run skill → record history</code></pre>
         </section>
 
         <section>
@@ -66,12 +70,13 @@
                 lives in its own folder and is identified by the folder name:
             </p>
             <pre><code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/
-    ├── iskill.md | oskill.md | mskill.md | cskill.md | tskill.md   (descriptor)
-    └── &lt;skill_name&gt;.js                                (optional entrypoint)</code></pre>
+    ├── skill.md | iskill.md | oskill.md | mskill.md | cskill.md | tskill.md   (descriptor)
+    └── &lt;skill_name&gt;.mjs / .js                          (entrypoint when the family supports it)</code></pre>
             <p>
                 The descriptor suffix maps to the skill family:
             </p>
             <ul>
+                <li><code>skill.md</code> — Claude (static) skills that surface metadata only.</li>
                 <li><code>iskill.md</code> — interactive conversational skills.</li>
                 <li><code>tskill.md</code> — DBTable skills that describe CRUD workflows over structured tables.</li>
                 <li><code>oskill.md</code> — orchestration planners that may embed LightSOPLang scripts.</li>
@@ -79,15 +84,17 @@
                 <li><code>cskill.md</code> — code-execution skills with detailed prompts and LLM guidance.</li>
             </ul>
             <p>
-                Optional JavaScript entrypoints export <code>action</code>, <code>roles</code>, or any additional hooks required by
-                the scenario. The runtime merges the Markdown metadata with these entrypoints during discovery.
+                Interactive skills require a JavaScript module exporting <code>specs</code> and <code>action</code>; other families may provide
+                optional modules (for example, <code>cskill</code> modules supply an <code>action</code> executor, while <code>tskill</code> code is generated into
+                <code>tskill.generated.mjs</code>). Modules can also export a <code>roles</code> array which is recorded for future policy hooks, but it is not
+                enforced by the runtime today.
             </p>
         </section>
 
         <section>
             <h2>Skill Lifecycle</h2>
             <ol>
-                <li><strong>Declaration:</strong> Skill modules export descriptors with arguments, roles, hints, and optional LightSOPLang sections.</li>
+                <li><strong>Declaration:</strong> Skill descriptors capture arguments, hints, and optional LightSOPLang sections; modules add executable hooks and optional (currently informational) <code>roles</code> metadata.</li>
                 <li><strong>Registration:</strong> Metadata is normalised; enumerators, validators, and resolvers are bound.</li>
                 <li><strong>Selection:</strong> Requests route to orchestration scripts, static mappings, or LLM planners.</li>
                 <li><strong>Execution:</strong> Skill engines govern runtime behaviour (interactive prompts, MCP tool invocations, code evaluation).</li>
@@ -99,6 +106,7 @@
             <h2>Skill Families</h2>
             <p>Each family focuses on a distinct flavour of work:</p>
             <ul>
+                <li><strong>Claude Skills:</strong> Static descriptors (<code>skill.md</code>) that surface summaries and body content without LLM execution.</li>
                 <li><strong>Interactive Skills:</strong> Conversational flows with validation, placeholder detection, and natural language extraction.</li>
                 <li><strong>DBTable Skills:</strong> Table-centric CRUD operations defined in <code>tskill.md</code>, with automatic argument collection and Persisto integration.</li>
                 <li><strong>Orchestration Skills:</strong> LightSOPLang-driven script execution for high-level plans, including fallback behaviour.</li>

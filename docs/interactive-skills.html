@@ -24,6 +24,7 @@
                 structured data without exposing implementation trivia to the user.
             </p>
             <nav class="page-links" aria-label="Skill families">
+                <a href="claude-skills.html">Claude Skills</a>
                 <a href="interactive-skills.html" aria-current="page">Interactive Skills</a>
                 <a href="dbtable-skills.html">DBTable Skills</a>
                 <a href="orchestration-skills.html">Orchestration Skills</a>
@@ -35,10 +36,10 @@
         <section>
             <h2>Descriptor Snapshot</h2>
             <p>
-                Every interactive skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/iskill.md</code>. The descriptor explains the
-                scenario to the agent, lists the information the conversation must capture, and hints at tone or behaviour. Optional JavaScript files named
-                after the skill can extend the descriptor with enumerators, role constraints, or bespoke result handling, but the Markdown file remains the
-                primary source of truth.
+                Every interactive skill pairs a descriptor with an entrypoint module. Authors place <code>iskill.md</code> plus a matching
+                <code>&lt;skill_name&gt;.mjs</code>/<code>.js</code> in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/</code>. The descriptor
+                explains the scenario, required inputs, and tone; the module must export <code>specs</code> and <code>action</code> so the subsystem can
+                drive the conversation and perform the final action.
             </p>
             <pre><code># Assign Distribution Region
 
@@ -73,7 +74,8 @@ conversation business-friendly.
                 <li>Present a concise summary of the gathered data before triggering the action, mirroring the human-friendly descriptions from the descriptor.</li>
             </ul>
             <p>
-                This flow ensures that users always know what is still required and why certain answers may have been rejected.
+                This flow ensures that users always know what is still required and why certain answers may have been rejected. The module’s
+                <code>specs</code> and exported functions drive this conversation; without the module the subsystem will refuse to load the skill.
             </p>
         </section>
 

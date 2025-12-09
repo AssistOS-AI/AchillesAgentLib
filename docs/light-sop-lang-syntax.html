@@ -30,16 +30,25 @@
         <section>
             <h2>Statements and Variable Declarations</h2>
             <p>Every statement begins with the at-sign followed by a variable name. The interpreter treats the portion between the at-sign and the first space as the variable identifier. The next token is the command name. Remaining tokens become arguments. The parser in <code>lightSOPLang/parser.mjs</code> stores the declaration signature so the interpreter can determine when a subsequent update changes a variable.</p>
+            <pre><code>@input capture           # variable + command, no args
+@note annotate "with spaces"   # quoted literal
+@result combine $input $note tag-123   # variables and unquoted literal</code></pre>
         </section>
 
         <section>
             <h2>Arguments and Literals</h2>
-            <p>Arguments that start with a dollar sign are references to variables defined earlier in the script. The interpreter replaces them with the public value of the referenced variable before invoking the registry. Arguments that do not start with a dollar sign are treated as literals. Literal tokens preserve original casing and punctuation. Quoted strings are not required because the language tokenises on whitespace and passes the literal value verbatim. When the script needs to embed spaces inside a literal the author concatenates words using hyphens or underscores and lets the receiving command interpret the format. The orchestration tests show this approach in <code>planner/oskill.md</code> where intent tags such as <code>data-fetch</code> are written without quotes.</p>
+            <p>Arguments that start with a dollar sign are references to variables defined earlier in the script. The interpreter replaces them with the public value of the referenced variable before invoking the registry. Arguments that do not start with a dollar sign are treated as literals. Literal tokens preserve original casing and punctuation. Quoted strings (single or double) are supported and required when a literal contains spaces; the tokenizer also accepts escaped characters inside quotes. When no spaces are needed, write literals unquoted (e.g., <code>data-fetch</code>).</p>
+            <pre><code>@search query "status:open" urgent
+@echo emit $search "echoed message"</code></pre>
         </section>
 
         <section>
             <h2>Dependency Notation</h2>
             <p>Referencing a variable with the dollar prefix creates a dependency. The interpreter records these dependencies so it can compute a topological execution order. If a variable depends on another variable that has not been defined the interpreter throws a descriptive error while loading the script. Each variable may appear as an argument multiple times in the same statement; the interpreter treats every reference as a dependency.</p>
+            <pre><code>@raw fetch
+@clean normalize $raw
+@analyze analyze $clean
+@final final-answer $analyze "done"</code></pre>
         </section>
 
         <section>

@@ -39,7 +39,7 @@
 
         <section>
             <h2>Auto Cancellation</h2>
-            <p>The responder returned by <code>createCommandResponder</code> can emit cancellations when the auto cancel heuristic recognises phrases like “maintenance window” or other domain specific markers. The interpreter attaches the command name and heuristic details to the cancellation value. This information travels through dependent variables and eventually reaches the orchestration skill, which can decide whether to halt the entire plan.</p>
+            <p>The responder returned by <code>createCommandResponder</code> can emit cancellations. When <code>autoCancel</code> is enabled on the interpreter (or registry), command outputs are inspected by <code>cancelHeuristic</code>; strings or objects that look canceled/aborted (e.g., start with “cancel”, “stop”, or expose a <code>status</code> of <code>canceled</code>) are converted into cancellation values. The interpreter attaches the command name and heuristic details to the cancellation so dependent variables inherit the context.</p>
         </section>
 
         <section>
