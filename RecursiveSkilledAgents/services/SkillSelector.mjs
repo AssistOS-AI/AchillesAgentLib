@@ -2,6 +2,15 @@ import { createFlexSearchAdapter } from '../../utils/flexsearchAdapter.mjs';
 import { Sanitiser } from '../../utils/Sanitiser.mjs';
 
 /**
+ * Check if FlexSearch is disabled via environment variable.
+ * @returns {boolean} True if FlexSearch is disabled
+ */
+function isFlexSearchDisabled() {
+    const value = process.env.ACHILLES_DISABLE_FLEXSEARCH;
+    return value === '1' || value === 'true' || value === 'yes';
+}
+
+/**
  * Normalize a skill identifier using the Sanitiser utility.
  * @param {string} value - The value to sanitize
  * @returns {string} Sanitized name
@@ -45,6 +54,7 @@ export class SkillSelector {
     /**
      * Select the best orchestrator for a given task description.
      * Uses FlexSearch for text matching, falls back to heuristic scoring.
+     * Can be disabled via ACHILLES_DISABLE_FLEXSEARCH env var.
      * @param {string} taskDescription - The task to match
      * @param {Object[]} orchestrators - Available orchestrator skills
      * @returns {Object|null} The best matching orchestrator, or null
@@ -54,22 +64,25 @@ export class SkillSelector {
             return null;
         }
 
-        const index = createFlexSearchAdapter({ tokenize: 'forward' });
-        orchestrators.forEach((record, idx) => {
-            try {
-                index.add(String(idx), this.buildSearchText(record));
-            } catch (error) {
-                this.logger?.warn?.(`[SkillSelector] Failed to index orchestrator ${record.name}: ${error.message}`);
-            }
-        });
-
         this.debugLogger?.log('SkillSelector:selectOrchestrator:start', {
             taskDescription,
             orchestratorCount: orchestrators.length,
+            flexSearchDisabled: isFlexSearchDisabled(),
         });
 
         const query = typeof taskDescription === 'string' ? taskDescription.trim() : '';
-        if (query) {
+
+        // Use FlexSearch if not disabled
+        if (!isFlexSearchDisabled() && query) {
+            const index = createFlexSearchAdapter({ tokenize: 'forward' });
+            orchestrators.forEach((record, idx) => {
+                try {
+                    index.add(String(idx), this.buildSearchText(record));
+                } catch (error) {
+                    this.logger?.warn?.(`[SkillSelector] Failed to index orchestrator ${record.name}: ${error.message}`);
+                }
+            });
+
             try {
                 const matches = index.search(query, { limit: 1 }) || [];
                 if (matches.length) {
@@ -100,7 +113,7 @@ export class SkillSelector {
             }
         }
 
-        // Fallback to token-based scoring
+        // Fallback to token-based scoring (or primary method if FlexSearch disabled)
         const tokens = query
             ? query.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 2)
             : [];
