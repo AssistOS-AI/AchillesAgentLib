@@ -44,7 +44,8 @@
             </ul>
             <p>
                 <code>RecursiveSkilledAgent</code> discovers directories that contain <code>tskill.md</code>, assigns them canonical names like
-                <code>projects-dbtable</code>, and delegates preparation and execution to <code>DBTableSkillsSubsystem</code>.
+                <code>projects-dbtable</code>, and delegates preparation and execution to <code>DBTableSkillsSubsystem</code>. When callers omit args, the
+                subsystem injects the task description into the default argument <code>prompt</code> before execution.
             </p>
         </section>
 
@@ -109,8 +110,8 @@ Reject anything that is not one of planned/active/complete.</code></pre>
         <section>
             <h2>Supported Operations</h2>
             <p>
-                The runtime uses <code>LLMAgent</code> to classify the user prompt into CREATE, UPDATE, SELECT, or DELETE and extract any seed filters or data.
-                It then runs the generated helpers and uses the configured <code>dbAdapter</code> to apply the change:
+                The runtime uses <code>LLMAgent</code> to classify the user prompt into CREATE, UPDATE, SELECT, or DELETE, passing descriptor instructions and
+                a field list into that classification prompt. It then runs the generated helpers and uses the configured <code>dbAdapter</code> to apply the change:
             </p>
             <ul>
                 <li><strong>CREATE:</strong> Resolve and validate incoming fields, derive defaults, and insert via <code>dbAdapter.insert</code>.</li>
