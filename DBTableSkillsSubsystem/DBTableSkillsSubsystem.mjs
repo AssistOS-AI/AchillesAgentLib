@@ -6,9 +6,6 @@ import vm from 'node:vm';
 import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
 import { generateAllFunctions, serializeFunctions } from './FunctionGenerator.mjs';
 
-// Debug marker to identify which copy of this file is loaded
-console.log('[DBTable] Loading DBTableSkillsSubsystem from:', import.meta.url);
-
 /**
  * Extract Code Generation Prompt from .specs.md content
  */
@@ -298,16 +295,10 @@ export class DBTableSkillsSubsystem {
                 console.log(`  Written to: ${generatedPath}`);
 
                 const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
-                console.log('[DBTable DEBUG] Importing generated module from:', moduleUrl);
                 const imported = await import(moduleUrl);
-                console.log('[DBTable DEBUG] imported keys:', Object.keys(imported));
-                console.log('[DBTable DEBUG] imported.default keys:', Object.keys(imported.default || {}));
                 // Support both formats: { functions: { global: ... } } or flat { prepareRecord, ... }
                 const rawFunctions = imported.default || imported;
-                console.log('[DBTable DEBUG] rawFunctions keys:', Object.keys(rawFunctions));
-                console.log('[DBTable DEBUG] rawFunctions.global:', rawFunctions.global);
                 functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
-                console.log('[DBTable DEBUG] final functions.global keys:', Object.keys(functions.global || {}));
             } else {
                 // Fallback: evaluate code in memory (not recommended)
                 console.warn(`  Warning: No output path for skill "${name}", code not persisted`);
@@ -316,11 +307,6 @@ export class DBTableSkillsSubsystem {
         }
 
         // Store metadata
-        console.log('[DBTable DEBUG] Storing metadata for skill:', name);
-        console.log('[DBTable DEBUG] functions object exists:', !!functions);
-        console.log('[DBTable DEBUG] functions.global exists:', !!functions?.global);
-        console.log('[DBTable DEBUG] functions.global keys at storage:', Object.keys(functions?.global || {}));
-
         skillRecord.metadata = {
             type: 'dbtable',
             tableName: parsedSkill.tableName,
@@ -337,10 +323,8 @@ export class DBTableSkillsSubsystem {
         };
 
         // Create executor
-        console.log('[DBTable DEBUG] Creating executor for skill:', name);
         const executor = this.createExecutor(skillRecord, parsedSkill, functions);
         this.executors.set(name, executor);
-        console.log('[DBTable DEBUG] Executor stored for skill:', name);
 
         // Store parsed skill in cache
         this.cache.set(name, parsedSkill);
@@ -350,15 +334,7 @@ export class DBTableSkillsSubsystem {
      * Create an executor function for the skill
      */
     createExecutor(skillRecord, parsedSkill, functions) {
-        // Debug: Log what functions are captured in this closure
-        console.log('[DBTable DEBUG] createExecutor called, functions.global keys:', Object.keys(functions?.global || {}));
-
         return async ({ prompt }, context) => {
-            // Debug: Log when executor runs
-            console.log('[DBTable DEBUG] Executor running for:', skillRecord.name);
-            console.log('[DBTable DEBUG] Closure functions.global exists:', !!functions?.global);
-            console.log('[DBTable DEBUG] Closure functions.global keys:', Object.keys(functions?.global || {}));
-
             if (!prompt || typeof prompt !== 'string') {
                 throw new Error(`DBTable skill "${skillRecord.name}" requires a prompt argument`);
             }
@@ -401,8 +377,6 @@ Respond with JSON:
     "data": {} // for CREATE/UPDATE operations
 }`;
 
-            console.log('[DBTable DEBUG] Operation prompt fields:', fieldInfo);
-
             const operation = await withTimeout(
                 this.llmAgent.executePrompt(operationPrompt, {
                     mode: 'fast',
@@ -411,8 +385,6 @@ Respond with JSON:
                 SKILL_TIMEOUT_MS,
                 () => new Error(`DBTable operation analysis timed out`)
             );
-
-            console.log('[DBTable DEBUG] LLM operation result:', JSON.stringify(operation, null, 2));
 
             // Execute the appropriate operation flow
             let result;
@@ -443,18 +415,10 @@ Respond with JSON:
     createExecutionContext(functions, tableName) {
         const dbAdapter = this.dbAdapter;
 
-        // Debug: Log what we received
-        console.log('[DBTable DEBUG] createExecutionContext called for table:', tableName);
-        console.log('[DBTable DEBUG] functions keys:', Object.keys(functions || {}));
-        console.log('[DBTable DEBUG] functions.global keys:', Object.keys(functions?.global || {}));
-        console.log('[DBTable DEBUG] typeof functions.global.prepareRecord:', typeof functions?.global?.prepareRecord);
-        console.log('[DBTable DEBUG] typeof functions.global.presentRecord:', typeof functions?.global?.presentRecord);
-
         // If functions are already compiled (from module import), enhance them with DB operations
         // Check for prepareRecord or presentRecord since these are what the generated code exports
         // (selectRecords is not exported by generated code - it's added by this context)
         if (functions.global && (typeof functions.global.prepareRecord === 'function' || typeof functions.global.presentRecord === 'function')) {
-            console.log('[DBTable DEBUG] Using compiled functions path');
             // Add DB operation functions to the existing context
             const enhanced = { ...functions.global };
 
@@ -508,7 +472,6 @@ Respond with JSON:
                         presenterFns[fieldName] = fn;
                     }
                 }
-                console.log('[DBTable DEBUG] Creating default presentRecord with presenters for:', Object.keys(presenterFns));
 
                 enhanced.presentRecord = async function presentRecord(record) {
                     if (!record) return record;
@@ -527,12 +490,9 @@ Respond with JSON:
                 };
             }
 
-            console.log('[DBTable DEBUG] Enhanced keys:', Object.keys(enhanced));
-            console.log('[DBTable DEBUG] typeof enhanced.presentRecord:', typeof enhanced.presentRecord);
             return enhanced;
         }
 
-        console.log('[DBTable DEBUG] Using code string building path (fallback)');
         // Build a code string that defines all field functions and returns an object with global functions
         const allPresenters = Object.values(functions.presenters || {}).join('\n\n');
         const allResolvers = Object.values(functions.resolvers || {}).join('\n\n');
