@@ -1,6 +1,7 @@
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import LightSOPLangInterpreter, { DefaultExecutionMonitor } from '../lightSOPLang/index.mjs';
+import { createAgentClient } from './AgentClient.js';
 
 const DEFAULT_PLAN_LIMIT = 3;
 const SECTION_ALIASES = {
@@ -70,11 +71,105 @@ function buildSelectionPrompt({
     return guidance.join('\n');
 }
 
+function parseArguments(argumentValue, fallbackPrompt = '') {
+    if (argumentValue && typeof argumentValue === 'object') {
+        return argumentValue;
+    }
+
+    if (typeof argumentValue === 'string') {
+        const trimmed = argumentValue.trim();
+        const fenceMatch = trimmed.match(/^```[a-zA-Z]*\s*([\s\S]*?)```$/);
+        const body = fenceMatch ? fenceMatch[1].trim() : trimmed;
+        if (!body) {
+            return fallbackPrompt;
+        }
+        try {
+            const parsed = JSON.parse(body);
+            if (parsed && typeof parsed === 'object') {
+                return parsed;
+            }
+        } catch {
+            // Not JSON, fall through to return the raw text
+        }
+        return body;
+    }
+
+    return fallbackPrompt;
+}
+
+function normaliseTools(tools = []) {
+    if (!Array.isArray(tools)) {
+        return [];
+    }
+    return tools
+        .map((tool) => ({
+            ...tool,
+            name: tool?.name || tool?.id || '',
+        }))
+        .filter((tool) => tool.name);
+}
+
 export class MCPSkillsSubsystem {
     constructor({ llmAgent = null } = {}) {
         this.type = 'mcp';
         this.llmAgent = llmAgent;
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
+    }
+
+    async executePlanWithClient({ client, plan = [], promptText, allowedTools = [] }) {
+        if (!client || typeof client.callTool !== 'function') {
+            throw new Error('MCP tool execution requested but no valid AgentClient was provided.');
+        }
+
+        let availableTools = [];
+        try {
+            availableTools = normaliseTools(await client.listTools());
+        } catch (error) {
+            const detail = error?.message || String(error);
+            throw new Error(`Failed to list tools from MCP server: ${detail}`);
+        }
+
+        const filteredTools = this.filterTools(allowedTools, availableTools);
+        const allowedNames = new Set(filteredTools.map((tool) => Sanitiser.sanitiseName(tool.name)));
+
+        const executions = [];
+        for (const step of plan) {
+            const requestedKey = Sanitiser.sanitiseName(step.tool);
+            if (!allowedNames.has(requestedKey)) {
+                executions.push({
+                    ...step,
+                    status: 'failed',
+                    arguments: null,
+                    response: null,
+                    error: `Tool "${step.tool}" is not available from MCP server.`,
+                });
+                continue;
+            }
+
+            const rawArgs = step?.args ?? step?.arguments;
+            const args = parseArguments(rawArgs, promptText);
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                const response = await client.callTool(step.tool, args);
+                executions.push({
+                    ...step,
+                    status: 'ok',
+                    arguments: args,
+                    response,
+                    error: null,
+                });
+            } catch (error) {
+                executions.push({
+                    ...step,
+                    status: 'failed',
+                    arguments: args,
+                    response: null,
+                    error: error?.message || String(error),
+                });
+            }
+        }
+
+        return executions;
     }
 
     prepareSkill(skillRecord) {
@@ -97,8 +192,7 @@ export class MCPSkillsSubsystem {
         };
     }
 
-    filterTools(skillRecord, availableTools = []) {
-        const allowList = skillRecord.metadata?.allowedTools || [];
+    filterTools(allowList = [], availableTools = []) {
         if (!allowList.length) {
             return availableTools.slice();
         }
@@ -139,7 +233,8 @@ export class MCPSkillsSubsystem {
 
                 planSteps.push({
                     tool: entry.tool.name,
-                    arguments: argumentText,
+                    args: argumentText,
+                    arguments: argumentText, // keep legacy field for compatibility
                     why: reasonText,
                 });
 
@@ -156,7 +251,8 @@ export class MCPSkillsSubsystem {
     }
 
     async executeScriptPlan({ skillRecord, promptText, tools }) {
-        const filteredTools = this.filterTools(skillRecord, tools);
+        const allowList = skillRecord?.metadata?.allowedTools || [];
+        const filteredTools = this.filterTools(allowList, tools);
         if (!filteredTools.length) {
             throw new Error(`MCP skill "${skillRecord.name}" requires at least one allowed tool.`);
         }
@@ -197,7 +293,8 @@ export class MCPSkillsSubsystem {
     }
 
     async generatePlan({ skillRecord, promptText, tools }) {
-        const filteredTools = this.filterTools(skillRecord, tools);
+        const allowList = skillRecord?.metadata?.allowedTools || [];
+        const filteredTools = this.filterTools(allowList, tools);
         const planLimit = skillRecord.metadata?.planLimit || DEFAULT_PLAN_LIMIT;
         this.debugLogger?.log('MCPSkillsSubsystem:generatePlan:start', {
             skill: skillRecord.name,
@@ -254,11 +351,13 @@ export class MCPSkillsSubsystem {
             if (!allowedLookup.has(toolKey)) {
                 throw new Error(`LLM selected tool "${step.tool}" which is not permitted for skill "${skillRecord.name}".`);
             }
+            const argValue = typeof step.arguments === 'string' && step.arguments.trim()
+                ? step.arguments
+                : (promptText || '');
             steps.push({
                 tool: allowedLookup.get(toolKey),
-                arguments: typeof step.arguments === 'string' && step.arguments.trim()
-                    ? step.arguments
-                    : (promptText || ''),
+                args: argValue,
+                arguments: argValue, // maintain legacy field for consumers expecting "arguments"
                 why: typeof step.why === 'string' ? step.why : '',
             });
         }
@@ -279,45 +378,107 @@ export class MCPSkillsSubsystem {
     }
 
     async executeSkillPrompt({ skillRecord, promptText, options = {} }) {
-        const tools = Array.isArray(options.availableTools)
-            ? options.availableTools.map((tool) => ({
-                ...tool,
-                name: tool.name || tool.id || '',
-            })).filter((tool) => tool.name)
-            : [];
+        let tools = normaliseTools(options.availableTools);
+
+        const clientFactoryUrl = options.agentClientBaseUrl;
+        let agentClient = options.agentClient || null;
+        let createdClient = false;
+        const shouldExecute = Boolean(clientFactoryUrl);
+
+        if (!agentClient && clientFactoryUrl) {
+            agentClient = createAgentClient(clientFactoryUrl);
+            createdClient = true;
+        }
+
+        const allowList = skillRecord.metadata?.allowedTools || [];
+
+        if (!tools.length && shouldExecute && typeof agentClient?.listTools === 'function') {
+            try {
+                tools = normaliseTools(await agentClient.listTools());
+            } catch (error) {
+                if (createdClient) {
+                    try { await agentClient.close(); } catch (_) { /* ignore */ }
+                }
+                const detail = error?.message || String(error);
+                throw new Error(`Failed to list MCP tools for skill "${skillRecord.name}": ${detail}`);
+            }
+        }
+
+        tools = this.filterTools(allowList, tools);
 
         const script = (skillRecord.metadata?.script || '').trim();
         if (script) {
-            return this.executeScriptPlan({
+            let outcome;
+            try {
+                outcome = await this.executeScriptPlan({
+                    skillRecord,
+                    promptText,
+                    tools,
+                });
+
+                if (shouldExecute) {
+                    if (!agentClient) {
+                        throw new Error(`MCP skill "${skillRecord.name}" requested tool execution but no agent client was provided. Set agentClientBaseUrl or pass an agentClient instance.`);
+                    }
+                    outcome.result.executions = await this.executePlanWithClient({
+                        client: agentClient,
+                        plan: outcome.result.plan || [],
+                        promptText,
+                        allowedTools: skillRecord.metadata?.allowedTools || [],
+                    });
+                }
+            } finally {
+                if (createdClient) {
+                    try { await agentClient.close(); } catch (_) { /* ignore */ }
+                }
+            }
+            return outcome;
+        }
+
+        let plan;
+        try {
+            plan = await this.generatePlan({
                 skillRecord,
                 promptText,
                 tools,
             });
+
+            this.debugLogger?.log('MCPSkillsSubsystem:executeSkillPrompt', {
+                skill: skillRecord.name,
+                planSteps: plan.plan.length,
+            });
+
+            const result = {
+                skill: skillRecord.name,
+                metadata: skillRecord.metadata || null,
+                result: {
+                    type: this.type,
+                    prompt: promptText,
+                    instructions: skillRecord.metadata?.instructions || '',
+                    plan: plan.plan,
+                    notes: plan.notes,
+                    availableTools: this.filterTools(skillRecord, tools),
+                },
+                sessionMemory: null,
+            };
+
+            if (shouldExecute) {
+                if (!agentClient) {
+                    throw new Error(`MCP skill "${skillRecord.name}" requested tool execution but no agent client was provided. Set agentClientBaseUrl or pass an agentClient instance.`);
+                }
+                result.result.executions = await this.executePlanWithClient({
+                    client: agentClient,
+                    plan: plan.plan,
+                    promptText,
+                    allowedTools: skillRecord.metadata?.allowedTools || [],
+                });
+            }
+
+            return result;
+        } finally {
+            if (createdClient) {
+                try { await agentClient.close(); } catch (_) { /* ignore */ }
+            }
         }
-
-        const plan = await this.generatePlan({
-            skillRecord,
-            promptText,
-            tools,
-        });
-
-        this.debugLogger?.log('MCPSkillsSubsystem:executeSkillPrompt', {
-            skill: skillRecord.name,
-            planSteps: plan.plan.length,
-        });
-
-        return {
-            skill: skillRecord.name,
-            metadata: skillRecord.metadata || null,
-            result: {
-                type: this.type,
-                prompt: promptText,
-                instructions: skillRecord.metadata?.instructions || '',
-                plan: plan.plan,
-                notes: plan.notes,
-                availableTools: this.filterTools(skillRecord, tools),
-            },
-            sessionMemory: null,
-        };
     }
 }
