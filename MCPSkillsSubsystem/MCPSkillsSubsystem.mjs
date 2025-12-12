@@ -200,8 +200,9 @@ export class MCPSkillsSubsystem {
         return availableTools.filter((tool) => allowedSet.has(Sanitiser.sanitiseName(tool.name)));
     }
 
-    buildScriptCommandRegistry({ promptText, filteredTools, planSteps }) {
+    buildScriptCommandRegistry({ promptText, filteredTools, planSteps, options }) {
         const promptCommand = 'prompt';
+        const workspaceRootCommand = 'workspaceroot';
         const toolLookup = new Map();
 
         filteredTools.forEach((tool) => {
@@ -219,6 +220,10 @@ export class MCPSkillsSubsystem {
                 const normalized = Sanitiser.sanitiseName(command);
                 if (normalized === promptCommand) {
                     return response.success(promptText);
+                }
+                if (normalized === workspaceRootCommand) {
+                    const root = options?.context?.workspaceRoot || process.cwd();
+                    return response.success(root);
                 }
 
                 const entry = toolLookup.get(normalized);
@@ -242,6 +247,7 @@ export class MCPSkillsSubsystem {
             },
             listCommands: () => [
                 { name: promptCommand, description: 'Returns the original prompt text' },
+                { name: workspaceRootCommand, description: 'Returns the workspace root directory path' },
                 ...filteredTools.map((tool) => ({
                     name: tool.name,
                     description: tool.description || tool.summary || '',
@@ -250,7 +256,7 @@ export class MCPSkillsSubsystem {
         };
     }
 
-    async executeScriptPlan({ skillRecord, promptText, tools }) {
+    async executeScriptPlan({ skillRecord, promptText, tools, options }) {
         const allowList = skillRecord?.metadata?.allowedTools || [];
         const filteredTools = this.filterTools(allowList, tools);
         if (!filteredTools.length) {
@@ -267,6 +273,7 @@ export class MCPSkillsSubsystem {
             promptText,
             filteredTools,
             planSteps,
+            options,
         });
 
         const interpreter = new LightSOPLangInterpreter(script, registry, promptText, {
@@ -414,6 +421,7 @@ export class MCPSkillsSubsystem {
                     skillRecord,
                     promptText,
                     tools,
+                    options,
                 });
 
                 if (shouldExecute) {
