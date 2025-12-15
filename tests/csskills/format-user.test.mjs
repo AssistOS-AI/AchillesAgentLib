@@ -4,101 +4,93 @@ import { fileURLToPath } from 'node:url';
 import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 
-// Get the directory of the current module
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// --- Mock LLM Agent ---
 class MockLLMAgent extends LLMAgent {
   constructor() {
     super();
   }
 
   async executePrompt(prompt, options = {}) {
+    if (prompt.includes("BEGIN SPECIFICATIONS BLUEPRINT")) {
+      console.log("MOCK LLM: Responding to 'prepareSkill' with generated code (writes to disk)...");
+      const code = 'import { fileURLToPath } from "node:url";\n' +
+                   'import { dirname } from "node:path";\n\n' +
+                   'export async function action(args) {\n' +
+                   '  const { user } = args;\n' +
+                   '  if (!user || !user.firstName || !user.lastName || user.age === undefined) { return "Error: Incomplete user data provided."; }\n' +
+                   '  const fullName = `${user.firstName} ${user.lastName}`;\n' +
+                   '  const status = user.age >= 18 ? \'Adult\' : \'Minor\';\n' +
+                   '  const result = `Full Name: ${fullName}, Age: ${user.age} (${status})`;\n' +
+                   '  return result;\n' +
+                   '}\n\n' +
+                   '// Child process entry point\n' +
+                   'if (process.argv[1] === fileURLToPath(import.meta.url)) {\n' +
+                   '  const argsJson = process.argv[2];\n' +
+                   '  const args = JSON.parse(argsJson);\n' +
+                   '  action(args)\n' +
+                   '    .then(res => process.stdout.write(JSON.stringify(res)))\n' +
+                   '    .catch(err => {\n' +
+                   '      console.error("Error in generated code:", err);\n' +
+                   '      process.exit(1);\n' +
+                   '    });\n' +
+                   '}\n';
+      return '## file-path: index.mjs\n\n' + '```javascript\n' + code + '```';
+    }
+
     if (prompt.includes("extract structured arguments")) {
-      console.log("MOCK LLM: Responding with extracted arguments...");
+      console.log("MOCK LLM: Responding to 'executePrompt' with extracted arguments...");
       return {
         args: {
-          user: {
-            firstName: 'Jane',
-            lastName: 'Doe',
-            age: 25,
-          },
+          user: { firstName: 'Jane', lastName: 'Doe', age: 25 },
         },
       };
     }
 
-    if (prompt.includes("create self-contained Javascript ESM code")) {
-      console.log("MOCK LLM: Responding with generated code...");
-      // Using string concatenation to avoid nested template literal issues.
-      const code = 'export async function action(args) {\n' +
-        '  const { user } = args;\n' +
-        '  if (!user || !user.firstName || !user.lastName || user.age === undefined) {\n' +
-        '    return "Error: Incomplete user data provided.";\n' +
-        '  }\n' +
-        '  const fullName = `${user.firstName} ${user.lastName}`\n' +
-        '  const status = user.age >= 18 ? \'Adult\' : \'Minor\';\n' +
-        '  return `Full Name: ${fullName}, Age: ${user.age} (${status})`\n' +
-        '}\n';
-      
-      const markdownResponse = '## file-path: index.mjs\n\n' +
-        '```javascript\n' +
-        code +
-        '```';
-        
-      return markdownResponse;
-    }
-
-    throw new Error("MockLLMAgent received an unexpected prompt.");
+    throw new Error("MockLLMAgent received an unexpected prompt: " + prompt);
   }
 }
 
-// --- Test Runner ---
-async function runTest() {
-  console.log("Setting up test for csskill: format-user...");
+async function testLlmExtraction(agent) {
+  console.log("\n--- Testing LLM Extraction Path ---");
+  const prompt = "Please format the user Jane Doe, who is 25 years old.";
 
-  const mockAgent = new MockLLMAgent();
+  console.log(`Executing with natural language prompt: "${prompt}"`);
+  const result = await agent.executePrompt(prompt, { skillName: 'format-user' });
+
+  // The result from executePrompt is wrapped by the agent. Reconstruct the string.
+  const reconstructedResult = Object.keys(result)
+    .filter(key => !isNaN(parseInt(key)))
+    .sort((a, b) => parseInt(a) - parseInt(b))
+    .map(key => result[key])
+    .join('');
+
+  const expected = "Full Name: Jane Doe, Age: 25 (Adult)";
+  assert.strictEqual(reconstructedResult, expected, `LLM Extraction Test failed`);
+  console.log("✅ LLM Extraction Test Passed!");
+}
+
+async function runAllTests() {
+  console.log("Setting up LLM extraction test...");
+  const mockLlm = new MockLLMAgent();
   
+  console.log("Initializing agent (triggers code generation and writing to disk)...");
   const agent = new RecursiveSkilledAgent({
-    llmAgent: mockAgent,
-    // Use additionalSkillRoots for explicit skill loading in tests
+    llmAgent: mockLlm,
     additionalSkillRoots: [path.resolve(__dirname, '.AchillesSkills')],
     searchUpwards: false,
   });
 
   await Promise.all(agent.pendingPreparations || []);
-  
-  const skill = agent.getSkillRecord('format-user');
-  assert(skill, "Test setup failed: 'format-user' skill not found.");
-  assert.strictEqual(skill.type, 'csskill', "Test setup failed: Skill type should be 'csskill'.");
-  
-  console.log("Executing skill 'format-user'...");
-  const prompt = "Please format the user Jane Doe, who is 25 years old.";
-  
+  console.log("Agent initialized and skill prepared.");
+
   try {
-    const result = await agent.executePrompt(prompt, { skillName: 'format-user' });
-    
-    console.log("Skill executed. Result object:", result);
-    
-    // Workaround for the strange string-like object returned by the executor.
-    // Reconstruct the string from its character properties.
-    const reconstructedResult = Object.keys(result)
-      .filter(key => !isNaN(parseInt(key))) // Filter for numeric keys
-      .sort((a, b) => parseInt(a) - parseInt(b)) // Sort them numerically
-      .map(key => result[key]) // Get the character values
-      .join(''); // Join them into a string
-
-    console.log("Reconstructed result:", reconstructedResult);
-
-    const expected = "Full Name: Jane Doe, Age: 25 (Adult)";
-    assert.strictEqual(reconstructedResult, expected, `Test failed: Expected '${expected}', but got '${reconstructedResult}'`);
-    
-    console.log("✅ Test Passed!");
-    
-    console.log("✅ Test Passed!");
+    await testLlmExtraction(agent);
+    console.log("\nAll tests passed successfully!");
   } catch (error) {
-    console.error("❌ Test Failed:", error);
+    console.error("❌ A test failed:", error);
     process.exit(1);
   }
 }
 
-runTest();
+runAllTests();

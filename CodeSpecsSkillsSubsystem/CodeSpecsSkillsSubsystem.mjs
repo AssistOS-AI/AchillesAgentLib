@@ -1,159 +1,203 @@
-import {SourceTextModule, createContext} from 'node:vm';
-import {readdirSync, readFileSync, statSync} from 'node:fs';
-import {join, resolve} from 'node:path';
-import {buildArgumentExtractionPrompt, buildCodeGenerationPrompt} from './prompts.mjs';
+import { readdir, readFile, stat, mkdir, rm, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { fork } from 'node:child_process';
+import { buildArgumentExtractionPrompt, buildCodeGenerationPrompt } from './prompts.mjs';
 
 function camelCaseKeys(obj) {
-    if (!obj) return {};
-    const newObj = {};
-    for (const key in obj) {
-        const camelCasedKey = key.replace(/-(\w)/g, (_, c) => c.toUpperCase());
-        newObj[camelCasedKey] = obj[key];
-    }
-    return newObj;
+  if (!obj) return {};
+  const newObj = {};
+  for (const key in obj) {
+    const camelCasedKey = key.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+    newObj[camelCasedKey] = obj[key];
+  }
+  return newObj;
 }
 
 export class CodeSpecsSkillsSubsystem {
-    constructor({llmAgent}) {
-        this.llmAgent = llmAgent;
+  constructor({ llmAgent }) {
+    this.llmAgent = llmAgent;
+  }
+
+  async prepareSkill(skillRecord) {
+    console.log(`[CodeSpecs] Preparing skill: ${skillRecord.name}`);
+    const specifications = this.getSpecifications(skillRecord);
+    const { specsPath } = specifications;
+    if (!specsPath) {
+      console.warn(`[CodeSpecs] WARN: Skill '${skillRecord.name}' is missing 'Specs Path'. Skipping preparation.`);
+      return;
+    }
+    const specsDir = resolve(skillRecord.skillDir, specsPath);
+    const { content: externalSpecsContent, signature } = await this.readExternalSpecs(specsDir);
+    const generatedMarkdown = await this.generateCode(specifications, {}, externalSpecsContent);
+
+    // Write generated code to skillDir/src/
+    const outputPath = join(skillRecord.skillDir, 'src');
+    await this.writeGeneratedCodeToDisk(outputPath, generatedMarkdown);
+
+    // Cache the signature of the specs for rebuild detection
+    skillRecord.specsSignature = signature;
+    console.log(`[CodeSpecs] Finished preparing skill: ${skillRecord.name}.`);
+  }
+
+  async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options }) {
+    this.llmAgent = recursiveAgent.llmAgent;
+    const specifications = this.getSpecifications(skillRecord);
+    if (!specifications.specsPath || !specifications.inputFormat) {
+      throw new Error("Invalid/unprepared csskill: Missing 'Specs Path' or 'Input Format'.");
     }
 
-    readExternalSpecs(basePath) {
-        let allSpecsContent = '';
-        const filesToRead = readdirSync(basePath);
-
-        for (const file of filesToRead) {
-            const fullPath = join(basePath, file);
-            const stat = statSync(fullPath);
-
-            if (stat.isDirectory()) {
-                allSpecsContent += this.readExternalSpecs(fullPath);
-            } else if (file.endsWith('.md') || file.endsWith('.mds')) {
-                const fileContent = readFileSync(fullPath, 'utf-8');
-                allSpecsContent += `# File: ${fullPath}\n---\n${fileContent}\n---\n\n`;
-            }
-        }
-        return allSpecsContent;
+    const specsDir = resolve(skillRecord.skillDir, specifications.specsPath);
+    const { signature: currentSignature } = await this.readExternalSpecs(specsDir);
+    if (currentSignature !== skillRecord.specsSignature) {
+      console.log(`[CodeSpecs] WARN: Spec signature mismatch for '${skillRecord.name}'. Re-building...`);
+      await this.prepareSkill(skillRecord);
     }
 
-    async executeSkillPrompt({skillRecord, recursiveAgent, promptText, options}) {
-        this.llmAgent = recursiveAgent.llmAgent;
+    const args = await this.extractArguments(promptText, specifications);
+    
+    // Execute the already generated code from disk
+    const outputPath = join(skillRecord.skillDir, 'src');
+    const result = await this.executeCodeFromDisk(outputPath, args);
+    return result;
+  }
 
-        if (!skillRecord.descriptor || !skillRecord.descriptor.sections) {
-            throw new Error("Skill record is missing the pre-parsed descriptor sections.");
-        }
-        const specifications = camelCaseKeys(skillRecord.descriptor.sections);
+  getSpecifications(skillRecord) {
+    const specifications = camelCaseKeys(skillRecord.descriptor.sections);
+    if (skillRecord.descriptor.summary) {
+      specifications.summary = skillRecord.descriptor.summary;
+    }
+    if (skillRecord.descriptor.title) {
+        specifications.title = skillRecord.descriptor.title;
+    }
+    return specifications;
+  }
 
-        if (skillRecord.descriptor.summary) {
-            specifications.summary = skillRecord.descriptor.summary;
-        }
+  async readExternalSpecs(basePath, fileList = []) {
+    const files = await readdir(basePath);
 
-        if (!specifications.specsPath) {
-            throw new Error("Invalid csskill.md format: Missing 'Specs Path' section.");
-        }
-        if (!specifications.inputFormat || !specifications.outputFormat) {
-            throw new Error("Invalid csskill.md format: Missing 'Input Format' or 'Output Format' sections.");
-        }
-
-        const specsDir = resolve(skillRecord.skillDir, specifications.specsPath);
-        const externalSpecsContent = this.readExternalSpecs(specsDir);
-
-        const args = await this.extractArguments(promptText, specifications.inputFormat);
-        const generatedMarkdown = await this.generateCode(specifications, args, externalSpecsContent);
-        const result = await this.executeGeneratedCode(generatedMarkdown, args);
-
-        return result;
+    for (const file of files) {
+      const fullPath = join(basePath, file);
+      const fileStat = await stat(fullPath);
+      if (fileStat.isDirectory()) {
+        await this.readExternalSpecs(fullPath, fileList);
+      } else if (file.endsWith('.md') || file.endsWith('.mds')) {
+        fileList.push({ path: fullPath, mtime: fileStat.mtime.getTime() });
+      }
     }
 
-    async extractArguments(userPrompt, inputFormat) {
-        const prompt = buildArgumentExtractionPrompt(userPrompt, inputFormat);
-        const response = await this.llmAgent.executePrompt(prompt, {responseShape: 'json', mode: 'fast'});
+    fileList.sort((a, b) => a.path.localeCompare(b.path));
 
-        if (response.error) {
-            throw new Error(`Failed to extract arguments: ${response.error}`);
-        }
-        if (!response.args) {
-            throw new Error(`Argument extraction failed. LLM did not return an "args" object. Response: ${JSON.stringify(response)}`);
-        }
-        return response.args;
+    let allSpecsContent = '';
+    let signature = '';
+    for (const file of fileList) {
+      const fileContent = await readFile(file.path, 'utf-8');
+      allSpecsContent += `# File: ${file.path}\n---\n${fileContent}\n---\n\n`;
+      signature += `${file.path}=${file.mtime};`;
     }
 
-    async generateCode(specifications, args, externalSpecsContent) {
-        const prompt = buildCodeGenerationPrompt(specifications, args, externalSpecsContent);
-        return await this.llmAgent.executePrompt(prompt, {mode: 'deep'});
+    return { content: allSpecsContent, signature };
+  }
+
+  async extractArguments(userPrompt, specifications) {
+    console.log('[CodeSpecs] Extracting arguments with LLM.');
+    const prompt = buildArgumentExtractionPrompt(userPrompt, specifications.inputFormat);
+    const response = await this.llmAgent.executePrompt(prompt, { responseShape: 'json', mode: 'fast' });
+    if (response.error || !response.args) {
+      throw new Error(`Argument extraction failed: ${response.error || 'LLM did not return an "args" object.'}`);
+    }
+    return response.args;
+  }
+
+  async generateCode(specifications, args, externalSpecsContent) {
+    const prompt = buildCodeGenerationPrompt(specifications, args, externalSpecsContent);
+    return await this.llmAgent.executePrompt(prompt, { mode: 'deep' });
+  }
+  
+  parseMarkdownCodeBlocks(markdown) {
+    const codeBlocks = new Map();
+    const fileBlockPattern = /##\s*file-path:\s*([^\s]+)\s*\n+```javascript\n([\s\S]+?)\n```/g;
+    let match;
+    while ((match = fileBlockPattern.exec(markdown)) !== null) {
+      codeBlocks.set(match[1], match[2]);
+    }
+    return codeBlocks;
+  }
+
+  async writeGeneratedCodeToDisk(outputPath, generatedMarkdown) {
+    console.log(`[CodeSpecs] Writing generated code to disk: ${outputPath}`);
+    // Ensure the output directory exists and is clean
+    try {
+      const outputStat = await stat(outputPath);
+      if (outputStat.isDirectory()) {
+        await rm(outputPath, { recursive: true, force: true });
+      }
+    } catch (err) {
+      // Directory doesn't exist, which is fine
+    }
+    await mkdir(outputPath, { recursive: true });
+
+    const codeBlocks = this.parseMarkdownCodeBlocks(generatedMarkdown);
+    if (!codeBlocks.has('index.mjs')) {
+      throw new Error("Code generation failed: 'index.mjs' not found in generated markdown.");
     }
 
-    parseVirtualModules(markdown) {
-        const modules = new Map();
-        const fileRegex = /##\s*file-path:\s*([^\s]+)\s*\n+```javascript\n([\s\S]+?)\n```/g;
+    for (const [filePath, code] of codeBlocks.entries()) {
+      const fullPath = join(outputPath, filePath);
+      const dir = join(fullPath, '..');
+      await mkdir(dir, { recursive: true }); // Ensure subdirectories exist
+      await writeFile(fullPath, code, 'utf-8');
+      console.log(`[CodeSpecs] Wrote: ${fullPath}`);
+    }
+  }
 
-        let match;
-        while ((match = fileRegex.exec(markdown)) !== null) {
-            const [, filePath, code] = match;
-            modules.set(filePath, code);
-        }
-
-        return modules;
+  async executeCodeFromDisk(outputPath, args) {
+    const mainFilePath = join(outputPath, 'index.mjs');
+    try {
+      const fileStat = await stat(mainFilePath);
+      if (!fileStat.isFile()) {
+        throw new Error(`Execution failed: Main entrypoint '${mainFilePath}' is not a file.`);
+      }
+    } catch (err) {
+      throw new Error(`Execution failed: Main entrypoint '${mainFilePath}' not found.`);
     }
 
-    async executeGeneratedCode(markdownCode, args) {
-        const virtualModules = this.parseVirtualModules(markdownCode);
-        if (!virtualModules.has('index.mjs')) {
-            throw new Error("Code generation failed: The main entrypoint 'index.mjs' was not found in the LLM's response.");
+    const argsJson = JSON.stringify(args);
+    console.log(`[CodeSpecs] Executing code from disk: ${mainFilePath} with args: ${argsJson}`);
+
+    return new Promise((resolve, reject) => {
+      const child = fork(mainFilePath, [argsJson], { silent: true });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      child.on('error', (err) => {
+        console.error(`[CodeSpecs] Child process failed to start: ${err.message}`);
+        reject(new Error(`Child process failed to start: ${err.message}`));
+      });
+
+      child.on('exit', (code, signal) => {
+        if (code === 0) {
+          try {
+            // Assuming the child process prints the action result as JSON
+            const result = JSON.parse(stdout.trim());
+            resolve(result);
+          } catch (e) {
+            console.error(`[CodeSpecs] Failed to parse child process stdout as JSON: ${e.message}\nSTDOUT:\n${stdout}`);
+            reject(new Error(`Failed to parse child process stdout: ${e.message}. STDOUT: ${stdout}`));
+          }
+        } else {
+          console.error(`[CodeSpecs] Child process exited with code ${code || signal}. STDERR:\n${stderr}`);
+          reject(new Error(`Child process exited with code ${code || signal}. STDERR: ${stderr}`));
         }
-
-        const context = createContext({console, args});
-        const moduleCache = new Map();
-
-        const linker = async (specifier, referencingModule) => {
-            if (moduleCache.has(specifier)) {
-                return moduleCache.get(specifier);
-            }
-            if (virtualModules.has(specifier)) {
-                const code = virtualModules.get(specifier);
-                const module = new SourceTextModule(code, {
-                    identifier: specifier,
-                    context: referencingModule.context,
-                });
-                await module.link(linker);
-                moduleCache.set(specifier, module);
-                return module;
-            }
-
-            if (specifier.startsWith('node:')) {
-                const builtIn = await import(specifier);
-                const exportNames = Object.keys(builtIn);
-                const syntheticModule = new SourceTextModule(
-                    exportNames.map(name => `export const ${name} = await import('${specifier}').then(m => m.${name});`).join('\n')
-                );
-                await syntheticModule.link(linker);
-                await syntheticModule.evaluate();
-                moduleCache.set(specifier, syntheticModule);
-                return syntheticModule;
-            }
-
-            throw new Error(`Unable to resolve import specifier: '${specifier}'.`);
-        };
-
-        const mainModule = new SourceTextModule(virtualModules.get('index.mjs'), {
-            identifier: 'index.mjs',
-            context,
-        });
-
-        await mainModule.link(linker);
-        await mainModule.evaluate({timeout: 5000});
-
-        const {action} = mainModule.namespace;
-
-        if (typeof action !== 'function') {
-            throw new Error("Execution failed: 'index.mjs' does not export an 'action' function.");
-        }
-
-        try {
-            const result = await action(args);
-            return result;
-        } catch (error) {
-            throw new Error(`Error during generated code execution: ${error.message}`);
-        }
-    }
+      });
+    });
+  }
 }

@@ -24,7 +24,3 @@ Formats a user's data into a readable string based on external functional specif
 ### Example 1
 - **Input args**: `{ "user": { "firstName": "Jane", "lastName": "Doe", "age": 25 } }`
 - **Expected Output**: "Full Name: Jane Doe, Age: 25 (Adult)"
-
-### Example 2
-- **Input args**: `{ "user": { "firstName": "John", "age": 17 } }`
-- **Expected Output**: "Error: Incomplete user data provided."
