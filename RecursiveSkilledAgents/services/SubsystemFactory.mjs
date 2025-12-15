@@ -1,5 +1,4 @@
 import { CodeSkillsSubsystem } from '../../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
-import { CodeSpecsSkillsSubsystem } from '../../CodeSpecsSkillsSubsystem/CodeSpecsSkillsSubsystem.mjs';
 import { InteractiveSkillsSubsystem } from '../../InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs';
 import { ClaudeSkillsSubsystem } from '../../ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs';
 import { MCPSkillsSubsystem } from '../../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
@@ -12,7 +11,6 @@ import { DBTableSkillsSubsystem } from '../../DBTableSkillsSubsystem/DBTableSkil
  */
 const SUBSYSTEM_REGISTRY = new Map([
     ['code', CodeSkillsSubsystem],
-    ['csskill', CodeSpecsSkillsSubsystem],
     ['interactive', InteractiveSkillsSubsystem],
     ['mcp', MCPSkillsSubsystem],
     ['orchestrator', OrchestratorSkillsSubsystem],
