@@ -6,6 +6,7 @@ export const SKILL_FILE_TYPES = {
     'skill.md': { type: 'claude' },
     'iskill.md': { type: 'interactive' },
     'cskill.md': { type: 'code' },
+    'csskill.md': { type: 'csskill' },
     'mskill.md': { type: 'mcp' },
     'oskill.md': { type: 'orchestrator' },
     'tskill.md': { type: 'dbtable' },
