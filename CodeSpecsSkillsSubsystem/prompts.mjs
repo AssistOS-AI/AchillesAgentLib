@@ -90,6 +90,8 @@ ${outputFormat}
 You MUST adhere to the following constraints during code generation.
 ---
 - Only use built-in Node.js modules. Do not use any external npm packages that would require an 'npm install'.
+- The specs folder contains specification files named like 'index.js.md', 'core.js.md' that describe the code to be generated.
+- Generate code that matches the specifications in these .md files.
 ${constraints ? `- ${constraints}` : ''}
 ---
 

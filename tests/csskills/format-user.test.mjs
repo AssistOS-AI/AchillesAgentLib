@@ -70,6 +70,8 @@ async function testLlmExtraction(agent) {
   console.log("✅ LLM Extraction Test Passed!");
 }
 
+import { rm } from 'node:fs/promises';
+
 async function runAllTests() {
   console.log("Setting up LLM extraction test...");
   const mockLlm = new MockLLMAgent();
@@ -87,6 +89,16 @@ async function runAllTests() {
   try {
     await testLlmExtraction(agent);
     console.log("\nAll tests passed successfully!");
+    
+    // Clean up: remove generated src folder to keep repository clean
+    const srcFolder = path.resolve(__dirname, '.AchillesSkills/format-user/src');
+    try {
+      await rm(srcFolder, { recursive: true, force: true });
+      console.log("✅ Cleaned up generated src folder");
+    } catch (cleanupError) {
+      console.warn("⚠️  Could not clean up src folder:", cleanupError.message);
+    }
+    
   } catch (error) {
     console.error("❌ A test failed:", error);
     process.exit(1);

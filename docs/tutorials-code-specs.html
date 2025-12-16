@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Specs Skills Tutorial · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Tutorials","href":"tutorials.html"},
+            {"label":"Code Specs Skills Tutorial"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Code Specs Skills Tutorial</h1>
+            <p>Step-by-step guide to creating code specs skills: from specifications to execution.</p>
+            <nav class="page-links" aria-label="Tutorial navigation">
+                <a href="tutorials-claude.html">Claude</a>
+                <a href="tutorials-interactive.html">Interactive</a>
+                <a href="tutorials-dbtable.html">DBTable</a>
+                <a href="tutorials-orchestration.html">Orchestration</a>
+                <a href="tutorials-mcp.html">MCP</a>
+                <a href="tutorials-code.html">Code</a>
+                <a href="tutorials-code-specs.html" aria-current="page">Code Specs</a>
+            </nav>
+        </section>
+
+        <section>
+            <h2>Prerequisites</h2>
+            <p>Before starting this tutorial, ensure you have:</p>
+            <ul>
+                <li>Node.js 18+ installed</li>
+                <li>Basic understanding of JavaScript/ESM</li>
+                <li>Familiarity with Achilles Agents concepts</li>
+                <li>Access to an LLM provider (for code generation)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Step 1: Create Skill Structure</h2>
+            <p>Start by creating the basic skill structure in your project repository:</p>
+            <pre><code>mkdir -p .AchillesSkills/user-formatter/specs
+cd .AchillesSkills/user-formatter</code></pre>
+            <p>This creates the following structure:</p>
+            <pre><code>user-formatter/
+├── specs/              # Will contain our specification files
+└── csskill.md          # Main skill descriptor (to be created)</code></pre>
+            <div class="note">
+                <strong>Important</strong>: The <code>.AchillesSkills</code> directory must be at your project root. 
+                Each skill has its own folder with a descriptive name (using hyphens, not spaces).
+            </div>
+        </section>
+
+        <section>
+            <h2>Step 2: Create Skill Descriptor</h2>
+            <p>Create <code>csskill.md</code> with the skill definition. This file serves as the main interface definition:</p>
+            <pre><code># User Data Formatter
+
+## Summary
+Formats user data into a standardized string representation based on detailed specifications.
+
+## Input Format
+- **user**: Object containing user information
+  - `firstName` (string, required): User's first name (2-50 characters, letters only)
+  - `lastName` (string, required): User's last name (2-50 characters, letters and hyphens)
+  - `age` (number, required): User's age in years (0-120)
+  - `email` (string, optional): User's email address (valid format)
+
+## Output Format
+- **Type**: `string`
+- **Success Format**: "Name: {fullName}, Age: {age}, Status: {status}[, Email: {email}]"
+- **Error Format**: "Error: {specific_error_message}"
+- **Status**: "Adult" if age ≥ 18, otherwise "Minor"
+
+## Constraints
+- Validate all inputs according to specified rules
+- Handle missing optional fields gracefully
+- Return specific error messages for each validation failure
+- Maintain consistent output format
+- Use only built-in Node.js modules (no external dependencies)
+
+## Examples
+### Example 1 (Complete valid data)
+- **Input**: `{ "user": { "firstName": "John", "lastName": "Doe", "age": 30, "email": "john@example.com" } }`
+- **Output**: "Name: John Doe, Age: 30, Status: Adult, Email: john@example.com"
+</code></pre>
+            <div class="note">
+                <strong>Key Points</strong>:
+                <ul>
+                    <li>The <code>csskill.md</code> file defines the <strong>interface</strong> (inputs, outputs, constraints)</li>
+                    <li>Detailed implementation specifications go in the <code>specs/</code> folder</li>
+                    <li>Include one comprehensive example covering the main use case</li>
+                    <li>Be specific about validation rules and data formats</li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2>Step 3: Create Specification Files</h2>
+            <p>Create specification files in the <code>specs/</code> folder. These files describe the implementation logic using natural language and diagrams.</p>
+            <p>Create <code>specs/index.js.md</code> as the main entrypoint specification:</p>
+            <pre><code># Specification for index.js
+
+## Function: action(args)
+
+### Description
+Main entry point for user data formatting skill. This function orchestrates the validation and formatting process.
+
+### Input
+- args: Object containing user data
+  - user: Object (required) - The user object to format
+    - firstName: string (required, 2-50 chars, letters only)
+    - lastName: string (required, 2-50 chars, letters and hyphens)
+    - age: number (required, 0-120)
+    - email: string (optional, valid format)
+
+### Processing Logic
+
+```mermaid
+flowchart TD
+    A[Start] --> B[Validate Input]
+    B -->|Valid| C[Format User Data]
+    B -->|Invalid| D[Return Error]
+    C --> E[Return Formatted Result]
+    D --> E
+```
+
+#### 1. Validate Input
+- Check that all required fields are present and valid
+- Validate firstName: 2-50 letters only
+- Validate lastName: 2-50 letters or hyphens
+- Validate age: integer between 0 and 120
+- Validate email format if provided
+
+#### 2. Format User Data
+- Construct fullName: "{firstName} {lastName}"
+- Determine status: "Adult" if age ≥ 18, else "Minor"
+- Build result string: "Name: {fullName}, Age: {age}, Status: {status}"
+- Append ", Email: {email}" if email is provided
+
+### Error Handling
+- Return specific error messages for validation failures
+- Handle unexpected errors gracefully with generic error message
+
+### Example
+- **Input**: `{ "user": { "firstName": "John", "lastName": "Doe", "age": 30, "email": "john@example.com" } }`
+- **Output**: "Name: John Doe, Age: 30, Status: Adult, Email: john@example.com"
+</code></pre>
+            <div class="note">
+                <strong>Important</strong>:
+                <ul>
+                    <li>Specification files describe <strong>what</strong> the code should do, not <strong>how</strong></li>
+                    <li>Use natural language and diagrams (Mermaid) - NO JavaScript code</li>
+                    <li>Include flowcharts, sequence diagrams, or state diagrams where helpful</li>
+                    <li>Provide one clear example of expected input and output</li>
+                    <li>Never include actual implementation code in specification files</li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2>Step 4: Using the Skill</h2>
+            <p>Once you've created the skill structure and specifications, the <code>RecursiveSkilledAgent</code> will automatically discover and prepare your skill. You don't need to manually prepare or execute the skill.</p>
+            <p>Simply use the agent to execute your skill with natural language prompts:</p>
+            <pre><code>import { RecursiveSkilledAgent } from 'achillesAgentLib';
+import { LLMAgent } from 'achillesAgentLib';
+
+// Initialize the agent with your LLM provider
+const llmAgent = new LLMAgent({
+  provider: 'anthropic', // or 'openai', etc.
+  model: 'claude-3-opus-20240229',
+  apiKey: process.env.ANTHROPIC_API_KEY
+});
+
+const agent = new RecursiveSkilledAgent({
+  llmAgent,
+  additionalSkillRoots: ['./.AchillesSkills']
+});
+
+// Execute the skill using natural language
+const result = await agent.executePrompt(
+  'Format user data for John Doe, age 30, email john@example.com',
+  { skillName: 'user-formatter' }
+);
+
+console.log('Result:', result);
+// Output: "Name: John Doe, Age: 30, Status: Adult, Email: john@example.com"
+</code></pre>
+            <div class="note">
+                <strong>Automatic Preparation</strong>:
+                <ul>
+                    <li>The <code>RecursiveSkilledAgent</code> automatically discovers skills in <code>.AchillesSkills</code> directories</li>
+                    <li>Skills are automatically prepared (code generated) when first used</li>
+                    <li>You only need to create the specification files - the agent handles the rest</li>
+                    <li>Code regeneration happens automatically when specifications change</li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2>Debugging Tips</h2>
+            <p>Common issues and solutions:</p>
+            <h3>Issue: Code not regenerating when specs change</h3>
+            <p><strong>Solution</strong>: Delete the <code>src/</code> folder to force regeneration:</p>
+            <pre><code>rm -rf .AchillesSkills/user-formatter/src
+# Next prepareSkill will regenerate all code
+</code></pre>
+
+            <h3>Issue: Generated code has errors</h3>
+            <p><strong>Solution</strong>: Check your specification files for clarity and completeness. The LLM generates code based on the specs, so ambiguous or incomplete specs can lead to incorrect code.</p>
+            <ul>
+                <li>Ensure all specification files are properly formatted</li>
+                <li>Verify that examples are complete and accurate</li>
+                <li>Check that all required fields are documented</li>
+                <li>Make sure diagrams and flowcharts are syntactically correct</li>
+            </ul>
+
+            <h3>Issue: Missing index.mjs in generated code</h3>
+            <p><strong>Solution</strong>: Ensure your <code>specs/index.js.md</code> clearly specifies the main entrypoint and exports the <code>action</code> function.</p>
+            <ul>
+                <li>Verify the file exists in the <code>specs/</code> folder</li>
+                <li>Check that it contains proper specification format</li>
+                <li>Ensure it references the correct function name (<code>action</code>)</li>
+            </ul>
+
+            <h3>Issue: Execution fails with "Main entrypoint not found"</h3>
+            <p><strong>Solution</strong>: Verify that <code>src/index.mjs</code> exists and contains a valid <code>action</code> function. If missing, delete <code>src/</code> and regenerate.</p>
+            <ul>
+                <li>Check that the skill was properly prepared</li>
+                <li>Verify the <code>src/</code> folder exists</li>
+                <li>Ensure <code>src/index.mjs</code> has the correct exports</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Next Steps</h2>
+            <p>Now that you've completed this tutorial, explore:</p>
+            <ul>
+                <li><a href="code-specs-skills.html">Code Specs Skills Reference</a> - Complete API documentation</li>
+                <li><a href="overview.html">Skill System Overview</a> - Architecture and design patterns</li>
+                <li><a href="tutorials.html">Other Tutorials</a> - Learn about other skill types</li>
+                <li><a href="agent-runtime.html">Agent Runtime</a> - Understand how agents execute skills</li>
+            </ul>
+            <p>Experiment with different specification patterns and build complex skills by combining multiple modules!</p>
+        </section>
+    </main>
+
+    <script src="partials-loader.js"></script>
+</body>
+</html>

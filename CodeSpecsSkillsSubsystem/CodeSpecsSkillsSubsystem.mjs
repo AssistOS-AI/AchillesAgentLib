@@ -20,37 +20,52 @@ export class CodeSpecsSkillsSubsystem {
 
   async prepareSkill(skillRecord) {
     console.log(`[CodeSpecs] Preparing skill: ${skillRecord.name}`);
-    const specifications = this.getSpecifications(skillRecord);
-    const { specsPath } = specifications;
-    if (!specsPath) {
-      console.warn(`[CodeSpecs] WARN: Skill '${skillRecord.name}' is missing 'Specs Path'. Skipping preparation.`);
+    
+    // Use specs folder convention - it should be in the skill directory alongside csskill.md
+    const specsDir = resolve(skillRecord.skillDir, 'specs');
+    
+    // Check if specs directory exists
+    let specsExist = false;
+    try {
+      const specsStat = await stat(specsDir);
+      specsExist = specsStat.isDirectory();
+    } catch (err) {
+      specsExist = false;
+    }
+    
+    if (!specsExist) {
+      console.warn(`[CodeSpecs] WARN: Specs directory '${specsDir}' does not exist. Skipping code generation.`);
       return;
     }
-    const specsDir = resolve(skillRecord.skillDir, specsPath);
+    
+    const specifications = this.getSpecifications(skillRecord);
     const { content: externalSpecsContent, signature } = await this.readExternalSpecs(specsDir);
-    const generatedMarkdown = await this.generateCode(specifications, {}, externalSpecsContent);
-
-    // Write generated code to skillDir/src/
-    const outputPath = join(skillRecord.skillDir, 'src');
-    await this.writeGeneratedCodeToDisk(outputPath, generatedMarkdown);
-
-    // Cache the signature of the specs for rebuild detection
-    skillRecord.specsSignature = signature;
+    
+    // Check if code needs to be regenerated
+    const needsRegeneration = await this.checkIfRegenerationNeeded(skillRecord, signature);
+    
+    if (needsRegeneration) {
+      console.log(`[CodeSpecs] Specs have changed or src folder doesn't exist. Regenerating code...`);
+      const generatedMarkdown = await this.generateCode(specifications, {}, externalSpecsContent);
+      
+      // Write generated code to skillDir/src/
+      const outputPath = join(skillRecord.skillDir, 'src');
+      await this.writeGeneratedCodeToDisk(outputPath, generatedMarkdown);
+      
+      // Cache the signature of the specs for rebuild detection
+      skillRecord.specsSignature = signature;
+    } else {
+      console.log(`[CodeSpecs] Specs unchanged. Using existing generated code.`);
+    }
+    
     console.log(`[CodeSpecs] Finished preparing skill: ${skillRecord.name}.`);
   }
 
   async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options }) {
     this.llmAgent = recursiveAgent.llmAgent;
     const specifications = this.getSpecifications(skillRecord);
-    if (!specifications.specsPath || !specifications.inputFormat) {
-      throw new Error("Invalid/unprepared csskill: Missing 'Specs Path' or 'Input Format'.");
-    }
-
-    const specsDir = resolve(skillRecord.skillDir, specifications.specsPath);
-    const { signature: currentSignature } = await this.readExternalSpecs(specsDir);
-    if (currentSignature !== skillRecord.specsSignature) {
-      console.log(`[CodeSpecs] WARN: Spec signature mismatch for '${skillRecord.name}'. Re-building...`);
-      await this.prepareSkill(skillRecord);
+    if (!specifications.inputFormat) {
+      throw new Error("Invalid/unprepared csskill: Missing 'Input Format'.");
     }
 
     const args = await this.extractArguments(promptText, specifications);
@@ -96,6 +111,31 @@ export class CodeSpecsSkillsSubsystem {
     }
 
     return { content: allSpecsContent, signature };
+  }
+
+  async checkIfRegenerationNeeded(skillRecord, currentSignature) {
+    // Check if src folder exists
+    const srcPath = join(skillRecord.skillDir, 'src');
+    let srcExists = false;
+    try {
+      const srcStat = await stat(srcPath);
+      srcExists = srcStat.isDirectory();
+    } catch (err) {
+      srcExists = false;
+    }
+    
+    // If src folder doesn't exist, we need to generate code
+    if (!srcExists) {
+      return true;
+    }
+    
+    // If we have a cached signature and it matches current, no regeneration needed
+    if (skillRecord.specsSignature && skillRecord.specsSignature === currentSignature) {
+      return false;
+    }
+    
+    // Otherwise, regeneration is needed
+    return true;
   }
 
   async extractArguments(userPrompt, specifications) {

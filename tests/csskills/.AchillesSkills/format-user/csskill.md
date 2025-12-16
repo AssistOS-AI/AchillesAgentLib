@@ -3,9 +3,6 @@
 ## Summary
 Formats a user's data into a readable string based on external functional specifications.
 
-## Specs Path
-../../specs
-
 ## Input Format
 - **user**: An object representing the user.
   - `firstName` (string): The user's first name.
