@@ -1,7 +1,16 @@
 import { readdir, readFile, stat, mkdir, rm, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { fork } from 'node:child_process';
 import { buildArgumentExtractionPrompt, buildCodeGenerationPrompt } from './prompts.mjs';
+
+// Debug logging configuration
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+
+function debugLog(message, ...args) {
+  if (DEBUG_ENABLED) {
+    console.log(`[CodeSpecs DEBUG] ${message}`, ...args);
+  }
+}
 
 function camelCaseKeys(obj) {
   if (!obj) return {};
@@ -21,8 +30,10 @@ export class CodeSpecsSkillsSubsystem {
   async prepareSkill(skillRecord) {
     console.log(`[CodeSpecs] Preparing skill: ${skillRecord.name}`);
     
+    debugLog(`Skill directory: ${skillRecord.skillDir}`);
     // Use specs folder convention - it should be in the skill directory alongside csskill.md
     const specsDir = resolve(skillRecord.skillDir, 'specs');
+    debugLog(`Specs directory: ${specsDir}`);
     
     // Check if specs directory exists
     let specsExist = false;
@@ -37,24 +48,102 @@ export class CodeSpecsSkillsSubsystem {
       console.warn(`[CodeSpecs] WARN: Specs directory '${specsDir}' does not exist. Skipping code generation.`);
       return;
     }
-    
-    const specifications = this.getSpecifications(skillRecord);
-    const { content: externalSpecsContent, signature } = await this.readExternalSpecs(specsDir);
-    
+
+    const result = await this.readExternalSpecsWithFiles(specsDir);
+    debugLog(`readExternalSpecsWithFiles result: ${JSON.stringify({
+      hasContent: !!result.content,
+      hasSignature: !!result.signature,
+      hasFileSpecs: !!result.fileSpecs,
+      fileSpecsCount: result.fileSpecs?.length || 0
+    })}`);
+
+    if (!result.signature) {
+      console.error(`[CodeSpecs] ERROR: No signature returned from readExternalSpecsWithFiles`);
+      return;
+    }
+    const { signature, fileSpecs } = result;
+
     // Check if code needs to be regenerated
     const needsRegeneration = await this.checkIfRegenerationNeeded(skillRecord, signature);
     
+    debugLog(`Regeneration needed: ${needsRegeneration}`);
     if (needsRegeneration) {
+
+        const specifications = this.getSpecifications(skillRecord);
+      debugLog(`Generating code from specifications...`);
       console.log(`[CodeSpecs] Specs have changed or src folder doesn't exist. Regenerating code...`);
-      const generatedMarkdown = await this.generateCode(specifications, {}, externalSpecsContent);
       
-      // Write generated code to skillDir/src/
+      // New approach: Generate code file by file
+      debugLog(`Using file-by-file generation approach for ${fileSpecs.length} specification files`);
       const outputPath = join(skillRecord.skillDir, 'src');
-      await this.writeGeneratedCodeToDisk(outputPath, generatedMarkdown);
+      
+      // Ensure output directory exists and is clean
+      try {
+        const outputStat = await stat(outputPath);
+        if (outputStat.isDirectory()) {
+          await rm(outputPath, { recursive: true, force: true });
+        }
+      } catch (err) {
+        // Directory doesn't exist, which is fine
+      }
+      await mkdir(outputPath, { recursive: true });
+      
+      // Generate each file individually
+      let filesGenerated = 0;
+      let filesFailed = 0;
+      
+      for (const [relativePath, specContent] of fileSpecs) {
+        try {
+          debugLog(`Generating code for: ${relativePath}`);
+          
+          // Generate code for this specific file
+          const fileCode = await this.generateSingleFileCode(specifications, specContent, relativePath);
+          
+          if (!fileCode || typeof fileCode !== 'string') {
+            console.warn(`[CodeSpecs] WARN: Failed to generate code for ${relativePath} - empty or invalid response`);
+            filesFailed++;
+            continue;
+          }
+          
+          // Write the file
+          const outputFilePath = join(outputPath, relativePath);
+          const outputDir = dirname(outputFilePath);
+          await mkdir(outputDir, { recursive: true });
+          await writeFile(outputFilePath, fileCode, 'utf-8');
+          
+          debugLog(`Successfully generated: ${relativePath}`);
+          filesGenerated++;
+          
+        } catch (error) {
+          console.warn(`[CodeSpecs] WARN: Failed to generate ${relativePath}: ${error.message}`);
+          debugLog(`Generation error for ${relativePath}: ${error.stack}`);
+          filesFailed++;
+        }
+      }
+      
+      // Check if we generated the main entrypoint
+      const indexFilePath = join(outputPath, 'index.mjs');
+      let indexFileExists = false;
+      try {
+        await stat(indexFilePath);
+        indexFileExists = true;
+      } catch (err) {
+        indexFileExists = false;
+      }
+      
+      if (!indexFileExists) {
+        console.error(`[CodeSpecs] ERROR: Main entrypoint 'index.mjs' was not generated. Check your specifications.`);
+        console.error(`[CodeSpecs] Generated ${filesGenerated} files, failed ${filesFailed} files.`);
+      } else {
+        console.log(`[CodeSpecs] Code generation completed: ${filesGenerated} files generated, ${filesFailed} files failed`);
+      }
       
       // Cache the signature of the specs for rebuild detection
       skillRecord.specsSignature = signature;
+      debugLog(`Cached signature: ${signature.substring(0, 50)}...`);
+      
     } else {
+      debugLog(`Using cached code - no regeneration needed`);
       console.log(`[CodeSpecs] Specs unchanged. Using existing generated code.`);
     }
     
@@ -62,17 +151,26 @@ export class CodeSpecsSkillsSubsystem {
   }
 
   async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options }) {
+    debugLog(`Starting executeSkillPrompt for: ${skillRecord.name}`);
+
     this.llmAgent = recursiveAgent.llmAgent;
     const specifications = this.getSpecifications(skillRecord);
+    
+    debugLog(`Specifications loaded, inputFormat: ${!!specifications.inputFormat}`);
     if (!specifications.inputFormat) {
       throw new Error("Invalid/unprepared csskill: Missing 'Input Format'.");
     }
 
+    debugLog(`Extracting arguments from prompt...`);
     const args = await this.extractArguments(promptText, specifications);
+    debugLog(`Arguments extracted: ${JSON.stringify(args).substring(0, 200)}...`);
     
     // Execute the already generated code from disk
+    debugLog(`Executing code from disk...`);
     const outputPath = join(skillRecord.skillDir, 'src');
     const result = await this.executeCodeFromDisk(outputPath, args);
+    debugLog(`Execution completed, result type: ${typeof result}`);
+    
     return result;
   }
 
@@ -153,6 +251,94 @@ export class CodeSpecsSkillsSubsystem {
     return await this.llmAgent.executePrompt(prompt, { mode: 'deep' });
   }
   
+  async readExternalSpecsWithFiles(specsDir) {
+    const result = await this.readExternalSpecs(specsDir);
+    
+    // Also collect individual spec files for file-by-file generation
+    const fileSpecs = [];
+    
+    async function collectSpecFiles(basePath, currentPath = '') {
+      const fullPath = join(basePath, currentPath);
+      const files = await readdir(fullPath);
+      
+      for (const file of files) {
+        const filePath = join(fullPath, file);
+        const fileStat = await stat(filePath);
+        
+        if (fileStat.isDirectory()) {
+          await collectSpecFiles(basePath, join(currentPath, file));
+        } else if (file.endsWith('.md') || file.endsWith('.mds')) {
+          const relativePath = currentPath ? join(currentPath, file) : file;
+          // Convert spec file path to JS file path (specs/index.js.md -> index.mjs)
+          const jsPath = relativePath
+            .replace(/(?:\.js)?\.md$/, '.mjs')
+            .replace(/(?:\.js)?\.mds$/, '.js');
+          
+          try {
+            const fileContent = await readFile(filePath, 'utf-8');
+            fileSpecs.push([jsPath, fileContent]);
+          } catch (readError) {
+            console.warn(`[CodeSpecs] WARN: Could not read spec file ${relativePath}: ${readError.message}`);
+          }
+        }
+      }
+    }
+    
+    await collectSpecFiles(specsDir);
+    
+    return {
+      content: result.content,
+      signature: result.signature,
+      fileSpecs
+    };
+  }
+
+  async generateSingleFileCode(specifications, specContent, relativePath) {
+    // Create a focused prompt for generating a single file
+    const filePrompt = `You are a senior software developer creating a single JavaScript/ESM module.
+    
+    Generate ONLY the JavaScript code for this module. Do NOT include any markdown, backticks, 
+    or file path annotations. Return ONLY the raw JavaScript code.
+    
+    The module should be generated based on this specification:
+    
+    --- BEGIN SPECIFICATION ---
+    ${specContent}
+    --- END SPECIFICATION ---
+    
+    This file will be located at: ${relativePath}
+    
+    IMPORTANT: Return ONLY the JavaScript code, nothing else!`;
+    
+    try {
+      debugLog(`Generating single file: ${relativePath}`);
+      const response = await this.llmAgent.executePrompt(filePrompt, { mode: 'deep' });
+      
+      // The response should be pure JavaScript code
+      if (typeof response !== 'string') {
+        debugLog(`Unexpected response type for ${relativePath}: ${typeof response}`);
+        return null;
+      }
+      
+      // Clean up any accidental markdown or annotations
+      let cleanedCode = response
+        // Remove markdown code blocks
+        .replace(/```javascript\n?/g, '')
+        .replace(/```\n?/g, '')
+        // Remove file path annotations
+        .replace(/##\s*file-path:\s*[^\n]+\n+/g, '')
+        // Remove leading/trailing whitespace
+        .trim();
+      
+      debugLog(`Successfully generated ${relativePath}, ${cleanedCode.length} characters`);
+      return cleanedCode;
+      
+    } catch (error) {
+      debugLog(`Error generating ${relativePath}: ${error.message}`);
+      return null;
+    }
+  }
+
   parseMarkdownCodeBlocks(markdown) {
     const codeBlocks = new Map();
     const fileBlockPattern = /##\s*file-path:\s*([^\s]+)\s*\n+```javascript\n([\s\S]+?)\n```/g;

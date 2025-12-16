@@ -12,7 +12,7 @@ class MockLLMAgent extends LLMAgent {
   }
 
   async executePrompt(prompt, options = {}) {
-    if (prompt.includes("BEGIN SPECIFICATIONS BLUEPRINT")) {
+    if (prompt.includes("--- BEGIN SPECIFICATION ---")) {
       console.log("MOCK LLM: Responding to 'prepareSkill' with generated code (writes to disk)...");
       const code = 'import { fileURLToPath } from "node:url";\n' +
                    'import { dirname } from "node:path";\n\n' +
