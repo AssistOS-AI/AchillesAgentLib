@@ -10,7 +10,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                      Skill Discovery                             │   │
 │  │  - Scans .AchillesSkills directories                            │   │
-│  │  - Registers skills by type (skill.md, cskill.md, etc.)         │   │
+│  │  - Registers skills by type (skill.md, cgskill.md, etc.)         │   │
 │  │  - Creates aliases for flexible skill resolution                │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                │                                        │
@@ -23,7 +23,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │  │                        Subsystems                                  │ │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │ │
 │  │  │   claude    │ │    code     │ │ interactive │ │     mcp     │  │ │
-│  │  │ (skill.md)  │ │ (cskill.md) │ │ (iskill.md) │ │ (mskill.md) │  │ │
+│  │  │ (skill.md)  │ │ (cgskill.md) │ │ (iskill.md) │ │ (mskill.md) │  │ │
 │  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │ │
 │  │  ┌─────────────┐ ┌─────────────┐                                  │ │
 │  │  │orchestrator │ │   dbtable   │                                  │ │
@@ -50,7 +50,7 @@ The main entry point and coordinator for skill-based execution.
 | File | Type | Subsystem |
 |------|------|-----------|
 | `skill.md` | claude | ClaudeSkillsSubsystem |
-| `cskill.md` | code | CodeSkillsSubsystem |
+| `cgskill.md` | code-generation | CodeGenerationSkillsSubsystem |
 | `iskill.md` | interactive | InteractiveSkillsSubsystem |
 | `mskill.md` | mcp | MCPSkillsSubsystem |
 | `oskill.md` | orchestrator | OrchestratorSkillsSubsystem |
@@ -198,7 +198,7 @@ const executions = await subsystem.executePlanSteps({ plan, recursiveAgent, opti
 
 Executes JavaScript code dynamically, either LLM-generated or from modules.
 
-**Skill Definition (cskill.md):**
+**Skill Definition (cgskill.md):**
 ```markdown
 # MathEvaluator
 
@@ -478,7 +478,7 @@ OrchestratorSubsystem.executeSkillPrompt()
 ├── my-orchestrator/
 │   └── oskill.md           # Orchestrator skill definition
 ├── my-code-skill/
-│   ├── cskill.md           # Code skill definition
+│   ├── cgskill.md           # Code generation skill definition
 │   └── my-code-skill.js    # Optional module implementation
 ├── my-interactive-skill/
 │   ├── iskill.md           # Interactive skill definition
@@ -596,19 +596,19 @@ A specialized CLI agent for managing, generating, and testing skill definition f
 │  │                    Built-in Skills (.AchillesSkills/)                 │  │
 │  │  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐            │  │
 │  │  │ skill-manager  │ │  list-skills   │ │  read-skill    │            │  │
-│  │  │   (oskill)     │ │   (cskill)     │ │   (cskill)     │            │  │
+│  │  │   (oskill)     │ │   (cgskill)     │ │   (cgskill)     │            │  │
 │  │  └────────────────┘ └────────────────┘ └────────────────┘            │  │
 │  │  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐            │  │
 │  │  │  write-skill   │ │ update-section │ │ delete-skill   │            │  │
-│  │  │   (cskill)     │ │   (cskill)     │ │   (cskill)     │            │  │
+│  │  │   (cgskill)     │ │   (cgskill)     │ │   (cgskill)     │            │  │
 │  │  └────────────────┘ └────────────────┘ └────────────────┘            │  │
 │  │  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐            │  │
 │  │  │validate-skill  │ │  get-template  │ │preview-changes │            │  │
-│  │  │   (cskill)     │ │   (cskill)     │ │   (cskill)     │            │  │
+│  │  │   (cgskill)     │ │   (cgskill)     │ │   (cgskill)     │            │  │
 │  │  └────────────────┘ └────────────────┘ └────────────────┘            │  │
 │  │  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐            │  │
 │  │  │ generate-code  │ │   test-code    │ │ skill-refiner  │            │  │
-│  │  │   (cskill)     │ │   (cskill)     │ │   (oskill)     │            │  │
+│  │  │   (cgskill)     │ │   (cgskill)     │ │   (oskill)     │            │  │
 │  │  └────────────────┘ └────────────────┘ └────────────────┘            │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -694,7 +694,7 @@ import {
 } from './skillSchemas.mjs';
 
 // Detect skill type
-const type = detectSkillType(content);  // 'tskill', 'cskill', etc.
+const type = detectSkillType(content);  // 'tskill', 'cgskill', etc.
 
 // Validate content
 const result = validateSkillContent(content);
@@ -750,7 +750,7 @@ Plan: [
 ]
 ```
 
-#### generate-code (cskill)
+#### generate-code (cgskill)
 
 Generates `.mjs` code from `tskill.md` definitions using LLM.
 

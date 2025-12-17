@@ -447,7 +447,7 @@ test('RecursiveSkilledAgent: Extend to support dbtable skill type', async (t) =>
         llmAgent: shared.llmAgent || new MockLLMAgent(),
         promptReader: async () => 'accept',
         startDir: __dirname,
-        skillFilter: ({ type }) => type === 'dbtable' || type === 'code',
+        skillFilter: ({ type }) => type === 'dbtable' || type === 'code-generation',
     });
 
     // Manually add DBTable subsystem support

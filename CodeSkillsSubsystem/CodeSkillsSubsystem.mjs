@@ -246,7 +246,7 @@ async function executeCodeSnippet({ skillName, code }) {
     }
 } ``
 
-export class CodeSkillsSubsystem {
+export class CodeGenerationSkillsSubsystem {
     constructor({ llmAgent }) {
         this.llmAgent = llmAgent;
         this.executors = new Map();
@@ -275,7 +275,7 @@ export class CodeSkillsSubsystem {
         }
 
         skillRecord.metadata = {
-            type: 'code',
+            type: 'code-generation',
             prompt,
             modulePath: moduleExists ? localModulePath : null,
             filePath,

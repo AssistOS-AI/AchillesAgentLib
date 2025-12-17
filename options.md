@@ -42,7 +42,7 @@ and how the new skill subsystems consume them.
 
 ### Code Skills
 
-- Use the `LLM Mode` section inside the `cskill.md` descriptor to toggle between `fast` and `deep`
+- Use the `LLM Mode` section inside the `cgskill.md` descriptor to toggle between `fast` and `deep`
   reasoning. The subsystem passes the selected mode via the options object so both the default
   executor and custom modules can honour it (see `context.llmMode`).
 - The subsystem calls `LLMAgent.executePrompt(..., { responseShape: 'json' })` for decision

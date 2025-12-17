@@ -1,4 +1,4 @@
-import { CodeSkillsSubsystem } from '../../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
+import { CodeGenerationSkillsSubsystem } from '../../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
 import { CodeSpecsSkillsSubsystem } from '../../CodeSpecsSkillsSubsystem/CodeSpecsSkillsSubsystem.mjs';
 import { InteractiveSkillsSubsystem } from '../../InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs';
 import { ClaudeSkillsSubsystem } from '../../ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs';
@@ -11,7 +11,7 @@ import { DBTableSkillsSubsystem } from '../../DBTableSkillsSubsystem/DBTableSkil
  * Can be extended via SubsystemFactory.register() for custom subsystem types.
  */
 const SUBSYSTEM_REGISTRY = new Map([
-    ['code', CodeSkillsSubsystem],
+    ['code-generation', CodeGenerationSkillsSubsystem],
     ['csskill', CodeSpecsSkillsSubsystem],
     ['interactive', InteractiveSkillsSubsystem],
     ['mcp', MCPSkillsSubsystem],
@@ -42,7 +42,7 @@ export class SubsystemFactory {
      * Get or create a subsystem instance of the specified type.
      * Subsystems are cached and reused on subsequent calls.
      *
-     * @param {string} type - The subsystem type ('code', 'csskill', 'interactive', 'mcp', 'orchestrator', 'dbtable', 'claude')
+     * @param {string} type - The subsystem type ('code-generation', 'csskill', 'interactive', 'mcp', 'orchestrator', 'dbtable', 'claude')
      * @returns {Object} The subsystem instance
      * @throws {Error} If the subsystem type is not registered
      */

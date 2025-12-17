@@ -66,8 +66,8 @@ function collectTestFiles(dirPath, basePath = dirPath) {
 }
 
 let testFiles = collectTestFiles(rootPath).sort();
-const codeSkillsTest = 'codeSkills/codeSkills.test.mjs';
-const mathEvalDirectTest = 'codeSkills/mathEvalDirect.test.mjs';
+const codeSkillsTest = 'cgSkills/cgSkills.test.mjs';
+const mathEvalDirectTest = 'cgSkills/mathEvalDirect.test.mjs';
 
 const pushToEnd = (files, target) => {
     const position = files.indexOf(target);
@@ -126,8 +126,8 @@ async function runTest(relativePath) {
     const absolutePath = join(rootPath, relativePath);
     console.log(`${COLOR_TEST}${relativePath}${COLOR_RESET}`);
 
-    const cwd = relativePath.startsWith('codeSkills/')
-        ? join(rootPath, 'codeSkills')
+    const cwd = relativePath.startsWith('cgSkills/')
+        ? join(rootPath, 'cgSkills')
         : rootPath;
 
     const child = spawn('node', ['--test', absolutePath], {

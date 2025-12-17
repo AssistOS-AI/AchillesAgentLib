@@ -48,7 +48,7 @@ async function initializeRecursiveAgent() {
         llmAgent,
         promptReader: async () => 'accept',
         startDir: __dirname,
-        skillFilter: ({ type }) => type === 'code',
+        skillFilter: ({ type }) => type === 'code-generation',
     });
 
     return shared;
@@ -58,7 +58,7 @@ async function ensureAgent(t) {
     await initializeRecursiveAgent();
     if (!shared.recursiveAgent) {
         const reason = shared.errorReason || 'LLM invocation unavailable.';
-        console.error(`[codeSkills.test] LLM unavailable: ${reason}`);
+        console.error(`[cgSkills.test] LLM unavailable: ${reason}`);
         t.skip(`LLM invocation unavailable: ${reason}`);
         return null;
     }
@@ -72,18 +72,18 @@ test('Proofread code skill polishes input text', async (t) => {
     }
 
     try {
-        console.info('[codeSkills.test] invoking proofread skill');
+        console.info('[cgSkills.test] invoking proofread skill');
         const result = await recursiveAgent.executePrompt(
             'Proofread the following sentence so it sounds natural: THIS is A TesT',
             {
                 args: { input: 'THIS is A TesT' },
-                skillName: 'proofread-polisher-code',
+                skillName: 'proofread',
             },
         );
 
-        assert.equal(result.skill, 'proofread-polisher-code');
-        console.info('[codeSkills.test] proofread result:', result.result);
-        assert.equal(result.metadata.type, 'code');
+        assert.equal(result.skill, 'proofread');
+        console.info('[cgSkills.test] proofread result:', result.result);
+        assert.equal(result.metadata.type, 'code-generation');
         assert.equal(result.metadata.llmMode, 'fast');
         const normalized = result.result.trim().toLowerCase();
         assert.ok(normalized.startsWith('this is a test'));
@@ -100,17 +100,17 @@ test('Large number multiplication uses code execution', async (t) => {
     }
 
     try {
-        console.info('[codeSkills.test] invoking multiply skill');
+        console.info('[cgSkills.test] invoking multiply skill');
         const result = await recursiveAgent.executePrompt(
             'Multiply 98765432123456789 by 123456789987654321 and return the exact result.',
             {
-                skillName: 'large-number-multiplier-code',
+                skillName: 'bigMultiply',
             },
         );
 
-        assert.equal(result.skill, 'large-number-multiplier-code');
-        console.info('[codeSkills.test] multiply result:', result.result);
-        assert.equal(result.metadata.type, 'code');
+        assert.equal(result.skill, 'bigMultiply');
+        console.info('[cgSkills.test] multiply result:', result.result);
+        assert.equal(result.metadata.type, 'code-generation');
         assert.equal(result.metadata.llmMode, 'fast');
         assert.ok(result.result.includes('12193263211705532552354824112635269'));
     } catch (error) {
@@ -126,17 +126,17 @@ test('Math evaluator computes arithmetic mean with generated code', async (t) =>
     }
 
     try {
-        console.info('[codeSkills.test] invoking math skill');
+        console.info('[cgSkills.test] invoking math skill');
         const result = await recursiveAgent.executePrompt(
             'Calculate the arithmetic mean of the first five odd numbers.',
             {
-                skillName: 'math-expression-evaluator-code',
+                skillName: 'mathEval',
             },
         );
 
-        assert.equal(result.skill, 'math-expression-evaluator-code');
-        console.info('[codeSkills.test] math result:', result.result);
-        assert.equal(result.metadata.type, 'code');
+        assert.equal(result.skill, 'mathEval');
+        console.info('[cgSkills.test] math result:', result.result);
+        assert.equal(result.metadata.type, 'code-generation');
         assert.equal(result.metadata.llmMode, 'deep');
         assert.ok(typeof result.result === 'string');
         assert.ok(result.result && result.result.length > 0);

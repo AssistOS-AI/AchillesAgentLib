@@ -165,7 +165,7 @@ RecursiveSkilledAgent doesn't natively support `tskill.md` files yet. The SKILL_
 const SKILL_FILE_TYPES = {
     'skill.md': { type: 'claude' },
     'iskill.md': { type: 'interactive' },
-    'cskill.md': { type: 'code' },
+    'cgskill.md': { type: 'code-generation' },
     'mskill.md': { type: 'mcp' },
     'oskill.md': { type: 'orchestrator' },
     'tskill.md': { type: 'dbtable' },  // ADD THIS LINE
@@ -181,7 +181,7 @@ ensureSubsystem(type) {
     }
 
     let subsystem;
-    if (type === 'code') {
+    if (type === 'code-generation') {
         subsystem = new CodeSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
     } else if (type === 'interactive') {
         subsystem = new InteractiveSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
