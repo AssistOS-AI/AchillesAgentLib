@@ -41,3 +41,19 @@ The main exported function and the designated entry point for execution. It's an
 2.  Checks if `method` is a valid, existing function on the singleton `fileSystemFacade` instance.
 3.  **If the method exists**: It calls the method using the spread operator (`...params`) to pass the arguments. It `await`s the result and returns it.
 4.  **If the method does not exist**: It throws an `Error` indicating the method was not found.
+
+---
+
+## Child Process Entry Point
+
+This module is executed as a forked child process. After all exports, the module must detect if it is being run directly (not imported as a dependency).
+
+### Detection
+Use the standard ESM technique to compare the current module's file path against the first argument in the process arguments list.
+
+### Execution Flow When Run Directly
+1. Read the second command-line argument, which contains a JSON string with the arguments object.
+2. Parse this JSON string into an object.
+3. Call the action function with the parsed arguments.
+4. On success, serialize the result to JSON and write it to standard output (not console.log, use direct stdout write to avoid newlines).
+5. On error, log the error message to standard error and exit with code 1.

@@ -13,8 +13,8 @@ class MockLLMAgent extends LLMAgent {
   }
 
   async executePrompt(prompt, options = {}) {
-    if (prompt.includes("BEGIN SPECIFICATIONS BLUEPRINT")) {
-      console.log("MOCK LLM: Responding to 'prepareSkill' with generated code (writes to disk)...");
+    if (prompt.includes("Multi-File Code Generation Request")) {
+      console.log("MOCK LLM: Responding to 'generateCode' with generated code (writes to disk)...");
       
       // Check if we should include the new module
       const shouldIncludeNewModule = prompt.includes("new-module");
@@ -148,11 +148,8 @@ A new module function for testing regeneration.
     { skillName: 'format-user' }
   );
   
-  const reconstructedResult = Object.keys(result)
-    .filter(key => !isNaN(parseInt(key)))
-    .sort((a, b) => parseInt(a) - parseInt(b))
-    .map(key => result[key])
-    .join('');
+  // The result from executePrompt wraps primitive values in { result: value }
+  const reconstructedResult = result.result;
 
   const expected = "Full Name: Jane Doe, Age: 25 (Adult)";
   assert.strictEqual(reconstructedResult, expected, `Execution result should match expected output`);

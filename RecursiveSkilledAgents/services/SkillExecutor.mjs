@@ -270,6 +270,17 @@ export class SkillExecutor {
                 actionReporter.completeAction({ skill: skillName });
             }
 
+            // If execution result is a primitive or null, wrap it in a result property
+            // to avoid spread operator issues (e.g., spreading a string creates { "0": "H", "1": "e", ... })
+            const isPrimitive = execution === null || typeof execution !== 'object';
+            if (isPrimitive) {
+                return {
+                    result: execution,
+                    reviewMode,
+                    subsystem: skillRecord.type,
+                };
+            }
+
             return {
                 ...execution,
                 reviewMode,

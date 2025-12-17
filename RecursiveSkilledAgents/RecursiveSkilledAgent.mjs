@@ -13,6 +13,7 @@ import { SkillRegistry } from './services/SkillRegistry.mjs';
 import { SkillDiscoveryService } from './services/SkillDiscoveryService.mjs';
 import { SkillSelector } from './services/SkillSelector.mjs';
 import { SkillExecutor } from './services/SkillExecutor.mjs';
+import { generateCode } from './generate-code-skill.mjs';
 
 // Re-export for backward compatibility
 export { SKILL_FILE_TYPES, SKILL_FILE_NAMES };
@@ -171,6 +172,15 @@ export class RecursiveSkilledAgent {
         const registered = this.registry.register(skillRecord);
         if (!registered) {
             return;
+        }
+
+        // Handle code generation for csskill types
+        if (skillRecord.type === 'csskill') {
+            this.executor.addPendingPreparation(
+                generateCode(skillRecord, this.llmAgent, this.logger).catch(error => {
+                    this.logger.warn(`[RecursiveSkilledAgent] Failed to generate code for skill ${skillRecord.name}: ${error.message}`);
+                })
+            );
         }
 
         // Prepare skill with its subsystem

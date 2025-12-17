@@ -56,10 +56,12 @@ async function runFileSystemSkillTest() {
         }
     });
 
-    if (result.trim() === testContent) {
-        console.log(`✅ 'readFile' returned correct content: `);
+    // The result from executePrompt wraps primitive values in { result: value }
+    const content = result.result;
+    if (content === testContent) {
+        console.log(`✅ 'readFile' returned correct content: "${content}"`);
     } else {
-        throw new Error(`Content mismatch! Expected "", got ""`);
+        throw new Error(`Content mismatch! Expected "${testContent}", got "${content}"`);
     }
 
     console.log("\n✅ File System Skill test passed successfully!");

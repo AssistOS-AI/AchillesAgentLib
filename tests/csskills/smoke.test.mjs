@@ -12,8 +12,8 @@ class MockLLMAgent extends LLMAgent {
   }
 
   async executePrompt(prompt, options = {}) {
-    if (prompt.includes("--- BEGIN SPECIFICATION ---")) {
-      console.log("MOCK LLM: Responding to 'prepareSkill' with generated code (writes to disk)...");
+    if (prompt.includes("Multi-File Code Generation Request")) {
+      console.log("MOCK LLM: Responding to 'generateCode' with generated code (writes to disk)...");
       const code = 'import { fileURLToPath } from "node:url";\n' +
                    'import { dirname } from "node:path";\n\n' +
                    'export async function action(args) {\n' +
@@ -58,12 +58,8 @@ async function testLlmExtraction(agent) {
   console.log(`Executing with natural language prompt: "${prompt}"`);
   const result = await agent.executePrompt(prompt, { skillName: 'format-user' });
 
-  // The result from executePrompt is wrapped by the agent. Reconstruct the string.
-  const reconstructedResult = Object.keys(result)
-    .filter(key => !isNaN(parseInt(key)))
-    .sort((a, b) => parseInt(a) - parseInt(b))
-    .map(key => result[key])
-    .join('');
+  // The result from executePrompt wraps primitive values in { result: value }
+  const reconstructedResult = result.result;
 
   const expected = "Full Name: Jane Doe, Age: 25 (Adult)";
   assert.strictEqual(reconstructedResult, expected, `LLM Extraction Test failed`);
