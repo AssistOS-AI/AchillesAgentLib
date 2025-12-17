@@ -187,16 +187,19 @@ const result = await agent.executePrompt(
   { skillName: 'user-formatter' }
 );
 
-console.log('Result:', result);
+console.log('Result:', result.result);
 // Output: "Name: John Doe, Age: 30, Status: Adult, Email: john@example.com"
 </code></pre>
             <div class="note">
-                <strong>Automatic Preparation</strong>:
+                <strong>Automatic Preparation and Execution</strong>:
                 <ul>
                     <li>The <code>RecursiveSkilledAgent</code> automatically discovers skills in <code>.AchillesSkills</code> directories</li>
-                    <li>Skills are automatically prepared (code generated) when first used</li>
-                    <li>You only need to create the specification files - the agent handles the rest</li>
-                    <li>Code regeneration happens automatically when specifications change</li>
+                    <li>When it finds a <code>cskill.md</code>, it automatically invokes the <strong>generate-code-skill</strong> (hardcoded generic skill for code generation)</li>
+                    <li>The <code>generate-code-skill</code> compares timestamps: newest spec file vs oldest generated file</li>
+                    <li>Code is generated via <strong>single-step LLM call</strong> combining all specs and <code>cskill.md</code> sections</li>
+                    <li>Code regeneration happens automatically when spec files are newer than generated files (timestamp-based)</li>
+                    <li>Generated code is cached and reused until specs change, making subsequent executions very fast</li>
+                    <li>Results from primitive types (strings, numbers, etc.) are automatically wrapped in <code>{ result: value }</code> format</li>
                 </ul>
             </div>
         </section>
@@ -211,12 +214,15 @@ console.log('Result:', result);
 </code></pre>
 
             <h3>Issue: Generated code has errors</h3>
-            <p><strong>Solution</strong>: Check your specification files for clarity and completeness. The LLM generates code based on the specs, so ambiguous or incomplete specs can lead to incorrect code.</p>
+            <p><strong>Solution</strong>: Check your specification files for clarity and completeness. Remember:</p>
             <ul>
-                <li>Ensure all specification files are properly formatted</li>
+                <li><strong>Specification files must contain ONLY natural language</strong> - no JavaScript code, only descriptions of what the code should do</li>
+                <li>The <code>cskill.md</code> sections (Input Format, Output Format, Constraints, Examples) are automatically included in the generation prompt</li>
+                <li>All specification files are combined in a single LLM prompt, so ensure consistency across files</li>
+                <li>Ensure all specification files are properly formatted with clear headings</li>
                 <li>Verify that examples are complete and accurate</li>
-                <li>Check that all required fields are documented</li>
-                <li>Make sure diagrams and flowcharts are syntactically correct</li>
+                <li>Check that all required fields and their validation rules are documented</li>
+                <li>If using diagrams (Mermaid), make sure they are syntactically correct</li>
             </ul>
 
             <h3>Issue: Missing index.mjs in generated code</h3>
@@ -234,6 +240,17 @@ console.log('Result:', result);
                 <li>Verify the <code>src/</code> folder exists</li>
                 <li>Ensure <code>src/index.mjs</code> has the correct exports</li>
             </ul>
+
+            <h3>Issue: Cannot access result (undefined property)</h3>
+            <p><strong>Solution</strong>: If your skill returns a primitive value (string, number, boolean), it's automatically wrapped in an object:</p>
+            <pre><code>// If your action function returns: "Hello, world!"
+// The result will be: { result: "Hello, world!" }
+
+const result = await agent.executePrompt(prompt, { skillName: 'my-skill' });
+console.log(result.result);  // ✅ Correct: "Hello, world!"
+console.log(result);          // ❌ Wrong: { result: "Hello, world!" }
+</code></pre>
+            <p>This wrapping ensures consistent return types across the system and prevents issues when spreading primitive values.</p>
         </section>
 
         <section>

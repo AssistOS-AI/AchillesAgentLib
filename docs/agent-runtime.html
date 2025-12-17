@@ -102,10 +102,43 @@
             <ol>
                 <li>Discovers skills under <code>.AchillesSkills/</code> (and additional roots) at construction time.</li>
                 <li>If no <code>skillName</code> is provided, tries a FlexSearch-based orchestrator match; otherwise falls back to LLM selection across skills.</li>
-                <li>Injects the task description into a skill’s default argument (or <code>input</code>) when arguments are missing.</li>
+                <li>Injects the task description into a skill's default argument (or <code>input</code>) when arguments are missing.</li>
                 <li>Routes execution to the appropriate subsystem (claude/code/interactive/mcp/orchestrator/dbtable) and forwards any args/promptReader overrides.</li>
-                <li>Returns the subsystem’s result along with the chosen review mode.</li>
+                <li>Returns the subsystem's result along with the chosen review mode.</li>
             </ol>
+
+            <h3 id="code-skills-handling">Code Skills Handling</h3>
+            <p>
+                When <code>RecursiveSkilledAgent</code> discovers a code skill (<code>cskill.md</code>), it automatically invokes
+                code generation through a specialized process:
+            </p>
+            <ol>
+                <li><strong>Detection</strong>: During skill registration, detects <code>skillRecord.type === 'cskill'</code></li>
+                <li><strong>Invoke generate-code-skill</strong>: Calls <code>generateCode(skillRecord, llmAgent, logger)</code> from the hardcoded <code>generate-code-skill.mjs</code> module</li>
+                <li><strong>Timestamp comparison</strong>: The generator compares file timestamps to determine if regeneration is needed:
+                    <ul>
+                        <li>Finds the newest spec file (in <code>specs/</code> folder)</li>
+                        <li>Finds the oldest generated file (in <code>src/</code> folder)</li>
+                        <li>If <code>src/</code> doesn't exist or newest spec is newer than oldest src → regenerate</li>
+                        <li>Otherwise skip regeneration (fast path)</li>
+                    </ul>
+                </li>
+                <li><strong>Single-step LLM generation</strong>:
+                    <ul>
+                        <li>Recursively reads all <code>.md</code> files from <code>specs/</code></li>
+                        <li>Extracts <code>Input Format</code>, <code>Output Format</code>, <code>Constraints</code>, and <code>Examples</code> sections from <code>cskill.md</code></li>
+                        <li>Combines everything into one comprehensive prompt</li>
+                        <li>Sends to LLM with <code>mode: 'deep'</code> and <code>responseShape: 'text'</code></li>
+                    </ul>
+                </li>
+                <li><strong>Parse multi-file response</strong>: The LLM returns markdown with <code>## file-path: path/to/file.mjs</code> headers, which are parsed to extract individual files</li>
+                <li><strong>Write to disk</strong>: Deletes the existing <code>src/</code> folder, creates a new one, and writes all generated <code>.mjs</code> files</li>
+                <li><strong>Additional preparation</strong>: After code generation, calls <code>subsystem.prepareSkill()</code> for any subsystem-specific setup</li>
+            </ol>
+            <p>
+                This design keeps code generation logic centralized in <code>generate-code-skill.mjs</code>, making it reusable
+                for all code skills while allowing the agent to handle discovery and invocation automatically.
+            </p>
 
             <h3>Review Modes</h3>
             <ul>

@@ -10,7 +10,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                      Skill Discovery                             │   │
 │  │  - Scans .AchillesSkills directories                            │   │
-│  │  - Registers skills by type (skill.md, cgskill.md, etc.)         │   │
+│  │  - Registers skills by type (skill.md, cskill.md, cgskill.md, etc.) │   │
 │  │  - Creates aliases for flexible skill resolution                │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                │                                        │
@@ -22,13 +22,13 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │  ┌─────────────────────────────▼─────────────────────────────────────┐ │
 │  │                        Subsystems                                  │ │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │ │
-│  │  │   claude    │ │    code     │ │ interactive │ │     mcp     │  │ │
-│  │  │ (skill.md)  │ │ (cgskill.md) │ │ (iskill.md) │ │ (mskill.md) │  │ │
+│  │  │   claude    │ │    code     │ │  code-gen   │ │ interactive │  │ │
+│  │  │ (skill.md)  │ │ (cskill.md) │ │ (cgskill.md)│ │ (iskill.md) │  │ │
 │  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │ │
-│  │  ┌─────────────┐ ┌─────────────┐                                  │ │
-│  │  │orchestrator │ │   dbtable   │                                  │ │
-│  │  │ (oskill.md) │ │ (tskill.md) │                                  │ │
-│  │  └─────────────┘ └─────────────┘                                  │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                  │ │
+│  │  │     mcp     │ │orchestrator │ │   dbtable   │                  │ │
+│  │  │ (mskill.md) │ │ (oskill.md) │ │ (tskill.md) │                  │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘                  │ │
 │  └───────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -50,11 +50,35 @@ The main entry point and coordinator for skill-based execution.
 | File | Type | Subsystem |
 |------|------|-----------|
 | `skill.md` | claude | ClaudeSkillsSubsystem |
+| `cskill.md` | code | CodeSkillsSubsystem |
 | `cgskill.md` | code-generation | CodeGenerationSkillsSubsystem |
 | `iskill.md` | interactive | InteractiveSkillsSubsystem |
 | `mskill.md` | mcp | MCPSkillsSubsystem |
 | `oskill.md` | orchestrator | OrchestratorSkillsSubsystem |
 | `tskill.md` | dbtable | DBTableSkillsSubsystem |
+
+**Code Skills Handling:**
+
+When discovering code skills (`cskill.md`), `RecursiveSkilledAgent` automatically invokes code generation:
+
+```javascript
+// In _registerSkill() method:
+if (skillRecord.type === 'cskill') {
+    // Invoke the generic generate-code-skill
+    this.executor.addPendingPreparation(
+        generateCode(skillRecord, this.llmAgent, this.logger)
+    );
+}
+
+// Then prepare with subsystem
+const subsystem = this.subsystemFactory.get(skillRecord.type);
+if (subsystem && typeof subsystem.prepareSkill === 'function') {
+    const prep = subsystem.prepareSkill(skillRecord, this);
+    if (prep instanceof Promise) {
+        this.executor.addPendingPreparation(prep);
+    }
+}
+```
 
 **Key Methods:**
 ```javascript
@@ -232,7 +256,163 @@ fast
 
 ---
 
-### 6. DBTableSkillsSubsystem (`DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs`)
+### 6. CodeSkillsSubsystem (`CodeSkillsSubsystem/CodeSkillsSubsystem.mjs`)
+
+Generates and executes JavaScript code from detailed specifications using a two-phase lifecycle.
+
+**Skill Definition (cskill.md):**
+```markdown
+# User Data Formatter
+
+Formats user data into a standardized string representation.
+
+## Summary
+Formats user data into a standardized string representation based on detailed specifications.
+
+## Input Format
+- **user**: Object containing user information
+  - `firstName` (string, required): User's first name
+  - `lastName` (string, required): User's last name
+  - `age` (number, required): User's age in years
+
+## Output Format
+- **Type**: `string`
+- **Success Format**: "Name: {fullName}, Age: {age}, Status: {status}"
+- **Error Format**: "Error: {specific_error_message}"
+
+## Constraints
+- Validate all inputs according to specified rules
+- Handle missing optional fields gracefully
+- Use only built-in Node.js modules
+
+## Examples
+### Example 1
+- **Input**: `{ "user": { "firstName": "John", "lastName": "Doe", "age": 30 } }`
+- **Output**: "Name: John Doe, Age: 30, Status: Adult"
+```
+
+**Specification Files (`specs/` folder):**
+
+Code skills use specification files that describe implementation logic in natural language. Each spec file corresponds to a JavaScript module:
+
+```markdown
+# Specification for index.js
+
+## Function: action(args)
+
+### Description
+Main entry point for user data formatting skill.
+
+### Input
+- args: Object containing user data
+  - user: Object (required)
+    - firstName: string (required, 2-50 chars, letters only)
+    - lastName: string (required, 2-50 chars)
+    - age: number (required, 0-120)
+
+### Processing Logic
+1. Validate that all required fields are present
+2. Validate firstName: 2-50 letters only
+3. Validate lastName: 2-50 letters or hyphens
+4. Validate age: integer between 0 and 120
+5. Construct fullName: "{firstName} {lastName}"
+6. Determine status: "Adult" if age ≥ 18, else "Minor"
+7. Build result string
+
+### Error Handling
+- Return specific error messages for validation failures
+- Handle unexpected errors gracefully
+
+### Example
+**Input**: `{ "user": { "firstName": "John", "lastName": "Doe", "age": 30 } }`
+**Output**: "Name: John Doe, Age: 30, Status: Adult"
+```
+
+**Important:** Specification files must contain ONLY natural language descriptions, no JavaScript code.
+
+**Repository Layout:**
+```
+my-code-skill/
+├── cskill.md           # Main skill definition
+├── specs/              # Specification files (natural language only)
+│   ├── index.js.md      # Spec for index.mjs (main entrypoint)
+│   ├── core.js.md       # Spec for core.js
+│   └── utils.js.md      # Spec for utils.js
+└── src/                # Generated code (auto-created, do not edit)
+    ├── index.mjs        # Generated entrypoint
+    ├── core.js          # Generated core module
+    └── utils.js         # Generated utility module
+```
+
+**Two-Phase Lifecycle:**
+
+**Phase 1: Skill Discovery and Code Generation**
+
+When `RecursiveSkilledAgent` discovers a code skill (`cskill.md`), it automatically invokes the **generate-code-skill** - a hardcoded generic skill that handles code generation:
+
+1. **Skill Registration**: `RecursiveSkilledAgent` detects `skillRecord.type === 'cskill'` during discovery
+2. **Invoke generateCode**: Calls `generateCode(skillRecord, llmAgent, logger)` from `generate-code-skill.mjs`
+3. **Check specs folder**: Looks for `specs/` folder in skill directory (skip if missing)
+4. **Timestamp comparison**: Compares modification times to determine if regeneration needed:
+   - Find newest spec file timestamp in `specs/` folder
+   - Find oldest generated file timestamp in `src/` folder
+   - If `src/` folder doesn't exist → regenerate
+   - If newest spec is newer than oldest src file → regenerate
+   - Otherwise → skip regeneration (fast path)
+5. **Generate code** (if needed): Uses LLM in single-step generation:
+   - Recursively reads all `.md` files from `specs/` folder
+   - Extracts relevant sections from `cskill.md` (Input Format, Output Format, Constraints, Examples)
+   - Builds single comprehensive prompt combining all specs and cskill.md context
+   - Sends to LLM with `mode: 'deep'` and `responseShape: 'text'`
+   - LLM responds with markdown containing multiple files marked with `## file-path:` headers
+6. **Parse multi-file response**: Extracts file paths and code blocks from markdown
+7. **Write to disk**: Deletes `src/`, creates new `src/`, writes all generated `.mjs` files
+8. **Subsystem preparation**: `RecursiveSkilledAgent` also calls `subsystem.prepareSkill()` for additional preparation
+
+**Phase 2: Skill Execution (`executeSkillPrompt`)**
+1. Extract arguments from user prompt using LLM (or use pre-provided args if available)
+2. Dynamically import and execute pre-generated code from `src/index.mjs`
+3. Wrap primitive results in `{ result: value }` format
+4. Return execution result
+
+**Key Features:**
+- **Automatic discovery and generation**: `RecursiveSkilledAgent` automatically detects code skills and invokes `generate-code-skill`
+- **Single-step code generation**: All specification files and cskill.md sections (Input Format, Output Format, Constraints, Examples) are combined into one LLM prompt
+- **Timestamp-based caching**: Code regenerates only when spec files are newer than generated files, enabling fast subsequent executions
+- **Generic generation logic**: The `generate-code-skill` is reusable for all code skills, keeping generation logic centralized
+- **Multi-file support**: Parses LLM response with `## file-path:` headers to generate multiple modules
+- **Pre-provided args support**: Can skip argument extraction if args are already structured
+- **Primitive result wrapping**: Automatically wraps primitive return values in `{ result: value }` format
+
+**Key Methods:**
+```javascript
+// Code generation is automatically invoked by RecursiveSkilledAgent during discovery
+// When skillRecord.type === 'cskill':
+import { generateCode } from './generate-code-skill.mjs';
+await generateCode(skillRecord, llmAgent, logger);
+
+// Execute pre-generated code
+const result = await subsystem.executeSkillPrompt({
+    skillRecord,
+    recursiveAgent,
+    promptText,
+    options: { args: { user: {...} } }  // Optional pre-provided args
+});
+
+// The subsystem's prepareSkill is called after generateCode for additional preparation
+await subsystem.prepareSkill(skillRecord, recursiveAgent);
+```
+
+**When to Use:**
+- Complex business logic with multiple validation rules
+- Data transformation and formatting tasks
+- Algorithm implementation from natural language descriptions
+- Integration layers between different systems
+- Domain-specific processing with detailed requirements
+
+---
+
+### 7. DBTableSkillsSubsystem (`DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs`)
 
 Manages database table operations with LLM-powered query interpretation.
 
@@ -299,7 +479,7 @@ Computed as current timestamp on creation.
 
 ---
 
-### 7. InteractiveSkillsSubsystem (`InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs`)
+### 8. InteractiveSkillsSubsystem (`InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs`)
 
 Handles multi-turn conversational skills with argument collection.
 
@@ -347,7 +527,7 @@ export async function action(args, context) {
 
 ---
 
-### 8. MCPSkillsSubsystem (`MCPSkillsSubsystem/MCPSkillsSubsystem.mjs`)
+### 9. MCPSkillsSubsystem (`MCPSkillsSubsystem/MCPSkillsSubsystem.mjs`)
 
 Orchestrates Model Context Protocol (MCP) tools.
 
@@ -379,7 +559,7 @@ Use appropriate file tools based on the operation type.
 
 ---
 
-### 9. ClaudeSkillsSubsystem (`ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs`)
+### 10. ClaudeSkillsSubsystem (`ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs`)
 
 Simple passthrough subsystem for basic Claude skills.
 
@@ -478,8 +658,16 @@ OrchestratorSubsystem.executeSkillPrompt()
 ├── my-orchestrator/
 │   └── oskill.md           # Orchestrator skill definition
 ├── my-code-skill/
+│   ├── cskill.md            # Code skill definition
+│   ├── specs/               # Specification files (natural language)
+│   │   ├── index.js.md      # Spec for main entrypoint
+│   │   └── utils.js.md      # Spec for utility module
+│   └── src/                 # Generated code (auto-created)
+│       ├── index.mjs        # Generated entrypoint
+│       └── utils.js         # Generated utility module
+├── my-code-gen-skill/
 │   ├── cgskill.md           # Code generation skill definition
-│   └── my-code-skill.js    # Optional module implementation
+│   └── my-code-gen-skill.js # Optional module implementation
 ├── my-interactive-skill/
 │   ├── iskill.md           # Interactive skill definition
 │   └── my-interactive-skill.mjs  # Required module with specs + action
@@ -498,10 +686,12 @@ OrchestratorSubsystem.executeSkillPrompt()
 
 1. **Skill Naming**: Use descriptive, hyphenated names that reflect the skill's purpose
 2. **Orchestrator Design**: Keep orchestrators focused; compose multiple for complex workflows
-3. **Code Skills**: Prefer module-based implementation for complex logic
-4. **DB Skills**: Define clear validators and presenters for data integrity
-5. **Interactive Skills**: Design clear argument flows with helpful llmHints
-6. **Testing**: Mock the LLMAgent and dbAdapter for unit tests
+3. **Code Skills (cskill)**: Write specifications in natural language only, never include implementation code in spec files; leverage signature-based caching for fast re-execution
+4. **Code Generation Skills (cgskill)**: Prefer module-based implementation for complex logic
+5. **DB Skills**: Define clear validators and presenters for data integrity
+6. **Interactive Skills**: Design clear argument flows with helpful llmHints
+7. **Testing**: Mock the LLMAgent and dbAdapter for unit tests
+8. **Generated Code**: Never edit `src/` folders in code skills or `.generated.mjs` files in DB skills directly; always regenerate from specifications
 
 ---
 
@@ -546,6 +736,7 @@ Each skill folder may include one or more descriptor files depending on the type
 - The markdown file should capture the business context, required inputs, optional inputs, and any execution notes.
 - The first heading inside the file becomes the human-readable title displayed in tooling.
 - New skill types expand the descriptor catalogue:
+  - `cskill.md` — metadata for code skills. Sections include **Summary**, **Input Format**, **Output Format**, **Constraints**, and **Examples**. Code generation happens from separate specification files in the `specs/` folder, which must contain only natural language descriptions (no implementation code).
   - `mskill.md` — metadata for MCP orchestration skills. Sections such as **Instructions** describe the system prompt, while **Allowed Tools** can list a constrained set of MCP tools that the subsystem may invoke.
   - `oskill.md` — metadata for orchestration skills. The **Instructions** section guides planning, **Allowed Skills** can limit which skills the orchestrator may call, and **Intents** declares the intent taxonomy that should be considered during planning.
   - Orchestration descriptors may optionally provide a **Fallback** section. When present, the agent is authorised to invent an ad-hoc MCP plan using the supplied ReAct-style instructions and the optional fallback tool allow-list whenever no predefined skill fits the request.

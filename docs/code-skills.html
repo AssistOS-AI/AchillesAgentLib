@@ -146,35 +146,46 @@ Formats a user object into a standardized string.
         <section>
             <h2>Code Generation Lifecycle</h2>
             <p>
-                Code skills follow a two-phase lifecycle that separates preparation from execution:
+                Code skills follow a two-phase lifecycle that separates code generation from execution:
             </p>
-            <h3>Phase 1: Skill Preparation (<code>prepareSkill</code>)</h3>
-            <ol>
-                <li><strong>Check specs folder</strong>: Looks for <code>specs/</code> folder in skill directory</li>
-                <li><strong>Read specifications</strong>: Reads all <code>.md</code> files recursively from specs folder</li>
-                <li><strong>Calculate signature</strong>: Creates a signature based on file paths and modification timestamps</li>
-                <li><strong>Check regeneration needed</strong>:
-                    <ul>
-                        <li>If <code>src/</code> folder doesn't exist → regenerate</li>
-                        <li>If specs signature changed → regenerate</li>
-                        <li>If specs signature unchanged → skip regeneration</li>
-                    </ul>
-                </li>
-                <li><strong>Generate code</strong> (if needed): Uses LLM to generate code from specifications</li>
-                <li><strong>Write to disk</strong>: Creates <code>src/</code> folder and writes generated <code>.mjs</code> files</li>
-                <li><strong>Cache signature</strong>: Stores specs signature on skillRecord for future comparisons</li>
-            </ol>
+            <h3>Phase 1: Code Generation</h3>
+            <p>
+                When <code>RecursiveSkilledAgent</code> discovers a code skill (<code>cskill.md</code>), it automatically generates
+                the executable code from your specifications and writes it to the <code>src/</code> folder.
+            </p>
+            <ul>
+                <li>All <code>.md</code> files from the <code>specs/</code> folder are read recursively</li>
+                <li>Relevant sections from <code>cskill.md</code> (Input Format, Output Format, Constraints, Examples) are included</li>
+                <li>Everything is combined in a single LLM prompt for code generation</li>
+                <li>The generated <code>.mjs</code> files are written to the <code>src/</code> folder</li>
+                <li>Code regenerates automatically when spec files are newer than generated files</li>
+            </ul>
+            <p>
+                For detailed information about how <code>RecursiveSkilledAgent</code> handles code skill discovery and generation,
+                see the <a href="agent-runtime.html#code-skills-handling">Agent Runtime documentation</a>.
+            </p>
 
-            <h3>Phase 2: Skill Execution (<code>executeSkillPrompt</code>)</h3>
+            <h3>Phase 2: Skill Execution</h3>
+            <p>
+                When you execute a code skill, the subsystem:
+            </p>
             <ol>
-                <li><strong>Extract arguments</strong>: Uses LLM to parse user prompt into structured arguments</li>
-                <li><strong>Execute generated code</strong>: Runs the pre-generated code from <code>src/index.mjs</code></li>
-                <li><strong>Return result</strong>: Returns the execution result to caller</li>
+                <li>Extracts arguments from your prompt (or uses pre-provided arguments)</li>
+                <li>Dynamically imports and executes <code>src/index.mjs</code></li>
+                <li>Wraps primitive results in <code>{ result: value }</code> format</li>
+                <li>Returns the execution result</li>
             </ol>
 
             <div class="note">
-                <strong>Important</strong>: No code regeneration happens during execution. The subsystem only uses 
-                pre-generated code, making execution fast and predictable.
+                <strong>Key Features</strong>:
+                <ul>
+                    <li><strong>Automatic generation</strong>: Code is generated automatically during skill discovery</li>
+                    <li><strong>Single-step generation</strong>: All specs and sections combined in one LLM prompt</li>
+                    <li><strong>Timestamp-based caching</strong>: Only regenerates when specs change</li>
+                    <li><strong>Multi-file support</strong>: Can generate multiple modules from multiple spec files</li>
+                    <li><strong>Pre-provided args support</strong>: Can skip argument extraction when called programmatically</li>
+                    <li><strong>Primitive result wrapping</strong>: Ensures consistent return format</li>
+                </ul>
             </div>
         </section>
 
@@ -197,12 +208,27 @@ Formats a user object into a standardized string.
                         <li><code>skillRecord</code>: Skill record object</li>
                         <li><code>recursiveAgent</code>: Agent with LLM access</li>
                         <li><code>promptText</code>: User's natural language prompt</li>
-                        <li><code>options</code>: Additional execution options</li>
+                        <li><code>options</code>: Additional execution options
+                            <ul>
+                                <li><code>args</code> (optional): Pre-structured arguments to pass directly to the skill, bypassing LLM extraction</li>
+                            </ul>
+                        </li>
                     </ul>
                 </li>
-                <li><strong>Returns</strong>: Promise that resolves with execution result</li>
+                <li><strong>Returns</strong>: Promise that resolves with execution result (primitives wrapped in <code>{ result: value }</code>)</li>
                 <li><strong>Side effects</strong>: None (uses pre-generated code)</li>
             </ul>
+            <p><strong>Example with pre-provided args</strong>:</p>
+            <pre><code>await subsystem.executeSkillPrompt({
+    skillRecord,
+    recursiveAgent,
+    promptText: 'Format this user',
+    options: {
+        args: {
+            user: { firstName: 'John', lastName: 'Doe', age: 30 }
+        }
+    }
+});</code></pre>
 
             <h3><code>checkIfRegenerationNeeded(skillRecord, currentSignature)</code></h3>
             <p>Determines if code regeneration is needed based on current state.</p>
