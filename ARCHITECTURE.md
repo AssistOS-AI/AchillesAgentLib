@@ -194,7 +194,7 @@ const executions = await subsystem.executePlanSteps({ plan, recursiveAgent, opti
 
 ---
 
-### 5. CodeSkillsSubsystem (`CodeSkillsSubsystem/CodeSkillsSubsystem.mjs`)
+### 5. CodeGenerationSkillsSubsystem (`CodeGenerationSkillsSubsystem/CodeGenerationSkillsSubsystem.mjs`)
 
 Executes JavaScript code dynamically, either LLM-generated or from modules.
 

@@ -1,4 +1,4 @@
-import { CodeGenerationSkillsSubsystem } from '../../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
+import { CodeGenerationSkillsSubsystem } from '../../CodeGenerationSkillsSubsystem/CodeGenerationSkillsSubsystem.mjs';
 import { CodeSpecsSkillsSubsystem } from '../../CodeSpecsSkillsSubsystem/CodeSpecsSkillsSubsystem.mjs';
 import { InteractiveSkillsSubsystem } from '../../InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs';
 import { ClaudeSkillsSubsystem } from '../../ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs';

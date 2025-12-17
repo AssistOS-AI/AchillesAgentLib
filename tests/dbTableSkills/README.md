@@ -182,7 +182,7 @@ ensureSubsystem(type) {
 
     let subsystem;
     if (type === 'code-generation') {
-        subsystem = new CodeSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
+        subsystem = new CodeGenerationSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
     } else if (type === 'interactive') {
         subsystem = new InteractiveSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
     } else if (type === 'mcp') {

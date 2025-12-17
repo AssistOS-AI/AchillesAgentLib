@@ -80,11 +80,11 @@ function unwrapCodeFence(payload) {
 function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast' }) {
     return async (recursiveSkilledAgent, input) => {
         if (typeof input !== 'string' || !input.trim()) {
-            throw new Error(`Code skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
+            throw new Error(`Code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
 
         if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
-            throw new Error(`Code skill "${skillName}" requires an LLMAgent with an "executePrompt" method.`);
+            throw new Error(`Code generation skill "${skillName}" requires an LLMAgent with an "executePrompt" method.`);
         }
 
         const instructions = prompt ? prompt.trim() : 'Decide whether to respond directly or craft JavaScript to solve the task.';
@@ -109,15 +109,15 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
         const decision = await withTimeout(
             llmAgent.executePrompt(decisionPrompt, {
                 mode: llmMode,
-                context: { intent: 'code-skill-default', skillName },
+                context: { intent: 'code-generation-skill-default', skillName },
                 responseShape: 'json',
             }),
             SKILL_TIMEOUT_MS,
-            () => new Error(`Code skill "${skillName}" decision timed out after ${SKILL_TIMEOUT_MS}ms.`),
+            () => new Error(`Code generation skill "${skillName}" decision timed out after ${SKILL_TIMEOUT_MS}ms.`),
         );
 
         if (!decision || typeof decision !== 'object') {
-            throw new Error(`Code skill "${skillName}" expected a JSON object response.`);
+            throw new Error(`Code generation skill "${skillName}" expected a JSON object response.`);
         }
 
         const mode = typeof decision.mode === 'string'
@@ -128,19 +128,19 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
 
         if (mode === 'text') {
             if (typeof decision.text !== 'string' || !decision.text.trim()) {
-                throw new Error(`Code skill "${skillName}" received text mode without a valid "text" response.`);
+                throw new Error(`Code generation skill "${skillName}" received text mode without a valid "text" response.`);
             }
             outcome = decision.text.trim();
         } else if (mode === 'code') {
             if (typeof decision.code !== 'string' || !decision.code.trim()) {
-                throw new Error(`Code skill "${skillName}" received code mode without executable "code".`);
+                throw new Error(`Code generation skill "${skillName}" received code mode without executable "code".`);
             }
             outcome = await executeCodeSnippet({
                 skillName,
                 code: decision.code,
             });
         } else {
-            throw new Error(`Code skill "${skillName}" received unsupported mode "${decision.mode}".`);
+            throw new Error(`Code generation skill "${skillName}" received unsupported mode "${decision.mode}".`);
         }
 
         if (recursiveSkilledAgent?.sessionMemory && typeof recursiveSkilledAgent.sessionMemory.appendToHistory === 'function') {
@@ -159,7 +159,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
     let cached = null;
     return async (recursiveSkilledAgent, input) => {
         if (typeof input !== 'string' || !input.trim()) {
-            throw new Error(`Code skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
+            throw new Error(`Code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
         if (!cached) {
             const moduleUrl = pathToFileURL(modulePath);
@@ -168,7 +168,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
                 ? imported.action
                 : (typeof imported.default === 'function' ? imported.default : null);
             if (typeof cached !== 'function') {
-                throw new Error(`Code skill module at ${modulePath} does not export an action function.`);
+                throw new Error(`Code generation skill module at ${modulePath} does not export an action function.`);
             }
         }
 
@@ -178,7 +178,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
         const result = await withTimeout(
             execution,
             SKILL_TIMEOUT_MS,
-            () => new Error(`Code skill "${skillName}" execution timed out after ${SKILL_TIMEOUT_MS}ms.`),
+            () => new Error(`Code generation skill "${skillName}" execution timed out after ${SKILL_TIMEOUT_MS}ms.`),
         );
 
         if (typeof result === 'string') {
@@ -214,7 +214,7 @@ async function executeCodeSnippet({ skillName, code }) {
         try {
             return await runSnippet(snippet, note || skillName);
         } catch (error) {
-            throw new Error(`Code skill "${skillName}" execution failed: ${error.message}. Snippet: ${preview}…`);
+            throw new Error(`Code generation skill "${skillName}" execution failed: ${error.message}. Snippet: ${preview}…`);
         }
     };
 
