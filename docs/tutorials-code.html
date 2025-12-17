@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code Specs Skills Tutorial · Achilles Agents Docs</title>
+    <title>Code Skills Tutorial · Achilles Agents Docs</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,13 +11,13 @@
         data-breadcrumb='[
             {"label":"Home","href":"index.html"},
             {"label":"Tutorials","href":"tutorials.html"},
-            {"label":"Code Specs Skills Tutorial"}
+            {"label":"Code Skills Tutorial"}
         ]'></div>
 
     <main class="content">
         <section class="lead">
-            <h1>Code Specs Skills Tutorial</h1>
-            <p>Step-by-step guide to creating code specs skills: from specifications to execution.</p>
+            <h1>Code Skills Tutorial</h1>
+            <p>Step-by-step guide to creating code skills: from specifications to execution.</p>
             <nav class="page-links" aria-label="Tutorial navigation">
                 <a href="tutorials-claude.html">Claude</a>
                 <a href="tutorials-interactive.html">Interactive</a>
@@ -25,7 +25,7 @@
                 <a href="tutorials-orchestration.html">Orchestration</a>
                 <a href="tutorials-mcp.html">MCP</a>
                 <a href="tutorials-cg.html">Code Generation</a>
-                <a href="tutorials-code-specs.html" aria-current="page">Code Specs</a>
+                <a href="tutorials-code.html" aria-current="page">Code Skills</a>
             </nav>
         </section>
 
@@ -48,7 +48,7 @@ cd .AchillesSkills/user-formatter</code></pre>
             <p>This creates the following structure:</p>
             <pre><code>user-formatter/
 ├── specs/              # Will contain our specification files
-└── csskill.md          # Main skill descriptor (to be created)</code></pre>
+└── cskill.md           # Main skill descriptor (to be created)</code></pre>
             <div class="note">
                 <strong>Important</strong>: The <code>.AchillesSkills</code> directory must be at your project root. 
                 Each skill has its own folder with a descriptive name (using hyphens, not spaces).
@@ -57,7 +57,7 @@ cd .AchillesSkills/user-formatter</code></pre>
 
         <section>
             <h2>Step 2: Create Skill Descriptor</h2>
-            <p>Create <code>csskill.md</code> with the skill definition. This file serves as the main interface definition:</p>
+            <p>Create <code>cskill.md</code> with the skill definition. This file serves as the main interface definition:</p>
             <pre><code># User Data Formatter
 
 ## Summary
@@ -91,7 +91,7 @@ Formats user data into a standardized string representation based on detailed sp
             <div class="note">
                 <strong>Key Points</strong>:
                 <ul>
-                    <li>The <code>csskill.md</code> file defines the <strong>interface</strong> (inputs, outputs, constraints)</li>
+                    <li>The <code>cskill.md</code> file defines the <strong>interface</strong> (inputs, outputs, constraints)</li>
                     <li>Detailed implementation specifications go in the <code>specs/</code> folder</li>
                     <li>Include one comprehensive example covering the main use case</li>
                     <li>Be specific about validation rules and data formats</li>
@@ -240,7 +240,7 @@ console.log('Result:', result);
             <h2>Next Steps</h2>
             <p>Now that you've completed this tutorial, explore:</p>
             <ul>
-                <li><a href="code-specs-skills.html">Code Specs Skills Reference</a> - Complete API documentation</li>
+                <li><a href="code-skills.html">Code Skills Reference</a> - Complete API documentation</li>
                 <li><a href="overview.html">Skill System Overview</a> - Architecture and design patterns</li>
                 <li><a href="tutorials.html">Other Tutorials</a> - Learn about other skill types</li>
                 <li><a href="agent-runtime.html">Agent Runtime</a> - Understand how agents execute skills</li>

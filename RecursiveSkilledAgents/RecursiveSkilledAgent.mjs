@@ -174,8 +174,8 @@ export class RecursiveSkilledAgent {
             return;
         }
 
-        // Handle code generation for csskill types
-        if (skillRecord.type === 'csskill') {
+        // Handle code generation for cskill types
+        if (skillRecord.type === 'cskill') {
             this.executor.addPendingPreparation(
                 generateCode(skillRecord, this.llmAgent, this.logger).catch(error => {
                     this.logger.warn(`[RecursiveSkilledAgent] Failed to generate code for skill ${skillRecord.name}: ${error.message}`);

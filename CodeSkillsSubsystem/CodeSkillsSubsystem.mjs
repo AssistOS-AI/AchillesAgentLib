@@ -8,7 +8,7 @@ const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_D
 
 function debugLog(message, ...args) {
   if (DEBUG_ENABLED) {
-    console.log(`[CodeSpecs DEBUG] ${message}`, ...args);
+    console.log(`[CodeSkills DEBUG] ${message}`, ...args);
   }
 }
 
@@ -22,7 +22,7 @@ function camelCaseKeys(obj) {
   return newObj;
 }
 
-export class CodeSpecsSkillsSubsystem {
+export class CodeSkillsSubsystem {
   constructor({ llmAgent }) {
     this.llmAgent = llmAgent;
   }
@@ -35,7 +35,7 @@ export class CodeSpecsSkillsSubsystem {
     
     debugLog(`Specifications loaded, inputFormat: ${!!specifications.inputFormat}`);
     if (!specifications.inputFormat) {
-      throw new Error("Invalid/unprepared csskill: Missing 'Input Format' section in the skill's .md file.");
+      throw new Error("Invalid/unprepared cskill: Missing 'Input Format' section in the skill's .md file.");
     }
 
     // Use pre-provided args if available (ignoring the default 'input' key),
@@ -74,7 +74,7 @@ export class CodeSpecsSkillsSubsystem {
   }
 
   async extractArguments(userPrompt, specifications) {
-    console.log('[CodeSpecs] Extracting arguments with LLM.');
+    console.log('[CodeSkills] Extracting arguments with LLM.');
     const prompt = buildArgumentExtractionPrompt(userPrompt, specifications.inputFormat);
     const response = await this.llmAgent.executePrompt(prompt, { responseShape: 'json', mode: 'fast' });
     if (response.error || !response.args) {
@@ -95,7 +95,7 @@ export class CodeSpecsSkillsSubsystem {
     }
 
     const argsJson = JSON.stringify(args);
-    console.log(`[CodeSpecs] Executing code from disk: ${mainFilePath} with args: ${argsJson}`);
+    console.log(`[CodeSkills] Executing code from disk: ${mainFilePath} with args: ${argsJson}`);
 
     return new Promise((resolve, reject) => {
       const child = fork(mainFilePath, [argsJson], { silent: true });
@@ -112,7 +112,7 @@ export class CodeSpecsSkillsSubsystem {
       });
 
       child.on('error', (err) => {
-        console.error(`[CodeSpecs] Child process failed to start: ${err.message}`);
+        console.error(`[CodeSkills] Child process failed to start: ${err.message}`);
         reject(new Error(`Child process failed to start: ${err.message}`));
       });
 
@@ -123,11 +123,11 @@ export class CodeSpecsSkillsSubsystem {
             const result = JSON.parse(stdout.trim());
             resolve(result);
           } catch (e) {
-            console.error(`[CodeSpecs] Failed to parse child process stdout as JSON: ${e.message}\nSTDOUT:\n${stdout}`);
+            console.error(`[CodeSkills] Failed to parse child process stdout as JSON: ${e.message}\nSTDOUT:\n${stdout}`);
             reject(new Error(`Failed to parse child process stdout: ${e.message}. STDOUT: ${stdout}`));
           }
         } else {
-          console.error(`[CodeSpecs] Child process exited with code ${code || signal}. STDERR:\n${stderr}`);
+          console.error(`[CodeSkills] Child process exited with code ${code || signal}. STDERR:\n${stderr}`);
           reject(new Error(`Child process exited with code ${code || signal}. STDERR: ${stderr}`));
         }
       });

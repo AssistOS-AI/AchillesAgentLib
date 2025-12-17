@@ -1,12 +1,12 @@
 /**
  * @module prompts
- * This module provides functions to build prompts for the CodeSpecificationSubsystem.
+ * This module provides functions to build prompts for the CodeSkillsSubsystem.
  */
 
 /**
  * Builds the prompt to extract structured arguments from a user's natural language prompt.
  * @param {string} userPrompt - The natural language prompt from the user.
- * @param {string} inputFormat - The ## Input Format section from the csskill.md file.
+ * @param {string} inputFormat - The ## Input Format section from the cskill.md file.
  * @returns {string} The complete prompt for the LLM.
  */
 export function buildArgumentExtractionPrompt(userPrompt, inputFormat) {
@@ -39,7 +39,7 @@ JSON response:
 
 /**
  * Builds the prompt to generate executable JavaScript code based on skill specifications.
- * @param {object} specifications - An object containing all parsed sections from the csskill.md file.
+ * @param {object} specifications - An object containing all parsed sections from the cskill.md file.
  * @param {object} args - The structured arguments extracted from the user prompt.
  * @param {string} externalSpecsContent - A string containing the content of all external spec files.
  * @returns {string} The complete prompt for the LLM.

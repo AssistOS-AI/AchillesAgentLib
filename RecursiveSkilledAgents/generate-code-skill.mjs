@@ -158,11 +158,11 @@ export async function generateCode(skillRecord, llmAgent, logger = console) {
             specsForPrompt += `\n\n---\n# Spec for: ${targetPath}\n\n${content}`;
         }
 
-        // 2. Build the skill context from csskill.md sections
+        // 2. Build the skill context from cskill.md sections
         const sections = skillRecord.descriptor.sections || {};
         let skillContext = '';
 
-        // Include relevant sections from csskill.md
+        // Include relevant sections from cskill.md
         if (sections['Input Format']) {
             skillContext += `\n### Input Format\n${sections['Input Format']}\n`;
         }

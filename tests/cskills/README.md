@@ -1,6 +1,6 @@
-# Code Specs Skills Tests
+# Code Skills Tests
 
-This directory contains tests for the Code Specs Skills subsystem.
+This directory contains tests for the Code Skills subsystem.
 
 ## Test Files
 

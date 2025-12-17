@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code Specs Skills · Achilles Agents Docs</title>
+    <title>Code Skills · Achilles Agents Docs</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,14 +11,14 @@
         data-breadcrumb='[
             {"label":"Home","href":"index.html"},
             {"label":"Skill System Overview","href":"overview.html"},
-            {"label":"Code Specs Skills"}
+            {"label":"Code Skills"}
         ]'></div>
 
     <main class="content">
         <section class="lead">
-            <h1>Code Specs Skills</h1>
+            <h1>Code Skills</h1>
             <p>
-                Code Specs skills generate executable JavaScript code from detailed specifications and execute it safely. 
+                Code skills generate executable JavaScript code from detailed specifications and execute it safely. 
                 This subsystem is designed for skills that require dynamic code generation based on comprehensive functional 
                 and technical specifications, enabling complex logic without manual coding.
             </p>
@@ -29,14 +29,14 @@
                 <a href="orchestration-skills.html">Orchestration Skills</a>
                 <a href="mcp-skills.html">MCP Skills</a>
                 <a href="code-generation-skills.html">Code Generation Skills</a>
-                <a href="code-specs-skills.html" aria-current="page">Code Specs Skills</a>
+                <a href="code-skills.html" aria-current="page">Code Skills</a>
             </nav>
         </section>
 
         <section>
             <h2>Descriptor Snapshot</h2>
             <p>
-                Every code specs skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/csskill.md</code>. 
+                Every code skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/cskill.md</code>. 
                 The descriptor defines the skill's purpose, input/output formats, and references the specifications folder:
             </p>
             <pre><code># User Profile Formatter
@@ -60,7 +60,7 @@ Formats a user's data into a readable string based on external functional specif
 ## Constraints
 - The generated code must handle cases where the 'user' object or its properties are null or undefined.</code></pre>
             <p>
-                The <code>csskill.md</code> file focuses on the high-level interface while detailed implementation 
+                The <code>cskill.md</code> file focuses on the high-level interface while detailed implementation 
                 specifications are kept in the <code>specs/</code> folder.
             </p>
         </section>
@@ -68,10 +68,10 @@ Formats a user's data into a readable string based on external functional specif
         <section>
             <h2>Repository Layout</h2>
             <p>
-                Code specs skills follow a simplified folder structure that separates specifications from generated code:
+                Code skills follow a simplified folder structure that separates specifications from generated code:
             </p>
-            <pre><code>my-csskill/
-├── csskill.md          # Main skill definition
+            <pre><code>my-cskill/
+├── cskill.md           # Main skill definition
 ├── specs/              # Specification files
 │   ├── index.js.md      # Spec for index.mjs (main entrypoint)
 │   ├── core.js.md       # Spec for core.js (core logic)
@@ -146,7 +146,7 @@ Formats a user object into a standardized string.
         <section>
             <h2>Code Generation Lifecycle</h2>
             <p>
-                Code specs skills follow a two-phase lifecycle that separates preparation from execution:
+                Code skills follow a two-phase lifecycle that separates preparation from execution:
             </p>
             <h3>Phase 1: Skill Preparation (<code>prepareSkill</code>)</h3>
             <ol>
@@ -233,9 +233,9 @@ Formats a user object into a standardized string.
         </section>
 
         <section>
-            <h2>When to Use Code Specs Skills</h2>
+            <h2>When to Use Code Skills</h2>
             <p>
-                Code specs skills are ideal for:
+                Code skills are ideal for:
             </p>
             <ul>
                 <li><strong>Complex business logic</strong>: Multi-step processing with validation</li>
@@ -258,7 +258,7 @@ Formats a user object into a standardized string.
         <section>
             <h2>See Also</h2>
             <ul>
-                <li><a href="tutorials-code-specs.html">Code Specs Skills Tutorial</a> - Hands-on guide with examples</li>
+                <li><a href="tutorials-code.html">Code Skills Tutorial</a> - Hands-on guide with examples</li>
                 <li><a href="overview.html">Skill System Overview</a> - Architecture and design principles</li>
                 <li><a href="agent-runtime.html">Agent Runtime</a> - How agents execute skills</li>
                 <li><a href="code-generation-skills.html">Code Generation Skills</a> - Comparison with regular code generation skills</li>
