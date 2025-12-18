@@ -174,11 +174,12 @@ export class RecursiveSkilledAgent {
             return;
         }
 
-        // Handle code generation for cskill types
-        if (skillRecord.type === 'cskill') {
+        // Handle code generation for cskill, oskill (orchestrator) types
+        if (skillRecord.type === 'cskill' || skillRecord.type === 'orchestrator') {
             this.executor.addPendingPreparation(
                 generateCode(skillRecord, this.llmAgent, this.logger).catch(error => {
-                    this.logger.warn(`[RecursiveSkilledAgent] Failed to generate code for skill ${skillRecord.name}: ${error.message}`);
+                    const typeSpecificMessage = skillRecord.type === 'cskill' ? 'cskill' : 'orchestrator';
+                    this.logger.warn(`[RecursiveSkilledAgent] Failed to generate code for ${typeSpecificMessage} ${skillRecord.name}: ${error.message}`);
                 })
             );
         }

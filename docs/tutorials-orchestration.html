@@ -111,12 +111,73 @@ Allowed Tools:
             <h2>Execution Flow</h2>
             <ol>
                 <li><strong>Discovery:</strong> The orchestration skill loader parses <code>oskill.md</code>, extracting instructions, allowed skills, intents, and optional scripts.</li>
-                <li><strong>Scripted Execution:</strong> If the descriptor includes a <strong>LightSOPLang</strong> block, the interpreter runs those commands first via a command registry that respects the allow-list.</li>
-                <li><strong>LLM Planning:</strong> When no script is provided, the skill asks the <code>LLMAgent</code> for a JSON-formatted plan constrained to the allowed skills.</li>
+                <li><strong>Code Generation (if specs exist):</strong> If the skill includes a <code>specs</code> directory, the <code>RecursiveSkilledAgent</code> automatically generates executable code from the specifications before any script execution. This generated code takes precedence over LightSOPLang scripts.</li>
+                <li><strong>Scripted Execution:</strong> If the descriptor includes a <strong>LightSOPLang</strong> block and no <code>specs</code> directory exists, the interpreter runs those commands first via a command registry that respects the allow-list.</li>
+                <li><strong>LLM Planning:</strong> When no script is provided and no <code>specs</code> directory exists, the skill asks the <code>LLMAgent</code> for a JSON-formatted plan constrained to the allowed skills.</li>
                 <li><strong>Fallback:</strong> If all steps fail or are skipped, the optional fallback descriptor generates a recovery plan, usually by scheduling MCP tools.</li>
             </ol>
             <p>
                 The regression tests under <code>tests/recursiveAgent/orchestration.test.mjs</code> exercise these flows end-to-end and are an excellent reference when authoring new orchestration skills.
+            </p>
+        </section>
+
+        <section>
+            <h2>Code Generation from Specifications</h2>
+            <p>
+                For complex orchestration scenarios, you can define specifications in natural language and let the agent generate the implementation.
+            </p>
+            <h3>Creating a Specification-Based Orchestration Skill</h3>
+            <ol>
+                <li>
+                    <p><strong>Create the skill descriptor:</strong> Start with a basic <code>oskill.md</code> file.</p>
+                    <pre><code># Disk Manager Orchestrator
+
+This skill manages disk operations using generated code.
+
+## Instructions
+Plan and execute disk operations.
+
+## LightSOPLang
+# This script will be IGNORED because a 'specs' folder exists.
+@doomed skill-that-does-not-exist "This should never run"</code></pre>
+                </li>
+                <li>
+                    <p><strong>Add specification files:</strong> Create a <code>specs</code> directory and add specification files for each module.</p>
+                    <pre><code># specs/index.mjs.md
+# Main Module Specification
+
+## Input Format
+- context: Object containing prompt string
+
+## Output Format
+- Returns an object with status, operation, and path
+
+## Constraints
+- Must handle file operations asynchronously
+- Must validate file paths before operations
+
+## Examples
+- createFile('/path/to/file', 'content') -> {status: 'success', operation: 'createFile', path: '/path/to/file'}
+- deleteFile('/path/to/file') -> {status: 'success', operation: 'deleteFile', path: '/path/to/file'}</code></pre>
+                </li>
+                <li>
+                    <p><strong>Run the agent:</strong> When you create a <code>RecursiveSkilledAgent</code>, it automatically detects the <code>specs</code> directory and generates the code.</p>
+                    <pre><code>const agent = new RecursiveSkilledAgent({
+    llmAgent: new LLMAgent({ name: 'MyAgent' }),
+    startDir: '/path/to/project',
+});
+
+// The agent will automatically generate code during initialization
+await Promise.all(agent.pendingPreparations);
+
+// Now you can use the generated skill
+const result = await agent.executePrompt('createFile /tmp/test.txt hello', {
+    skillName: 'disk-manager'
+});</code></pre>
+                </li>
+            </ol>
+            <p>
+                <strong>Note:</strong> The generated code is written to the <code>src</code> directory. You should not edit these files directly. Instead, update the specification files in the <code>specs</code> directory and let the agent regenerate the code.
             </p>
         </section>
     </main>

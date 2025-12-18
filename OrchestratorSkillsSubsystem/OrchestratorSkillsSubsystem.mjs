@@ -168,8 +168,21 @@ export class OrchestratorSkillsSubsystem {
         const fallback = parseFallback(pickSection(sections, SECTION_KEYS.fallback));
 
         const folderName = skillRecord.skillDir ? path.basename(skillRecord.skillDir) : null;
-        const modulePath = folderName ? path.join(skillRecord.skillDir, `${folderName}.js`) : null;
-        const moduleExists = modulePath ? fs.existsSync(modulePath) : false;
+        let modulePath = null;
+        
+        if (folderName && skillRecord.skillDir) {
+            const specsDir = path.join(skillRecord.skillDir, 'specs');
+            // PRIORITIZE specs folder for generated code
+            if (fs.existsSync(specsDir) && fs.statSync(specsDir).isDirectory()) {
+                modulePath = path.join(skillRecord.skillDir, 'src', 'index.mjs');
+            } else {
+                // Fallback to handwritten module if no specs
+                const manualModulePath = path.join(skillRecord.skillDir, `${folderName}.js`);
+                if (fs.existsSync(manualModulePath)) {
+                    modulePath = manualModulePath;
+                }
+            }
+        }
 
         skillRecord.metadata = {
             type: this.type,
@@ -182,7 +195,7 @@ export class OrchestratorSkillsSubsystem {
             intents,
             fallback,
             script: pickSection(sections, SECTION_KEYS.script) || '',
-            modulePath: moduleExists ? modulePath : null,
+            modulePath,
         };
     }
 

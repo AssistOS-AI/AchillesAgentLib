@@ -75,6 +75,43 @@ Allowed Tools:
         </section>
 
         <section>
+            <h2>Code Generation from Specifications</h2>
+            <p>
+                When an orchestration skill includes a <code>specs</code> directory containing specification files (e.g., <code>index.mjs.md</code>, 
+                <code>DiskManager.js.md</code>), the <code>RecursiveSkilledAgent</code> automatically generates executable code from these specifications.
+            </p>
+            <p>
+                <strong>Important:</strong> If a <code>specs</code> directory exists, the generated code takes precedence over any existing 
+                <code>LightSOPLang</code> script or other source code. The agent will:
+            </p>
+            <ol>
+                <li>Parse all specification files in the <code>specs</code> directory</li>
+                <li>Send them to the LLM for code generation</li>
+                <li>Write the generated code to the <code>src</code> directory</li>
+                <li>Execute the generated code when the skill is invoked</li>
+            </ol>
+            <p>
+                This allows you to define complex orchestration logic using natural language specifications while maintaining the flexibility 
+                to regenerate the implementation as requirements evolve.
+            </p>
+            <pre><code>.AchillesSkills/disk-manager/
+├── oskill.md                  # Orchestration descriptor
+└── specs/                     # Specification directory
+    ├── index.mjs.md           # Main module specification
+    └── DiskManager.js.md      # Helper class specification
+
+# After code generation:
+.AchillesSkills/disk-manager/
+├── oskill.md                  # Orchestration descriptor
+├── specs/                     # Specification directory
+│   ├── index.mjs.md           # Main module specification
+│   └── DiskManager.js.md      # Helper class specification
+└── src/                       # Generated code directory
+    ├── index.mjs              # Generated main module
+    └── DiskManager.js         # Generated helper class</code></pre>
+        </section>
+
+        <section>
             <h2>Execution Styles</h2>
             <p>
                 Orchestration skills execute in one of two modes. If a LightSOPLang block is present, the skill runs those commands immediately, invoking the

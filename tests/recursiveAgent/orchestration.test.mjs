@@ -7,9 +7,11 @@ import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSki
 import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 import { MCPSkillsSubsystem } from '../../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
 import { createMiniMCPServer } from './helpers/miniMCP.mjs';
+import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 
-class StubLLMAgent {
+class StubLLMAgent extends LLMAgent {
     constructor({ onExecutePrompt = null } = {}) {
+        super({ name: 'StubLLMAgent' });
         this.onExecutePrompt = onExecutePrompt;
     }
 
@@ -104,9 +106,8 @@ function createAgent({
     onExecutePrompt = null,
 } = {}) {
     const llmAgent = new StubLLMAgent({ onExecutePrompt });
-    const skilledAgent = new SkilledAgent({ llmAgent });
     return new RecursiveSkilledAgent({
-        skilledAgent,
+        llmAgent,
         startDir,
     });
 }
