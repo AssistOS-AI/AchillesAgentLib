@@ -43,12 +43,13 @@ The `SimpleCache` class implements the core caching functionality with TTL suppo
 #### has(key)
 - **Description**: Checks if a key exists in the cache and is not expired.
 - **Input**: `key` (string): The cache key.
-- **Output**: `true` or `false`.
+- **Output**: BOOLEAN VALUE ONLY - `true` or `false` (NOT an object, just the boolean primitive).
 - **Process**:
   1. Retrieves the cache entry.
   2. If entry doesn't exist, returns `false`.
   3. If entry exists but is expired, removes it and returns `false`.
   4. If entry exists and is valid, returns `true`.
+- **CRITICAL**: This method MUST return a raw boolean value (`true` or `false`), NOT an object like `{ success: true }` or `{ result: true }`.
 
 #### delete(key)
 - **Description**: Removes a key from the cache.
@@ -85,8 +86,39 @@ The main exported function and the designated entry point for execution. It acts
 ### Output
 - **set**: `{ success: true, key: '...' }` - Confirmation of successful storage.
 - **get**: The stored value or `null` if not found/expired.
-- **has**: `true` or `false` indicating key existence.
+- **has**: BOOLEAN ONLY - `true` or `false` indicating key existence. DO NOT wrap in an object.
 - **delete**: `{ success: true, deleted: true/false }` - Confirmation of deletion.
+
+### CRITICAL IMPLEMENTATION NOTES - READ CAREFULLY
+**The `action` function MUST handle return values correctly for each operation:**
+
+✅ CORRECT - `has` returns boolean directly:
+```javascript
+case 'has':
+  const exists = cache.has(key);
+  return exists;  // Direct boolean return (true or false)
+```
+
+✅ CORRECT - `get` returns the value directly:
+```javascript
+case 'get':
+  const value = cache.get(key);
+  return value;  // Direct value return (could be any type, or null)
+```
+
+❌ WRONG - Do NOT wrap `has` in an object:
+```javascript
+case 'has':
+  const exists = cache.has(key);
+  return { result: exists };  // WRONG! Do not do this!
+  return { exists: exists };  // WRONG! Do not do this!
+  return { success: exists }; // WRONG! Do not do this!
+```
+
+**IMPORTANT**:
+- The `has` operation returns a boolean primitive directly (`true` or `false`)
+- The `get` operation returns the stored value directly (any type, or `null`)
+- Only `set` and `delete` operations return object wrappers with metadata
 
 ---
 

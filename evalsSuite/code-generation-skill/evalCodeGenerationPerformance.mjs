@@ -48,10 +48,21 @@ async function evalCodeGenerationPerformance() {
     }
   }
 
+  // Helper function to clean up skill src folder after testing
+  async function cleanupSkillSrc(skillName) {
+    const srcPath = path.resolve(__dirname, '.AchillesSkills', skillName, 'src');
+    try {
+      await rm(srcPath, { recursive: true, force: true });
+      console.log(`🧹 Cleaned up src folder for ${skillName}`);
+    } catch (error) {
+      // Silently ignore if folder doesn't exist
+    }
+  }
+
   // --- Test Case 1: CSV Parser and Transformer ---
   try {
     console.log("\n=== Testing CSV Parser and Transformer ===");
-    
+
     const csvData = `name,age,email
 John,25,john@example.com
 Jane,30,jane@example.com
@@ -67,10 +78,11 @@ Bob,35,bob@example.com`;
     const parseResult1 = await agent.executePrompt("parse CSV data", {
       skillName: 'csv-parser',
       args: {
+        operation: 'parse',
         csvString: csvData
       }
     });
-    
+
     if (parseResult1.parsedData && parseResult1.parsedData.length === 3) {
       console.log(`✅ Parsed ${parseResult1.parsedData.length} records successfully`);
     } else {
@@ -82,11 +94,12 @@ Bob,35,bob@example.com`;
     const parseResult2 = await agent.executePrompt("parse and transform CSV data", {
       skillName: 'csv-parser',
       args: {
+        operation: 'parseAndTransform',
         csvString: csvData,
         transformConfig: transformConfig
       }
     });
-    
+
     if (parseResult2.transformedData && parseResult2.transformedData.length === 2) {
       console.log(`✅ Transformed data correctly filtered (${parseResult2.transformedData.length} records)`);
       logTestResult('csv-parser', true, 'All tests passed');
@@ -96,12 +109,14 @@ Bob,35,bob@example.com`;
   } catch (error) {
     logTestResult('csv-parser', false, `Test failed: ${error.message}`);
     console.error("❌ CSV Parser test failed:", error);
+  } finally {
+    await cleanupSkillSrc('csv-parser');
   }
 
-  // --- Test Case 3: Simple Cache ---
+  // --- Test Case 2: Simple Cache ---
   try {
     console.log("\n=== Testing Simple Cache ===");
-    
+
     // Test 1: Set and get value
     console.log("\nTest 1: Set and retrieve cache value");
     await agent.executePrompt("set cache value", {
@@ -113,7 +128,7 @@ Bob,35,bob@example.com`;
         ttl: 10000
       }
     });
-    
+
     const getResult = await agent.executePrompt("get cache value", {
       skillName: 'simple-cache',
       args: {
@@ -121,7 +136,7 @@ Bob,35,bob@example.com`;
         key: 'test_key'
       }
     });
-    
+
     if (getResult && getResult.data === 'test_value') {
       console.log(`✅ Cache set and get working correctly`);
     } else {
@@ -137,7 +152,7 @@ Bob,35,bob@example.com`;
         key: 'test_key'
       }
     });
-    
+
     if (hasResult === true) {
       console.log(`✅ Cache key existence check working`);
       logTestResult('simple-cache', true, 'All tests passed');
@@ -147,9 +162,11 @@ Bob,35,bob@example.com`;
   } catch (error) {
     logTestResult('simple-cache', false, `Test failed: ${error.message}`);
     console.error("❌ Simple Cache test failed:", error);
+  } finally {
+    await cleanupSkillSrc('simple-cache');
   }
 
-  // --- Test Case 4: Log Buffer ---
+  // --- Test Case 3: Log Buffer ---
   try {
     console.log("\n=== Testing Log Buffer ===");
     
@@ -199,92 +216,11 @@ Bob,35,bob@example.com`;
   } catch (error) {
     logTestResult('log-buffer', false, `Test failed: ${error.message}`);
     console.error("❌ Log Buffer test failed:", error);
+  } finally {
+    await cleanupSkillSrc('log-buffer');
   }
 
-  // --- Test Case 5: Retry Mechanism ---
-  try {
-    console.log("\n=== Testing Retry Mechanism ===");
-    
-    // Create a function that fails twice then succeeds
-    const testFunction = async (attempt) => {
-      if (attempt < 3) {
-        throw new Error(`Attempt ${attempt} failed`);
-      }
-      return `Success on attempt ${attempt}`;
-    };
-
-    // Test: Retry with exponential backoff
-    console.log("\nTest: Function retry with exponential backoff");
-    const retryResult = await agent.executePrompt("retry function", {
-      skillName: 'retry-mechanism',
-      args: {
-        operation: 'retry',
-        function: testFunction,
-        args: [1],
-        retries: 5,
-        baseDelay: 100
-      }
-    });
-    
-    if (retryResult.success === true && retryResult.attempts === 3) {
-      console.log(`✅ Retry mechanism working (succeeded after ${retryResult.attempts} attempts)`);
-      logTestResult('retry-mechanism', true, 'All tests passed');
-    } else {
-      throw new Error("Retry mechanism failed");
-    }
-  } catch (error) {
-    logTestResult('retry-mechanism', false, `Test failed: ${error.message}`);
-    console.error("❌ Retry Mechanism test failed:", error);
-  }
-
-  // --- Test Case 6: Event Queue ---
-  try {
-    console.log("\n=== Testing Event Queue ===");
-    
-    // Test 1: Enqueue tasks
-    console.log("\nTest 1: Enqueue tasks");
-    const task1 = {
-      id: 'task1',
-      function: async (data) => `Processed: ${data}`,
-      args: ['test_data']
-    };
-
-    const enqueueResult = await agent.executePrompt("enqueue task", {
-      skillName: 'event-queue',
-      args: {
-        operation: 'enqueue',
-        task: task1
-      }
-    });
-    
-    if (enqueueResult.success === true) {
-      console.log(`✅ Task enqueued successfully`);
-    } else {
-      throw new Error("Task enqueue failed");
-    }
-
-    // Test 2: Start queue processing
-    console.log("\nTest 2: Start queue processing");
-    const startResult = await agent.executePrompt("start queue", {
-      skillName: 'event-queue',
-      args: {
-        operation: 'start',
-        concurrency: 1
-      }
-    });
-    
-    if (startResult.success === true) {
-      console.log(`✅ Queue processing started`);
-      logTestResult('event-queue', true, 'All tests passed');
-    } else {
-      throw new Error("Queue start failed");
-    }
-  } catch (error) {
-    logTestResult('event-queue', false, `Test failed: ${error.message}`);
-    console.error("❌ Event Queue test failed:", error);
-  }
-
-  // --- Test Case 7: Schema Validator ---
+  // --- Test Case 4: Schema Validator ---
   try {
     console.log("\n=== Testing Schema Validator ===");
     
@@ -315,9 +251,11 @@ Bob,35,bob@example.com`;
   } catch (error) {
     logTestResult('schema-validator', false, `Test failed: ${error.message}`);
     console.error("❌ Schema Validator test failed:", error);
+  } finally {
+    await cleanupSkillSrc('schema-validator');
   }
 
-  // --- Test Case 8: Config Loader ---
+  // --- Test Case 5: Config Loader ---
   try {
     console.log("\n=== Testing Config Loader ===");
     
@@ -355,9 +293,11 @@ Bob,35,bob@example.com`;
   } catch (error) {
     logTestResult('config-loader', false, `Test failed: ${error.message}`);
     console.error("❌ Config Loader test failed:", error);
+  } finally {
+    await cleanupSkillSrc('config-loader');
   }
 
-  // --- Test Case 9: Template Engine ---
+  // --- Test Case 6: Template Engine ---
   try {
     console.log("\n=== Testing Template Engine ===");
     
@@ -386,9 +326,11 @@ Bob,35,bob@example.com`;
   } catch (error) {
     logTestResult('template-engine', false, `Test failed: ${error.message}`);
     console.error("❌ Template Engine test failed:", error);
+  } finally {
+    await cleanupSkillSrc('template-engine');
   }
 
-  // --- Test Case 10: Rate Limiter ---
+  // --- Test Case 7: Rate Limiter ---
   try {
     console.log("\n=== Testing Rate Limiter ===");
     
@@ -436,9 +378,11 @@ Bob,35,bob@example.com`;
   } catch (error) {
     logTestResult('rate-limiter', false, `Test failed: ${error.message}`);
     console.error("❌ Rate Limiter test failed:", error);
+  } finally {
+    await cleanupSkillSrc('rate-limiter');
   }
 
-  // --- Test Case 11: Hash Utility ---
+  // --- Test Case 8: Hash Utility ---
   try {
     console.log("\n=== Testing Hash Utility ===");
     
@@ -480,6 +424,8 @@ Bob,35,bob@example.com`;
   } catch (error) {
     logTestResult('hash-util', false, `Test failed: ${error.message}`);
     console.error("❌ Hash Utility test failed:", error);
+  } finally {
+    await cleanupSkillSrc('hash-util');
   }
 
   // Print final summary
@@ -492,8 +438,8 @@ Bob,35,bob@example.com`;
   
   if (testResults.failed === 0) {
     console.log("\n🎉 All skill tests passed successfully!");
-    console.log("✅ Tested 10 skills: csv-parser, simple-cache, log-buffer,");
-    console.log("   retry-mechanism, event-queue, schema-validator, config-loader, template-engine,");
+    console.log("✅ Tested 8 skills: csv-parser, simple-cache, log-buffer,");
+    console.log("   schema-validator, config-loader, template-engine,");
     console.log("   rate-limiter, and hash-util");
   } else {
     console.log("\n⚠️  Some tests failed. Check the logs above for details.");

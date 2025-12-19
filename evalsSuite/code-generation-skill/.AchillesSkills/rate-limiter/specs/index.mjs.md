@@ -14,9 +14,10 @@ None (pure JavaScript implementation).
 The `RateLimiter` class implements the token bucket rate limiting algorithm. It manages a pool of tokens that refill over time and allows consumption of tokens to control operation frequency.
 
 ### Constructor
-- Initializes token count to 0.
+- Initializes token count to the burstLimit (starts with a full bucket).
 - Sets last refill timestamp to current time.
 - Sets default rate to { tokensPerSecond: 10, burstLimit: 20 }.
+- **CRITICAL**: The initial token count MUST be set to the burstLimit, NOT 0, so the rate limiter is immediately usable.
 
 ### Properties
 - `tokens`: Current number of available tokens.
@@ -50,8 +51,9 @@ The `RateLimiter` class implements the token bucket rate limiting algorithm. It 
 - **Output**: `{ success: true, remaining: number }` or `{ success: false, remaining: number }`.
 - **Process**:
   1. Calls refill() to update token count.
-  2. If sufficient tokens available: consumes them and returns success.
+  2. If sufficient tokens available: consumes them and returns success with remaining token count.
   3. If insufficient tokens: returns failure with remaining token count.
+- **CRITICAL**: The return object MUST use the field name `remaining`, NOT `tokens`. Example: `{ success: true, remaining: 15 }`.
 
 #### getStatus()
 - **Description**: Returns current rate limiter status.
@@ -85,6 +87,48 @@ The main exported function and the designated entry point for execution. It acts
 - **setRate**: `{ success: true }` - Confirmation of rate change.
 - **consume**: `{ success: true, remaining: number }` or `{ success: false, remaining: number }` - Consumption result.
 - **getStatus**: `{ tokens: number, rate: object }` - Current status.
+
+### CRITICAL IMPLEMENTATION NOTES - READ CAREFULLY
+
+**1. Initialization - Token bucket MUST start full:**
+```javascript
+class RateLimiter {
+  constructor() {
+    this.rate = { tokensPerSecond: 10, burstLimit: 20 };
+    this.tokens = this.rate.burstLimit;  // IMPORTANT: Start with full bucket
+    this.lastRefill = Date.now();
+  }
+}
+```
+
+**2. The `consume` operation MUST return `remaining` field (NOT `tokens`):**
+
+✅ CORRECT - Use `remaining` as field name:
+```javascript
+case 'consume':
+  if (this.tokens >= tokensToConsume) {
+    this.tokens -= tokensToConsume;
+    return { success: true, remaining: this.tokens };  // Field name is 'remaining'
+  } else {
+    return { success: false, remaining: this.tokens }; // Field name is 'remaining'
+  }
+```
+
+❌ WRONG - Do NOT use `tokens` as field name:
+```javascript
+case 'consume':
+  // ...
+  return { success: true, tokens: this.tokens };  // WRONG! Use 'remaining' not 'tokens'
+```
+
+**3. After `setRate()`, reset tokens to the new burstLimit:**
+```javascript
+setRate(rate) {
+  this.rate = rate;
+  this.tokens = Math.min(this.tokens, rate.burstLimit); // Don't exceed new limit
+  return { success: true };
+}
+```
 
 ---
 

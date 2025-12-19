@@ -23,7 +23,7 @@ The `TemplateEngine` class implements the core template rendering functionality.
 - **Input**:
   - `template` (string): The template string containing placeholders in `{key}` format.
   - `data` (object): The data object containing values for the placeholders.
-- **Output**: (string) - The rendered string with placeholders replaced.
+- **Output**: STRING VALUE ONLY - The rendered string with placeholders replaced (NOT an object, just the string primitive).
 - **Process**:
   1. Uses regex to find all placeholders in the format `{key}` or `{nested.key}`.
   2. For each placeholder:
@@ -32,6 +32,7 @@ The `TemplateEngine` class implements the core template rendering functionality.
      - If the value is found, converts it to string and replaces the placeholder.
      - If the value is not found, leaves the original placeholder unchanged.
   3. Returns the fully rendered string.
+- **CRITICAL**: This method MUST return a raw string value, NOT an object like `{ result: "..." }` or `{ rendered: "..." }`.
 
 ---
 
@@ -53,7 +54,28 @@ The main exported function and the designated entry point for execution. It acts
 4. **For unknown operations**: Throws an error indicating the operation is not supported.
 
 ### Output
-- **render**: (string) - The rendered template with placeholders replaced by actual values.
+- **render**: STRING ONLY - The rendered template with placeholders replaced by actual values. DO NOT wrap in an object.
+
+### CRITICAL IMPLEMENTATION NOTES - READ CAREFULLY
+**The `action` function for the `render` operation MUST return the string directly:**
+
+✅ CORRECT - Return the string directly:
+```javascript
+case 'render':
+  const rendered = templateEngine.render(template, data);
+  return rendered;  // Direct string return
+```
+
+❌ WRONG - Do NOT wrap in an object:
+```javascript
+case 'render':
+  const rendered = templateEngine.render(template, data);
+  return { result: rendered };  // WRONG! Do not do this!
+  return { rendered: rendered }; // WRONG! Do not do this!
+  return { data: rendered };     // WRONG! Do not do this!
+```
+
+**IMPORTANT**: When the operation is 'render', the action function must return EXACTLY what the render() method returns, which is a string. Do not add any wrapper object.
 
 ---
 
