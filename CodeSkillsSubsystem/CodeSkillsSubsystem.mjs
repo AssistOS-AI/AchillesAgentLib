@@ -1,7 +1,6 @@
-import { join } from 'node:path';
-import { fork } from 'node:child_process';
-import { stat } from 'node:fs/promises';
-import { buildArgumentExtractionPrompt } from './prompts.mjs';
+import {join} from 'node:path';
+import {stat} from 'node:fs/promises';
+import {buildArgumentExtractionPrompt} from './prompts.mjs';
 
 // Debug logging configuration
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
@@ -84,53 +83,56 @@ export class CodeSkillsSubsystem {
   }
 
   async executeCodeFromDisk(outputPath, args) {
-    const mainFilePath = join(outputPath, 'index.mjs');
-    try {
-      const fileStat = await stat(mainFilePath);
-      if (!fileStat.isFile()) {
-        throw new Error(`Execution failed: Main entrypoint '${mainFilePath}' is not a file.`);
+    // Try both index.mjs and index.js, preferring index.mjs
+    const possibleMainFiles = ['index.mjs', 'index.js'];
+    let mainFilePath = null;
+    let modulePath = null;
+    
+    for (const fileName of possibleMainFiles) {
+      const testPath = join(outputPath, fileName);
+      try {
+        const fileStat = await stat(testPath);
+        if (fileStat.isFile()) {
+          mainFilePath = testPath;
+          // Convert to file URL for dynamic import
+          modulePath = `file://${testPath}`;
+          break;
+        }
+      } catch (err) {
+        // File doesn't exist, continue to next option
+        continue;
       }
-    } catch (err) {
-      throw new Error(`Execution failed: Main entrypoint '${mainFilePath}' not found. It should have been generated automatically.`);
+    }
+    
+    if (!mainFilePath) {
+      throw new Error(`Execution failed: No valid entrypoint found. Tried: ${possibleMainFiles.map(f => join(outputPath, f)).join(', ')}. It should have been generated automatically.`);
     }
 
     const argsJson = JSON.stringify(args);
-    console.log(`[CodeSkills] Executing code from disk: ${mainFilePath} with args: ${argsJson}`);
 
-    return new Promise((resolve, reject) => {
-      const child = fork(mainFilePath, [argsJson], { silent: true });
+    // Validate that the main file exists and is accessible
+    try {
+      await stat(mainFilePath);
+    } catch (err) {
+      throw new Error(`Execution failed: Main entrypoint '${mainFilePath}' is not accessible: ${err.message}`);
+    }
 
-      let stdout = '';
-      let stderr = '';
+    try {
+      // Use dynamic import to load the module
+      const module = await import(modulePath);
+      
+      // Check if the module has the expected action function
+      if (typeof module.action !== 'function') {
+        throw new Error(`Execution failed: Module '${mainFilePath}' does not export an 'action' function.`);
+      }
 
-      child.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      child.on('error', (err) => {
-        console.error(`[CodeSkills] Child process failed to start: ${err.message}`);
-        reject(new Error(`Child process failed to start: ${err.message}`));
-      });
-
-      child.on('exit', (code, signal) => {
-        if (code === 0) {
-          try {
-            // Assuming the child process prints the action result as JSON
-            const result = JSON.parse(stdout.trim());
-            resolve(result);
-          } catch (e) {
-            console.error(`[CodeSkills] Failed to parse child process stdout as JSON: ${e.message}\nSTDOUT:\n${stdout}`);
-            reject(new Error(`Failed to parse child process stdout: ${e.message}. STDOUT: ${stdout}`));
-          }
-        } else {
-          console.error(`[CodeSkills] Child process exited with code ${code || signal}. STDERR:\n${stderr}`);
-          reject(new Error(`Child process exited with code ${code || signal}. STDERR: ${stderr}`));
-        }
-      });
-    });
+      // Execute the action function directly
+        return await module.action(JSON.parse(argsJson));
+      
+    } catch (error) {
+      console.error(`[CodeSkills] Dynamic import execution failed: ${error.message}`);
+      console.error(`[CodeSkills] Error stack: ${error.stack}`);
+      throw new Error(`Execution failed: ${error.message}`);
+    }
   }
 }
