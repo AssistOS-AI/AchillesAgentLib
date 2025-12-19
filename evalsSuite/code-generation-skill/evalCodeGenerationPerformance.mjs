@@ -11,14 +11,8 @@ async function evalCodeGenerationPerformance() {
   // Configure LLM environment for code generation
   await envAutoConfig();
 
-  // Create a temporary directory for the test to operate in
-  const testWorkspace = path.resolve(__dirname, 'fs-test-workspace');
-  await rm(testWorkspace, { recursive: true, force: true });
-  await mkdir(testWorkspace, { recursive: true });
-  console.log(`✅ Test workspace created at: ${testWorkspace}`);
-
   // Initialize the agent with a real LLM for code generation
-  const llmAgent = new LLMAgent({ name: 'FileSystem-Skill-Test' });
+  const llmAgent = new LLMAgent({ name: 'evalCodeGen' });
   const agent = new RecursiveSkilledAgent({
     llmAgent,
     additionalSkillRoots: [path.resolve(__dirname, '.AchillesSkills')],
@@ -49,7 +43,13 @@ async function evalCodeGenerationPerformance() {
   }
 
   // Helper function to clean up skill src folder after testing
-  async function cleanupSkillSrc(skillName) {
+  // Only cleans up if the test passed (to preserve failed skill code for debugging)
+  async function cleanupSkillSrc(skillName, testPassed) {
+    if (!testPassed) {
+      console.log(`⚠️  Keeping src folder for ${skillName} (test failed - inspect code for debugging)`);
+      return;
+    }
+
     const srcPath = path.resolve(__dirname, '.AchillesSkills', skillName, 'src');
     try {
       await rm(srcPath, { recursive: true, force: true });
@@ -60,6 +60,7 @@ async function evalCodeGenerationPerformance() {
   }
 
   // --- Test Case 1: CSV Parser and Transformer ---
+  let csvParserPassed = false;
   try {
     console.log("\n=== Testing CSV Parser and Transformer ===");
 
@@ -103,6 +104,7 @@ Bob,35,bob@example.com`;
     if (parseResult2.transformedData && parseResult2.transformedData.length === 2) {
       console.log(`✅ Transformed data correctly filtered (${parseResult2.transformedData.length} records)`);
       logTestResult('csv-parser', true, 'All tests passed');
+      csvParserPassed = true;
     } else {
       throw new Error("CSV transformation failed");
     }
@@ -110,10 +112,11 @@ Bob,35,bob@example.com`;
     logTestResult('csv-parser', false, `Test failed: ${error.message}`);
     console.error("❌ CSV Parser test failed:", error);
   } finally {
-    await cleanupSkillSrc('csv-parser');
+    await cleanupSkillSrc('csv-parser', csvParserPassed);
   }
 
   // --- Test Case 2: Simple Cache ---
+  let simpleCachePassed = false;
   try {
     console.log("\n=== Testing Simple Cache ===");
 
@@ -145,7 +148,7 @@ Bob,35,bob@example.com`;
 
     // Test 2: Check existence
     console.log("\nTest 2: Check cache key existence");
-    const hasResult = await agent.executePrompt("check cache key", {
+    const hasResponse = await agent.executePrompt("check cache key", {
       skillName: 'simple-cache',
       args: {
         operation: 'has',
@@ -153,23 +156,28 @@ Bob,35,bob@example.com`;
       }
     });
 
+    // Extract result from SkillExecutor wrapper (primitives are wrapped in { result: value })
+    const hasResult = hasResponse.result;
+
     if (hasResult === true) {
       console.log(`✅ Cache key existence check working`);
       logTestResult('simple-cache', true, 'All tests passed');
+      simpleCachePassed = true;
     } else {
-      throw new Error("Cache has operation failed");
+      throw new Error(`Cache has operation failed: expected true, got ${hasResult}`);
     }
   } catch (error) {
     logTestResult('simple-cache', false, `Test failed: ${error.message}`);
     console.error("❌ Simple Cache test failed:", error);
   } finally {
-    await cleanupSkillSrc('simple-cache');
+    await cleanupSkillSrc('simple-cache', simpleCachePassed);
   }
 
   // --- Test Case 3: Log Buffer ---
+  let logBufferPassed = false;
   try {
     console.log("\n=== Testing Log Buffer ===");
-    
+
     // Test 1: Add logs and check stats
     console.log("\nTest 1: Add logs to buffer");
     for (let i = 1; i <= 3; i++) {
@@ -182,7 +190,7 @@ Bob,35,bob@example.com`;
         }
       });
     }
-    
+
     // Test 2: Get statistics
     console.log("\nTest 2: Get buffer statistics");
     const statsResult = await agent.executePrompt("get log stats", {
@@ -191,7 +199,7 @@ Bob,35,bob@example.com`;
         operation: 'getStats'
       }
     });
-    
+
     if (statsResult.totalLogs === 3) {
       console.log(`✅ Log buffer working correctly (${statsResult.totalLogs} logs)`);
     } else {
@@ -206,10 +214,11 @@ Bob,35,bob@example.com`;
         operation: 'flush'
       }
     });
-    
+
     if (flushResult.success === true) {
       console.log(`✅ Log buffer flush working`);
       logTestResult('log-buffer', true, 'All tests passed');
+      logBufferPassed = true;
     } else {
       throw new Error("Log buffer flush failed");
     }
@@ -217,13 +226,14 @@ Bob,35,bob@example.com`;
     logTestResult('log-buffer', false, `Test failed: ${error.message}`);
     console.error("❌ Log Buffer test failed:", error);
   } finally {
-    await cleanupSkillSrc('log-buffer');
+    await cleanupSkillSrc('log-buffer', logBufferPassed);
   }
 
   // --- Test Case 4: Schema Validator ---
+  let schemaValidatorPassed = false;
   try {
     console.log("\n=== Testing Schema Validator ===");
-    
+
     const testData = { user: "John", age: "25" };
     const testSchema = {
       user: { type: "string", min: 3 },
@@ -240,11 +250,12 @@ Bob,35,bob@example.com`;
         schema: testSchema
       }
     });
-    
+
     // This should fail because age is a string, not number
     if (validationResult.valid === false && validationResult.errors) {
       console.log(`✅ Schema validation working (correctly rejected invalid data)`);
       logTestResult('schema-validator', true, 'All tests passed');
+      schemaValidatorPassed = true;
     } else {
       throw new Error("Schema validation failed");
     }
@@ -252,19 +263,20 @@ Bob,35,bob@example.com`;
     logTestResult('schema-validator', false, `Test failed: ${error.message}`);
     console.error("❌ Schema Validator test failed:", error);
   } finally {
-    await cleanupSkillSrc('schema-validator');
+    await cleanupSkillSrc('schema-validator', schemaValidatorPassed);
   }
 
   // --- Test Case 5: Config Loader ---
+  let configLoaderPassed = false;
   try {
     console.log("\n=== Testing Config Loader ===");
-    
+
     const configSource = {
       DB_HOST: "localhost",
       DB_PORT: "5432",
       DEBUG: "true"
     };
-    
+
     const configSchema = {
       DB_HOST: "string",
       DB_PORT: "number",
@@ -281,12 +293,13 @@ Bob,35,bob@example.com`;
         schema: configSchema
       }
     });
-    
-    if (configResult.config && 
-        configResult.config.DB_PORT === 5432 && 
+
+    if (configResult.config &&
+        configResult.config.DB_PORT === 5432 &&
         configResult.config.DEBUG === true) {
       console.log(`✅ Config loader working (correct type conversion)`);
       logTestResult('config-loader', true, 'All tests passed');
+      configLoaderPassed = true;
     } else {
       throw new Error("Config loader failed");
     }
@@ -294,46 +307,104 @@ Bob,35,bob@example.com`;
     logTestResult('config-loader', false, `Test failed: ${error.message}`);
     console.error("❌ Config Loader test failed:", error);
   } finally {
-    await cleanupSkillSrc('config-loader');
+    await cleanupSkillSrc('config-loader', configLoaderPassed);
   }
 
-  // --- Test Case 6: Template Engine ---
+  // --- Test Case 6: Expression Evaluator ---
+  let expressionEvaluatorPassed = false;
   try {
-    console.log("\n=== Testing Template Engine ===");
-    
-    const templateData = {
-      user: { name: "John", age: 25 }
+    console.log("\n=== Testing Expression Evaluator ===");
+
+    const testData = {
+      user: { name: "john", age: 25 },
+      items: [1, 2, 3, 4, 5]
     };
 
-    // Test: Render template
-    console.log("\nTest: Template rendering");
-    const templateResult = await agent.executePrompt("render template", {
+    // Test 1: Simple math expression
+    console.log("\nTest 1: Simple math expression");
+    const mathResponse = await agent.executePrompt("evaluate math expression", {
       skillName: 'template-engine',
       args: {
-        operation: 'render',
-        template: "Hello {user.name}! Your age is {user.age}.",
-        data: templateData
+        operation: 'evaluate',
+        expression: '2 + 3 * 4',
+        data: {}
       }
     });
-    
-    const expectedResult = "Hello John! Your age is 25.";
-    if (templateResult === expectedResult) {
-      console.log(`✅ Template engine working correctly`);
-      logTestResult('template-engine', true, 'All tests passed');
+    const mathResult = mathResponse.result;
+
+    if (mathResult === 14) {
+      console.log(`✅ Math expression evaluated correctly: ${mathResult}`);
     } else {
-      throw new Error(`Template rendering failed. Expected: "${expectedResult}", Got: "${templateResult}"`);
+      throw new Error(`Math evaluation failed. Expected: 14, Got: ${mathResult}`);
+    }
+
+    // Test 2: Variable access and computation
+    console.log("\nTest 2: Variable access and computation");
+    const varResponse = await agent.executePrompt("evaluate with variables", {
+      skillName: 'template-engine',
+      args: {
+        operation: 'evaluate',
+        expression: 'user.age * 2',
+        data: testData
+      }
+    });
+    const varResult = varResponse.result;
+
+    if (varResult === 50) {
+      console.log(`✅ Variable access working: ${varResult}`);
+    } else {
+      throw new Error(`Variable access failed. Expected: 50, Got: ${varResult}`);
+    }
+
+    // Test 3: Function call
+    console.log("\nTest 3: Function call");
+    const funcResponse = await agent.executePrompt("evaluate function call", {
+      skillName: 'template-engine',
+      args: {
+        operation: 'evaluate',
+        expression: 'uppercase(user.name)',
+        data: testData
+      }
+    });
+    const funcResult = funcResponse.result;
+
+    if (funcResult === 'JOHN') {
+      console.log(`✅ Function call working: ${funcResult}`);
+    } else {
+      throw new Error(`Function call failed. Expected: 'JOHN', Got: '${funcResult}'`);
+    }
+
+    // Test 4: Complex expression with comparison
+    console.log("\nTest 4: Complex expression with comparison");
+    const compareResponse = await agent.executePrompt("evaluate comparison", {
+      skillName: 'template-engine',
+      args: {
+        operation: 'evaluate',
+        expression: 'user.age > 18',
+        data: testData
+      }
+    });
+    const compareResult = compareResponse.result;
+
+    if (compareResult === true) {
+      console.log(`✅ Comparison working: ${compareResult}`);
+      logTestResult('expression-evaluator', true, 'All tests passed');
+      expressionEvaluatorPassed = true;
+    } else {
+      throw new Error(`Comparison failed. Expected: true, Got: ${compareResult}`);
     }
   } catch (error) {
-    logTestResult('template-engine', false, `Test failed: ${error.message}`);
-    console.error("❌ Template Engine test failed:", error);
+    logTestResult('expression-evaluator', false, `Test failed: ${error.message}`);
+    console.error("❌ Expression Evaluator test failed:", error);
   } finally {
-    await cleanupSkillSrc('template-engine');
+    await cleanupSkillSrc('template-engine', expressionEvaluatorPassed);
   }
 
   // --- Test Case 7: Rate Limiter ---
+  let rateLimiterPassed = false;
   try {
     console.log("\n=== Testing Rate Limiter ===");
-    
+
     // Test 1: Set rate
     console.log("\nTest 1: Set rate limit");
     await agent.executePrompt("set rate", {
@@ -353,7 +424,7 @@ Bob,35,bob@example.com`;
         tokens: 5
       }
     });
-    
+
     if (consumeResult.success === true) {
       console.log(`✅ Rate limiter working (consumed 5 tokens)`);
     } else {
@@ -368,10 +439,11 @@ Bob,35,bob@example.com`;
         operation: 'getStatus'
       }
     });
-    
+
     if (statusResult.tokens >= 0) {
       console.log(`✅ Rate limiter status working (remaining tokens: ${statusResult.tokens})`);
       logTestResult('rate-limiter', true, 'All tests passed');
+      rateLimiterPassed = true;
     } else {
       throw new Error("Rate limiter status failed");
     }
@@ -379,13 +451,14 @@ Bob,35,bob@example.com`;
     logTestResult('rate-limiter', false, `Test failed: ${error.message}`);
     console.error("❌ Rate Limiter test failed:", error);
   } finally {
-    await cleanupSkillSrc('rate-limiter');
+    await cleanupSkillSrc('rate-limiter', rateLimiterPassed);
   }
 
   // --- Test Case 8: Hash Utility ---
+  let hashUtilPassed = false;
   try {
     console.log("\n=== Testing Hash Utility ===");
-    
+
     // Test 1: Generate hash
     console.log("\nTest 1: Generate hash");
     const hashResult = await agent.executePrompt("generate hash", {
@@ -396,7 +469,7 @@ Bob,35,bob@example.com`;
         salt: 'testSalt123'
       }
     });
-    
+
     if (hashResult.hash && hashResult.salt) {
       console.log(`✅ Hash generation working`);
     } else {
@@ -414,10 +487,11 @@ Bob,35,bob@example.com`;
         salt: hashResult.salt
       }
     });
-    
+
     if (verifyResult.valid === true) {
       console.log(`✅ Hash verification working`);
       logTestResult('hash-util', true, 'All tests passed');
+      hashUtilPassed = true;
     } else {
       throw new Error("Hash verification failed");
     }
@@ -425,7 +499,7 @@ Bob,35,bob@example.com`;
     logTestResult('hash-util', false, `Test failed: ${error.message}`);
     console.error("❌ Hash Utility test failed:", error);
   } finally {
-    await cleanupSkillSrc('hash-util');
+    await cleanupSkillSrc('hash-util', hashUtilPassed);
   }
 
   // Print final summary
@@ -439,7 +513,7 @@ Bob,35,bob@example.com`;
   if (testResults.failed === 0) {
     console.log("\n🎉 All skill tests passed successfully!");
     console.log("✅ Tested 8 skills: csv-parser, simple-cache, log-buffer,");
-    console.log("   schema-validator, config-loader, template-engine,");
+    console.log("   schema-validator, config-loader, expression-evaluator,");
     console.log("   rate-limiter, and hash-util");
   } else {
     console.log("\n⚠️  Some tests failed. Check the logs above for details.");

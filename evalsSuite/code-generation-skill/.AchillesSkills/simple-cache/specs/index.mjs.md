@@ -3,8 +3,26 @@
 ## Module Description
 This module implements a simple in-memory cache system with time-to-live (TTL) functionality. It provides methods for storing key-value pairs, retrieving values, checking key existence, and deleting entries. The main export is an `action` function that dynamically dispatches calls to the appropriate cache methods.
 
+**CRITICAL**: Since this module may be reloaded between calls, the cache instance MUST be stored in the Node.js `global` object to persist across module reloads.
+
 ## Dependencies
-None (pure JavaScript implementation using Map).
+None (pure JavaScript implementation using Map and global object for persistence).
+
+---
+
+## Cache Persistence Strategy
+
+**IMPORTANT**: To handle module reloading between skill calls, the cache instance is stored in the global object:
+
+```javascript
+// Initialize or retrieve the global cache instance
+if (!global.__simpleCache) {
+  global.__simpleCache = new SimpleCache();
+}
+const cache = global.__simpleCache;
+```
+
+This ensures the cache persists across module reloads during the same process lifetime.
 
 ---
 
@@ -15,6 +33,7 @@ The `SimpleCache` class implements the core caching functionality with TTL suppo
 
 ### Constructor
 - Initializes an empty Map to store cache entries.
+- NOTE: Only ONE instance should exist, stored in `global.__simpleCache`.
 
 ### Methods
 
@@ -126,6 +145,34 @@ case 'has':
 
 This module exports an `action` function that can be imported and called directly by the CodeSkillsSubsystem.
 
+### Implementation Pattern for Global Persistence
+
+**CRITICAL IMPLEMENTATION**: The action function MUST use the global object to persist cache:
+
+```javascript
+// At the top of the action function or module:
+if (!global.__simpleCache) {
+  global.__simpleCache = new SimpleCache();
+}
+const cache = global.__simpleCache;
+
+// Then use cache for all operations:
+export async function action(args) {
+  const { operation, key, value, ttl } = args ?? {};
+
+  switch (operation) {
+    case 'set':
+      return cache.set(key, value, ttl);
+    case 'get':
+      return cache.get(key);
+    case 'has':
+      return cache.has(key);
+    case 'delete':
+      return cache.delete(key);
+  }
+}
+```
+
 ### Direct Import Usage
 ```javascript
 import { action } from './index.mjs';
@@ -140,7 +187,7 @@ const setResult = await action({
 
 console.log('Set result:', setResult);
 
-// Get a cache value
+// Get a cache value (works even if module was reloaded)
 const getResult = await action({
   operation: 'get',
   key: 'user_data'
@@ -148,7 +195,7 @@ const getResult = await action({
 
 console.log('Get result:', getResult);
 
-// Check if key exists
+// Check if key exists (works even if module was reloaded)
 const hasResult = await action({
   operation: 'has',
   key: 'user_data'
@@ -158,4 +205,4 @@ console.log('Has result:', hasResult);
 ```
 
 ### Integration with CodeSkillsSubsystem
-The CodeSkillsSubsystem will dynamically import this module and call the `action` function directly, eliminating the need for child process communication and improving performance and reliability.
+The CodeSkillsSubsystem will dynamically import this module and call the `action` function directly. Because the module may be reloaded between calls, the cache instance MUST be stored in the global object to maintain state.
