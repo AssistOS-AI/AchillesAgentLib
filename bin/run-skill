@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+import { pathToFileURL } from 'url';
+import fs from 'fs';
+import path from 'path';
+
+function printError(message) {
+  process.stderr.write(`review-specs: error - ${message}\n`);
+}
+
+async function main() {
+  const argv = process.argv.slice(2);
+  if (argv.length < 1) {
+    printError('missing skill name');
+    process.exitCode = 1;
+    return;
+  }
+
+  const [skillName, ...skillArgs] = argv;
+  const repoRoot = process.cwd();
+  const skillPath = path.join(repoRoot, 'spec-skills', skillName, `${skillName}.mjs`);
+
+  if (!fs.existsSync(skillPath)) {
+    printError(`skill module not found at ${skillPath}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  let mod;
+  try {
+    const url = pathToFileURL(skillPath).href;
+    mod = await import(url);
+  } catch (error) {
+    printError(`failed to load skill: ${error.message}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const action = mod?.action;
+  if (typeof action !== 'function') {
+    printError('skill module is missing an action export');
+    process.exitCode = 1;
+    return;
+  }
+
+  let parsedArgs = {};
+  if (skillName === 'review-specs') {
+    if (skillArgs.length < 1) {
+      printError('missing targetDir argument');
+      process.exitCode = 1;
+      return;
+    }
+    parsedArgs = { targetDir: skillArgs[0] };
+  }
+
+  try {
+    const context = { repoRoot };
+    const result = await action(parsedArgs, context);
+    if (result && typeof result === 'string') {
+      process.stdout.write(`${result}\n`);
+    }
+  } catch (error) {
+    printError(error.message || String(error));
+    process.exitCode = 1;
+  }
+}
+
+main();
