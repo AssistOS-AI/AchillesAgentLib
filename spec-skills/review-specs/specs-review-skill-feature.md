@@ -7,7 +7,7 @@ Create a generic skill callable directly via a lightweight CLI (no RecursiveSkil
 - Implement a small CLI command `run <skill-name> <params...>` (e.g., `run review-specs /path/to/project`).
 - Implement a standalone skill `review-specs` under `spec-skills/review-specs/` following the skill interface (`specs`, optional `roles`, `action`).
 - Support two spec layouts: co-located `.js.md` next to `.js` and mirrored `specs/` directory with same structure as code tree.
-- Generate/update `specs_backlog.md` in the target directory; no other output except a brief terminal summary.
+- Generate/update `docs/specs_backlog.md` in the target directory; no other output except a brief terminal summary.
 - Use LLM prompt (expert project manager) to assess spec completeness/consistency vs code and propose fixes. Prompts live in `spec-skills/review-specs/prompts.mjs`.
 
 ## Deliverables
@@ -23,8 +23,8 @@ Create a generic skill callable directly via a lightweight CLI (no RecursiveSkil
 - Arg parsing (minimal):
   - First positional after skill name for `review-specs` = `targetDir`.
 - Outputs: success/fail line to stdout; detailed content only in backlog file. Suggested format:
-  - Success: `review-specs: processed <N> specs, wrote specs_backlog.md`
-  - No specs: `review-specs: no specs found (see specs_backlog.md)`
+  - Success: `review-specs: processed <N> specs, wrote docs/specs_backlog.md`
+  - No specs: `review-specs: no specs found (see docs/specs_backlog.md)`
   - Error: `review-specs: error - <message>`
 - No use of `RecursiveSkilledAgent` or `.AchillesSkills`; direct module load (direct LLMAgent usage allowed).
 
@@ -46,7 +46,7 @@ Create a generic skill callable directly via a lightweight CLI (no RecursiveSkil
 - Use a relative path (from targetDir) as the section key in backlog.
 
 ## Backlog File Format (`specs_backlog.md`)
-- Create or update in `targetDir/specs_backlog.md`.
+- Create or update in `targetDir/docs/specs_backlog.md`.
 - One section per spec file:
   - Heading: `## <relative-md-path>` (e.g., `src/auth/index.js.md` or `specs/auth/index.js.md`).
   - Lines:

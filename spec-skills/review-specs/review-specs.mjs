@@ -146,7 +146,8 @@ function mergeBacklog(existingContent, updates) {
 }
 
 async function writeBacklog(targetDir, updates, noSpecsNote = false) {
-  const backlogPath = path.join(targetDir, 'specs_backlog.md');
+  const backlogPath = path.join(targetDir, 'docs', 'specs_backlog.md');
+  await fs.mkdir(path.dirname(backlogPath), { recursive: true });
   const existing = await readIfExists(backlogPath);
   let content;
 
@@ -194,7 +195,7 @@ export async function action(args, context) {
   const discovered = await discoverSpecs(targetDir);
   if (!discovered.length) {
     await writeBacklog(targetDir, [], true);
-    return 'review-specs: no specs found (see specs_backlog.md)';
+    return 'review-specs: no specs found (see docs/specs_backlog.md)';
   }
 
   const evaluations = [];
@@ -215,5 +216,5 @@ export async function action(args, context) {
   }
 
   const backlogPath = await writeBacklog(targetDir, evaluations, false);
-  return `review-specs: processed ${evaluations.length} specs, wrote specs_backlog.md`;
+  return `review-specs: processed ${evaluations.length} specs, wrote docs/specs_backlog.md`;
 }

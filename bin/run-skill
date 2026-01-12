@@ -50,6 +50,15 @@ async function main() {
       return;
     }
     parsedArgs = { targetDir: skillArgs[0] };
+  } else if (skillName === 'init-project') {
+    if (skillArgs.length < 1) {
+      printError('missing targetDir argument');
+      process.exitCode = 1;
+      return;
+    }
+    const [targetDir, ...rest] = skillArgs;
+    const prompt = rest.length ? rest.join(' ') : '';
+    parsedArgs = { targetDir, prompt };
   }
 
   try {
