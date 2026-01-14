@@ -174,7 +174,7 @@ export class OrchestratorSkillsSubsystem {
             const specsDir = path.join(skillRecord.skillDir, 'specs');
             // PRIORITIZE specs folder for generated code
             if (fs.existsSync(specsDir) && fs.statSync(specsDir).isDirectory()) {
-                modulePath = path.join(skillRecord.skillDir, 'src', 'index.mjs');
+                modulePath = path.join(skillRecord.skillDir, 'index.mjs');
             } else {
                 // Fallback to handwritten module if no specs
                 const manualModulePath = path.join(skillRecord.skillDir, `${folderName}.js`);

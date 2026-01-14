@@ -4,6 +4,7 @@ import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSki
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
 import { rm, mkdir } from 'node:fs/promises';
+import fs from 'node:fs/promises';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,21 +43,51 @@ async function evalCodeGenerationPerformance() {
     }
   }
 
-  // Helper function to clean up skill src folder after testing
-  // Only cleans up if the test passed (to preserve failed skill code for debugging)
-  async function cleanupSkillSrc(skillName, testPassed) {
-    if (!testPassed) {
-      console.log(`⚠️  Keeping src folder for ${skillName} (test failed - inspect code for debugging)`);
-      return;
-    }
+  // Helper to clean up generated files after testing (always removes targets)
+  async function cleanupGeneratedFiles(skillName) {
+    const specsDir = path.resolve(__dirname, '.AchillesSkills', skillName, 'specs');
+    const skillDir = path.resolve(__dirname, '.AchillesSkills', skillName);
 
-    const srcPath = path.resolve(__dirname, '.AchillesSkills', skillName, 'src');
     try {
-      await rm(srcPath, { recursive: true, force: true });
-      console.log(`🧹 Cleaned up src folder for ${skillName}`);
+      const entries = await fs.readdir(specsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const specPath = path.join('specs', entry.name);
+        const absSpecPath = path.join(specsDir, entry.name);
+        if (entry.isDirectory()) {
+          // Recursively remove generated counterparts for nested specs
+          await cleanupGeneratedFilesFromDir(skillDir, absSpecPath, specPath);
+        } else if (entry.name.endsWith('.md') || entry.name.endsWith('.mds')) {
+          const targetRel = specPathToTarget(specPath);
+          const targetAbs = path.join(skillDir, targetRel);
+          await rm(targetAbs, { recursive: true, force: true }).catch(() => {});
+        }
+      }
+      console.log(`🧹 Cleaned up generated files for ${skillName}`);
     } catch (error) {
-      // Silently ignore if folder doesn't exist
+      // Ignore missing specs directory
     }
+  }
+
+  async function cleanupGeneratedFilesFromDir(skillDir, currentAbsSpecsDir, currentRelSpecsDir) {
+    const entries = await fs.readdir(currentAbsSpecsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const nextRel = path.join(currentRelSpecsDir, entry.name);
+      const nextAbs = path.join(currentAbsSpecsDir, entry.name);
+      if (entry.isDirectory()) {
+        await cleanupGeneratedFilesFromDir(skillDir, nextAbs, nextRel);
+      } else if (entry.name.endsWith('.md') || entry.name.endsWith('.mds')) {
+        const targetRel = specPathToTarget(nextRel);
+        const targetAbs = path.join(skillDir, targetRel);
+        await rm(targetAbs, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  }
+
+  function specPathToTarget(relativePath) {
+    return relativePath
+      .replace(/\\/g, '/')
+      .replace(/^specs\//, '')
+      .replace(/\.mds?$/, '');
   }
 
   // --- Test Case 1: CSV Parser and Transformer ---
@@ -112,7 +143,7 @@ Bob,35,bob@example.com`;
     logTestResult('csv-parser', false, `Test failed: ${error.message}`);
     console.error("❌ CSV Parser test failed:", error);
   } finally {
-    await cleanupSkillSrc('csv-parser', csvParserPassed);
+    await cleanupGeneratedFiles('csv-parser', csvParserPassed);
   }
 
   // --- Test Case 2: Simple Cache ---
@@ -170,7 +201,7 @@ Bob,35,bob@example.com`;
     logTestResult('simple-cache', false, `Test failed: ${error.message}`);
     console.error("❌ Simple Cache test failed:", error);
   } finally {
-    await cleanupSkillSrc('simple-cache', simpleCachePassed);
+    await cleanupGeneratedFiles('simple-cache', simpleCachePassed);
   }
 
   // --- Test Case 3: Log Buffer ---
@@ -226,7 +257,7 @@ Bob,35,bob@example.com`;
     logTestResult('log-buffer', false, `Test failed: ${error.message}`);
     console.error("❌ Log Buffer test failed:", error);
   } finally {
-    await cleanupSkillSrc('log-buffer', logBufferPassed);
+    await cleanupGeneratedFiles('log-buffer', logBufferPassed);
   }
 
   // --- Test Case 4: Schema Validator ---
@@ -263,7 +294,7 @@ Bob,35,bob@example.com`;
     logTestResult('schema-validator', false, `Test failed: ${error.message}`);
     console.error("❌ Schema Validator test failed:", error);
   } finally {
-    await cleanupSkillSrc('schema-validator', schemaValidatorPassed);
+    await cleanupGeneratedFiles('schema-validator', schemaValidatorPassed);
   }
 
   // --- Test Case 5: Config Loader ---
@@ -307,7 +338,7 @@ Bob,35,bob@example.com`;
     logTestResult('config-loader', false, `Test failed: ${error.message}`);
     console.error("❌ Config Loader test failed:", error);
   } finally {
-    await cleanupSkillSrc('config-loader', configLoaderPassed);
+    await cleanupGeneratedFiles('config-loader', configLoaderPassed);
   }
 
   // --- Test Case 6: Expression Evaluator ---
@@ -397,7 +428,7 @@ Bob,35,bob@example.com`;
     logTestResult('expression-evaluator', false, `Test failed: ${error.message}`);
     console.error("❌ Expression Evaluator test failed:", error);
   } finally {
-    await cleanupSkillSrc('template-engine', expressionEvaluatorPassed);
+    await cleanupGeneratedFiles('template-engine', expressionEvaluatorPassed);
   }
 
   // --- Test Case 7: Rate Limiter ---
@@ -451,7 +482,7 @@ Bob,35,bob@example.com`;
     logTestResult('rate-limiter', false, `Test failed: ${error.message}`);
     console.error("❌ Rate Limiter test failed:", error);
   } finally {
-    await cleanupSkillSrc('rate-limiter', rateLimiterPassed);
+    await cleanupGeneratedFiles('rate-limiter', rateLimiterPassed);
   }
 
   // --- Test Case 8: Hash Utility ---
@@ -499,7 +530,7 @@ Bob,35,bob@example.com`;
     logTestResult('hash-util', false, `Test failed: ${error.message}`);
     console.error("❌ Hash Utility test failed:", error);
   } finally {
-    await cleanupSkillSrc('hash-util', hashUtilPassed);
+    await cleanupGeneratedFiles('hash-util', hashUtilPassed);
   }
 
   // Print final summary

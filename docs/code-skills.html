@@ -65,31 +65,31 @@ Formats a user's data into a readable string based on external functional specif
             </p>
         </section>
 
-        <section>
-            <h2>Repository Layout</h2>
-            <p>
-                Code skills follow a simplified folder structure that separates specifications from generated code:
-            </p>
-            <pre><code>my-cskill/
-├── cskill.md           # Main skill definition
-├── specs/              # Specification files
-│   ├── index.js.md      # Spec for index.mjs (main entrypoint)
-│   ├── core.js.md       # Spec for core.js (core logic)
-│   └── utils.js.md      # Spec for utils.js (utility functions)
-└── src/                # Generated code (auto-created)
-    ├── index.mjs        # Generated entrypoint
-    ├── core.js          # Generated core module
-    └── utils.js         # Generated utility module</code></pre>
-            <p>
-                <strong>Key conventions:</strong>
-            </p>
-            <ul>
-                <li><code>specs/</code> folder contains specification files named after the JavaScript files they describe</li>
-                <li>Spec files use <code>.md</code> extension (e.g., <code>index.js.md</code> → generates <code>index.mjs</code>)</li>
-                <li><code>src/</code> folder is auto-generated and contains the executable code</li>
-                <li>No manual editing of <code>src/</code> files - they are regenerated from specs</li>
-            </ul>
-        </section>
+         <section>
+             <h2>Repository Layout</h2>
+             <p>
+                 Code skills mirror the <code>specs/</code> tree directly into runnable code under the skill root:
+             </p>
+             <pre><code>my-cskill/
+ ├── cskill.md           # Main skill definition
+ ├── specs/              # Specification files
+ │   ├── index.mjs.md     # Spec for index.mjs (main entrypoint)
+ │   ├── core.js.md       # Spec for core.js (core logic)
+ │   └── utils.js.md      # Spec for utils.js (utility functions)
+ ├── index.mjs           # Generated entrypoint (from specs/index.mjs.md)
+ ├── core.js             # Generated core module (from specs/core.js.md)
+ └── utils.js            # Generated utility module (from specs/utils.js.md)</code></pre>
+             <p>
+                 <strong>Key conventions:</strong>
+             </p>
+             <ul>
+                 <li><code>specs/</code> folder contains specification files named after the JavaScript files they describe</li>
+                 <li>Spec files use <code>.md</code> extension (e.g., <code>index.mjs.md</code> → generates <code>index.mjs</code>)</li>
+                 <li>Generated files live alongside the descriptor at the skill root;
+                 <li>Do not manually edit generated files; update <code>specs/</code> and regenerate</li>
+             </ul>
+         </section>
+
 
         <section>
             <h2>Specification Files</h2>
@@ -144,37 +144,38 @@ Formats a user object into a standardized string.
         </section>
 
         <section>
-            <h2>Code Generation Lifecycle</h2>
-            <p>
-                Code skills follow a two-phase lifecycle that separates code generation from execution:
-            </p>
-            <h3>Phase 1: Code Generation</h3>
-            <p>
-                When <code>RecursiveSkilledAgent</code> discovers a code skill (<code>cskill.md</code>), it automatically generates
-                the executable code from your specifications and writes it to the <code>src/</code> folder.
-            </p>
-            <ul>
-                <li>All <code>.md</code> files from the <code>specs/</code> folder are read recursively</li>
-                <li>Relevant sections from <code>cskill.md</code> (Input Format, Output Format, Constraints, Examples) are included</li>
-                <li>Everything is combined in a single LLM prompt for code generation</li>
-                <li>The generated <code>.mjs</code> files are written to the <code>src/</code> folder</li>
-                <li>Code regenerates automatically when spec files are newer than generated files</li>
-            </ul>
-            <p>
-                For detailed information about how <code>RecursiveSkilledAgent</code> handles code skill discovery and generation,
-                see the <a href="agent-runtime.html#code-skills-handling">Agent Runtime documentation</a>.
-            </p>
+             <h2>Code Generation Lifecycle</h2>
+             <p>
+                 Code skills follow a two-phase lifecycle that separates code generation from execution:
+             </p>
+             <h3>Phase 1: Code Generation</h3>
+             <p>
+                 When <code>RecursiveSkilledAgent</code> discovers a code skill (<code>cskill.md</code>), it automatically generates
+                 the executable code from your specifications using <code>mirror-code-generator.mjs</code> and writes it directly under the skill directory.
+             </p>
+             <ul>
+                 <li>All <code>.md</code> files from the <code>specs/</code> folder are read recursively</li>
+                 <li>The generator focuses on specs and no longer depends on <code>cskill.md</code> sections</li>
+                 <li>Everything is combined in a single LLM prompt for code generation</li>
+                 <li>Generated files mirror the <code>specs/</code> paths (e.g., <code>specs/utils/foo.mjs.md</code> → <code>utils/foo.mjs</code>)</li>
+                 <li>Code regenerates automatically when specs are newer than the oldest expected target or any target is missing</li>
+             </ul>
+             <p>
+                 For detailed information about how <code>RecursiveSkilledAgent</code> handles code skill discovery and generation,
+                 see the <a href="agent-runtime.html#code-skills-handling">Agent Runtime documentation</a>.
+             </p>
 
-            <h3>Phase 2: Skill Execution</h3>
-            <p>
-                When you execute a code skill, the subsystem:
-            </p>
-            <ol>
-                <li>Extracts arguments from your prompt (or uses pre-provided arguments)</li>
-                <li>Dynamically imports and executes <code>src/index.mjs</code></li>
-                <li>Wraps primitive results in <code>{ result: value }</code> format</li>
-                <li>Returns the execution result</li>
-            </ol>
+             <h3>Phase 2: Skill Execution</h3>
+             <p>
+                 When you execute a code skill, the subsystem:
+             </p>
+             <ol>
+                 <li>Extracts arguments from your prompt (or uses pre-provided arguments)</li>
+                 <li>Dynamically imports and executes <code>index.mjs</code> at the skill root</li>
+                 <li>Wraps primitive results in <code>{ result: value }</code> format</li>
+                 <li>Returns the execution result</li>
+             </ol>
+
 
             <div class="note">
                 <strong>Key Features</strong>:
@@ -192,13 +193,14 @@ Formats a user object into a standardized string.
         <section>
             <h2>Public API</h2>
 
-            <h3><code>prepareSkill(skillRecord)</code></h3>
-            <p>Prepares the skill by generating code from specifications if needed.</p>
-            <ul>
-                <li><strong>Parameters</strong>: <code>skillRecord</code> - Skill record object with descriptor and paths</li>
-                <li><strong>Returns</strong>: Promise that resolves when preparation is complete</li>
-                <li><strong>Side effects</strong>: May create <code>src/</code> folder and generate code files</li>
-            </ul>
+             <h3><code>prepareSkill(skillRecord)</code></h3>
+             <p>Prepares the skill by generating code from specifications if needed.</p>
+             <ul>
+                 <li><strong>Parameters</strong>: <code>skillRecord</code> - Skill record object with descriptor and paths</li>
+                 <li><strong>Returns</strong>: Promise that resolves when preparation is complete</li>
+                 <li><strong>Side effects</strong>: Generates code files alongside the descriptor</li>
+             </ul>
+
 
             <h3><code>executeSkillPrompt(options)</code></h3>
             <p>Executes the pre-generated code with provided arguments.</p>
@@ -230,18 +232,19 @@ Formats a user object into a standardized string.
     }
 });</code></pre>
 
-            <h3><code>checkIfRegenerationNeeded(skillRecord, currentSignature)</code></h3>
-            <p>Determines if code regeneration is needed based on current state.</p>
-            <ul>
-                <li><strong>Parameters</strong>:
-                    <ul>
-                        <li><code>skillRecord</code>: Skill record with cached signature</li>
-                        <li><code>currentSignature</code>: Current specs signature</li>
-                    </ul>
-                </li>
-                <li><strong>Returns</strong>: Promise that resolves to boolean</li>
-                <li><strong>Logic</strong>: Checks src folder existence and signature match</li>
-            </ul>
+             <h3><code>checkIfRegenerationNeeded(skillRecord, currentSignature)</code></h3>
+             <p>Determines if code regeneration is needed based on current state.</p>
+             <ul>
+                 <li><strong>Parameters</strong>:
+                     <ul>
+                         <li><code>skillRecord</code>: Skill record with cached signature</li>
+                         <li><code>currentSignature</code>: Current specs signature</li>
+                     </ul>
+                 </li>
+                 <li><strong>Returns</strong>: Promise that resolves to boolean</li>
+                 <li><strong>Logic</strong>: Compares newest spec to oldest expected target (mirroring <code>specs/</code> paths) and triggers regeneration when any target is missing or stale</li>
+             </ul>
+
         </section>
 
         <section>
@@ -251,7 +254,6 @@ Formats a user object into a standardized string.
             </p>
             <ul>
                 <li><strong>Missing specs folder</strong>: Warns and skips code generation</li>
-                <li><strong>Missing src folder</strong>: Automatically regenerates code</li>
                 <li><strong>Code generation failure</strong>: Throws error with details</li>
                 <li><strong>Execution failure</strong>: Throws error with process output</li>
                 <li><strong>Invalid arguments</strong>: Returns structured error messages</li>

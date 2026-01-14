@@ -190,28 +190,32 @@ const result = await agent.executePrompt(
 console.log('Result:', result.result);
 // Output: "Name: John Doe, Age: 30, Status: Adult, Email: john@example.com"
 </code></pre>
-            <div class="note">
-                <strong>Automatic Preparation and Execution</strong>:
-                <ul>
-                    <li>The <code>RecursiveSkilledAgent</code> automatically discovers skills in <code>.AchillesSkills</code> directories</li>
-                    <li>When it finds a <code>cskill.md</code>, it automatically invokes the <strong>generate-code-skill</strong> (hardcoded generic skill for code generation)</li>
-                    <li>The <code>generate-code-skill</code> compares timestamps: newest spec file vs oldest generated file</li>
-                    <li>Code is generated via <strong>single-step LLM call</strong> combining all specs and <code>cskill.md</code> sections</li>
-                    <li>Code regeneration happens automatically when spec files are newer than generated files (timestamp-based)</li>
-                    <li>Generated code is cached and reused until specs change, making subsequent executions very fast</li>
-                    <li>Results from primitive types (strings, numbers, etc.) are automatically wrapped in <code>{ result: value }</code> format</li>
-                </ul>
-            </div>
+             <div class="note">
+                 <strong>Automatic Preparation and Execution</strong>:
+                 <ul>
+                     <li>The <code>RecursiveSkilledAgent</code> automatically discovers skills in <code>.AchillesSkills</code> directories</li>
+                     <li>When it finds a <code>cskill.md</code>, it automatically invokes the shared <strong>mirror-code-generator</strong> (<code>generateMirrorCode</code>)</li>
+                     <li>The generator compares the newest spec file against the oldest expected target (mirroring <code>specs/</code> paths); missing targets always trigger regeneration</li>
+                     <li>Code is generated via a <strong>single-step LLM call</strong> combining all specs; <code>cskill.md</code> sections are not required for the prompt</li>
+                     <li>Generated files are written directly under the skill directory matching <code>specs/</code> relative paths (no <code>src/</code> folder)</li>
+                     <li>Regeneration happens automatically when specs change, making subsequent executions fast</li>
+                     <li>Results from primitive types (strings, numbers, etc.) are automatically wrapped in <code>{ result: value }</code> format</li>
+                 </ul>
+             </div>
+
         </section>
 
         <section>
             <h2>Debugging Tips</h2>
             <p>Common issues and solutions:</p>
-            <h3>Issue: Code not regenerating when specs change</h3>
-            <p><strong>Solution</strong>: Delete the <code>src/</code> folder to force regeneration:</p>
-            <pre><code>rm -rf .AchillesSkills/user-formatter/src
+             <h3>Issue: Code not regenerating when specs change</h3>
+             <p><strong>Solution</strong>: Regeneration is automatic when specs are newer than generated files or any target is missing. If you need to force it, delete the generated targets that mirror <code>specs/</code> (no <code>src/</code> folder).</p>
+             <pre><code>rm -f .AchillesSkills/user-formatter/index.mjs \
+      .AchillesSkills/user-formatter/core.js \
+      .AchillesSkills/user-formatter/utils.js
 # Next prepareSkill will regenerate all code
 </code></pre>
+
 
             <h3>Issue: Generated code has errors</h3>
             <p><strong>Solution</strong>: Check your specification files for clarity and completeness. Remember:</p>

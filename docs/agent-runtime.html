@@ -110,34 +110,25 @@
             <h3 id="code-skills-handling">Code Skills Handling</h3>
             <p>
                 When <code>RecursiveSkilledAgent</code> discovers a code skill (<code>cskill.md</code>), it automatically invokes
-                code generation through a specialized process:
+                code generation through the shared <code>mirror-code-generator.mjs</code> helper (exported as <code>generateMirrorCode</code>):
             </p>
             <ol>
                 <li><strong>Detection</strong>: During skill registration, detects <code>skillRecord.type === 'cskill'</code></li>
-                <li><strong>Invoke generate-code-skill</strong>: Calls <code>generateCode(skillRecord, llmAgent, logger)</code> from the hardcoded <code>generate-code-skill.mjs</code> module</li>
-                <li><strong>Timestamp comparison</strong>: The generator compares file timestamps to determine if regeneration is needed:
-                    <ul>
-                        <li>Finds the newest spec file (in <code>specs/</code> folder)</li>
-                        <li>Finds the oldest generated file (in <code>src/</code> folder)</li>
-                        <li>If <code>src/</code> doesn't exist or newest spec is newer than oldest src → regenerate</li>
-                        <li>Otherwise skip regeneration (fast path)</li>
-                    </ul>
-                </li>
+                <li><strong>Invoke mirror generator</strong>: Calls <code>generateMirrorCode(skillRecord.skillDir, llmAgent, logger)</code></li>
+                <li><strong>Up-to-date check</strong>: Compares the newest spec in <code>specs/</code> with the oldest expected target file derived from those specs; missing targets trigger regeneration. There is no <code>src/</code> convention.</li>
                 <li><strong>Single-step LLM generation</strong>:
                     <ul>
                         <li>Recursively reads all <code>.md</code> files from <code>specs/</code></li>
-                        <li>Extracts <code>Input Format</code>, <code>Output Format</code>, <code>Constraints</code>, and <code>Examples</code> sections from <code>cskill.md</code></li>
-                        <li>Combines everything into one comprehensive prompt</li>
-                        <li>Sends to LLM with <code>mode: 'deep'</code> and <code>responseShape: 'text'</code></li>
+                        <li>Builds one prompt from specs (the generator no longer depends on <code>cskill.md</code> sections)</li>
+                        <li>Sends to the LLM with <code>mode: 'deep'</code> and <code>responseShape: 'text'</code></li>
                     </ul>
                 </li>
-                <li><strong>Parse multi-file response</strong>: The LLM returns markdown with <code>## file-path: path/to/file.mjs</code> headers, which are parsed to extract individual files</li>
-                <li><strong>Write to disk</strong>: Deletes the existing <code>src/</code> folder, creates a new one, and writes all generated <code>.mjs</code> files</li>
-                <li><strong>Additional preparation</strong>: After code generation, calls <code>subsystem.prepareSkill()</code> for any subsystem-specific setup</li>
+                <li><strong>Parse multi-file response</strong>: Expects markdown with <code>## file-path: path/to/file.mjs</code> headers and normalises paths (strips <code>./</code> or skill-name prefixes; prevents traversal).</li>
+                <li><strong>Write to disk</strong>: Writes generated files directly under the skill directory, mirroring the <code>specs/</code> paths (e.g., <code>specs/utils/foo.mjs.md</code> → <code>utils/foo.mjs</code>).</li>
+                <li><strong>Additional preparation</strong>: After code generation, calls <code>subsystem.prepareSkill()</code> for any subsystem-specific setup.</li>
             </ol>
             <p>
-                This design keeps code generation logic centralized in <code>generate-code-skill.mjs</code>, making it reusable
-                for all code skills while allowing the agent to handle discovery and invocation automatically.
+                This design keeps code generation centralized in <code>mirror-code-generator.mjs</code> while allowing the agent to handle discovery and invocation automatically.
             </p>
 
             <h3>Review Modes</h3>

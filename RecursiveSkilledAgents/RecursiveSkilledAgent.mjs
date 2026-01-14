@@ -13,7 +13,7 @@ import { SkillRegistry } from './services/SkillRegistry.mjs';
 import { SkillDiscoveryService } from './services/SkillDiscoveryService.mjs';
 import { SkillSelector } from './services/SkillSelector.mjs';
 import { SkillExecutor } from './services/SkillExecutor.mjs';
-import { generateCode } from './generate-code-skill.mjs';
+import { generateMirrorCode } from './mirror-code-generator.mjs';
 
 // Re-export for backward compatibility
 export { SKILL_FILE_TYPES, SKILL_FILE_NAMES };
@@ -177,7 +177,7 @@ export class RecursiveSkilledAgent {
         // Handle code generation for cskill, oskill (orchestrator) types
         if (skillRecord.type === 'cskill' || skillRecord.type === 'orchestrator') {
             this.executor.addPendingPreparation(
-                generateCode(skillRecord, this.llmAgent, this.logger).catch(error => {
+                generateMirrorCode(skillRecord.skillDir, this.llmAgent, this.logger).catch(error => {
                     const typeSpecificMessage = skillRecord.type === 'cskill' ? 'cskill' : 'orchestrator';
                     this.logger.warn(`[RecursiveSkilledAgent] Failed to generate code for ${typeSpecificMessage} ${skillRecord.name}: ${error.message}`);
                 })

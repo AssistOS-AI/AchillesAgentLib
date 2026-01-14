@@ -54,7 +54,7 @@ export class CodeSkillsSubsystem {
     
     // Execute the already generated code from disk
     debugLog(`Executing code from disk...`);
-    const outputPath = join(skillRecord.skillDir, 'src');
+    const outputPath = skillRecord.skillDir;
     const result = await this.executeCodeFromDisk(outputPath, args);
     debugLog(`Execution completed, result type: ${typeof result}`);
     
