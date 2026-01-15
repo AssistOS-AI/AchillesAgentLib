@@ -3,6 +3,49 @@ import path from 'node:path';
 import { getDebugLogger } from '../utils/DebugLogger.mjs';
 
 /**
+ * Short name identifier for this internal skill.
+ */
+export const shortName = 'mirror-code-generator';
+
+/**
+ * Descriptor metadata for this internal skill.
+ */
+export const descriptor = {
+    title: 'Mirror Code Generator',
+    summary: 'Generates JavaScript/ESM code from specs/ directory markdown files.',
+    sections: {},
+};
+
+/**
+ * Orchestrator skill action entry point.
+ * @param {Object} context - Execution context provided by OrchestratorSkillsSubsystem.
+ * @param {string} context.prompt - The skill directory path to generate code for.
+ * @param {Object} context.recursiveAgent - The recursive agent instance (provides llmAgent).
+ * @param {Object} context.llmAgent - The LLM agent instance.
+ * @returns {Promise<Object>} Result object with message and generatedFiles array.
+ */
+export async function action(context) {
+    const { prompt, recursiveAgent, llmAgent } = context;
+    const skillDir = prompt?.trim();
+
+    if (!skillDir) {
+        throw new Error('mirror-code-generator requires a skill directory path as input.');
+    }
+
+    // Use llmAgent from context, or fall back to recursiveAgent.llmAgent
+    const agent = llmAgent || recursiveAgent?.llmAgent;
+    if (!agent) {
+        throw new Error('mirror-code-generator requires an LLM agent.');
+    }
+
+    const generatedFiles = await generateMirrorCode(skillDir, agent, console);
+
+    return {
+        message: `Code generation completed for ${skillDir}`,
+        generatedFiles: generatedFiles || [],
+    };
+}
+/**
  * Recursively finds all spec files (.md/.mds) in a directory.
  * @param {string} baseDir - The base directory to start searching from.
  * @param {string} [currentDir=''] - The current subdirectory, used for recursion.
@@ -136,6 +179,7 @@ function normalizeGeneratedPath(relativePath, sourceName) {
  * @param {string} sourcePath - Directory containing specs/.
  * @param {object} llmAgent - LLM agent instance to use for generation.
  * @param {object} [logger=console] - Logger instance.
+ * @returns {Promise<string[]>} Array of generated file paths (relative to sourcePath), or empty array if skipped/up-to-date.
  */
 export async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
     const debugLogger = getDebugLogger();
@@ -146,14 +190,14 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
         const specsDirExists = await fs.stat(specsDir).then(stat => stat.isDirectory()).catch(() => false);
         if (!specsDirExists) {
             debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'No specs directory found.' });
-            return;
+            return [];
         }
 
         // Gather specs and compute targets
         const specFiles = await findSpecFiles(specsDir);
         if (specFiles.length === 0) {
             logger.warn(`[generateMirrorCode] No spec files found in ${specsDir} for "${sourceName}".`);
-            return;
+            return [];
         }
 
         const targetFiles = specFiles.map(file => specPathToTarget(file.relativePath));
@@ -165,7 +209,7 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
 
         if (!needsRegeneration) {
             debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'Source code is up-to-date.' });
-            return;
+            return [];
         }
 
         debugLogger?.log('generateMirrorCode:start', { skill: sourceName, reason: 'Source is missing or outdated.' });
@@ -224,6 +268,9 @@ Provide the code for all files derived from the specifications.
 
         logger.log(`[generateMirrorCode] Parsed ${generatedFiles.size} files from LLM response for "${sourceName}".`);
 
+        // Track generated file paths for return value
+        const generatedFilePaths = [];
+
         // Write generated files directly into source root, respecting target paths
         for (const [rawRelativePath, code] of generatedFiles.entries()) {
             const normalizedRelPath = normalizeGeneratedPath(rawRelativePath, sourceName);
@@ -235,12 +282,16 @@ Provide the code for all files derived from the specifications.
             await fs.mkdir(path.dirname(outputPath), { recursive: true });
             await fs.writeFile(outputPath, code, 'utf-8');
             debugLogger?.log('generateMirrorCode:wroteFile', { source: sourceName, path: outputPath });
+            generatedFilePaths.push(normalizedRelPath);
         }
 
         logger.log(`[generateMirrorCode] Successfully generated all ${generatedFiles.size} files for "${sourceName}".`);
 
+        return generatedFilePaths;
+
     } catch (error) {
         logger.error(`[generateMirrorCode] Failed to generate code for "${sourceName}": ${error.message}`);
         debugLogger?.log('generateMirrorCode:error', { source: sourceName, error: error.stack });
+        throw error;
     }
 }

@@ -1,4 +1,14 @@
 /**
+ * Registry of internal skill module paths.
+ * Each entry maps a skill name to its module path (relative to this file).
+ * Modules must export: shortName, descriptor, action(promptText, recursiveAgent, logger)
+ */
+const INTERNAL_SKILLS = {
+    'mirror-code-generator': '../mirror-code-generator.mjs',
+    // Future internal skills: just add the module path here
+};
+
+/**
  * Service for executing skills with review modes and processing callbacks.
  * Coordinates skill execution through the appropriate subsystem.
  */
@@ -315,5 +325,32 @@ export class SkillExecutor {
         if (typeof callbacks.onEnd === 'function') {
             this.callbacks.onEnd = callbacks.onEnd;
         }
+    }
+
+    /**
+     * Get definitions for all internal skills.
+     * Dynamically imports each module to read its descriptor and shortName.
+     * Used by RecursiveSkilledAgent to register internal skills when exposeInternalSkills is true.
+     * @returns {Promise<Object>} Map of skill name to definition (includes modulePath for orchestrator subsystem)
+     */
+    async getInternalSkillDefinitions() {
+        const definitions = {};
+
+        for (const [name, modulePath] of Object.entries(INTERNAL_SKILLS)) {
+            try {
+                const module = await import(modulePath);
+                // Resolve the absolute path for the module
+                const resolvedPath = new URL(modulePath, import.meta.url).pathname;
+                definitions[name] = {
+                    shortName: module.shortName || name,
+                    descriptor: module.descriptor || { title: name, summary: '', sections: {} },
+                    modulePath: resolvedPath,
+                };
+            } catch (error) {
+                this.logger?.warn?.(`[SkillExecutor] Failed to load internal skill "${name}": ${error.message}`);
+            }
+        }
+
+        return definitions;
     }
 }

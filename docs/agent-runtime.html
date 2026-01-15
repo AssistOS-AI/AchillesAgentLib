@@ -85,6 +85,7 @@
     promptReader,          // interactive input reader
     onProcessingBegin, onProcessingProgress, onProcessingEnd,
     additionalSkillRoots: [], // extra absolute/relative dirs to scan for .AchillesSkills alongside startDir
+    exposeInternalSkills: false, // when true, registers internal helper skills for direct invocation
 });</code></pre>
             <p>
                 Lifecycle callbacks (<code>onProcessingBegin</code>, <code>onProcessingProgress</code>, <code>onProcessingEnd</code>) fire only for the outermost execution and are safe places to emit logs or UI signals; errors they throw are caught and logged as warnings.
@@ -137,6 +138,25 @@
                 <li><strong>llm:</strong> Let the LLM generate a review before execution.</li>
                 <li><strong>human:</strong> Surface results for human review.</li>
             </ul>
+
+            <h3>Internal Skills</h3>
+            <p>
+                When <code>exposeInternalSkills: true</code> is set, the agent registers built-in helper skills 
+                (such as <code>mirror-code-generator</code>) for direct invocation. These internal skills are 
+                implemented as orchestrator module skills and can be called via <code>executeWithReviewMode()</code>
+                with an explicit <code>skillName</code>.
+            </p>
+            <pre><code>const agent = new RecursiveSkilledAgent({
+    llmAgent,
+    exposeInternalSkills: true,
+});
+
+// Invoke mirror-code-generator directly
+const result = await agent.executeWithReviewMode(
+    '/path/to/skill-with-specs',
+    { skillName: 'mirror-code-generator' },
+    'none'
+);</code></pre>
         </section>
 
         <section>

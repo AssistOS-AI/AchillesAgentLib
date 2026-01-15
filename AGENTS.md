@@ -471,6 +471,102 @@ OrchestratorSubsystem.executeSkillPrompt()
 
 ---
 
+## Internal Skills System
+
+RecursiveSkilledAgent includes a system for internal helper skills that can optionally be exposed for direct invocation.
+
+### Enabling Internal Skills
+
+Set `exposeInternalSkills: true` in the constructor:
+
+```javascript
+const agent = new RecursiveSkilledAgent({
+    exposeInternalSkills: true,
+    // ... other options
+});
+```
+
+### Available Internal Skills
+
+#### mirror-code-generator
+
+Generates JavaScript/ESM code from specification files in a skill's `specs/` directory.
+
+**Input:** Path to a skill directory containing a `specs/` subdirectory with `.md` or `.mds` specification files.
+
+**Output:**
+```javascript
+{
+    message: 'Code generation completed for /path/to/skill',
+    generatedFiles: ['index.mjs', 'utils/helpers.mjs']  // relative paths
+}
+```
+
+**Usage Example:**
+```javascript
+const agent = new RecursiveSkilledAgent({
+    exposeInternalSkills: true,
+    llmAgent: myLLMAgent,
+});
+
+const result = await agent.executeWithReviewMode(
+    '/path/to/my-skill',
+    { skillName: 'mirror-code-generator' },
+    'none'
+);
+
+console.log(result);
+// {
+//     skill: 'mirror-code-generator',
+//     result: {
+//         output: {
+//             message: 'Code generation completed for /path/to/my-skill',
+//             generatedFiles: ['index.mjs']
+//         }
+//     },
+//     reviewMode: 'none',
+//     subsystem: 'orchestrator'
+// }
+```
+
+### Adding New Internal Skills
+
+Internal skills are implemented as orchestrator module skills. To add a new internal skill:
+
+1. Create a module file in `RecursiveSkilledAgents/` with the required exports:
+```javascript
+// RecursiveSkilledAgents/my-new-skill.mjs
+
+export const shortName = 'my-new-skill';
+
+export const descriptor = {
+    title: 'My New Skill',
+    summary: 'Description of what this skill does.',
+    sections: {},
+};
+
+export async function action(context) {
+    const { prompt, recursiveAgent, llmAgent } = context;
+    // Implementation logic here
+    return {
+        message: 'Operation completed',
+        // ... other result properties
+    };
+}
+```
+
+2. Register the module path in `INTERNAL_SKILLS` in `SkillExecutor.mjs`:
+```javascript
+const INTERNAL_SKILLS = {
+    'mirror-code-generator': '../mirror-code-generator.mjs',
+    'my-new-skill': '../my-new-skill.mjs',
+};
+```
+
+The skill will be automatically registered as an orchestrator skill when `exposeInternalSkills: true` and executed through `OrchestratorSkillsSubsystem.executeModuleSkill()`.
+
+---
+
 ## Directory Structure
 
 ```
