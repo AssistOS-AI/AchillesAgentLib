@@ -26,9 +26,9 @@ export const descriptor = {
  */
 export async function action(context) {
     const { prompt, recursiveAgent, llmAgent } = context;
-    const skillDir = prompt?.trim();
+    const targetDir = prompt?.trim();
 
-    if (!skillDir) {
+    if (!targetDir) {
         throw new Error('mirror-code-generator requires a skill directory path as input.');
     }
 
@@ -38,10 +38,10 @@ export async function action(context) {
         throw new Error('mirror-code-generator requires an LLM agent.');
     }
 
-    const generatedFiles = await generateMirrorCode(skillDir, agent, console);
+    const generatedFiles = await generateMirrorCode(targetDir, agent, console);
 
     return {
-        message: `Code generation completed for ${skillDir}`,
+        message: `Code generation completed for ${targetDir}`,
         generatedFiles: generatedFiles || [],
     };
 }
