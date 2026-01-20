@@ -51,11 +51,15 @@ export class CodeSkillsSubsystem {
       args = await this.extractArguments(promptText, specifications);
     }
     debugLog(`Arguments: ${JSON.stringify(args).substring(0, 200)}...`);
+    const actionArgs = JSON.parse(JSON.stringify(args));
+    actionArgs.llmAgent = this.llmAgent;
+    actionArgs.prompt = promptText;
+    actionArgs.recursiveAgent = recursiveAgent;
     
     // Execute the already generated code from disk
     debugLog(`Executing code from disk...`);
     const outputPath = skillRecord.skillDir;
-    const result = await this.executeCodeFromDisk(outputPath, args);
+    const result = await this.executeCodeFromDisk(outputPath, actionArgs);
     debugLog(`Execution completed, result type: ${typeof result}`);
     
     return result;
@@ -108,8 +112,6 @@ export class CodeSkillsSubsystem {
       throw new Error(`Execution failed: No valid entrypoint found. Tried: ${possibleMainFiles.map(f => join(outputPath, f)).join(', ')}. It should have been generated automatically.`);
     }
 
-    const argsJson = JSON.stringify(args);
-
     // Validate that the main file exists and is accessible
     try {
       await stat(mainFilePath);
@@ -127,7 +129,7 @@ export class CodeSkillsSubsystem {
       }
 
       // Execute the action function directly
-        return await module.action(JSON.parse(argsJson));
+        return await module.action(args);
       
     } catch (error) {
       console.error(`[CodeSkills] Dynamic import execution failed: ${error.message}`);
