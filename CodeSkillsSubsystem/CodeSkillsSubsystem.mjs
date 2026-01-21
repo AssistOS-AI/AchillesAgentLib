@@ -53,7 +53,6 @@ export class CodeSkillsSubsystem {
     debugLog(`Arguments: ${JSON.stringify(args).substring(0, 200)}...`);
     const actionArgs = JSON.parse(JSON.stringify(args));
     actionArgs.llmAgent = this.llmAgent;
-    actionArgs.prompt = promptText;
     actionArgs.recursiveAgent = recursiveAgent;
     
     // Execute the already generated code from disk
