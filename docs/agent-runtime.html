@@ -17,6 +17,11 @@
         <section class="lead">
             <h1>Agent Runtime</h1>
             <p>LLM mediation, recursive execution, and lifecycle APIs that keep Achilles Agents plans on track.</p>
+            <nav class="page-links" aria-label="Runtime components">
+                <a href="agent-runtime.html" aria-current="page">Agent Runtime</a>
+                <a href="agentic-sessions.html">Agentic Sessions</a>
+                <a href="light-sop-lang.html">LightSOPLang</a>
+            </nav>
         </section>
         <section>
             <h2>LLMAgent</h2>
@@ -52,7 +57,7 @@
             <h2>LLMAgent Sessions</h2>
             <p>
                 Beyond single-call completions, <code>LLMAgent</code> can drive longer-lived agentic sessions that maintain
-                context across multiple prompts while calling tools repeatedly.
+                context across multiple prompts while calling tools repeatedly. For a detailed breakdown of session types, see the <a href="agentic-sessions.html">Agentic Sessions</a> documentation.
             </p>
             <ul>
                 <li><code>startLoopAgentSession(tools, initialPrompt, options)</code>: creates an <code>AgenticSession</code> that orchestrates
