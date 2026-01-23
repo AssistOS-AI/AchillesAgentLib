@@ -228,6 +228,8 @@ class LoopAgentSession {
                         prompt: toolPrompt,
                         error: error.message,
                     });
+                    console.error(`[AgenticSession] Tool "${toolName}" failed with prompt "${toolPrompt}":`, error.message);
+
                     if (this.errorCount >= maxErrors) {
                         const message = 'Too many tool errors, aborting.';
                         turn.finalAnswer = message;
