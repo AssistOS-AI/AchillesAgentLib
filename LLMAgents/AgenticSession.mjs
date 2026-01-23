@@ -296,12 +296,17 @@ class LoopAgentSession {
             context: {
                 intent: 'agentic-session-planner',
                 stepIndex,
+                userPrompt,
             },
         });
 
         let parsed = null;
         try {
-            parsed = extractJson(raw);
+            if (typeof raw === 'object' && raw !== null) {
+                parsed = raw;
+            } else {
+                parsed = extractJson(raw);
+            }
         } catch (error) {
             parsed = null;
         }

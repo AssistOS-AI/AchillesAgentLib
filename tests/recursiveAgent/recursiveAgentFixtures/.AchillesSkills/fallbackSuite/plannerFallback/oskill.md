@@ -11,6 +11,10 @@ Handles ad-hoc investigations when no predefined skill fits.
 
 - nonexistent-placeholder
 
+## Session
+
+sop
+
 ## Fallback
 
 Intent: investigation
