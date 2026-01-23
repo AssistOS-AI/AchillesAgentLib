@@ -159,7 +159,6 @@ export class OrchestratorSkillsSubsystem {
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-            console.log(`[OrchestratorSubsystem] Registering tool: "${toolName}" from skill: "${skillRecord.name}" (shortName: "${skillRecord.shortName}")`);
             // Return a standard function that calls the skill via RecursiveSkilledAgent
             // This allows each subsystem to access any skill uniformly
             tools[toolName] = async (agent, paramsPrompt) => {
@@ -172,7 +171,6 @@ export class OrchestratorSkillsSubsystem {
             };
         }
 
-        console.log(`[OrchestratorSubsystem] Total tools registered: ${Object.keys(tools).length}`, Object.keys(tools));
         return tools;
     }
 
@@ -201,8 +199,7 @@ export class OrchestratorSkillsSubsystem {
             };
         });
         
-        console.log(`[OrchestratorSubsystem] toolsWithDescriptions:`, Object.keys(toolsWithDescriptions));
-        
+
         const sessionOptions = {
             systemPrompt: skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.',
             mode: options?.mode || 'fast',
@@ -210,8 +207,6 @@ export class OrchestratorSkillsSubsystem {
         };
 
         const session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
-        
-        console.log(`[OrchestratorSubsystem] Session created with tools:`, Object.keys(session.tools || {}));
         
         const result = session.getLastResult();
 
