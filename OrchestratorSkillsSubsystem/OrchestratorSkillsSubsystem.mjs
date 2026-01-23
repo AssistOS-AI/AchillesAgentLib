@@ -159,16 +159,20 @@ export class OrchestratorSkillsSubsystem {
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
+            console.log(`[OrchestratorSubsystem] Registering tool: "${toolName}" from skill: "${skillRecord.name}" (shortName: "${skillRecord.shortName}")`);
             // Return a standard function that calls the skill via RecursiveSkilledAgent
             // This allows each subsystem to access any skill uniformly
             tools[toolName] = async (agent, paramsPrompt) => {
-                const executionResult = await recursiveAgent.executePrompt(paramsPrompt, {
+                // Normalize paramsPrompt to string to handle cases where LLM returns objects
+                const promptString = typeof paramsPrompt === 'string' ? paramsPrompt : JSON.stringify(paramsPrompt);
+                const executionResult = await recursiveAgent.executePrompt(promptString, {
                     skillName: skillRecord.name
                 });
                 return executionResult.result?.output;
             };
         }
 
+        console.log(`[OrchestratorSubsystem] Total tools registered: ${Object.keys(tools).length}`, Object.keys(tools));
         return tools;
     }
 
@@ -191,8 +195,13 @@ export class OrchestratorSkillsSubsystem {
         const toolsWithDescriptions = {};
         allowedSkills.forEach(skillRecord => {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-            toolsWithDescriptions[toolName] = descriptions[toolName];
+            toolsWithDescriptions[toolName] = {
+                handler: tools[toolName],
+                description: descriptions[toolName]
+            };
         });
+        
+        console.log(`[OrchestratorSubsystem] toolsWithDescriptions:`, Object.keys(toolsWithDescriptions));
         
         const sessionOptions = {
             systemPrompt: skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.',
@@ -202,12 +211,7 @@ export class OrchestratorSkillsSubsystem {
 
         const session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
         
-        // Override session tools with actual functions
-        Object.keys(tools).forEach(toolName => {
-            if (session.tools && session.tools[toolName]) {
-                session.tools[toolName] = tools[toolName];
-            }
-        });
+        console.log(`[OrchestratorSubsystem] Session created with tools:`, Object.keys(session.tools || {}));
         
         const result = session.getLastResult();
 
