@@ -79,6 +79,7 @@ class LoopAgentSession {
             status: 'running',
             usedTools: false,
             _lastToolName: null,
+            _lastToolPrompt: null,
             _lastToolResult: null,
             _sameToolRepeatCount: 0,
             expected,
@@ -155,11 +156,15 @@ class LoopAgentSession {
                         result: displayResult,
                     });
 
+                    // Detect true loops: same tool + same prompt + same result
+                    // Different prompts with same results are NOT loops (e.g., createDirectory for different paths)
                     if (turn._lastToolName === toolName
+                        && turn._lastToolPrompt === toolPrompt
                         && String(turn._lastToolResult) === String(displayResult)) {
                         turn._sameToolRepeatCount = (turn._sameToolRepeatCount || 1) + 1;
                     } else {
                         turn._lastToolName = toolName;
+                        turn._lastToolPrompt = toolPrompt;
                         turn._lastToolResult = displayResult;
                         turn._sameToolRepeatCount = 1;
                     }
