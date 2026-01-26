@@ -21,10 +21,10 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │                                │                                        │
 │  ┌─────────────────────────────▼─────────────────────────────────────┐ │
 │  │                        Subsystems                                  │ │
-│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │ │
-│  │  │   claude    │ │    code     │ │ interactive │ │     mcp     │  │ │
-│  │  │ (skill.md)  │ │ (cgskill.md) │ │ (iskill.md) │ │ (mskill.md) │  │ │
-│  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │ │
+│  │  ┌─────────────┐ ┌──────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │ │
+│  │  │   claude    │ │ code-gen     │ │ code-skill  │ │ interactive │ │     mcp     │  │ │
+│  │  │ (skill.md)  │ │ (cgskill.md) │ │ (cskill.md) │ │ (iskill.md) │ │ (mskill.md) │  │ │
+│  │  └─────────────┘ └──────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │ │
 │  │  ┌─────────────┐ ┌─────────────┐                                  │ │
 │  │  │orchestrator │ │   dbtable   │                                  │ │
 │  │  │ (oskill.md) │ │ (tskill.md) │                                  │ │
@@ -161,35 +161,34 @@ Guidelines for the LLM when creating execution plans.
 - update: Updating existing items
 - query: Querying data
 
-## Light-SOP-Lang
-@prompt prompt
-@step1 skill-one $prompt
-@step2 skill-two $step1
-@lastAnswer finalAnswer $step2
+## Session
+sop
 
-## Fallback
-Fallback instructions when main plan fails.
-
-Intent: fallback-mcp
-Allowed tools:
-- read-file
-- write-file
 ```
 
 **Execution Flow:**
-1. Parse skill definition sections
-2. Resolve allowed downstream skills
-3. Either execute LightSOPLang script OR generate LLM plan
-4. Execute plan steps sequentially
-5. Trigger fallback if all steps fail/skip
+1. Parse descriptor sections (instructions, allowed skills, intents, optional session metadata)
+2. Build a toolbelt from the allowed skills
+3. Start an agentic session (`loop` by default, `sop` when the descriptor declares a session)
+4. Execute the session plan, delegating each command to downstream skills
 
 **Key Methods:**
 ```javascript
-// Creates execution plan using LLM
-const plan = await subsystem.createPlan({ skillRecord, recursiveAgent, promptText });
+// Fast loop session
+const loopResult = await subsystem.executeLoopAgentSession({
+    skillRecord,
+    recursiveAgent,
+    promptText,
+    options,
+});
 
-// Execute the plan steps
-const executions = await subsystem.executePlanSteps({ plan, recursiveAgent, options });
+// Deep SOP session when metadata.sessionType is set
+const sopResult = await subsystem.executeSOPAgentSession({
+    skillRecord,
+    recursiveAgent,
+    promptText,
+    options,
+});
 ```
 
 ---
@@ -453,10 +452,8 @@ executeWithReviewMode(taskDescription, { skillName })
 ### 3. Orchestrator Execution
 ```
 OrchestratorSubsystem.executeSkillPrompt()
-    ├─► [has module] → executeModuleSkill()
-    ├─► [has script] → executeScriptPlan() via LightSOPLang
-    └─► [LLM plan] → createPlan() → executePlanSteps()
-        └─► [all failed] → executeFallbackReact()
+    ├─► [sessionType?] → executeSOPAgentSession()  // deep agentic session
+    └─► [default] → executeLoopAgentSession()      // fast loop session
 ```
 
 ---
@@ -618,8 +615,6 @@ try {
 }
 ```
 
-Orchestrators support fallback execution when primary plans fail, providing graceful degradation.
-
 ---
 
 ## Agent Skills Conventions
@@ -644,7 +639,6 @@ Each skill folder may include one or more descriptor files depending on the type
 - New skill types expand the descriptor catalogue:
   - `mskill.md` — metadata for MCP orchestration skills. Sections such as **Instructions** describe the system prompt, while **Allowed Tools** can list a constrained set of MCP tools that the subsystem may invoke.
   - `oskill.md` — metadata for orchestration skills. The **Instructions** section guides planning, **Allowed Skills** can limit which skills the orchestrator may call, and **Intents** declares the intent taxonomy that should be considered during planning.
-  - Orchestration descriptors may optionally provide a **Fallback** section. When present, the agent is authorised to invent an ad-hoc MCP plan using the supplied ReAct-style instructions and the optional fallback tool allow-list whenever no predefined skill fits the request.
 
 ### Entrypoints
 

@@ -17,7 +17,7 @@
     <main class="content">
         <section class="lead">
             <h1>Orchestration Skills Tutorial</h1>
-            <p>LightSOPLang plans, intent taxonomies, and fallback design strategies for orchestrating complex workflows.</p>
+            <p>Agentic loop sessions, intent taxonomies, and SOP execution strategies for orchestrating complex workflows.</p>
             <nav class="page-links" aria-label="Tutorial navigation">
                 <a href="tutorials-claude.html">Claude</a>
                 <a href="tutorials-interactive.html">Interactive</a>
@@ -35,11 +35,8 @@
             </p>
             <pre><code>tests/recursiveAgent/recursiveAgentFixtures/
 └── .AchillesSkills/
-    ├── orchestrationSuite/
-    │   └── planner/
-    │       └── oskill.md
-    └── fallbackSuite/
-        └── plannerFallback/
+    └── orchestrationSuite/
+        └── planner/
             └── oskill.md</code></pre>
         </section>
 
@@ -67,117 +64,52 @@ This orchestrator coordinates logistics reporting and MCP lookups.
 - reporting: Prepare human readable summaries or status updates.
 - data-fetch: Retrieve underlying inventory or operational records.</code></pre>
             <p>
-                The skill only exposes the permitted skills (<code>report</code>, <code>data</code>) to LightSOPLang command registries and downstream plan prompts.
+                The allowed skills (<code>report</code>, <code>data</code>) become the toolbelt for whichever agentic session the subsystem launches.
+                Each command issued by the session maps back to one of these concrete skills.
+            </p>
+        </section>
+        <section>
+            <h2>Selecting a Session Type</h2>
+            <p>
+                The descriptor can opt into deeper planning by declaring a session block:
+            </p>
+            <pre><code>## Session
+sop</code></pre>
+            <p>
+                Leaving the section out keeps the orchestrator in loop mode (fast, iterative planning). Setting it to <code>sop</code> switches to the
+                SOP agent session, which emits variables and more detailed traces.
             </p>
         </section>
 
         <section>
-            <h2>Fallback Descriptor</h2>
-            <p>
-                You can provide an alternative orchestration playbook that runs when the scripted flow fails or when the orchestrator is invoked explicitly as a fallback.
-            </p>
-            <pre><code># Fallback Planner
+            <h2>Loop Session Walkthrough</h2>
+            <ol>
+                <li><strong>Toolbelt creation:</strong> The subsystem resolves the allowed skills and exposes each one as a callable command.</li>
+                <li><strong>Prompting:</strong> The loop agent receives the descriptor's instructions as its system prompt.</li>
+                <li><strong>Interactive execution:</strong> The agent calls tools until the request is met or a step limit is reached, returning the final answer as <code>result.output</code>.</li>
+            </ol>
+        </section>
 
-Handles ad-hoc investigations when no predefined skill fits.
-
-## Instructions
-
-- Evaluate whether existing skills cover the request.
-- If no skill is suitable, pivot to the fallback playbook.
-
-## Allowed Skills
-
-- nonexistent-placeholder
-
-## Fallback
-
-Intent: investigation
-Gather detailed transactional records and summarise discrepancies for the operator.
-
-Allowed Tools:
-- invoiceLookup
-- ledgerSearch
-
-## LightSOPLang
-
-@prompt prompt
-@attempt nonexistent-placeholder $prompt "Attempt non-existent skill" investigation</code></pre>
-            <p>
-                During execution, a failure to execute any scripted steps triggers the <strong>Fallback</strong> section. The agent composes a ReAct-style MCP plan using the provided instructions and tool allow-list.
-            </p>
+        <section>
+            <h2>SOP Session Walkthrough</h2>
+            <ol>
+                <li><strong>Toolbelt creation:</strong> Same as loop sessions—allowed skills become commands.</li>
+                <li><strong>Plan generation:</strong> The SOP agent assembles a LightSOPLang-style plan internally, executing it through a commands registry backed by the toolbelt.</li>
+                <li><strong>Trace capture:</strong> The session returns <code>variables</code> alongside the final output for auditing.</li>
+            </ol>
         </section>
 
         <section>
             <h2>Execution Flow</h2>
             <ol>
-                <li><strong>Discovery:</strong> The orchestration skill loader parses <code>oskill.md</code>, extracting instructions, allowed skills, intents, and optional scripts.</li>
-                <li><strong>Code Generation (if specs exist):</strong> If the skill includes a <code>specs</code> directory, the <code>RecursiveSkilledAgent</code> automatically generates executable code from the specifications before any script execution. This generated code takes precedence over LightSOPLang scripts.</li>
-                <li><strong>Scripted Execution:</strong> If the descriptor includes a <strong>LightSOPLang</strong> block and no <code>specs</code> directory exists, the interpreter runs those commands first via a command registry that respects the allow-list.</li>
-                <li><strong>LLM Planning:</strong> When no script is provided and no <code>specs</code> directory exists, the skill asks the <code>LLMAgent</code> for a JSON-formatted plan constrained to the allowed skills.</li>
-                <li><strong>Fallback:</strong> If all steps fail or are skipped, the optional fallback descriptor generates a recovery plan, usually by scheduling MCP tools.</li>
+                <li><strong>Discovery:</strong> The loader parses <code>oskill.md</code>, extracting instructions, allowed skills, intents, and optional session metadata.</li>
+                <li><strong>Toolbelt Assembly:</strong> Each allowed skill becomes a callable handler plus a short description.</li>
+                <li><strong>Agentic Session:</strong> The subsystem launches <em>executeLoopAgentSession</em> by default or <em>executeSOPAgentSession</em> when <code>## Session</code> is set.</li>
+                <li><strong>Delegation:</strong> Session commands call back into <code>RecursiveSkilledAgent</code> with explicit <code>skillName</code> values.</li>
+                <li><strong>Result Packaging:</strong> Responses include the prompt echo, output, and session label (loop or sop, plus SOP variables when applicable).</li>
             </ol>
             <p>
                 The regression tests under <code>tests/recursiveAgent/orchestration.test.mjs</code> exercise these flows end-to-end and are an excellent reference when authoring new orchestration skills.
-            </p>
-        </section>
-
-        <section>
-            <h2>Code Generation from Specifications</h2>
-            <p>
-                For complex orchestration scenarios, you can define specifications in natural language and let the agent generate the implementation.
-            </p>
-            <h3>Creating a Specification-Based Orchestration Skill</h3>
-            <ol>
-                <li>
-                    <p><strong>Create the skill descriptor:</strong> Start with a basic <code>oskill.md</code> file.</p>
-                    <pre><code># Disk Manager Orchestrator
-
-This skill manages disk operations using generated code.
-
-## Instructions
-Plan and execute disk operations.
-
-## LightSOPLang
-# This script will be IGNORED because a 'specs' folder exists.
-@doomed skill-that-does-not-exist "This should never run"</code></pre>
-                </li>
-                <li>
-                    <p><strong>Add specification files:</strong> Create a <code>specs</code> directory and add specification files for each module.</p>
-                    <pre><code># specs/index.mjs.md
-# Main Module Specification
-
-## Input Format
-- context: Object containing prompt string
-
-## Output Format
-- Returns an object with status, operation, and path
-
-## Constraints
-- Must handle file operations asynchronously
-- Must validate file paths before operations
-
-## Examples
-- createFile('/path/to/file', 'content') -> {status: 'success', operation: 'createFile', path: '/path/to/file'}
-- deleteFile('/path/to/file') -> {status: 'success', operation: 'deleteFile', path: '/path/to/file'}</code></pre>
-                </li>
-                <li>
-                    <p><strong>Run the agent:</strong> When you create a <code>RecursiveSkilledAgent</code>, it automatically detects the <code>specs</code> directory and generates the code.</p>
-                    <pre><code>const agent = new RecursiveSkilledAgent({
-    llmAgent: new LLMAgent({ name: 'MyAgent' }),
-    startDir: '/path/to/project',
-});
-
-// The agent will automatically generate code during initialization
-await Promise.all(agent.pendingPreparations);
-
-// Now you can use the generated skill
-const result = await agent.executePrompt('createFile /tmp/test.txt hello', {
-    skillName: 'disk-manager'
-});</code></pre>
-                </li>
-            </ol>
-            <p>
-                <strong>Note:</strong> The generated code is written to the <code>src</code> directory. You should not edit these files directly. Instead, update the specification files in the <code>specs</code> directory and let the agent regenerate the code.
             </p>
         </section>
     </main>

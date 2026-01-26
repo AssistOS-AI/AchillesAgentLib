@@ -50,7 +50,7 @@
             <ol>
                 <li><strong>Skill Registry:</strong> Maintains metadata, argument schemas, enumerators, and access policies.</li>
                 <li><strong>Interactive Skill Flow:</strong> Guides conversational argument acquisition and validation.</li>
-                <li><strong>Orchestration Skills:</strong> Translate LightSOPLang scripts or LLM plans into sequenced actions.</li>
+                <li><strong>Orchestration Skills:</strong> Run loop or SOP agentic sessions that coordinate downstream skills.</li>
                 <li><strong>Execution Agents:</strong> <code>LLMAgent</code> mediates with language models; <code>RecursiveSkilledAgent</code>
                     supervises nested plans and cancellations.</li>
             </ol>
@@ -61,7 +61,7 @@
   ├─ Skill Discovery: scan .AchillesSkills/* for skill.md, cgskill.md, iskill.md, mskill.md, oskill.md, tskill.md
   ├─ Subsystem Router: claude | code | interactive | mcp | orchestrator | dbtable
   ├─ LLMAgent: shared completion/review + session memory
-  └─ Execution: plan (LightSOPLang or LLM) → run skill → record history</code></pre>
+   └─ Execution: agentic session (loop or sop) → run skill → record history</code></pre>
         </section>
 
         <section>
@@ -80,7 +80,7 @@
                 <li><code>skill.md</code> — Claude (static) skills that surface metadata only.</li>
                 <li><code>iskill.md</code> — interactive conversational skills.</li>
                 <li><code>tskill.md</code> — DBTable skills that describe CRUD workflows over structured tables.</li>
-                <li><code>oskill.md</code> — orchestration planners that may embed LightSOPLang scripts.</li>
+                <li><code>oskill.md</code> — orchestration planners that drive loop or SOP agentic sessions.</li>
                 <li><code>mskill.md</code> — MCP skills with allowed tool lists and optional scripts.</li>
                 <li><code>cgskill.md</code> — code-generation skills with detailed prompts and LLM guidance.</li>
             </ul>
@@ -95,7 +95,7 @@
         <section>
             <h2>Skill Lifecycle</h2>
             <ol>
-                <li><strong>Declaration:</strong> Skill descriptors capture arguments, hints, and optional LightSOPLang sections; modules add executable hooks and optional (currently informational) <code>roles</code> metadata.</li>
+                <li><strong>Declaration:</strong> Skill descriptors capture arguments, hints, and optional session metadata; modules add executable hooks and optional (currently informational) <code>roles</code> metadata.</li>
                 <li><strong>Registration:</strong> Metadata is normalised; enumerators, validators, and resolvers are bound.</li>
                 <li><strong>Selection:</strong> Requests route to orchestration scripts, static mappings, or LLM planners.</li>
                 <li><strong>Execution:</strong> Skill engines govern runtime behaviour (interactive prompts, MCP tool invocations, code evaluation).</li>
@@ -110,7 +110,7 @@
                 <li><strong>Claude Skills:</strong> Static descriptors (<code>skill.md</code>) that surface summaries and body content without LLM execution.</li>
                 <li><strong>Interactive Skills:</strong> Conversational flows with validation, placeholder detection, and natural language extraction.</li>
                 <li><strong>DBTable Skills:</strong> Table-centric CRUD operations defined in <code>tskill.md</code>, with automatic argument collection and Persisto integration.</li>
-                <li><strong>Orchestration Skills:</strong> LightSOPLang-driven script execution for high-level plans, including fallback behaviour.</li>
+                <li><strong>Orchestration Skills:</strong> Agentic loop or SOP planners for high-level workflows with clear intent routing.</li>
                 <li><strong>MCP Skills:</strong> Tool-centric skills that interface with external Model Context Protocol servers.</li>
                 <li><strong>Code Skills:</strong> Evaluate snippets or pipelines under strict sandboxing with deterministic feedback.</li>
             </ul>

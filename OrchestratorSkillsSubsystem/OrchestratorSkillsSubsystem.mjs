@@ -1,7 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 
@@ -9,7 +5,6 @@ const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
     intents: ['intents', 'intentions', 'mappings'],
-    fallback: ['fallback', 'fallback-plan', 'fallback-react', 'react-fallback'],
     sessionType: ['session', 'soplang', 'sop-lang', 'sop', 'sop-agentic-session'],
 };
 
@@ -48,61 +43,6 @@ function parseIntents(section = '') {
     return intents;
 }
 
-function parseFallback(section = '') {
-    if (!section || typeof section !== 'string') {
-        return null;
-    }
-    const lines = section.split(/\r?\n/);
-    const instructions = [];
-    const allowedTools = [];
-    let intent = 'fallback';
-    let mode = 'instructions';
-
-    for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line) {
-            if (mode === 'instructions') {
-                instructions.push(rawLine);
-            }
-            continue;
-        }
-
-        if (/^intent\s*:/i.test(line)) {
-            const [, value] = line.split(/:/, 2);
-            if (value && value.trim()) {
-                intent = Sanitiser.sanitiseName(value);
-            }
-            continue;
-        }
-
-        if (/^allowed tools?/i.test(line)) {
-            mode = 'allowed';
-            continue;
-        }
-
-        if (mode === 'allowed') {
-            const match = rawLine.match(/^\s*[-*+]\s*(.+)$/);
-            if (match && match[1]) {
-                allowedTools.push(Sanitiser.sanitiseName(match[1]));
-            }
-            continue;
-        }
-
-        instructions.push(rawLine);
-    }
-
-    const instructionText = instructions.join('\n').trim();
-    if (!instructionText && !allowedTools.length) {
-        return null;
-    }
-
-    return {
-        intent,
-        instructions: instructionText,
-        allowedTools: allowedTools.filter(Boolean),
-    };
-}
-
 export class OrchestratorSkillsSubsystem {
     constructor({ llmAgent = null } = {}) {
         this.type = 'orchestrator';
@@ -118,7 +58,6 @@ export class OrchestratorSkillsSubsystem {
             .map((name) => Sanitiser.sanitiseName(name))
             .filter(Boolean);
         const intents = parseIntents(pickSection(sections, SECTION_KEYS.intents));
-        const fallback = parseFallback(pickSection(sections, SECTION_KEYS.fallback));
         const sessionType = pickSection(sections, SECTION_KEYS.sessionType).trim();
 
         skillRecord.metadata = {
@@ -130,7 +69,6 @@ export class OrchestratorSkillsSubsystem {
             instructions,
             allowedSkills,
             intents,
-            fallback,
             sessionType: sessionType || null,
         };
     }
@@ -170,8 +108,7 @@ export class OrchestratorSkillsSubsystem {
                 // Handle different subsystem result shapes:
                 // 1. OrchestratorSubsystem: { result: { output: ... } }
                 // 2. InteractiveSubsystem: { result: ..., skill: ... }
-                // 3. CodeSkillsSubsystem: primitive wrapped by SkillExecutor as { result: ... }
-                // 4. Fallback: unwrapped primitives
+                // 3. CodeSkillsSubsystem: primitives wrapped by SkillExecutor as { result: ... }
                 const output = executionResult?.result?.output
                     ?? executionResult?.result
                     ?? executionResult;
@@ -218,18 +155,6 @@ export class OrchestratorSkillsSubsystem {
         
         const result = session.getLastResult();
 
-        // Handle fallback if no result
-        let fallbackExecution = null;
-        if (!result && skillRecord.metadata?.fallback) {
-            fallbackExecution = await this.executeFallbackReact({
-                skillRecord,
-                fallback: skillRecord.metadata.fallback,
-                recursiveAgent,
-                promptText,
-                options,
-            });
-        }
-
         return {
             skill: skillRecord.name,
             metadata: skillRecord.metadata || null,
@@ -238,7 +163,6 @@ export class OrchestratorSkillsSubsystem {
                 prompt: promptText,
                 output: result,
                 session: 'loop',
-                fallbackExecution,
             },
             sessionMemory: null,
         };
@@ -281,18 +205,6 @@ export class OrchestratorSkillsSubsystem {
         const variables = await session.getVariables();
         const result = session.getLastResult();
 
-        // Handle fallback if no result
-        let fallbackExecution = null;
-        if (!result && skillRecord.metadata?.fallback) {
-            fallbackExecution = await this.executeFallbackReact({
-                skillRecord,
-                fallback: skillRecord.metadata.fallback,
-                recursiveAgent,
-                promptText,
-                options,
-            });
-        }
-
         return {
             skill: skillRecord.name,
             metadata: skillRecord.metadata || null,
@@ -302,7 +214,6 @@ export class OrchestratorSkillsSubsystem {
                 output: result,
                 variables,
                 session: 'sop',
-                fallbackExecution,
             },
             sessionMemory: null,
         };
@@ -332,93 +243,4 @@ export class OrchestratorSkillsSubsystem {
         }
     }
 
-    buildFallbackSkillRecord({ skillRecord, fallback }) {
-        const descriptor = {
-            title: `${skillRecord.descriptor?.title || skillRecord.name} Fallback MCP`,
-            summary: fallback.instructions.split(/\r?\n/)[0] || 'Fallback MCP plan',
-            body: fallback.instructions,
-            sections: {
-                instructions: fallback.instructions,
-            },
-        };
-
-        if (fallback.allowedTools?.length) {
-            descriptor.sections['allowed-tools'] = fallback.allowedTools
-                .map((tool) => `- ${tool}`)
-                .join('\n');
-        }
-
-        const scriptLines = ['@prompt prompt'];
-        (fallback.allowedTools || []).forEach((tool, index) => {
-            const commandName = Sanitiser.sanitiseName(tool);
-            scriptLines.push(`@fallback_${index} ${commandName} $prompt`);
-        });
-        descriptor.sections['light-sop-lang'] = scriptLines.join('\n');
-
-        return {
-            name: `${skillRecord.name}-fallback-mcp`,
-            type: 'mcp',
-            descriptor,
-            filePath: skillRecord.filePath,
-            skillDir: skillRecord.skillDir,
-            shortName: `${skillRecord.shortName || skillRecord.name}-fallback`,
-            metadata: null,
-        };
-    }
-
-    async executeFallbackReact({
-        skillRecord,
-        fallback,
-        recursiveAgent,
-        promptText,
-        options,
-        logger = null,
-    }) {
-        if (!fallback || !fallback.instructions) {
-            return null;
-        }
-
-        const log = typeof logger === 'function' ? logger : null;
-
-        const availableTools = Array.isArray(options?.availableTools)
-            ? options.availableTools.map((tool) => ({
-                ...tool,
-                name: tool.name || tool.id || '',
-            })).filter((tool) => tool.name)
-            : [];
-
-        const filteredTools = fallback.allowedTools?.length
-            ? availableTools.filter((tool) => fallback.allowedTools.includes(Sanitiser.sanitiseName(tool.name)))
-            : availableTools;
-
-        const dynamicRecord = this.buildFallbackSkillRecord({ skillRecord, fallback });
-        const mcpSubsystem = recursiveAgent.ensureSubsystem('mcp');
-        if (typeof mcpSubsystem.prepareSkill === 'function') {
-            mcpSubsystem.prepareSkill(dynamicRecord, recursiveAgent);
-        }
-
-        log?.('[fallback] Executing fallback MCP script.');
-        const outcome = await mcpSubsystem.executeSkillPrompt({
-            skillRecord: dynamicRecord,
-            recursiveAgent,
-            promptText,
-            options: {
-                ...options,
-                availableTools: filteredTools,
-            },
-        });
-        log?.('[fallback] Fallback MCP execution completed.');
-
-        return {
-            intent: fallback.intent || 'fallback',
-            skill: dynamicRecord.name,
-            input: promptText,
-            run: true,
-            reason: 'Fallback MCP execution',
-            skipped: false,
-            outcome,
-            error: null,
-            fallback: true,
-        };
-    }
 }

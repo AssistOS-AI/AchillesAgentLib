@@ -28,20 +28,20 @@
             </nav>
         </section>
         <section>
-            <h2>Fallback Planner Script</h2>
-            <p>The fallback planner stored at <code>tests/recursiveAgent/recursiveAgentFixtures/.AchillesSkills/fallbackSuite/plannerFallback/oskill.md</code> demonstrates a minimal LightSOPLang program. It captures the incoming prompt and then attempts to run a placeholder skill. The line <code>@prompt prompt</code> copies the user request into a variable called <code>prompt</code>. The next line executes the <code>nonexistent-placeholder</code> command, passing the prompt as the first argument and a descriptive string as the second argument. The interpreter resolves the reference to <code>$prompt</code> before invoking the command registry. The intent tag <code>investigation</code> is supplied as a literal, allowing the orchestration skill to treat the step as investigative even when the command fails.</p>
+            <h2>Minimal Placeholder Script</h2>
+            <p>The regression suites include a compact LightSOPLang program that captures the incoming prompt and then attempts to run a placeholder skill. The line <code>@prompt prompt</code> copies the user request into a variable called <code>prompt</code>. The next line executes the <code>nonexistent-placeholder</code> command, passing the prompt as the first argument and a descriptive string as the second argument. The interpreter resolves the reference to <code>$prompt</code> before invoking the command registry. The intent tag <code>investigation</code> is supplied as a literal, allowing the orchestration layer to record why the step exists even when the command fails.</p>
             <pre><code>@prompt prompt
 @attempt nonexistent-placeholder $prompt "Attempt non-existent skill" investigation</code></pre>
-            <p>This example highlights how scripts encode business context even when the actual command is expected to fail. The fallback section in the descriptor instructs the agent to reschedule MCP tools if necessary.</p>
+            <p>This example highlights how scripts encode business context even when a command is expected to fail, keeping the audit trail intact.</p>
         </section>
 
         <section>
             <h2>Inventory Planner Script</h2>
-            <p>The orchestration planner at <code>tests/recursiveAgent/recursiveAgentFixtures/.AchillesSkills/orchestrationSuite/planner/oskill.md</code> embeds LightSOPLang in its Markdown descriptor. The script first stores the user prompt, then triggers the reporting skill, then triggers the data skill. Each command receives the prompt and a human-readable justification. The interpreter records the variable dependencies <code>report</code> and <code>data</code>, ensuring that confirmation messages include both steps.</p>
+            <p>Modern orchestration skills rely on agentic sessions, but the SOP session still produces LightSOPLang internally. A typical plan stores the prompt, then schedules the reporting skill followed by the data skill. Each command receives the prompt plus a justification, and the interpreter tracks dependencies such as <code>report</code> and <code>data</code> so confirmations list both steps.</p>
             <pre><code>@prompt prompt
 @report report $prompt "Primary summary" reporting
 @data data $prompt "Collect supporting facts" data-fetch</code></pre>
-            <p>Because the descriptor lists <code>report</code> and <code>data</code> under allowed skills, the command registry exposes only these two commands to the script. The runtime therefore prevents accidental invocation of unrelated skills even when the script is regenerated.</p>
+            <p>Only skills declared in the descriptor's allow-list appear as commands, so the session cannot call unrelated skills even if the plan is regenerated.</p>
         </section>
 
         <section>

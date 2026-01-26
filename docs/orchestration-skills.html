@@ -43,8 +43,7 @@
                 <li><strong>Instructions:</strong> How the planner should interpret the user’s request.</li>
                 <li><strong>Allowed Skills:</strong> The catalogue of downstream skills this planner may call.</li>
                 <li><strong>Intents:</strong> ReAct-style shorthand that explains the purpose of each step.</li>
-                <li><strong>Fallback:</strong> Recovery guidance when scripted steps fail.</li>
-                <li><strong>LightSOPLang:</strong> An optional deterministic script that runs before any LLM planning.</li>
+                <li><strong>Session:</strong> Optional flag (`sop`, `loop`, etc.) that selects the execution strategy.</li>
             </ul>
             <pre><code># Planner Orchestrator
 
@@ -60,74 +59,21 @@
 - reporting: Prepare human readable summaries or status updates.
 - data-fetch: Retrieve underlying inventory or operational records.
 
-## Fallback
-Intent: investigation
-Allowed Tools:
-- invoiceLookup
-
-## LightSOPLang
-@prompt prompt
-@report report $prompt "Primary summary" reporting
-@data data $prompt "Collect supporting facts" data-fetch</code></pre>
+## Session
+sop</code></pre>
             <p>
-                Scripts make the skill deterministic; LightSOPLang variables such as <code>@report</code> or <code>@data</code> read almost like prose,
-                keeping the intent legible to non-technical reviewers.
+                The allowed skills become the planner's toolbelt. When the descriptor omits <code>## Session</code>, the subsystem launches a fast
+                loop agent session. Declaring <code>## Session</code> as <code>sop</code> switches to a deeper SOP agent session that surfaces
+                intermediate variables.
             </p>
         </section>
-
-         <section>
-             <h2>Code Generation from Specifications</h2>
-             <p>
-                 When an orchestration skill includes a <code>specs</code> directory containing specification files (e.g., <code>index.mjs.md</code>, 
-                 <code>DiskManager.js.md</code>), the <code>RecursiveSkilledAgent</code> automatically generates executable code from these specifications
-                 using <code>mirror-code-generator.mjs</code> and writes the outputs directly under the skill directory (no <code>src/</code> folder).
-             </p>
-             <p>
-                 <strong>Important:</strong> If a <code>specs</code> directory exists, the generated code takes precedence over any existing 
-                 <code>LightSOPLang</code> script or other source code. The agent will:
-             </p>
-             <ol>
-                 <li>Parse all specification files in the <code>specs</code> directory</li>
-                 <li>Send them to the LLM for code generation</li>
-                 <li>Write the generated code mirroring the <code>specs/</code> paths (e.g., <code>specs/DiskManager.js.md</code> → <code>DiskManager.js</code>)</li>
-                 <li>Execute the generated code when the skill is invoked</li>
-             </ol>
-             <p>
-                 This allows you to define complex orchestration logic using natural language specifications while maintaining the flexibility 
-                 to regenerate the implementation as requirements evolve.
-             </p>
-             <pre><code>.AchillesSkills/disk-manager/
- ├── oskill.md                  # Orchestration descriptor
- └── specs/                     # Specification directory
-     ├── index.mjs.md           # Main module specification
-     └── DiskManager.js.md      # Helper class specification
- 
- # After code generation:
- .AchillesSkills/disk-manager/
- ├── oskill.md                  # Orchestration descriptor
- ├── specs/                     # Specification directory
- │   ├── index.mjs.md           # Main module specification
- │   └── DiskManager.js.md      # Helper class specification
- ├── index.mjs                  # Generated main module
- └── DiskManager.js             # Generated helper class</code></pre>
-         </section>
-
-
         <section>
-            <h2>Execution Styles</h2>
+            <h2>Agentic Sessions</h2>
             <p>
-                Orchestration skills execute in one of two modes. If a LightSOPLang block is present, the skill runs those commands immediately, invoking the
-                named skills with shared context and intent tags. If there is no script, the skill requests a plan from the language model, constrained by the
-                allowed list. Either way, the result is a structured itinerary that downstream components can replay step-by-step.
-            </p>
-        </section>
-
-        <section>
-            <h2>Fallback Thinking</h2>
-            <p>
-                Real processes rarely run perfectly. Fallback sections capture how the team wants to respond when data is missing or a tool fails. Some skills
-                define investigative LightSOPLang scripts, while others instruct the planner to seek help from MCP tools. Because the fallback follows the same
-                descriptor format, it stays auditable and predictable.
+                The subsystem always builds an agentic session around the allowed skills. A <strong>Loop Session</strong> (default) runs quickly,
+                letting the LLM call tools turn-by-turn until the user request is satisfied. When <code>## Session</code> is set to <code>sop</code>,
+                the skill launches a <strong>SOP Session</strong> that produces variables, structured plans, and a full execution trace for
+                auditing. Both sessions share the same toolbelt; the only difference is the reasoning depth and the amount of state that is surfaced.
             </p>
         </section>
 
