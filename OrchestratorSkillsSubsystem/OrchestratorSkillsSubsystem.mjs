@@ -167,7 +167,15 @@ export class OrchestratorSkillsSubsystem {
                 const executionResult = await recursiveAgent.executePrompt(promptString, {
                     skillName: skillRecord.name
                 });
-                return executionResult.result?.output;
+                // Handle different subsystem result shapes:
+                // 1. OrchestratorSubsystem: { result: { output: ... } }
+                // 2. InteractiveSubsystem: { result: ..., skill: ... }
+                // 3. CodeSkillsSubsystem: primitive wrapped by SkillExecutor as { result: ... }
+                // 4. Fallback: unwrapped primitives
+                const output = executionResult?.result?.output
+                    ?? executionResult?.result
+                    ?? executionResult;
+                return output;
             };
         }
 
