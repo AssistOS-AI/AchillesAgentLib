@@ -155,7 +155,11 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         lines.push('');
         lines.push('Most recent tool call relevant to this instruction:');
         lines.push(`- tool: ${lastToolCall.tool}`);
-        lines.push(`- result: ${String(lastToolCall.result)}`);
+        // Properly serialize the result - use JSON for objects, String for primitives
+        const resultStr = lastToolCall.result && typeof lastToolCall.result === 'object'
+            ? JSON.stringify(lastToolCall.result)
+            : String(lastToolCall.result ?? '');
+        lines.push(`- result: ${resultStr}`);
     }
 
     lines.push('');
@@ -164,7 +168,11 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         if (h.type === 'user') {
             lines.push(`USER: ${h.prompt}`);
         } else if (h.type === 'tool') {
-            lines.push(`TOOL[${h.tool}]: ${String(h.result)}`);
+            // Properly serialize the result - use JSON for objects, String for primitives
+            const toolResultStr = h.result && typeof h.result === 'object'
+                ? JSON.stringify(h.result)
+                : String(h.result ?? '');
+            lines.push(`TOOL[${h.tool}]: ${toolResultStr}`);
         } else if (h.type === 'final_answer') {
             lines.push(`FINAL: ${h.answer}`);
         } else if (h.type === 'cannot_complete') {
@@ -190,7 +198,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" with ONLY the final text in "toolPrompt" (no extra wording).`);
     lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" with a short reason in "toolPrompt".`);
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
-    lines.push('- If the most recent tool result already satisfies the current instruction or expected answer, respond with "action": "call_tool" and "tool": "final_answer" and "toolPrompt":"result". "result" should only be the result of the operations. no other strings added.');
+    lines.push('- If the most recent tool result already satisfies the current instruction, call "final_answer" with the tool result AS-IS in "toolPrompt". If the result is a JSON object/array, pass it as a raw JSON string without reformatting or converting to prose. The system will format it for display.');
     lines.push('- If the user instruction explicitly mentions a tool by name, you MUST call that tool at least once in this turn before finishing.');
     lines.push('- When passing literal strings as tool arguments, do NOT wrap them in extra quotes if they are already quoted in the user text; pass the value once without adding additional quotation marks.');
     lines.push('- If the history shows any failure (validation failed, timeout, or similar), adjust your next tool call or parameters to fix it; do NOT repeat the same failing call.');
