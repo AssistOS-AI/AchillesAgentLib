@@ -43,7 +43,7 @@
             <ol>
                 <li><strong>Planner Decision</strong>: The agent analyzes the history and current context to decide which tool to call next.</li>
                 <li><strong>Tool Execution</strong>: The session executes the chosen tool and captures the output.</li>
-                <li><strong>Observation</strong>: The output is fed back into the context.</li>
+                <li><strong>Observation</strong>: The output is bound to a <code>resultRef</code> identifier and fed back into the context.</li>
                 <li><strong>Repeat</strong>: This cycle continues until the agent calls <code>final_answer</code> or <code>cannot_complete</code>.</li>
             </ol>
 
@@ -92,6 +92,17 @@ console.log(result); // Final answer string</code></pre>
                 <li><code>final_answer</code>: Used by the agent to deliver the final result to the user.</li>
                 <li><code>cannot_complete</code>: Used when the agent determines the task is impossible with available tools.</li>
             </ul>
+
+            <h3>Tool Result References</h3>
+            <p>
+                Each tool result is stored under a <code>resultRef</code> name like <code>toolName-res-1</code>. When the agent needs
+                to pass a previous tool result as input to another tool, it should reference the value using <code>$$resultRef</code> in the
+                tool prompt. The runtime substitutes <code>$$resultRef</code> with the actual value at execution time.
+            </p>
+            <p>
+                Example: If a tool produced <code>math-res-1</code>, a follow-up tool call should pass <code>$$math-res-1</code> in its prompt
+                instead of copying the raw value.
+            </p>
         </section>
 
         <section>

@@ -5,7 +5,7 @@ const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
     intents: ['intents', 'intentions', 'mappings'],
-    sessionType: ['session', 'soplang', 'sop-lang', 'sop', 'sop-agentic-session'],
+    sessionType: ['loop'],
 };
 
 function normaliseBulletList(section = '') {
@@ -225,15 +225,8 @@ export class OrchestratorSkillsSubsystem {
         promptText,
         options = {},
     }) {
-        const sessionType = skillRecord.metadata?.sessionType;
+        const sessionType = String(skillRecord.metadata?.sessionType || '').trim().toLowerCase();
         if (sessionType) {
-            return this.executeSOPAgentSession({
-                skillRecord,
-                recursiveAgent,
-                promptText,
-                options,
-            });
-        } else {
             return this.executeLoopAgentSession({
                 skillRecord,
                 recursiveAgent,
@@ -241,6 +234,12 @@ export class OrchestratorSkillsSubsystem {
                 options,
             });
         }
+        return this.executeSOPAgentSession({
+            skillRecord,
+            recursiveAgent,
+            promptText,
+            options,
+        });
     }
 
 }
