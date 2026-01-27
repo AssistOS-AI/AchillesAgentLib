@@ -475,9 +475,10 @@ export class LightSOPLangInterpreter {
         lines.push('4. Arguments can be literals (strings/numbers) or variables ($varName).');
         lines.push('5. Dependencies are implicit: if you use $var1 in a command, it runs after @var1 is computed.');
         lines.push('6. Do not use control structures like \'if\' or \'for\'. Use dependencies to order execution.');
-        lines.push('7. Do NOT declare variables for input values that are directly specified in the prompt - use literals directly.');
-        lines.push('8. Use consistent, descriptive variable names that match when referencing ($varName).');
-        lines.push('9. Output ONLY the code block, no markdown fences, no explanations.');
+        lines.push('7. If a step must run after another step, include that earlier step as a $dependency argument, even if the command will ignore the extra argument.');
+        lines.push('8. Do NOT declare variables for input values that are directly specified in the prompt - use literals directly.');
+        lines.push('9. Use consistent, descriptive variable names that match when referencing ($varName).');
+        lines.push('10. Output ONLY the code block, no markdown fences, no explanations.');
         lines.push('- IMPORTANT: Never wrap arguments in parentheses or separate them with commas; each argument must be its own token. Example: @out concat "hello" "world" (NOT concat("hello", "world")).');
         lines.push('- IMPORTANT: When a string literal contains spaces, wrap it in double quotes, but still keep each argument as a separate token with no commas.');
     lines.push('');
