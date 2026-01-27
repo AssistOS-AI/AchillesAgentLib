@@ -1,5 +1,4 @@
 import { buildAgenticSessionPlannerPrompt, extractJson } from './templates/prompts.mjs';
-//import { appendAgenticAudit } from '../utils/AgenticSessionLogger.mjs';
 import {
     FINAL_ANSWER_TOOL,
     FINAL_ANSWER_DESCRIPTION,
@@ -305,10 +304,6 @@ class LoopAgentSession {
             systemPrompt: this.systemPrompt,
             toolVars: this.toolVars,
         });
-
-        // await appendAgenticAudit({
-        //     prompt: plannerPrompt,
-        // });
 
         const raw = await this.agent.complete({
             prompt: plannerPrompt,
