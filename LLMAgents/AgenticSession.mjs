@@ -1,4 +1,5 @@
 import { buildAgenticSessionPlannerPrompt, extractJson } from './templates/prompts.mjs';
+//import { appendAgenticAudit } from '../utils/AgenticSessionLogger.mjs';
 import {
     FINAL_ANSWER_TOOL,
     FINAL_ANSWER_DESCRIPTION,
@@ -55,6 +56,8 @@ class LoopAgentSession {
         this.lastAnswer = null;
         this.systemPrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
         this.failedTurns = [];
+        this.toolVars = new Map();
+        this.toolVarCounter = 0;
     }
 
     async newPrompt(userPrompt, options = {}) {
@@ -142,6 +145,12 @@ class LoopAgentSession {
             if (action === 'call_tool') {
                 const toolName = decision.tool;
                 const toolPrompt = decision.toolPrompt || userPrompt;
+
+                this.history.push({
+                    type: 'tool_call',
+                    tool: toolName,
+                    prompt: toolPrompt,
+                });
 
                 try {
                     const toolResult = await this._executeTool(toolName, toolPrompt, turn);
@@ -294,7 +303,12 @@ class LoopAgentSession {
             toolCalls: this.toolCalls,
             userPrompt,
             systemPrompt: this.systemPrompt,
+            toolVars: this.toolVars,
         });
+
+        // await appendAgenticAudit({
+        //     prompt: plannerPrompt,
+        // });
 
         const raw = await this.agent.complete({
             prompt: plannerPrompt,
@@ -331,28 +345,48 @@ class LoopAgentSession {
             throw new Error(`Unknown tool: ${toolName}`);
         }
 
+        const resolvedPrompt = typeof toolPrompt === 'string'
+            ? toolPrompt.replace(/\$\$([A-Za-z0-9_-]+)/g, (match, resultRef) => {
+                if (!this.toolVars.has(resultRef)) {
+                    throw new Error(`Unknown tool variable: ${resultRef}`);
+                }
+                const value = this.toolVars.get(resultRef);
+                return typeof value === 'string' ? value : JSON.stringify(value);
+            })
+            : toolPrompt;
+
         // eslint-disable-next-line no-console
-        console.log(`[AgenticSession] Calling tool "${toolName}" with prompt: "${toolPrompt}"`);
+        console.log(`[AgenticSession] Calling tool "${toolName}" with prompt: "${resolvedPrompt}"`);
 
         // Attach session to agent temporarily to support tools that need session context
         this.agent.currentSession = this;
         let result;
         try {
-            result = await toolEntry.handler(this.agent, toolPrompt);
+            result = await toolEntry.handler(this.agent, resolvedPrompt);
         } finally {
             this.agent.currentSession = null;
         }
+
+        this.toolVarCounter += 1;
+        const resultRef = `${toolName}-res-${this.toolVarCounter}`;
+        const storedValue = result && (result.__finalAnswer || result.__cannotComplete)
+            ? result.text
+            : result;
+        this.toolVars.set(resultRef, storedValue);
 
         this.toolCalls.push({
             tool: toolName,
             prompt: toolPrompt,
             result: result && (result.__finalAnswer || result.__cannotComplete) ? result.text : result,
+            resultRef,
         });
         this.history.push({
             type: 'tool',
             tool: toolName,
             prompt: toolPrompt,
-            result,
+            result: {
+                resultRef,
+            },
         });
 
         return result;

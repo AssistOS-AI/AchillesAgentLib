@@ -117,6 +117,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         toolCalls,
         userPrompt,
         systemPrompt = '',
+        toolVars,
     } = options;
 
     const toolNames = tools ? Object.keys(tools) : [];
@@ -155,11 +156,11 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         lines.push('');
         lines.push('Most recent tool call relevant to this instruction:');
         lines.push(`- tool: ${lastToolCall.tool}`);
-        // Properly serialize the result - use JSON for objects, String for primitives
-        const resultStr = lastToolCall.result && typeof lastToolCall.result === 'object'
-            ? JSON.stringify(lastToolCall.result)
-            : String(lastToolCall.result ?? '');
-        lines.push(`- result: ${resultStr}`);
+        lines.push(`- prompt: ${lastToolCall.prompt}`);
+        const lastResultRef = lastToolCall.resultRef;
+        const lastResultValue = toolVars.get(lastResultRef);
+        lines.push(`- resultRef: ${lastResultRef}`);
+        lines.push(`- result: ${formatValue(lastResultValue)}`);
     }
 
     lines.push('');
@@ -168,11 +169,8 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         if (h.type === 'user') {
             lines.push(`USER: ${h.prompt}`);
         } else if (h.type === 'tool') {
-            // Properly serialize the result - use JSON for objects, String for primitives
-            const toolResultStr = h.result && typeof h.result === 'object'
-                ? JSON.stringify(h.result)
-                : String(h.result ?? '');
-            lines.push(`TOOL[${h.tool}]: ${toolResultStr}`);
+            const value = toolVars.get(h.result.resultRef);
+            lines.push(`TOOL[${h.tool}]: resultRef=${h.result.resultRef} result=${formatValue(value)}`);
         } else if (h.type === 'final_answer') {
             lines.push(`FINAL: ${h.answer}`);
         } else if (h.type === 'cannot_complete') {
@@ -195,10 +193,11 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push('');
     lines.push('Guidelines:');
     lines.push('- Use "call_tool" to obtain NEW information or perform calculations.');
+    lines.push('- If you want to pass the result of a previous tool as a parameter, use $$resultRef (do not paste the raw value).');
     lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" with ONLY the final text in "toolPrompt" (no extra wording).`);
     lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" with a short reason in "toolPrompt".`);
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
-    lines.push('- If the most recent tool result already satisfies the current instruction, call "final_answer" with the tool result AS-IS in "toolPrompt". If the result is a JSON object/array, pass it as a raw JSON string without reformatting or converting to prose. The system will format it for display.');
+    lines.push('- If the most recent tool result already satisfies the current instruction or expected answer, call "final_answer" and set "toolPrompt" to $$resultRef of that result (do NOT use the literal word "result").');
     lines.push('- If the user instruction explicitly mentions a tool by name, you MUST call that tool at least once in this turn before finishing.');
     lines.push('- When passing literal strings as tool arguments, do NOT wrap them in extra quotes if they are already quoted in the user text; pass the value once without adding additional quotation marks.');
     lines.push('- If the history shows any failure (validation failed, timeout, or similar), adjust your next tool call or parameters to fix it; do NOT repeat the same failing call.');
@@ -217,3 +216,13 @@ export {
     buildAgenticSessionPlannerPrompt,
     extractJson,
 };
+    const formatValue = (value) => {
+        if (typeof value === 'string') {
+            return value;
+        }
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return String(value);
+        }
+    };
