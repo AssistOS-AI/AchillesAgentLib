@@ -22,11 +22,13 @@ class MockLLMAgent extends LLMAgent {
       let code = 'import { fileURLToPath } from "node:url";\n' +
                  'import { dirname } from "node:path";\n\n' +
                  'export async function action(args) {\n' +
-                 '  const { user } = args;\n' +
-                 '  if (!user || !user.firstName || !user.lastName || user.age === undefined) { return "Error: Incomplete user data provided."; }\n' +
-                 '  const fullName = `${user.firstName} ${user.lastName}`;\n' +
-                 '  const status = user.age >= 18 ? \'Adult\' : \'Minor\';\n' +
-                 '  const result = `Full Name: ${fullName}, Age: ${user.age} (${status})`;\n' +
+                 '  const input = args?.promptText || "";\n' +
+                 '  const match = input.match(/([A-Z][a-z]+)\\s+([A-Z][a-z]+).*?(\\d+)/);\n' +
+                 '  if (!match) { return "Error: Incomplete user data provided."; }\n' +
+                 '  const fullName = `${match[1]} ${match[2]}`;\n' +
+                 '  const age = Number(match[3]);\n' +
+                 '  const status = age >= 18 ? \'Adult\' : \'Minor\';\n' +
+                 '  const result = `Full Name: ${fullName}, Age: ${age} (${status})`;\n' +
                  '  return result;\n' +
                  '}\n\n' +
                  '// Child process entry point\n' +
@@ -67,6 +69,14 @@ class MockLLMAgent extends LLMAgent {
 async function testCodeRegeneration() {
   console.log("=== Testing Code Regeneration Logic ===\n");
 
+  const skillDir = path.resolve(__dirname, '.AchillesSkills/format-user');
+  const indexFile1 = path.resolve(skillDir, 'index.mjs');
+  const newSpecFile = path.resolve(__dirname, '.AchillesSkills/format-user/specs/new-module.js.md');
+
+  // Clean up leftovers from previous runs
+  await rm(newSpecFile, { force: true });
+  await rm(indexFile1, { force: true });
+
   // Initialize the agent
   const mockLlm = new MockLLMAgent();
   const agent = new RecursiveSkilledAgent({
@@ -81,11 +91,9 @@ async function testCodeRegeneration() {
 
   // Test 1: Verify initial code generation
   console.log("Test 1: Verifying initial code generation...");
-  const srcFolder1 = path.resolve(__dirname, '.AchillesSkills/format-user/src');
-  const srcStat1 = await stat(srcFolder1);
-  assert.strictEqual(srcStat1.isDirectory(), true, "src folder should exist");
+  const skillStat1 = await stat(skillDir);
+  assert.strictEqual(skillStat1.isDirectory(), true, "skill folder should exist");
   
-  const indexFile1 = path.resolve(srcFolder1, 'index.mjs');
   const indexStat1 = await stat(indexFile1);
   assert.strictEqual(indexStat1.isFile(), true, "index.mjs should exist");
   
@@ -110,7 +118,6 @@ async function testCodeRegeneration() {
   // Test 3: Add new specification file and verify regeneration
   console.log("Test 3: Adding new specification file and testing regeneration...");
   
-  const newSpecFile = path.resolve(__dirname, '.AchillesSkills/format-user/specs/new-module.js.md');
   await writeFile(newSpecFile, `# Specification for new-module.js
 
 ## Function: newModuleFunction()
@@ -157,8 +164,8 @@ A new module function for testing regeneration.
 
   // Test 5: Clean up - remove new spec file and generated code
   console.log("Test 5: Cleaning up test files...");
-  await rm(newSpecFile);
-  await rm(srcFolder1, { recursive: true, force: true });
+  await rm(newSpecFile, { force: true });
+  await rm(indexFile1, { force: true });
   console.log("✅ Cleanup completed\n");
 
   console.log("🎉 All code regeneration tests passed!");

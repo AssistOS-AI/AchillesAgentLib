@@ -107,6 +107,18 @@ class StubLLMAgent extends LLMAgent {
         };
     }
 
+    async startSOPLangAgentSession(skillsDescription, promptText) {
+        return {
+            getVariables: async () => ({}),
+            getLastResult: () => {
+                if (String(promptText || '').includes('Trigger recursive loop')) {
+                    return 'Too many planner errors';
+                }
+                return 'SOP session completed';
+            },
+        };
+    }
+
     complete(prompt, options = {}) {
         return this.executePrompt(prompt, options);
     }

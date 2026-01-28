@@ -37,31 +37,27 @@ export class CodeSkillsSubsystem {
       throw new Error("Invalid/unprepared cskill: Missing 'Input Format' section in the skill's .md file.");
     }
 
-    // Use pre-provided args if available (ignoring the default 'input' key),
-    // otherwise extract from prompt using LLM
-    let args;
-    const providedArgs = options?.args || {};
-    const hasExplicitArgs = Object.keys(providedArgs).some(key => key !== 'input');
-
-    if (hasExplicitArgs) {
-      debugLog(`Using pre-provided args from options...`);
-      args = providedArgs;
-    } else {
-      debugLog(`Extracting arguments from prompt...`);
-      args = await this.extractArguments(promptText, specifications);
-    }
+    // Always pass the prompt directly; never extract via LLM
+    debugLog(`Passing prompt directly as input arg...`);
+    const args = {
+      promptText
+    };
     debugLog(`Arguments: ${JSON.stringify(args).substring(0, 200)}...`);
-    const actionArgs = JSON.parse(JSON.stringify(args));
-    actionArgs.llmAgent = this.llmAgent;
-    actionArgs.recursiveAgent = recursiveAgent;
+    args.llmAgent = this.llmAgent;
+    args.recursiveAgent = recursiveAgent;
     
     // Execute the already generated code from disk
     debugLog(`Executing code from disk...`);
     const outputPath = skillRecord.skillDir;
-    const result = await this.executeCodeFromDisk(outputPath, actionArgs);
+    const result = await this.executeCodeFromDisk(outputPath, args);
     debugLog(`Execution completed, result type: ${typeof result}`);
     
-    return result;
+    return {
+      skill: skillRecord.name,
+      metadata: skillRecord.metadata || null,
+      result,
+      sessionMemory: null,
+    };
   }
 
   getSpecifications(skillRecord) {

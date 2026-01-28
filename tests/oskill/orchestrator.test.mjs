@@ -108,7 +108,7 @@ test('prepareSkill parses descriptor sections correctly', () => {
     assert.equal(skillRecord.metadata.intents.length, 2);
     assert.equal(skillRecord.metadata.intents[0].id, 'reporting');
         assert.equal(skillRecord.metadata.intents[0].description, 'Generate reports');
-        assert.equal(skillRecord.metadata.sessionType, 'sop');
+    assert.equal(skillRecord.metadata.sessionType, null);
     });
 
 test('buildToolDescriptions generates descriptions from skill metadata', () => {
@@ -139,12 +139,11 @@ test('buildToolDescriptions generates descriptions from skill metadata', () => {
     assert.equal(descriptions.short2, 'Only summary');
 });
 
-test('executeSOPAgentSession is used when sessionType is set', async () => {
+test('executeLoopAgentSession is used when sessionType is set', async () => {
     const subsystem = new OrchestratorSkillsSubsystem({
         llmAgent: {
-            startSOPLangAgentSession: async () => ({
-                getVariables: () => ({ lastAnswer: 'SOP result' }),
-                getLastResult: () => 'SOP result',
+            startLoopAgentSession: async () => ({
+                getLastResult: () => 'Loop result',
             }),
         },
     });
@@ -168,6 +167,6 @@ test('executeSOPAgentSession is used when sessionType is set', async () => {
         promptText: 'Test SOP prompt',
     });
 
-    assert.equal(result.result.session, 'sop');
-    assert.equal(result.result.output, 'SOP result');
+    assert.equal(result.session, 'loop');
+    assert.equal(result.result, 'Loop result');
 });

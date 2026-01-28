@@ -21,6 +21,16 @@ class StubLLMAgent extends LLMAgent {
         // Return empty response - we just want to test the skill invocation path
         return { result: 'stub response' };
     }
+
+    async startSOPLangAgentSession(skillsDescription, promptText) {
+        return {
+            getVariables: async () => ({}),
+            getLastResult: () => ({
+                message: `Code generation completed for ${promptText}`,
+                generatedFiles: [],
+            }),
+        };
+    }
 }
 
 test('internal skills', async (t) => {
@@ -81,11 +91,11 @@ test('internal skills', async (t) => {
         
         // The result.result should contain our action's return value
         assert.ok(result.result, 'should have result property');
-        assert.ok(result.result.output, 'should have output from module execution');
-        assert.ok(result.result.output.message, 'output should have message');
-        assert.ok(Array.isArray(result.result.output.generatedFiles), 'output should have generatedFiles array');
+        assert.ok(result.result, 'should have output from module execution');
+        assert.ok(result.result.message, 'output should have message');
+        assert.ok(Array.isArray(result.result.generatedFiles), 'output should have generatedFiles array');
         
         // Since there's no specs dir, generatedFiles should be empty
-        assert.equal(result.result.output.generatedFiles.length, 0, 'generatedFiles should be empty for non-existent path');
+        assert.equal(result.result.generatedFiles.length, 0, 'generatedFiles should be empty for non-existent path');
     });
 });

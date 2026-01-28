@@ -17,11 +17,13 @@ class MockLLMAgent extends LLMAgent {
       const code = 'import { fileURLToPath } from "node:url";\n' +
                    'import { dirname } from "node:path";\n\n' +
                    'export async function action(args) {\n' +
-                   '  const { user } = args;\n' +
-                   '  if (!user || !user.firstName || !user.lastName || user.age === undefined) { return "Error: Incomplete user data provided."; }\n' +
-                   '  const fullName = `${user.firstName} ${user.lastName}`;\n' +
-                   '  const status = user.age >= 18 ? \'Adult\' : \'Minor\';\n' +
-                   '  const result = `Full Name: ${fullName}, Age: ${user.age} (${status})`;\n' +
+                   '  const input = args?.promptText || "";\n' +
+                   '  const match = input.match(/([A-Z][a-z]+)\\s+([A-Z][a-z]+).*?(\\d+)/);\n' +
+                   '  if (!match) { return "Error: Incomplete user data provided."; }\n' +
+                   '  const fullName = `${match[1]} ${match[2]}`;\n' +
+                   '  const age = Number(match[3]);\n' +
+                   '  const status = age >= 18 ? \'Adult\' : \'Minor\';\n' +
+                   '  const result = `Full Name: ${fullName}, Age: ${age} (${status})`;\n' +
                    '  return result;\n' +
                    '}\n\n' +
                    '// Child process entry point\n' +
@@ -52,7 +54,7 @@ class MockLLMAgent extends LLMAgent {
 }
 
 async function testLlmExtraction(agent) {
-  console.log("\n--- Testing LLM Extraction Path ---");
+  console.log("\n--- Testing Direct Input Path ---");
   const prompt = "Please format the user Jane Doe, who is 25 years old.";
 
   console.log(`Executing with natural language prompt: "${prompt}"`);

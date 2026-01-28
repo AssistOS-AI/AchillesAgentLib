@@ -99,20 +99,11 @@ export class OrchestratorSkillsSubsystem {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
             // Return a standard function that calls the skill via RecursiveSkilledAgent
             // This allows each subsystem to access any skill uniformly
-            tools[toolName] = async (agent, paramsPrompt) => {
-                // Normalize paramsPrompt to string to handle cases where LLM returns objects
-                const promptString = typeof paramsPrompt === 'string' ? paramsPrompt : JSON.stringify(paramsPrompt);
-                const executionResult = await recursiveAgent.executePrompt(promptString, {
+            tools[toolName] = async (agent, promptText) => {
+                const executionResult = await recursiveAgent.executePrompt(promptText, {
                     skillName: skillRecord.name
                 });
-                // Handle different subsystem result shapes:
-                // 1. OrchestratorSubsystem: { result: { output: ... } }
-                // 2. InteractiveSubsystem: { result: ..., skill: ... }
-                // 3. CodeSkillsSubsystem: primitives wrapped by SkillExecutor as { result: ... }
-                const output = executionResult?.result?.output
-                    ?? executionResult?.result
-                    ?? executionResult;
-                return output;
+                return executionResult?.result;
             };
         }
 
@@ -158,12 +149,8 @@ export class OrchestratorSkillsSubsystem {
         return {
             skill: skillRecord.name,
             metadata: skillRecord.metadata || null,
-            result: {
-                type: this.type,
-                prompt: promptText,
-                output: result,
-                session: 'loop',
-            },
+            result: result,
+            session: 'loop',
             sessionMemory: null,
         };
     }
@@ -187,8 +174,12 @@ export class OrchestratorSkillsSubsystem {
                     }
                     
                     try {
-                        const prompt = Array.isArray(args) ? args.join(' ') : (args || promptText);
-                        const result = await skillAction(this.llmAgent, prompt);
+                        if (Array.isArray(args)) {
+                            const prompt = args.join(' ');
+                            const result = await skillAction(this.llmAgent, prompt);
+                            return response.success(result);
+                        }
+                        const result = await skillAction(this.llmAgent, args);
                         return response.success(result);
                     } catch (error) {
                         return response.fail(error?.message || String(error));
@@ -208,13 +199,9 @@ export class OrchestratorSkillsSubsystem {
         return {
             skill: skillRecord.name,
             metadata: skillRecord.metadata || null,
-            result: {
-                type: this.type,
-                prompt: promptText,
-                output: result,
-                variables,
-                session: 'sop',
-            },
+            result: result,
+            variables,
+            session: 'sop',
             sessionMemory: null,
         };
     }
