@@ -64,6 +64,10 @@ Formats a user's data into a readable string based on external functional specif
                 The <code>cskill.md</code> file focuses on the high-level interface while detailed implementation 
                 specifications are kept in the <code>specs/</code> folder.
             </p>
+            <div class="note">
+                <strong>Note</strong>: Code skills receive only the raw prompt text at runtime. The <code>Input Format</code>
+                section documents the expected structure, but the skill must parse any structured data from the prompt text itself.
+            </div>
         </section>
 
          <section>
@@ -101,34 +105,24 @@ Formats a user's data into a readable string based on external functional specif
             </p>
             <pre><code># Specification for index.js
 
-## Function: action(args)
+## Function: action(context)
 
 ### Description
 Formats a user object into a standardized string.
 
 ### Input
-- args: Object containing user data
-  - user: Object representing the user
-    - firstName (string, mandatory): The user's first name
-    - lastName (string, mandatory): The user's last name
-    - age (number, mandatory): The user's age
+- promptText: Natural language instruction containing the user data
 
 ### Processing Logic
-1. Receive the user object from args.user
-2. Validate that the user object and all its mandatory properties are present
+1. Parse the user data from promptText
+2. Validate that the required fields are present
 3. If validation fails, return error string
 4. If validation succeeds, process data and return formatted result
 
 ### Example
 ```javascript
 // Input:
-{
-  "user": {
-    "firstName": "Jane",
-    "lastName": "Doe",
-    "age": 25
-  }
-}
+"Format user data for Jane Doe, age 25"
 
 // Output:
 "Full Name: Jane Doe, Age: 25 (Adult)"
@@ -166,16 +160,20 @@ Formats a user object into a standardized string.
                  see the <a href="agent-runtime.html#code-skills-handling">Agent Runtime documentation</a>.
              </p>
 
-             <h3>Phase 2: Skill Execution</h3>
-             <p>
-                 When you execute a code skill, the subsystem:
-             </p>
-             <ol>
-                 <li>Extracts arguments from your prompt (or uses pre-provided arguments)</li>
-                 <li>Dynamically imports and executes <code>index.mjs</code> at the skill root</li>
-                 <li>Wraps primitive results in <code>{ result: value }</code> format</li>
-                 <li>Returns the execution result</li>
-             </ol>
+            <h3>Phase 2: Skill Execution</h3>
+            <p>
+                When you execute a code skill, the subsystem:
+            </p>
+            <ol>
+                <li>Passes the raw prompt text directly to the skill action</li>
+                <li>Dynamically imports and executes <code>index.mjs</code> at the skill root</li>
+                <li>Wraps primitive results in <code>{ result: value }</code> format</li>
+                <li>Returns the execution result</li>
+            </ol>
+            <p>
+                The generated <code>action</code> receives an object with <code>promptText</code>, plus injected
+                <code>llmAgent</code> and <code>recursiveAgent</code> references for advanced workflows.
+            </p>
 
 
             <div class="note">
@@ -185,7 +183,6 @@ Formats a user object into a standardized string.
                     <li><strong>Single-step generation</strong>: All specs and sections combined in one LLM prompt</li>
                     <li><strong>Timestamp-based caching</strong>: Only regenerates when specs change</li>
                     <li><strong>Multi-file support</strong>: Can generate multiple modules from multiple spec files</li>
-                    <li><strong>Pre-provided args support</strong>: Can skip argument extraction when called programmatically</li>
                     <li><strong>Primitive result wrapping</strong>: Ensures consistent return format</li>
                 </ul>
             </div>
@@ -204,33 +201,24 @@ Formats a user object into a standardized string.
 
 
             <h3><code>executeSkillPrompt(options)</code></h3>
-            <p>Executes the pre-generated code with provided arguments.</p>
+            <p>Executes the pre-generated code with the prompt text.</p>
             <ul>
                 <li><strong>Parameters</strong>:
                     <ul>
                         <li><code>skillRecord</code>: Skill record object</li>
                         <li><code>recursiveAgent</code>: Agent with LLM access</li>
                         <li><code>promptText</code>: User's natural language prompt</li>
-                        <li><code>options</code>: Additional execution options
-                            <ul>
-                                <li><code>args</code> (optional): Pre-structured arguments to pass directly to the skill, bypassing LLM extraction</li>
-                            </ul>
-                        </li>
+                        <li><code>options</code>: Additional execution options</li>
                     </ul>
                 </li>
                 <li><strong>Returns</strong>: Promise that resolves with execution result (primitives wrapped in <code>{ result: value }</code>)</li>
                 <li><strong>Side effects</strong>: None (uses pre-generated code)</li>
             </ul>
-            <p><strong>Example with pre-provided args</strong>:</p>
+            <p><strong>Example</strong>:</p>
             <pre><code>await subsystem.executeSkillPrompt({
     skillRecord,
     recursiveAgent,
-    promptText: 'Format this user',
-    options: {
-        args: {
-            user: { firstName: 'John', lastName: 'Doe', age: 30 }
-        }
-    }
+    promptText: 'Format user data for John Doe, age 30'
 });</code></pre>
 
              <h3><code>checkIfRegenerationNeeded(skillRecord, currentSignature)</code></h3>

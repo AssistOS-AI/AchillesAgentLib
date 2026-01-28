@@ -45,7 +45,8 @@
             </ul>
             <p>
                 <code>RecursiveSkilledAgent</code> discovers directories that contain <code>tskill.md</code>, assigns them canonical names like
-                <code>projects-dbtable</code>, and delegates preparation and execution to <code>DBTableSkillsSubsystem</code>. When callers omit args, the
+                <code>projects-dbtable</code>, and delegates preparation and execution to <code>DBTableSkillsSubsystem</code>. The subsystem receives the
+                raw prompt text and derives the intended operation from that input.
                 subsystem injects the task description into the default argument <code>prompt</code> before execution.
             </p>
         </section>

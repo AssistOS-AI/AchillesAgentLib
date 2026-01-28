@@ -105,18 +105,13 @@ Formats user data into a standardized string representation based on detailed sp
             <p>Create <code>specs/index.js.md</code> as the main entrypoint specification:</p>
             <pre><code># Specification for index.js
 
-## Function: action(args)
+## Function: action(context)
 
 ### Description
 Main entry point for user data formatting skill. This function orchestrates the validation and formatting process.
 
 ### Input
-- args: Object containing user data
-  - user: Object (required) - The user object to format
-    - firstName: string (required, 2-50 chars, letters only)
-    - lastName: string (required, 2-50 chars, letters and hyphens)
-    - age: number (required, 0-120)
-    - email: string (optional, valid format)
+- promptText: Natural language instruction containing the user data
 
 ### Processing Logic
 
@@ -130,7 +125,7 @@ flowchart TD
 ```
 
 #### 1. Validate Input
-- Check that all required fields are present and valid
+- Parse required fields from promptText
 - Validate firstName: 2-50 letters only
 - Validate lastName: 2-50 letters or hyphens
 - Validate age: integer between 0 and 120
@@ -147,7 +142,7 @@ flowchart TD
 - Handle unexpected errors gracefully with generic error message
 
 ### Example
-- **Input**: `{ "user": { "firstName": "John", "lastName": "Doe", "age": 30, "email": "john@example.com" } }`
+- **Input**: "Format user data for John Doe, age 30, email john@example.com"
 - **Output**: "Name: John Doe, Age: 30, Status: Adult, Email: john@example.com"
 </code></pre>
             <div class="note">

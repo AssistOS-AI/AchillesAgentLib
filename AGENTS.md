@@ -161,16 +161,28 @@ Guidelines for the LLM when creating execution plans.
 - update: Updating existing items
 - query: Querying data
 
-## Session
-sop
+## Loop
+true
 
 ```
 
 **Execution Flow:**
-1. Parse descriptor sections (instructions, allowed skills, intents, optional session metadata)
+1. Parse descriptor sections (instructions, allowed skills, intents, optional loop metadata)
 2. Build a toolbelt from the allowed skills
-3. Start an agentic session (`loop` by default, `sop` when the descriptor declares a session)
+3. Start an agentic session (`sop` by default, `loop` when the descriptor declares a loop section)
 4. Execute the session plan, delegating each command to downstream skills
+
+**Return Shape:**
+```
+{
+  skill,
+  metadata,
+  result,
+  session, // 'sop' | 'loop'
+  variables, // only for SOP sessions
+  sessionMemory
+}
+```
 
 **Key Methods:**
 ```javascript
@@ -182,7 +194,7 @@ const loopResult = await subsystem.executeLoopAgentSession({
     options,
 });
 
-// Deep SOP session when metadata.sessionType is set
+// Deep SOP session when loop metadata is empty
 const sopResult = await subsystem.executeSOPAgentSession({
     skillRecord,
     recursiveAgent,
@@ -452,8 +464,8 @@ executeWithReviewMode(taskDescription, { skillName })
 ### 3. Orchestrator Execution
 ```
 OrchestratorSubsystem.executeSkillPrompt()
-    ├─► [sessionType?] → executeSOPAgentSession()  // deep agentic session
-    └─► [default] → executeLoopAgentSession()      // fast loop session
+    ├─► [loop?] → executeLoopAgentSession()  // fast loop session
+    └─► [default] → executeSOPAgentSession()  // deep agentic session
 ```
 
 ---
@@ -591,7 +603,7 @@ The skill will be automatically registered as an orchestrator skill when `expose
 
 1. **Skill Naming**: Use descriptive, hyphenated names that reflect the skill's purpose
 2. **Orchestrator Design**: Keep orchestrators focused; compose multiple for complex workflows
-3. **Code Skills**: Prefer module-based implementation for complex logic
+3. **Code Skills**: Prefer module-based implementation for complex logic; parse structured data from the prompt text (no automatic argument extraction)
 4. **DB Skills**: Define clear validators and presenters for data integrity
 5. **Interactive Skills**: Design clear argument flows with helpful llmHints
 6. **Testing**: Mock the LLMAgent and dbAdapter for unit tests

@@ -44,7 +44,7 @@
                 <li><code>executePrompt(promptText, { responseShape, mode, globalMemory, userMemory, sessionMemory })</code>: Builds a task prompt with optional memory blocks and returns plain text or parsed JSON/code when a <code>responseShape</code> is provided.</li>
                 <li><code>interpretMessage(message, { intents })</code>: Classifies user replies into <code>accept</code>, <code>cancel</code>, <code>update</code>, or <code>ideas</code>,
                     using heuristics first and falling back to the model.</li>
-                <li><code>parseMarkdownKeyValues(markdown)</code>: Converts LLM output into key-value maps (used for argument extraction).</li>
+                <li><code>parseMarkdownKeyValues(markdown)</code>: Converts LLM output into key-value maps (utility for parsing structured text).</li>
                 <li><code>classifyMessage(message)</code>: Lightweight intent classifier when a full completion is not needed.</li>
             </ul>
             <p>
@@ -98,7 +98,7 @@
 
             <h3>Execution APIs</h3>
             <ul>
-                <li><code>executePrompt(prompt, { skillName, args, promptReader })</code>: Primary entry point. Provide <code>skillName</code> to force a specific skill or omit to let the agent choose.</li>
+                <li><code>executePrompt(prompt, { skillName, promptReader })</code>: Primary entry point. Provide <code>skillName</code> to force a specific skill or omit to let the agent choose.</li>
                 <li><code>executeWithReviewMode(prompt, options, reviewMode)</code>: Explicit review mode.</li>
                 <li><code>executePromptWithReview(prompt, options)</code> / <code>executePromptWithHumanReview(prompt, options)</code>: Helpers for LLM or human review modes.</li>
                 <li><code>cancel()</code>: Propagates cancellation down the active stack.</li>
@@ -109,7 +109,7 @@
                 <li>Discovers skills under <code>.AchillesSkills/</code> (and additional roots) at construction time.</li>
                 <li>If no <code>skillName</code> is provided, tries a FlexSearch-based orchestrator match; otherwise falls back to LLM selection across skills.</li>
                 <li>Injects the task description into a skill's default argument (or <code>input</code>) when arguments are missing.</li>
-                <li>Routes execution to the appropriate subsystem (claude/code/interactive/mcp/orchestrator/dbtable) and forwards any args/promptReader overrides.</li>
+                <li>Routes execution to the appropriate subsystem (claude/code/interactive/mcp/orchestrator/dbtable) and forwards the prompt text plus promptReader overrides.</li>
                 <li>Returns the subsystem's result along with the chosen review mode.</li>
             </ol>
 

@@ -98,7 +98,7 @@ export const specs = {
 
 export const roles = ['support'];
 
-export const action = (args) => ({ ...args });</code></pre>
+export const action = (context) => ({ ...context });</code></pre>
             <p>
                 Values exported by the entrypoint augment the descriptor. In this case we declare the canonical <code>specs</code>, restrict access to the
                 <code>support</code> role, and simply echo the collected arguments during tests.

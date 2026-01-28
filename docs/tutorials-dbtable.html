@@ -77,8 +77,8 @@ Must be a valid email.</code></pre>
                 <li>At runtime, the LLMAgent classifies the prompt into CREATE, UPDATE, SELECT, or DELETE (supplying descriptor instructions and field lists to the prompt), applies the generated helpers, and uses your <code>dbAdapter</code> (<code>query</code>/<code>insert</code>/<code>update</code>/<code>delete</code>).</li>
             </ol>
             <p>
-                There is no interactive form layer; argument handling lives inside the generated functions. When callers omit args, the subsystem injects the task
-                description into the default <code>prompt</code> argument before execution.
+                There is no interactive form layer; argument handling lives inside the generated functions. The subsystem passes the task
+                description as <code>promptText</code> and derives fields from that input.
             </p>
         </section>
 

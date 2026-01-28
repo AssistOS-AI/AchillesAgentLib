@@ -71,13 +71,13 @@ This orchestrator coordinates logistics reporting and MCP lookups.
         <section>
             <h2>Selecting a Session Type</h2>
             <p>
-                The descriptor can opt into deeper planning by declaring a session block:
+                The descriptor can opt into loop execution by declaring a loop block:
             </p>
-            <pre><code>## Session
-sop</code></pre>
+            <pre><code>## Loop
+true</code></pre>
             <p>
-                Leaving the section out keeps the orchestrator in loop mode (fast, iterative planning). Setting it to <code>sop</code> switches to the
-                SOP agent session, which emits variables and more detailed traces.
+                Leaving the section out keeps the orchestrator in SOP mode (deeper planning). Adding it switches to the
+                loop agent session, which is faster and more iterative.
             </p>
         </section>
 
@@ -86,7 +86,7 @@ sop</code></pre>
             <ol>
                 <li><strong>Toolbelt creation:</strong> The subsystem resolves the allowed skills and exposes each one as a callable command.</li>
                 <li><strong>Prompting:</strong> The loop agent receives the descriptor's instructions as its system prompt.</li>
-                <li><strong>Interactive execution:</strong> The agent calls tools until the request is met or a step limit is reached, returning the final answer as <code>result.output</code>.</li>
+                <li><strong>Interactive execution:</strong> The agent calls tools until the request is met or a step limit is reached, returning the final answer as <code>result</code>.</li>
             </ol>
         </section>
 
@@ -102,11 +102,11 @@ sop</code></pre>
         <section>
             <h2>Execution Flow</h2>
             <ol>
-                <li><strong>Discovery:</strong> The loader parses <code>oskill.md</code>, extracting instructions, allowed skills, intents, and optional session metadata.</li>
+                <li><strong>Discovery:</strong> The loader parses <code>oskill.md</code>, extracting instructions, allowed skills, intents, and optional loop metadata.</li>
                 <li><strong>Toolbelt Assembly:</strong> Each allowed skill becomes a callable handler plus a short description.</li>
-                <li><strong>Agentic Session:</strong> The subsystem launches <em>executeLoopAgentSession</em> by default or <em>executeSOPAgentSession</em> when <code>## Session</code> is set.</li>
+                <li><strong>Agentic Session:</strong> The subsystem launches <em>executeSOPAgentSession</em> by default or <em>executeLoopAgentSession</em> when <code>## Loop</code> is set.</li>
                 <li><strong>Delegation:</strong> Session commands call back into <code>RecursiveSkilledAgent</code> with explicit <code>skillName</code> values.</li>
-                <li><strong>Result Packaging:</strong> Responses include the prompt echo, output, and session label (loop or sop, plus SOP variables when applicable).</li>
+                <li><strong>Result Packaging:</strong> Responses include the raw result, session label (loop or sop), and SOP variables when applicable.</li>
             </ol>
             <p>
                 The regression tests under <code>tests/recursiveAgent/orchestration.test.mjs</code> exercise these flows end-to-end and are an excellent reference when authoring new orchestration skills.

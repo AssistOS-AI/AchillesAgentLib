@@ -43,7 +43,7 @@
                 <li><strong>Instructions:</strong> How the planner should interpret the user’s request.</li>
                 <li><strong>Allowed Skills:</strong> The catalogue of downstream skills this planner may call.</li>
                 <li><strong>Intents:</strong> ReAct-style shorthand that explains the purpose of each step.</li>
-                <li><strong>Session:</strong> Optional flag (`sop`, `loop`, etc.) that selects the execution strategy.</li>
+                <li><strong>Loop:</strong> Optional flag (<code>## Loop</code>) that switches to loop execution.</li>
             </ul>
             <pre><code># Planner Orchestrator
 
@@ -59,11 +59,11 @@
 - reporting: Prepare human readable summaries or status updates.
 - data-fetch: Retrieve underlying inventory or operational records.
 
-## Session
-sop</code></pre>
+## Loop
+true</code></pre>
             <p>
-                The allowed skills become the planner's toolbelt. When the descriptor omits <code>## Session</code>, the subsystem launches a SOP
-                agent session by default. Declaring <code>## Session</code> as <code>loop</code> switches to a fast loop agent session that prioritizes
+                The allowed skills become the planner's toolbelt. When the descriptor omits <code>## Loop</code>, the subsystem launches a SOP
+                agent session by default. Declaring <code>## Loop</code> switches to a fast loop agent session that prioritizes
                 speed over deeper planning context.
             </p>
         </section>
@@ -71,9 +71,13 @@ sop</code></pre>
             <h2>Agentic Sessions</h2>
             <p>
                 The subsystem always builds an agentic session around the allowed skills. A <strong>SOP Session</strong> (default) produces variables,
-                structured plans, and a full execution trace for auditing. When <code>## Session</code> is set to <code>loop</code>, the skill launches
+                structured plans, and a full execution trace for auditing. When <code>## Loop</code> is set, the skill launches
                 a <strong>Loop Session</strong> that runs quickly by calling tools turn-by-turn until the user request is satisfied. Both sessions share
                 the same toolbelt; the only difference is the reasoning depth and the amount of state that is surfaced.
+            </p>
+            <p>
+                Execution results now return the session type alongside the raw output: <code>{ skill, metadata, result, session, sessionMemory }</code>.
+                SOP sessions also surface <code>variables</code> at the top level for inspection.
             </p>
         </section>
 
