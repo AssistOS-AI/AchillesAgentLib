@@ -22,7 +22,7 @@
                 <a href="dbtable-skills.html">DBTable Skills</a>
                 <a href="orchestration-skills.html">Orchestration Skills</a>
                 <a href="mcp-skills.html">MCP Skills</a>
-                <a href="code-generation-skills.html">Code Generation Skills</a>
+                <a href="dynamic-code-generation-skills.html">Dynamic Code Generation Skills</a>
                 <a href="agentic-sessions.html">Agentic Sessions</a>
             </nav>
         </section>
@@ -56,7 +56,7 @@
                 The flow aligns with the runtime architecture:
             </p>
             <pre><code>RecursiveSkilledAgent
-  ├─ Skill Discovery: scan .AchillesSkills/* for skill.md, cgskill.md, cskill.md, mskill.md, oskill.md, tskill.md
+  ├─ Skill Discovery: scan .AchillesSkills/* for skill.md, dcgskill.md, cskill.md, mskill.md, oskill.md, tskill.md
   ├─ Subsystem Router: claude | code | mcp | orchestrator | dbtable
   ├─ LLMAgent: shared completion/review + session memory
    └─ Execution: agentic session (loop or sop) → run skill → record history</code></pre>
@@ -69,7 +69,7 @@
                 lives in its own folder and is identified by the folder name:
             </p>
             <pre><code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/
-    ├── skill.md | oskill.md | mskill.md | cgskill.md | tskill.md | cskill.md   (descriptor)
+    ├── skill.md | oskill.md | mskill.md | dcgskill.md | tskill.md | cskill.md   (descriptor)
     └── &lt;skill_name&gt;.mjs / .js                          (entrypoint when the family supports it)</code></pre>
             <p>
                 The descriptor suffix maps to the skill family:
@@ -79,11 +79,11 @@
                 <li><code>tskill.md</code> — DBTable skills that describe CRUD workflows over structured tables.</li>
                 <li><code>oskill.md</code> — orchestration planners that drive loop or SOP agentic sessions.</li>
                 <li><code>mskill.md</code> — MCP skills with allowed tool lists and optional scripts.</li>
-                <li><code>cgskill.md</code> — code-generation skills with detailed prompts and LLM guidance.</li>
+                <li><code>dcgskill.md</code> — dynamic code generation skills with detailed prompts and LLM guidance.</li>
                 <li><code>cskill.md</code> — code skills driven by generated modules.</li>
             </ul>
             <p>
-                Some families provide optional modules (for example, <code>cgskill</code> modules supply an <code>action</code> executor, while <code>tskill</code> code is generated into
+                Some families provide optional modules (for example, <code>dcgskill</code> modules supply an <code>action</code> executor, while <code>tskill</code> code is generated into
                 <code>tskill.generated.mjs</code>). Modules can also export a <code>roles</code> array which is recorded for future policy hooks, but it is not
                 enforced by the runtime today.
             </p>
@@ -116,7 +116,7 @@
             <p>
                 Dive deeper into each family: learn how table descriptors become CRUD workflows in <a href="dbtable-skills.html">DBTable Skills</a>, continue with
                 <a href="orchestration-skills.html">Orchestration Skills</a>, review <a href="mcp-skills.html">MCP Skills</a>,
-                and finish with the <a href="code-generation-skills.html">Code Generation Skills guide</a>.
+                and finish with the <a href="dynamic-code-generation-skills.html">Dynamic Code Generation Skills guide</a>.
             </p>
         </section>
 

@@ -47,7 +47,7 @@ async function initializeRecursiveAgent() {
     shared.recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
         startDir: __dirname,
-        skillFilter: ({ type }) => type === 'code-generation',
+        skillFilter: ({ type }) => type === 'dynamic-code-generation',
     });
 
     return shared;
@@ -57,7 +57,7 @@ async function ensureAgent(t) {
     await initializeRecursiveAgent();
     if (!shared.recursiveAgent) {
         const reason = shared.errorReason || 'LLM invocation unavailable.';
-        console.error(`[cgSkills.test] LLM unavailable: ${reason}`);
+        console.error(`[dcgSkills.test] LLM unavailable: ${reason}`);
         t.skip(`LLM invocation unavailable: ${reason}`);
         return null;
     }
@@ -71,7 +71,7 @@ test('Proofread code skill polishes input text', async (t) => {
     }
 
     try {
-        console.info('[cgSkills.test] invoking proofread skill');
+        console.info('[dcgSkills.test] invoking proofread skill');
         const result = await recursiveAgent.executePrompt(
             'Proofread the following sentence so it sounds natural: THIS is A TesT',
             {
@@ -80,9 +80,9 @@ test('Proofread code skill polishes input text', async (t) => {
             },
         );
 
-        assert.equal(result.skill, 'proofread');
-        console.info('[cgSkills.test] proofread result:', result.result);
-        assert.equal(result.metadata.type, 'code-generation');
+        assert.equal(result.skill, 'proofread-polisher-dynamic-code-generation');
+        console.info('[dcgSkills.test] proofread result:', result.result);
+    assert.equal(result.metadata.type, 'dynamic-code-generation');
         assert.equal(result.metadata.llmMode, 'fast');
         const normalized = result.result.trim().toLowerCase();
         assert.ok(normalized.startsWith('this is a test'));
@@ -99,7 +99,7 @@ test('Large number multiplication uses code execution', async (t) => {
     }
 
     try {
-        console.info('[cgSkills.test] invoking multiply skill');
+        console.info('[dcgSkills.test] invoking multiply skill');
         const result = await recursiveAgent.executePrompt(
             'Multiply 98765432123456789 by 123456789987654321 and return the exact result.',
             {
@@ -107,9 +107,9 @@ test('Large number multiplication uses code execution', async (t) => {
             },
         );
 
-        assert.equal(result.skill, 'bigMultiply');
-        console.info('[cgSkills.test] multiply result:', result.result);
-        assert.equal(result.metadata.type, 'code-generation');
+        assert.equal(result.skill, 'large-number-multiplier-dynamic-code-generation');
+        console.info('[dcgSkills.test] multiply result:', result.result);
+    assert.equal(result.metadata.type, 'dynamic-code-generation');
         assert.equal(result.metadata.llmMode, 'fast');
         assert.ok(result.result.includes('12193263211705532552354824112635269'));
     } catch (error) {
@@ -125,7 +125,7 @@ test('Math evaluator computes arithmetic mean with generated code', async (t) =>
     }
 
     try {
-        console.info('[cgSkills.test] invoking math skill');
+        console.info('[dcgSkills.test] invoking math skill');
         const result = await recursiveAgent.executePrompt(
             'Calculate the arithmetic mean of the first five odd numbers.',
             {
@@ -133,9 +133,9 @@ test('Math evaluator computes arithmetic mean with generated code', async (t) =>
             },
         );
 
-        assert.equal(result.skill, 'mathEval');
-        console.info('[cgSkills.test] math result:', result.result);
-        assert.equal(result.metadata.type, 'code-generation');
+        assert.equal(result.skill, 'math-expression-evaluator-dynamic-code-generation');
+        console.info('[dcgSkills.test] math result:', result.result);
+    assert.equal(result.metadata.type, 'dynamic-code-generation');
         assert.equal(result.metadata.llmMode, 'deep');
         assert.ok(typeof result.result === 'string');
         assert.ok(result.result && result.result.length > 0);

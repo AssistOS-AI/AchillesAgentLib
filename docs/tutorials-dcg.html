@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code Generation Skills Tutorial · Achilles Agents Docs</title>
+    <title>Dynamic Code Generation Skills Tutorial · Achilles Agents Docs</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,19 +11,19 @@
         data-breadcrumb='[
             {"label":"Home","href":"index.html"},
             {"label":"Tutorials","href":"tutorials.html"},
-            {"label":"Code Skills Tutorial"}
+            {"label":"Dynamic Code Generation Skills Tutorial"}
         ]'></div>
 
     <main class="content">
         <section class="lead">
-            <h1>Code Generation Skills Tutorial</h1>
+            <h1>Dynamic Code Generation Skills Tutorial</h1>
             <p>Descriptors, sandbox entrypoints, and LLM-assisted execution patterns for dependable code skills.</p>
             <nav class="page-links" aria-label="Tutorial navigation">
                 <a href="tutorials-claude.html">Claude</a>
                 <a href="tutorials-dbtable.html">DBTable</a>
                 <a href="tutorials-orchestration.html">Orchestration</a>
                 <a href="tutorials-mcp.html">MCP</a>
-                <a href="tutorials-cg.html" aria-current="page">Code Generation</a>
+                <a href="tutorials-dcg.html" aria-current="page">Dynamic Code Generation</a>
             </nav>
         </section>
         <section>
@@ -31,10 +31,10 @@
             <p>
                 Code skills use the same repository conventions. The code skills test suite ships with:
             </p>
-            <pre><code>tests/cgSkills/.AchillesSkills/
+            <pre><code>tests/dcgSkills/.AchillesSkills/
 └── test1/
     └── mathEval/
-        ├── cgskill.md
+        ├── dcgskill.md
         └── mathEval.js</code></pre>
             <p>
                 The descriptor drives prompt construction while the JavaScript entrypoint enforces sandbox rules and integrates with <code>LLMAgent</code>.
@@ -42,7 +42,7 @@
         </section>
 
         <section>
-            <h2>Descriptor: <code>cgskill.md</code></h2>
+            <h2>Descriptor: <code>dcgskill.md</code></h2>
             <pre><code># Math Expression Evaluator
 
 Interpret natural-language requests that describe mathematical operations and produce precise numeric answers...
@@ -62,7 +62,7 @@ deep</code></pre>
             <p>
                 The companion file supplies the execution harness. It calls the configured <code>LLMAgent</code> to synthesise code, unwraps fences, and evaluates the snippet inside a controlled environment.
             </p>
-            <pre><code>// tests/cgSkills/.AchillesSkills/test1/mathEval/mathEval.js
+            <pre><code>// tests/dcgSkills/.AchillesSkills/test1/mathEval/mathEval.js
 export async function action(instruction, context = {}) {
     if (typeof instruction !== 'string' || !instruction.trim()) {
         throw new Error('mathEval skill requires a non-empty instruction string.');
@@ -105,13 +105,13 @@ export async function action(instruction, context = {}) {
         <section>
             <h2>Execution Checklist</h2>
             <ol>
-                <li>Define a clear prompt in <code>cgskill.md</code> describing sandbox constraints and output expectations.</li>
+                <li>Define a clear prompt in <code>dcgskill.md</code> describing sandbox constraints and output expectations.</li>
                 <li>Implement an <code>action</code> export that enforces safety (timeouts, read-only modes, sanitised results).</li>
                 <li>Optionally persist conversation snippets to <code>sessionMemory</code> for audit trails.</li>
                 <li>Register the repository and call <code>RecursiveSkilledAgent.executePrompt</code> with user instructions to trigger the sandbox.</li>
             </ol>
             <p>
-                See <code>tests/cgSkills/cgSkills.test.mjs</code> for a complete usage example that executes the skill with different prompts and validates the computed results.
+                See <code>tests/dcgSkills/dcgSkills.test.mjs</code> for a complete usage example that executes the skill with different prompts and validates the computed results.
             </p>
         </section>
     </main>

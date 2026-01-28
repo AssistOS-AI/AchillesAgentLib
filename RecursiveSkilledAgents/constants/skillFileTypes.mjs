@@ -4,7 +4,7 @@
  */
 export const SKILL_FILE_TYPES = {
     'skill.md': { type: 'claude' },
-    'cgskill.md': { type: 'code-generation' },
+    'dcgskill.md': { type: 'dynamic-code-generation' },
     'cskill.md': { type: 'cskill' },
     'mskill.md': { type: 'mcp' },
     'oskill.md': { type: 'orchestrator' },

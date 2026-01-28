@@ -80,16 +80,16 @@ function unwrapCodeFence(payload) {
 function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast' }) {
     return async (recursiveSkilledAgent, input) => {
         if (typeof input !== 'string' || !input.trim()) {
-            throw new Error(`Code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
+            throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
 
         if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
-            throw new Error(`Code generation skill "${skillName}" requires an LLMAgent with an "executePrompt" method.`);
+            throw new Error(`Dynamic code generation skill "${skillName}" requires an LLMAgent with an "executePrompt" method.`);
         }
 
         const instructions = prompt ? prompt.trim() : 'Decide whether to respond directly or craft JavaScript to solve the task.';
         const decisionPrompt = [
-            '# Code Skill Decision',
+            '# Dynamic Code Generation Skill Decision',
             instructions,
             '',
             '## Input',
@@ -109,15 +109,15 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
         const decision = await withTimeout(
             llmAgent.executePrompt(decisionPrompt, {
                 mode: llmMode,
-                context: { intent: 'code-generation-skill-default', skillName },
+                context: { intent: 'dynamic-code-generation-skill-default', skillName },
                 responseShape: 'json',
             }),
             SKILL_TIMEOUT_MS,
-            () => new Error(`Code generation skill "${skillName}" decision timed out after ${SKILL_TIMEOUT_MS}ms.`),
+            () => new Error(`Dynamic code generation skill "${skillName}" decision timed out after ${SKILL_TIMEOUT_MS}ms.`),
         );
 
         if (!decision || typeof decision !== 'object') {
-            throw new Error(`Code generation skill "${skillName}" expected a JSON object response.`);
+            throw new Error(`Dynamic code generation skill "${skillName}" expected a JSON object response.`);
         }
 
         const mode = typeof decision.mode === 'string'
@@ -128,19 +128,19 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
 
         if (mode === 'text') {
             if (typeof decision.text !== 'string' || !decision.text.trim()) {
-                throw new Error(`Code generation skill "${skillName}" received text mode without a valid "text" response.`);
+                throw new Error(`Dynamic code generation skill "${skillName}" received text mode without a valid "text" response.`);
             }
             outcome = decision.text.trim();
         } else if (mode === 'code') {
             if (typeof decision.code !== 'string' || !decision.code.trim()) {
-                throw new Error(`Code generation skill "${skillName}" received code mode without executable "code".`);
+                throw new Error(`Dynamic code generation skill "${skillName}" received code mode without executable "code".`);
             }
             outcome = await executeCodeSnippet({
                 skillName,
                 code: decision.code,
             });
         } else {
-            throw new Error(`Code generation skill "${skillName}" received unsupported mode "${decision.mode}".`);
+            throw new Error(`Dynamic code generation skill "${skillName}" received unsupported mode "${decision.mode}".`);
         }
 
         if (recursiveSkilledAgent?.sessionMemory && typeof recursiveSkilledAgent.sessionMemory.appendToHistory === 'function') {
@@ -159,7 +159,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
     let cached = null;
     return async (recursiveSkilledAgent, input) => {
         if (typeof input !== 'string' || !input.trim()) {
-            throw new Error(`Code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
+            throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
         if (!cached) {
             const moduleUrl = pathToFileURL(modulePath);
@@ -168,7 +168,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
                 ? imported.action
                 : (typeof imported.default === 'function' ? imported.default : null);
             if (typeof cached !== 'function') {
-                throw new Error(`Code generation skill module at ${modulePath} does not export an action function.`);
+                throw new Error(`Dynamic code generation skill module at ${modulePath} does not export an action function.`);
             }
         }
 
@@ -178,7 +178,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
         const result = await withTimeout(
             execution,
             SKILL_TIMEOUT_MS,
-            () => new Error(`Code generation skill "${skillName}" execution timed out after ${SKILL_TIMEOUT_MS}ms.`),
+            () => new Error(`Dynamic code generation skill "${skillName}" execution timed out after ${SKILL_TIMEOUT_MS}ms.`),
         );
 
         if (typeof result === 'string') {
@@ -214,7 +214,7 @@ async function executeCodeSnippet({ skillName, code }) {
         try {
             return await runSnippet(snippet, note || skillName);
         } catch (error) {
-            throw new Error(`Code generation skill "${skillName}" execution failed: ${error.message}. Snippet: ${preview}…`);
+            throw new Error(`Dynamic code generation skill "${skillName}" execution failed: ${error.message}. Snippet: ${preview}…`);
         }
     };
 
@@ -230,7 +230,7 @@ async function executeCodeSnippet({ skillName, code }) {
     }
 
     if (result === undefined) {
-        throw new Error(`Code skill "${skillName}" execution returned undefined. Ensure the generated code ends with \`return "…"\`.`);
+        throw new Error(`Dynamic code generation skill "${skillName}" execution returned undefined. Ensure the generated code ends with \`return "…"\`.`);
     }
 
     if (typeof result === 'string') {
@@ -246,7 +246,7 @@ async function executeCodeSnippet({ skillName, code }) {
     }
 } ``
 
-export class CodeGenerationSkillsSubsystem {
+export class DynamicCodeGenerationSubsystem {
     constructor({ llmAgent }) {
         this.llmAgent = llmAgent;
         this.executors = new Map();
@@ -275,7 +275,7 @@ export class CodeGenerationSkillsSubsystem {
         }
 
         skillRecord.metadata = {
-            type: 'code-generation',
+            type: 'dynamic-code-generation',
             prompt,
             modulePath: moduleExists ? localModulePath : null,
             filePath,
@@ -310,7 +310,7 @@ export class CodeGenerationSkillsSubsystem {
     async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options = {} }) {
         const executor = this.executors.get(skillRecord.name);
         if (!executor) {
-            throw new Error(`Executor not prepared for code skill "${skillRecord.name}".`);
+            throw new Error(`Executor not prepared for dynamic code generation skill "${skillRecord.name}".`);
         }
 
         const {
@@ -323,7 +323,7 @@ export class CodeGenerationSkillsSubsystem {
             : String(promptText ?? '').trim();
 
         if (!input) {
-            throw new Error(`Code skill "${skillRecord.name}" requires either prompt text or the "${CODE_ARGUMENT_NAME}" argument.`);
+            throw new Error(`Dynamic code generation skill "${skillRecord.name}" requires either prompt text or the "${CODE_ARGUMENT_NAME}" argument.`);
         }
 
         // Call executor with (recursiveSkilledAgent, prompt) convention

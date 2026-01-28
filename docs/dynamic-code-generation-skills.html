@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code Generation Skills · Achilles Agents Docs</title>
+    <title>Dynamic Code Generation Skills · Achilles Agents Docs</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,14 +11,14 @@
         data-breadcrumb='[
             {"label":"Home","href":"index.html"},
             {"label":"Skill System Overview","href":"overview.html"},
-            {"label":"Code Skills"}
+            {"label":"Dynamic Code Generation Skills"}
         ]'></div>
 
     <main class="content">
         <section class="lead">
-            <h1>Code Generation Skills</h1>
+            <h1>Dynamic Code Generation Skills</h1>
             <p>
-                Code skills empower Achilles Agents to reason about and execute code safely. They are perfect for validating generated SQL,
+                Dynamic code generation skills empower Achilles Agents to reason about and execute code safely. They are perfect for validating generated SQL,
                 transforming data pipelines, or running remediation snippets with guardrails. Each skill wraps a sandbox policy around the
                 task so that human reviewers can trust the outcome.
             </p>
@@ -27,7 +27,7 @@
                 <a href="dbtable-skills.html">DBTable Skills</a>
                 <a href="orchestration-skills.html">Orchestration Skills</a>
                 <a href="mcp-skills.html">MCP Skills</a>
-                <a href="code-generation-skills.html" aria-current="page">Code Generation Skills</a>
+                <a href="dynamic-code-generation-skills.html" aria-current="page">Dynamic Code Generation Skills</a>
                 <a href="agentic-sessions.html">Agentic Sessions</a>
             </nav>
         </section>
@@ -35,7 +35,7 @@
         <section>
             <h2>Descriptor Snapshot</h2>
             <p>
-                Every code generation skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/cgskill.md</code>. The descriptor explains the
+                Every dynamic code generation skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/dcgskill.md</code>. The descriptor explains the
                 persona, coding standards, and safety expectations for the sandbox:
             </p>
             <pre><code># Math Expression Evaluator
@@ -65,10 +65,10 @@ deep</code></pre>
         <section>
             <h2>Authoring Checklist</h2>
             <ol>
-                <li>Draft <code>cgskill.md</code> with persona guidance, prompt instructions, and safety notes.</li>
+                <li>Draft <code>dcgskill.md</code> with persona guidance, prompt instructions, and safety notes.</li>
                 <li>Add a JavaScript entrypoint when you need custom sandbox behaviour or audit logging.</li>
                 <li>Specify confirmation rules for mutating tasks so users approve critical actions.</li>
-                <li>Exercise the skill via tests (see <code>tests/cgSkills</code>) to confirm guardrails behave as expected.</li>
+                <li>Exercise the skill via tests (see <code>tests/dcgSkills</code>) to confirm guardrails behave as expected.</li>
             </ol>
             <p>
                 The focus stays on what the skill accomplishes—Achilles Agents handle the environment wiring, letting teams iterate on prompts and policies.
