@@ -13,7 +13,6 @@ and how the new skill subsystems consume them.
 | `context`       | `object`        | Arbitrary metadata exposed to invoker strategies (e.g. `{ intent: 'code-skill-default' }`). |
 | `history`       | `Array<{role, message}>` | Conversation turns to prepend to the request. |
 | `sessionMemory` | `MemoryContainer \| Array \| {history}` | Captures prior user/assistant messages. `executePrompt` stitches it into the request and updates it after completion. |
-| `promptReader`  | `function`      | Callback used by interactive subsystems to collect user input during `mainLoop`. |
 | `responseShape` | `'json' \| 'json-code' \| 'code' \| 'markdown'` | When provided, the agent validates/coerces the raw response before returning it. For example, `'json'` parses the payload, while `'json-code'` ensures a JSON object with a `code` property. |
 
 ## `executePrompt(promptText, options)`
@@ -50,13 +49,6 @@ and how the new skill subsystems consume them.
   raise descriptive errors and the raw snippet is included in the exception message to aid
   debugging.
 - Responses wrapped in Markdown fences are automatically unwrapped before JSON parsing.
-
-### Interactive Skills
-
-- Pass a custom `promptReader` in `executePrompt` options to control the conversation loop (defaults
-  to the recursive agent’s reader).
-- Session or skill-level memories are threaded into every `LLMAgent` call made during the
-  interactive loop, ensuring previous turns are visible to the LLM.
 
 ### MCP / Orchestrator / Claude
 

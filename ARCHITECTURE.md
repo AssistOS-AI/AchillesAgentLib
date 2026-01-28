@@ -22,8 +22,8 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │  ┌─────────────────────────────▼─────────────────────────────────────┐ │
 │  │                        Subsystems                                  │ │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │ │
-│  │  │   claude    │ │    code     │ │ interactive │ │     mcp     │  │ │
-│  │  │ (skill.md)  │ │ (cgskill.md) │ │ (iskill.md) │ │ (mskill.md) │  │ │
+│  │  │   claude    │ │    code     │ │     mcp     │  │ │
+│  │  │ (skill.md)  │ │ (cgskill.md) │ │ (mskill.md) │  │ │
 │  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │ │
 │  │  ┌─────────────┐ ┌─────────────┐                                  │ │
 │  │  │orchestrator │ │   dbtable   │                                  │ │
@@ -51,7 +51,6 @@ The main entry point and coordinator for skill-based execution.
 |------|------|-----------|
 | `skill.md` | claude | ClaudeSkillsSubsystem |
 | `cgskill.md` | code-generation | CodeGenerationSkillsSubsystem |
-| `iskill.md` | interactive | InteractiveSkillsSubsystem |
 | `mskill.md` | mcp | MCPSkillsSubsystem |
 | `oskill.md` | orchestrator | OrchestratorSkillsSubsystem |
 | `tskill.md` | dbtable | DBTableSkillsSubsystem |
@@ -299,55 +298,7 @@ Computed as current timestamp on creation.
 
 ---
 
-### 7. InteractiveSkillsSubsystem (`InteractiveSkillsSubsystem/InteractiveSkillsSubsystem.mjs`)
-
-Handles multi-turn conversational skills with argument collection.
-
-**Skill Definition (iskill.md + module):**
-```markdown
-# BookingSkill
-
-Interactive skill for making reservations.
-
-## Summary
-Guides users through booking process.
-```
-
-**Module Structure (`BookingSkill.mjs`):**
-```javascript
-export const specs = {
-    name: 'booking-skill',
-    description: 'Make a reservation',
-    arguments: {
-        date: {
-            description: 'Reservation date',
-            type: 'date',
-            validator: (value) => { /* ... */ },
-            enumerator: async () => { /* available dates */ },
-        },
-        time: {
-            description: 'Reservation time',
-            llmHint: 'Business hours only',
-        }
-    }
-};
-
-export async function action(args, context) {
-    const { date, time } = args;
-    // Execute booking logic
-    return `Booked for ${date} at ${time}`;
-}
-```
-
-**Features:**
-- Parameter collection via conversation
-- LLM-assisted argument resolution
-- Confirmation flows
-- Session memory integration
-
----
-
-### 8. MCPSkillsSubsystem (`MCPSkillsSubsystem/MCPSkillsSubsystem.mjs`)
+### 7. MCPSkillsSubsystem (`MCPSkillsSubsystem/MCPSkillsSubsystem.mjs`)
 
 Orchestrates Model Context Protocol (MCP) tools.
 
@@ -379,7 +330,7 @@ Use appropriate file tools based on the operation type.
 
 ---
 
-### 9. ClaudeSkillsSubsystem (`ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs`)
+### 8. ClaudeSkillsSubsystem (`ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs`)
 
 Simple passthrough subsystem for basic Claude skills.
 
@@ -480,9 +431,6 @@ OrchestratorSubsystem.executeSkillPrompt()
 ├── my-code-skill/
 │   ├── cgskill.md           # Code generation skill definition
 │   └── my-code-skill.js    # Optional module implementation
-├── my-interactive-skill/
-│   ├── iskill.md           # Interactive skill definition
-│   └── my-interactive-skill.mjs  # Required module with specs + action
 ├── my-db-skill/
 │   ├── tskill.md           # DB table skill definition
 │   └── tskill.generated.mjs # Auto-generated functions

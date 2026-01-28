@@ -87,7 +87,6 @@
     searchUpwards: true,    // set false to scan only startDir + additionalSkillRoots (no parent directories)
     skillFilter,           // optional function to include/exclude skills
     dbAdapter,             // for DBTable skills
-    promptReader,          // interactive input reader
     onProcessingBegin, onProcessingProgress, onProcessingEnd,
     additionalSkillRoots: [], // extra absolute/relative dirs to scan for .AchillesSkills alongside startDir
     exposeInternalSkills: false, // when true, registers internal helper skills for direct invocation
@@ -98,7 +97,7 @@
 
             <h3>Execution APIs</h3>
             <ul>
-                <li><code>executePrompt(prompt, { skillName, promptReader })</code>: Primary entry point. Provide <code>skillName</code> to force a specific skill or omit to let the agent choose.</li>
+                <li><code>executePrompt(prompt, { skillName })</code>: Primary entry point. Provide <code>skillName</code> to force a specific skill or omit to let the agent choose.</li>
                 <li><code>executeWithReviewMode(prompt, options, reviewMode)</code>: Explicit review mode.</li>
                 <li><code>executePromptWithReview(prompt, options)</code> / <code>executePromptWithHumanReview(prompt, options)</code>: Helpers for LLM or human review modes.</li>
                 <li><code>cancel()</code>: Propagates cancellation down the active stack.</li>
@@ -109,7 +108,7 @@
                 <li>Discovers skills under <code>.AchillesSkills/</code> (and additional roots) at construction time.</li>
                 <li>If no <code>skillName</code> is provided, tries a FlexSearch-based orchestrator match; otherwise falls back to LLM selection across skills.</li>
                 <li>Injects the task description into a skill's default argument (or <code>input</code>) when arguments are missing.</li>
-                <li>Routes execution to the appropriate subsystem (claude/code/interactive/mcp/orchestrator/dbtable) and forwards the prompt text plus promptReader overrides.</li>
+                <li>Routes execution to the appropriate subsystem (claude/code/mcp/orchestrator/dbtable) and forwards the prompt text.</li>
                 <li>Returns the subsystem's result along with the chosen review mode.</li>
             </ol>
 
@@ -171,8 +170,8 @@ const result = await agent.executeWithReviewMode(
             </p>
             <ul>
                 <li>Unavailable or unregistered skills raise explicit errors during selection.</li>
-                <li>Subsystems surface their own validation or timeout errors (for example, DBTable validation or interactive module loading failures).</li>
-                <li><code>cancel()</code> forwards cancellation to the LLM invoker via <code>LLMAgent.cancel()</code>; prompt readers must cooperate to stop interactive input.</li>
+                <li>Subsystems surface their own validation or timeout errors (for example, DBTable validation failures).</li>
+                <li><code>cancel()</code> forwards cancellation to the LLM invoker via <code>LLMAgent.cancel()</code>.</li>
             </ul>
         </section>
     </main>

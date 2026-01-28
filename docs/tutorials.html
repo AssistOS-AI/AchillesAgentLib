@@ -29,17 +29,10 @@
                 Every scenario keeps its skills inside a <code>.AchillesSkills/</code> folder. The recursive loader walks up the directory tree
                 until it finds this repository, indexes the descriptors, and registers the skills automatically.
             </p>
-            <pre><code>tests/iskills/missing-parameters/
-└── .AchillesSkills/
-    └── support/
-        └── file_incident/
-            ├── iskill.md          # primary descriptor
-            └── file_incident.js   # optional entrypoint (specs/action/roles)</code></pre>
             <p>
                 Descriptor suffixes map to skill families:
             </p>
             <ul>
-                <li><code>iskill.md</code> — interactive conversational flows.</li>
                 <li><code>tskill.md</code> — DBTable skills that drive CRUD access to structured tables.</li>
                 <li><code>oskill.md</code> — orchestration planners (loop/SOP agentic sessions).</li>
                 <li><code>mskill.md</code> — MCP tool planners.</li>
@@ -52,10 +45,6 @@
         <section>
             <h2>Choose a Walkthrough</h2>
             <div class="grid">
-                <article>
-                    <h3><a href="tutorials-interactive.html">Interactive Skills</a></h3>
-                    <p>Prompt collection, validation, and example descriptors from the interactive suite.</p>
-                </article>
                 <article>
                     <h3><a href="tutorials-dbtable.html">DBTable Skills</a></h3>
                     <p>Table-focused workflows using <code>tskill.md</code>, generated helpers, and CRUD scenarios from <code>tests/dbTableSkills</code>.</p>

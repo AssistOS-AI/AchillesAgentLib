@@ -7,5 +7,4 @@ export * from './CodeGenerationSkillsSubsystem/index.mjs';
 export * from './ClaudeSkillsSubsystem/index.mjs';
 export * from './MCPSkillsSubsystem/index.mjs';
 export * from './OrchestratorSkillsSubsystem/index.mjs';
-export * from './InteractiveSkillsSubsystem/index.mjs';
 export * from './DBTableSkillsSubsystem/index.mjs';

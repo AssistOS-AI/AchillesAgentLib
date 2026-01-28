@@ -21,7 +21,6 @@ export class SkillExecutor {
      * @param {Object} options.selector - SkillSelector instance
      * @param {Object} [options.logger] - Logger instance
      * @param {Object} [options.debugLogger] - Debug logger instance
-     * @param {Function} [options.promptReader] - Default prompt reader function
      * @param {Object} [options.callbacks] - Processing callbacks
      * @param {Function} [options.callbacks.onBegin] - Called when processing begins
      * @param {Function} [options.callbacks.onProgress] - Called during processing
@@ -33,7 +32,6 @@ export class SkillExecutor {
         selector,
         logger = console,
         debugLogger = null,
-        promptReader = null,
         callbacks = {},
     } = {}) {
         this.registry = registry;
@@ -41,7 +39,6 @@ export class SkillExecutor {
         this.selector = selector;
         this.logger = logger;
         this.debugLogger = debugLogger;
-        this.promptReader = promptReader;
         this.callbacks = {
             onBegin: typeof callbacks.onBegin === 'function' ? callbacks.onBegin : null,
             onProgress: typeof callbacks.onProgress === 'function' ? callbacks.onProgress : null,
@@ -184,7 +181,6 @@ export class SkillExecutor {
      * @param {string} taskDescription - The task description
      * @param {Object} options - Execution options
      * @param {string} [options.skillName] - Explicit skill name to execute
-     * @param {Function} [options.promptReader] - Custom prompt reader
      * @param {Object} [options.args] - Arguments to pass to the skill
      * @param {string} reviewMode - Review mode ('none', 'llm', 'human')
      * @param {Object} recursiveAgent - The recursive agent instance
@@ -253,13 +249,6 @@ export class SkillExecutor {
                 injectArg(skillRecord.metadata.defaultArgument);
             }
 
-            if (skillRecord.type === 'interactive') {
-                const requiredList = Array.isArray(skillRecord.requiredArguments)
-                    ? skillRecord.requiredArguments
-                    : [];
-                requiredList.forEach(injectArg);
-            }
-
             if (!Object.keys(args).length) {
                 args.input = taskDescription;
             }
@@ -271,7 +260,6 @@ export class SkillExecutor {
                 options: {
                     ...forward,
                     args,
-                    promptReader: promptReader || this.promptReader,
                 },
             });
 

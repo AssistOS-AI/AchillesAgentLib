@@ -2,7 +2,6 @@ import path from 'node:path';
 import readline from 'node:readline';
 
 import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
-import { defaultPromptReader } from '../utils/defaultPromptReader.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 
 // Import extracted modules
@@ -35,7 +34,6 @@ export class RecursiveSkilledAgent {
      * @param {Function} [options.skillFilter] - Filter function for skill inclusion
      * @param {Object} [options.logger] - Logger instance
      * @param {Object} [options.dbAdapter] - Database adapter for DBTableSkillsSubsystem
-     * @param {Function} [options.promptReader] - Custom prompt reader function
      * @param {Function} [options.onProcessingBegin] - Callback when processing begins
      * @param {Function} [options.onProcessingProgress] - Callback during processing
      * @param {Function} [options.onProcessingEnd] - Callback when processing ends
@@ -50,7 +48,6 @@ export class RecursiveSkilledAgent {
         skillFilter = null,
         logger = console,
         dbAdapter = null,
-        promptReader = null,
         onProcessingBegin = null,
         onProcessingProgress = null,
         onProcessingEnd = null,
@@ -66,7 +63,6 @@ export class RecursiveSkilledAgent {
         this.dbAdapter = dbAdapter;
         this.searchUpwards = Boolean(searchUpwards);
         this.additionalSkillRoots = Array.isArray(additionalSkillRoots) ? additionalSkillRoots : [];
-        this.promptReader = typeof promptReader === 'function' ? promptReader : defaultPromptReader;
         this.exposeInternalSkills = Boolean(exposeInternalSkills);
 
         // Debug logger
@@ -134,7 +130,6 @@ export class RecursiveSkilledAgent {
             selector: this.selector,
             logger: this.logger,
             debugLogger: this.debugLogger,
-            promptReader: this.promptReader,
             callbacks: {
                 onBegin: onProcessingBegin,
                 onProgress: onProcessingProgress,

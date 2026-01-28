@@ -445,7 +445,6 @@ test('RecursiveSkilledAgent: Extend to support dbtable skill type', async (t) =>
 
     const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent: shared.llmAgent || new MockLLMAgent(),
-        promptReader: async () => 'accept',
         startDir: __dirname,
         skillFilter: ({ type }) => type === 'dbtable' || type === 'code-generation',
     });
@@ -468,7 +467,6 @@ test('RecursiveSkilledAgent: Register tskill.md skill manually', async (t) => {
 
     const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent: shared.llmAgent || new MockLLMAgent(),
-        promptReader: async () => 'accept',
         startDir: __dirname,
     });
 
@@ -529,7 +527,6 @@ test('E2E: Full workflow from skill discovery to execution', async (t) => {
 
     const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent: shared.llmAgent,
-        promptReader: async () => 'accept',
         startDir: __dirname,
         skillFilter: ({ type, filePath }) => {
             console.log(`SkillFilter called: type=${type}, filePath=${filePath}`);
@@ -804,7 +801,6 @@ test('E2E: Mock-based full workflow (works now)', async (t) => {
 
     const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
-        promptReader: async () => 'accept',
         startDir: __dirname,
     });
 
@@ -878,7 +874,6 @@ test('E2E: Test CREATE operation workflow', async (t) => {
 
     const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
-        promptReader: async () => 'accept',
         startDir: __dirname,
     });
 
@@ -953,7 +948,6 @@ test('E2E: Test UPDATE operation workflow', async (t) => {
 
     const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
-        promptReader: async () => 'accept',
         startDir: __dirname,
     });
 
@@ -1026,7 +1020,6 @@ test('E2E: Test DELETE operation workflow', async (t) => {
 
     const recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
-        promptReader: async () => 'accept',
         startDir: __dirname,
     });
 

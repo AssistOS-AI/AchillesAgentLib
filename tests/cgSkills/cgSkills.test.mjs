@@ -46,7 +46,6 @@ async function initializeRecursiveAgent() {
 
     shared.recursiveAgent = new RecursiveSkilledAgent({
         llmAgent,
-        promptReader: async () => 'accept',
         startDir: __dirname,
         skillFilter: ({ type }) => type === 'code-generation',
     });
