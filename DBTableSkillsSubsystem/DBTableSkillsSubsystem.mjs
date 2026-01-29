@@ -4,113 +4,42 @@ import { pathToFileURL } from 'node:url';
 import crypto from 'node:crypto';
 import vm from 'node:vm';
 import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
-import { generateAllFunctions, serializeFunctions } from './FunctionGenerator.mjs';
+import { ConversationalTskillController } from './ConversationalTskillController.mjs';
+import { tskillToSpecs } from './tskillToSpecs.mjs';
+import { generateMirrorCode } from '../RecursiveSkilledAgents/mirror-code-generator.mjs';
 
 /**
- * Extract Code Generation Prompt from .specs.md content
+ * Generate code using spec-based flow via mirror-code-generator.
+ * @param {string} skillName - Name of the skill
+ * @param {string} skillDir - Directory containing the skill
+ * @param {Object} parsedSkill - Parsed skill object from SkillParser
+ * @param {Object} llmAgent - LLM agent for code generation
+ * @returns {Promise<void>}
  */
-function extractCodeGenPrompt(specsContent) {
-    if (!specsContent) return null;
-    const match = specsContent.match(/##\s+Code\s+Generation\s+Prompt\s*\n([\s\S]*?)(?=\n##\s+|$)/i);
-    return match ? match[1].trim() : null;
-}
+async function generateCodeViaSpecs(skillName, skillDir, parsedSkill, llmAgent) {
+    console.log(`[DBTableSkills] ──────────────────────────────────────────`);
+    console.log(`[DBTableSkills] Starting code generation for "${skillName}"`);
+    console.log(`[DBTableSkills] Step 1/2: Generating spec file...`);
 
-/**
- * Apply template variables to a prompt
- */
-function applyTemplateVars(template, vars) {
-    let result = template;
-    for (const [key, value] of Object.entries(vars)) {
-        const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-        const stringValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-        result = result.replace(placeholder, stringValue);
-    }
-    return result;
-}
+    // 1. Generate spec file from parsed skill
+    const specPath = await tskillToSpecs(skillDir, parsedSkill);
+    console.log(`[DBTableSkills] Spec written to: ${specPath}`);
 
-/**
- * Generate all code in a single LLM call using .specs.md prompt or default
- */
-async function generateCodeSingleShot(skillName, skillDir, tskillContent, llmAgent) {
-    const specsPath = path.join(skillDir, '.specs.md');
-    let specsContent = null;
-    let codeGenPrompt = null;
-
-    // Try to load .specs.md
-    if (fs.existsSync(specsPath)) {
-        try {
-            specsContent = fs.readFileSync(specsPath, 'utf-8');
-            codeGenPrompt = extractCodeGenPrompt(specsContent);
-        } catch (e) {
-            // Ignore read errors
-        }
-    }
-
-    // Build the prompt
-    let prompt;
-    if (codeGenPrompt) {
-        // Use custom prompt from .specs.md
-        prompt = applyTemplateVars(codeGenPrompt, {
-            skillName,
-            entityName: skillName.replace(/-skill.*$/, '').replace(/-tskill$/, '').toLowerCase(),
-            content: tskillContent,
-        });
-    } else {
-        // Use default comprehensive prompt
-        prompt = `Generate JavaScript/ESM code for a database table skill.
-
-## Skill Name: ${skillName}
-
-## Skill Definition:
-${tskillContent}
-
-## Requirements:
-1. Generate clean, modern ESM code (export functions, no CommonJS)
-2. Include all validators defined in the skill (validator_<fieldName>)
-3. Include all enumerators defined in the skill (enumerator_<fieldName>)
-4. Include all presenters defined in the skill (presenter_<fieldName>)
-5. Include generatePKValues function for auto-generating primary keys
-6. Include prepareRecord function (async) for pre-DB transformation
-7. Include validateRecord function that runs all validators and returns {isValid, errors}
-8. Include presentRecord function (async) that formats an entire record for display by calling all presenter_* functions
-
-## Validator Format:
-Validators must return JSON.stringify({field, error, value}) on error or empty string '' if valid.
-
-## Expected Exports:
-- generatePKValues(record, existingRecords) - returns object with generated PK field
-- prepareRecord(record, context) - async, transforms record before DB insert
-- validateRecord(record) - returns {isValid: boolean, errors: Array}
-- presentRecord(record) - async, returns record with all fields formatted using presenter functions
-- validator_<fieldName>(value, record) - returns error JSON string or empty string
-- enumerator_<fieldName>(context) - returns array of allowed values
-- presenter_<fieldName>(value, record) - returns formatted display value
-- functions object with: { global: { generatePKValues, prepareRecord, validateRecord, presentRecord, ... } }
-
-Generate ONLY the JavaScript code, no markdown code blocks, no explanations.`;
-    }
-
-    console.log(`  Generating all code in single LLM call...`);
+    // 2. Run mirror-code-generator on the skill directory
+    console.log(`[DBTableSkills] Step 2/2: Running mirror-code-generator...`);
     const startTime = Date.now();
 
-    const generatedCode = await llmAgent.executePrompt(prompt, {
-        responseShape: 'code',
-        mode: 'deep',
-    });
+    const generatedFiles = await generateMirrorCode(skillDir, llmAgent, console);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`  Code generated in ${elapsed}s`);
+    console.log(`[DBTableSkills] Code generated in ${elapsed}s`);
 
-    // Clean up response - remove markdown code blocks if present
-    let code = generatedCode;
-    if (typeof code === 'string') {
-        code = code
-            .replace(/^```(?:javascript|js|mjs)?\n?/i, '')
-            .replace(/\n?```$/i, '')
-            .trim();
+    if (generatedFiles.length === 0) {
+        throw new Error(`mirror-code-generator produced no files for "${skillName}"`);
     }
 
-    return code;
+    console.log(`[DBTableSkills] Generated files: ${generatedFiles.join(', ')}`);
+    console.log(`[DBTableSkills] ──────────────────────────────────────────`);
 }
 
 const DEFAULT_TIMEOUT_MS = 60000;
@@ -243,39 +172,47 @@ export class DBTableSkillsSubsystem {
                 let needsRegeneration = tskillStat.mtimeMs > generatedStat.mtimeMs;
                 let regenReason = 'tskill.md was modified';
 
-                // Also check .specs.md if it exists
-                const specsPath = path.join(path.dirname(tskillPath), '.specs.md');
-                if (!needsRegeneration && fs.existsSync(specsPath)) {
-                    const specsStat = await fs.promises.stat(specsPath);
-                    if (specsStat.mtimeMs > generatedStat.mtimeMs) {
-                        needsRegeneration = true;
-                        regenReason = '.specs.md was modified';
+                // Also check specs/ directory if it exists
+                const specsDir = path.join(path.dirname(tskillPath), 'specs');
+                if (!needsRegeneration && fs.existsSync(specsDir)) {
+                    try {
+                        const specFiles = await fs.promises.readdir(specsDir);
+                        for (const specFile of specFiles) {
+                            if (specFile.endsWith('.md') || specFile.endsWith('.mds')) {
+                                const specPath = path.join(specsDir, specFile);
+                                const specStat = await fs.promises.stat(specPath);
+                                if (specStat.mtimeMs > generatedStat.mtimeMs) {
+                                    needsRegeneration = true;
+                                    regenReason = `specs/${specFile} was modified`;
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (_e) {
+                        // Ignore errors reading specs directory
                     }
                 }
 
                 if (!needsRegeneration) {
                     // Load existing generated file (use timestamp to bypass module cache)
+                    console.log(`[DBTableSkills] Loading cached code for "${name}" (up-to-date)`);
                     const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                     const imported = await import(moduleUrl);
                     // Support both formats: { functions: { global: ... } } or flat { prepareRecord, ... }
                     const rawFunctions = imported.functions || imported.default || imported;
                     functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
                 } else {
-                    // Source file is newer, regenerate using single-shot LLM call
-                    console.log(`Regenerating skill "${name}" - ${regenReason}...`);
+                    // Source file is newer, regenerate using spec-based flow
+                    console.log(`[DBTableSkills] Regenerating "${name}" - ${regenReason}`);
 
-                    // Generate all code in a single LLM call
-                    const generatedCode = await generateCodeSingleShot(name, skillDir, content, this.llmAgent);
-
-                    // Write the generated code
-                    await fs.promises.writeFile(generatedPath, generatedCode, 'utf-8');
-                    console.log(`  Written to: ${generatedPath}`);
+                    // Generate code via specs and mirror-code-generator
+                    await generateCodeViaSpecs(name, skillDir, parsedSkill, this.llmAgent);
 
                     // Re-import to get compiled functions
                     const newModuleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                     const newImported = await import(newModuleUrl);
                     // Support both formats: { functions: { global: ... } } or flat { prepareRecord, ... }
-                    const rawFunctions = newImported.default || newImported;
+                    const rawFunctions = newImported.functions || newImported.default || newImported;
                     functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
                 }
             } catch (error) {
@@ -285,22 +222,19 @@ export class DBTableSkillsSubsystem {
         }
 
         if (!functions) {
-            console.log(`Generating skill "${name}" for the first time...`);
-
-            // Generate all code in a single LLM call
-            const generatedCode = await generateCodeSingleShot(name, skillDir, content, this.llmAgent);
+            console.log(`[DBTableSkills] First-time generation for "${name}"...`);
 
             if (generatedPath) {
-                await fs.promises.writeFile(generatedPath, generatedCode, 'utf-8');
-                console.log(`  Written to: ${generatedPath}`);
+                // Generate code via specs and mirror-code-generator
+                await generateCodeViaSpecs(name, skillDir, parsedSkill, this.llmAgent);
 
                 const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                 const imported = await import(moduleUrl);
                 // Support both formats: { functions: { global: ... } } or flat { prepareRecord, ... }
-                const rawFunctions = imported.default || imported;
+                const rawFunctions = imported.functions || imported.default || imported;
                 functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
             } else {
-                // Fallback: evaluate code in memory (not recommended)
+                // No output path - cannot generate
                 console.warn(`  Warning: No output path for skill "${name}", code not persisted`);
                 functions = { global: {} };
             }
@@ -331,9 +265,20 @@ export class DBTableSkillsSubsystem {
     }
 
     /**
-     * Create an executor function for the skill
+     * Create an executor function for the skill.
+     *
+     * Uses ConversationalTskillController to wrap all operations with confirmation flows,
+     * validation loops, and slot-filling. This is the single place for all
+     * tskill conversation flow logic.
      */
     createExecutor(skillRecord, parsedSkill, functions) {
+        const controller = new ConversationalTskillController(
+            this,
+            parsedSkill,
+            functions,
+            this.llmAgent,
+        );
+
         return async ({ prompt }, context) => {
             if (!prompt || typeof prompt !== 'string') {
                 throw new Error(`DBTable skill "${skillRecord.name}" requires a prompt argument`);
@@ -343,69 +288,11 @@ export class DBTableSkillsSubsystem {
                 throw new Error(`DBTable skill "${skillRecord.name}" requires an LLMAgent`);
             }
 
-            // Build field info for the prompt
-            const fieldInfo = Object.entries(parsedSkill.fields || {})
-                .map(([name, def]) => {
-                    let info = `- ${name}: ${def.description || name}`;
-                    if (def.aliases && def.aliases.length > 0) {
-                        info += ` (aliases: ${def.aliases.join(', ')})`;
-                    }
-                    return info;
-                })
-                .join('\n');
-
-            // Build skill-specific instructions if available
-            const skillInstructions = parsedSkill.instructions
-                ? `\nSkill-specific instructions:\n${parsedSkill.instructions}\n`
-                : '';
-
-            // Determine the operation type from the prompt
-            const operationPrompt = `Analyze this prompt and determine the database operation type:
-"${prompt}"
-
-For table: ${parsedSkill.tableName}
-Table purpose: ${parsedSkill.tablePurpose}
-${skillInstructions}
-Available fields:
-${fieldInfo}
-
-Respond with JSON:
-{
-    "operation": "CREATE" | "UPDATE" | "SELECT" | "DELETE",
-    "intent": "description of what the user wants",
-    "filter": {} // for SELECT/UPDATE/DELETE operations,
-    "data": {} // for CREATE/UPDATE operations
-}`;
-
-            const operation = await withTimeout(
-                this.llmAgent.executePrompt(operationPrompt, {
-                    mode: 'fast',
-                    responseShape: 'json'
-                }),
+            return withTimeout(
+                controller.execute(prompt, context),
                 SKILL_TIMEOUT_MS,
-                () => new Error(`DBTable operation analysis timed out`)
+                () => new Error(`DBTable operation timed out`),
             );
-
-            // Execute the appropriate operation flow
-            let result;
-            switch (operation.operation) {
-                case 'CREATE':
-                    result = await this.executeCreateFlow(parsedSkill, functions, operation, context);
-                    break;
-                case 'UPDATE':
-                    result = await this.executeUpdateFlow(parsedSkill, functions, operation, context);
-                    break;
-                case 'SELECT':
-                    result = await this.executeSelectFlow(parsedSkill, functions, operation, context);
-                    break;
-                case 'DELETE':
-                    result = await this.executeDeleteFlow(parsedSkill, functions, operation, context);
-                    break;
-                default:
-                    throw new Error(`Unknown operation type: ${operation.operation}`);
-            }
-
-            return result;
         };
     }
 
@@ -790,8 +677,10 @@ return {
 
         const {
             args = {},
-            sessionMemory = null,
         } = options;
+        const sessionMemory = options.sessionMemory
+            || options.context?.sessionMemory
+            || null;
 
         const prompt = typeof args[DB_TABLE_ARGUMENT_NAME] === 'string' && args[DB_TABLE_ARGUMENT_NAME].trim()
             ? args[DB_TABLE_ARGUMENT_NAME]

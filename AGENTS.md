@@ -70,6 +70,68 @@ await agent.executePromptWithReview(taskDescription, options);
 await agent.executePromptWithHumanReview(taskDescription, options);
 ```
 
+**Session Memory Management:**
+
+RecursiveSkilledAgent centralizes session state management, supporting both single-session (CLI) and multi-session (webchat) modes.
+
+```javascript
+// Get session memory (CLI mode - default session)
+const sessionMemory = agent.getSessionMemory();
+
+// Get session memory for specific user (webchat mode)
+const userSession = agent.getSessionMemory('user-session-123');
+
+// Clear session data
+agent.clearSessionMemory('user-session-123');
+
+// Delete session entirely (cannot delete default)
+agent.deleteSession('user-session-123');
+
+// List active sessions
+const sessions = agent.getActiveSessions(); // ['user-1', 'user-2', ...]
+
+// Check if session exists
+if (agent.hasSession('user-session-123')) { ... }
+```
+
+**Auto-Injection:** When `executePrompt()` is called, sessionMemory is automatically injected into `options.context` based on:
+1. `options.context.sessionId` (explicit)
+2. `options.context.user.sessionId` (from user object)
+3. `options.context.user.sessionToken` (fallback)
+4. Default session (if none specified)
+
+```javascript
+// sessionMemory is auto-injected - no need to pass explicitly
+await agent.executePrompt('add equipment Drill', {
+    context: {
+        user: { sessionId: 'user-123' },  // Session resolved from user
+    },
+});
+```
+
+**Session Lifecycle (Memory Leak Prevention):**
+
+```javascript
+const agent = new RecursiveSkilledAgent({
+    // ... other options
+    sessionConfig: {
+        maxSessions: 1000,      // Max sessions (0 = unlimited), default 1000
+        sessionTTL: 7200000,    // TTL in ms (0 = never expire), default 2 hours
+        cleanupInterval: 300000, // Cleanup interval, default 5 minutes
+    },
+});
+
+// Get session statistics
+const stats = agent.getSessionStats();
+// { totalSessions, userSessions, config, sessions: [{sessionId, createdAt, lastAccessTime, idleMs, size}] }
+
+// Manual cleanup (removes expired sessions, enforces maxSessions)
+agent.cleanupSessions();
+
+// Graceful shutdown (clears all sessions, stops cleanup timer)
+agent.shutdown();
+```
+
 ---
 
 ### 2. LLMAgent (`LLMAgents/LLMAgent.mjs`)

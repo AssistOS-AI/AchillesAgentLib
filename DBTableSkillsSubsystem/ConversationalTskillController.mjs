@@ -24,6 +24,13 @@ import {
     HIDDEN_AUDIT_FIELDS,
     NULL_DISPLAY_VALUE,
 } from './constants.mjs';
+import {
+    buildParseOperationPrompt,
+    buildExtractFieldChangesPrompt,
+    buildValidationCorrectionPrompt,
+    formatFieldInfo,
+    formatFieldInfoSimple,
+} from './templates/prompts.mjs';
 
 /**
  * Format a record as a markdown table for display.
@@ -109,13 +116,16 @@ export class ConversationalTskillController {
     }
 
     /**
-     * Write progress message using IOServices if available.
+     * Write progress message using context I/O or global IOServices.
+     * Checks context.io.outputWriter first, falls back to IOServices.
      * Falls back silently if no output writer is configured.
      * @param {string} message - The progress message to write.
      * @returns {Promise<void>}
      */
     async writeProgress(message) {
-        const writer = IOServices.getOutputWriter();
+        // Check context I/O first (injected by RecursiveSkilledAgent)
+        const contextWriter = this._currentContext?.io?.outputWriter;
+        const writer = contextWriter || IOServices.getOutputWriter();
         if (writer && typeof writer.writeProgress === 'function') {
             await writer.writeProgress(message);
         }
@@ -128,9 +138,13 @@ export class ConversationalTskillController {
      * @param {string} prompt - User's natural language input
      * @param {Object} context - Execution context
      * @param {Map} context.sessionMemory - Session memory for pending state
+     * @param {Object} [context.io] - I/O services (inputReader, outputWriter)
      * @returns {Promise<Object>} Result with { success, message, operation, ... }
      */
     async execute(prompt, context) {
+        // Store context for use in helper methods (e.g., writeProgress)
+        this._currentContext = context;
+        
         const { sessionMemory } = context || {};
 
         // 1. Check for pending state first
@@ -322,22 +336,13 @@ export class ConversationalTskillController {
         // Use LLM to extract field changes from the prompt.
         sessionMemory.delete(key);
 
-        const fieldInfo = Object.entries(this.fields)
-            .map(([name, def]) => `- ${name}: ${def.description || name}`)
-            .join('\n');
-
-        const extractPrompt = `Extract the field changes from this user input for a "${this.entityName}" record.
-
-Current record:
-${JSON.stringify(pending.record, null, 2)}
-
-Available fields:
-${fieldInfo}
-
-User said: "${prompt}"
-
-Respond with JSON: { "changes": { "fieldName": "newValue", ... } }
-Only include fields the user explicitly wants to change.`;
+        const fieldInfo = formatFieldInfoSimple(this.fields);
+        const extractPrompt = buildExtractFieldChangesPrompt(
+            this.entityName,
+            pending.record,
+            fieldInfo,
+            prompt,
+        );
 
         try {
             const extracted = await this.llmAgent.executePrompt(extractPrompt, {
@@ -481,17 +486,14 @@ Only include fields the user explicitly wants to change.`;
             .map(e => typeof e === 'string' ? e : (e.error || e.message || JSON.stringify(e)))
             .join(', ');
 
-        const correctionPrompt = `The user is correcting validation errors for a "${this.entityName}" record.
-
-Previous errors: ${errorList}
-Previous data: ${JSON.stringify(pending.changes || pending.record, null, 2)}
-
-User's corrections: "${prompt}"
-
-Available fields:
-${Object.entries(this.fields).map(([n, d]) => `- ${n}: ${d.description || n}`).join('\n')}
-
-Respond with JSON: { "correctedData": { ...all fields with corrections applied... } }`;
+        const fieldInfo = formatFieldInfoSimple(this.fields);
+        const correctionPrompt = buildValidationCorrectionPrompt(
+            this.entityName,
+            errorList,
+            pending.changes || pending.record,
+            prompt,
+            fieldInfo,
+        );
 
         try {
             const result = await this.llmAgent.executePrompt(correctionPrompt, {
@@ -572,36 +574,14 @@ Respond with JSON: { "correctedData": { ...all fields with corrections applied..
      * Parse the user's prompt to determine the CRUD operation.
      */
     async parseOperation(prompt) {
-        const fieldInfo = Object.entries(this.fields)
-            .map(([name, def]) => {
-                let info = `- ${name}: ${def.description || name}`;
-                if (def.aliases?.length > 0) {
-                    info += ` (aliases: ${def.aliases.join(', ')})`;
-                }
-                return info;
-            })
-            .join('\n');
-
-        const skillInstructions = this.parsedSkill.instructions
-            ? `\nSkill-specific instructions:\n${this.parsedSkill.instructions}\n`
-            : '';
-
-        const operationPrompt = `Analyze this prompt and determine the database operation type:
-"${prompt}"
-
-For table: ${this.entityName}
-Table purpose: ${this.parsedSkill.tablePurpose}
-${skillInstructions}
-Available fields:
-${fieldInfo}
-
-Respond with JSON:
-{
-    "operation": "CREATE" | "UPDATE" | "SELECT" | "DELETE",
-    "intent": "description of what the user wants",
-    "filter": {},
-    "data": {}
-}`;
+        const fieldInfo = formatFieldInfo(this.fields);
+        const operationPrompt = buildParseOperationPrompt(
+            prompt,
+            this.entityName,
+            this.parsedSkill.tablePurpose,
+            fieldInfo,
+            this.parsedSkill.instructions || '',
+        );
 
         return this.llmAgent.executePrompt(operationPrompt, {
             mode: 'fast',

@@ -1,5 +1,6 @@
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
+import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../LLMAgents/constants.mjs';
 
 const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
@@ -60,6 +61,8 @@ export class OrchestratorSkillsSubsystem {
         const intents = parseIntents(pickSection(sections, SECTION_KEYS.intents));
         const sessionType = pickSection(sections, SECTION_KEYS.sessionType).trim();
 
+        console.log(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}"`);
+
         skillRecord.metadata = {
             type: this.type,
             title: skillRecord.descriptor?.title || null,
@@ -94,6 +97,8 @@ export class OrchestratorSkillsSubsystem {
 
     async buildSkillsAsTools(allowedSkills, recursiveAgent, options) {
         const tools = {};
+        // Forward context (sessionMemory, user, etc.) from the orchestrator's options
+        const forwardedContext = options?.context || {};
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
@@ -101,7 +106,9 @@ export class OrchestratorSkillsSubsystem {
             // This allows each subsystem to access any skill uniformly
             tools[toolName] = async (agent, promptText) => {
                 const executionResult = await recursiveAgent.executePrompt(promptText, {
-                    skillName: skillRecord.name
+                    skillName: skillRecord.name,
+                    context: forwardedContext,
+                    sessionMemory: forwardedContext.sessionMemory || null,
                 });
                 return executionResult?.result;
             };
@@ -121,37 +128,60 @@ export class OrchestratorSkillsSubsystem {
 
 
     async executeLoopAgentSession({skillRecord, recursiveAgent, promptText, options}) {
-        const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
-        const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
-        const descriptions = this.buildToolDescriptions(allowedSkills);
+        const sessionMemory = options?.context?.sessionMemory || options?.sessionMemory || null;
+        const sessionKey = `${SESSION_KEY_PREFIX}${Sanitiser.sanitiseName(skillRecord.name)}`;
         
-        // Combine tools with descriptions for LoopAgentSession
-        const toolsWithDescriptions = {};
-        allowedSkills.forEach(skillRecord => {
-            const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-            toolsWithDescriptions[toolName] = {
-                handler: tools[toolName],
-                description: descriptions[toolName]
+        // Check for existing session in awaiting_input state
+        let session = sessionMemory?.get?.(sessionKey) || null;
+        let result;
+        
+        if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {
+            // Reuse existing session - continue the conversation
+            console.log(`[Orchestrator] Resuming existing LoopSession for "${skillRecord.name}" (status: ${session.status})`);
+            result = await session.newPrompt(promptText);
+        } else {
+            // Create new session
+            const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
+            const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
+            const descriptions = this.buildToolDescriptions(allowedSkills);
+            
+            // Combine tools with descriptions for LoopAgentSession
+            const toolsWithDescriptions = {};
+            allowedSkills.forEach(skillRecord => {
+                const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
+                toolsWithDescriptions[toolName] = {
+                    handler: tools[toolName],
+                    description: descriptions[toolName]
+                };
+            });
+            
+
+            const sessionOptions = {
+                systemPrompt: skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.',
+                mode: options?.mode || 'fast',
+                maxStepsPerTurn: 10,
             };
-        });
-        
 
-        const sessionOptions = {
-            systemPrompt: skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.',
-            mode: options?.mode || 'fast',
-            maxStepsPerTurn: 10,
-        };
+            session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
+            result = session.getLastResult();
+        }
 
-        const session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
-        
-        const result = session.getLastResult();
+        // Store or clear session based on status
+        if (session.status === SESSION_STATUS_AWAITING_INPUT && sessionMemory?.set) {
+            // Session is waiting for user input - store it for next call
+            console.log(`[Orchestrator] Storing LoopSession for "${skillRecord.name}" (${SESSION_STATUS_AWAITING_INPUT})`);
+            sessionMemory.set(sessionKey, session);
+        } else if (sessionMemory?.delete) {
+            // Session completed - clean up
+            sessionMemory.delete(sessionKey);
+        }
 
         return {
             skill: skillRecord.name,
             metadata: skillRecord.metadata || null,
             result: result,
             session: 'loop',
-            sessionMemory: null,
+            sessionMemory: sessionMemory,
         };
     }
 
@@ -202,7 +232,7 @@ export class OrchestratorSkillsSubsystem {
             result: result,
             variables,
             session: 'sop',
-            sessionMemory: null,
+            sessionMemory: options?.context?.sessionMemory || options?.sessionMemory || null,
         };
     }
 
@@ -213,6 +243,7 @@ export class OrchestratorSkillsSubsystem {
         options = {},
     }) {
         const sessionType = String(skillRecord.metadata?.sessionType || '').trim().toLowerCase();
+        console.log(`[Orchestrator] Skill "${skillRecord.name}" sessionType="${sessionType}" → ${sessionType ? 'LoopSession' : 'SOPSession'}`);
         if (sessionType) {
             return this.executeLoopAgentSession({
                 skillRecord,

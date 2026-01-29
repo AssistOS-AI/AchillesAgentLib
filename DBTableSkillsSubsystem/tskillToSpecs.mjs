@@ -25,6 +25,8 @@ export async function tskillToSpecs(skillDir, parsedSkill) {
     const specsDir = path.join(skillDir, 'specs');
     const specPath = path.join(specsDir, 'tskill.generated.mjs.md');
 
+    console.log(`[DBTableSkills] Generating spec for "${parsedSkill.tableName}" → ${specPath}`);
+
     // Ensure specs directory exists
     await fs.mkdir(specsDir, { recursive: true });
 
@@ -33,6 +35,10 @@ export async function tskillToSpecs(skillDir, parsedSkill) {
 
     // Write the spec file
     await fs.writeFile(specPath, specContent, 'utf-8');
+
+    const fieldCount = Object.keys(parsedSkill.fields || {}).length;
+    const derivedCount = Object.keys(parsedSkill.derivedFields || {}).length;
+    console.log(`[DBTableSkills] Spec generated: ${fieldCount} fields, ${derivedCount} derived fields`);
 
     return specPath;
 }

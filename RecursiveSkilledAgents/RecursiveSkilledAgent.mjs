@@ -6,6 +6,7 @@ import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 
 // Import extracted modules
 import { SKILL_FILE_TYPES, SKILL_FILE_NAMES } from './constants/skillFileTypes.mjs';
+import { DEFAULT_SESSION_ID, DEFAULT_SESSION_CONFIG } from './constants/sessionConfig.mjs';
 import { isDirectory, isReadableFile } from './utils/fileUtils.mjs';
 import { SubsystemFactory } from './services/SubsystemFactory.mjs';
 import { SkillRegistry } from './services/SkillRegistry.mjs';
@@ -16,6 +17,7 @@ import { generateMirrorCode } from './mirror-code-generator.mjs';
 
 // Re-export for backward compatibility
 export { SKILL_FILE_TYPES, SKILL_FILE_NAMES };
+export { DEFAULT_SESSION_ID, DEFAULT_SESSION_CONFIG };
 
 /**
  * RecursiveSkilledAgent - Main entry point for skill-based execution.
@@ -39,6 +41,12 @@ export class RecursiveSkilledAgent {
      * @param {Function} [options.onProcessingEnd] - Callback when processing ends
      * @param {string[]} [options.additionalSkillRoots] - Additional directories to scan for skills
      * @param {boolean} [options.exposeInternalSkills=false] - If true, registers internal helper skills (e.g., mirror-code-generator) for direct invocation; otherwise they remain internal-only
+     * @param {Object} [options.sessionConfig] - Session memory configuration
+     * @param {number} [options.sessionConfig.maxSessions=1000] - Maximum sessions to keep (0 = unlimited)
+     * @param {number} [options.sessionConfig.sessionTTL=7200000] - Session TTL in ms (0 = never expire, default 2 hours)
+     * @param {number} [options.sessionConfig.cleanupInterval=300000] - Cleanup interval in ms (default 5 minutes)
+     * @param {Object} [options.inputReader] - InputReader instance for user input (falls back to global IOServices)
+     * @param {Object} [options.outputWriter] - OutputWriter instance for output (falls back to global IOServices)
      */
     constructor({
         llmAgent = null,
@@ -53,6 +61,9 @@ export class RecursiveSkilledAgent {
         onProcessingEnd = null,
         additionalSkillRoots = [],
         exposeInternalSkills = false,
+        sessionConfig = {},
+        inputReader = null,
+        outputWriter = null,
     } = {}) {
         if (llmAgent && !(llmAgent instanceof LLMAgent)) {
             throw new TypeError('RecursiveSkilledAgent requires an LLMAgent instance.');
@@ -64,6 +75,10 @@ export class RecursiveSkilledAgent {
         this.searchUpwards = Boolean(searchUpwards);
         this.additionalSkillRoots = Array.isArray(additionalSkillRoots) ? additionalSkillRoots : [];
         this.exposeInternalSkills = Boolean(exposeInternalSkills);
+
+        // I/O services (optional, falls back to global IOServices)
+        this.inputReader = inputReader;
+        this.outputWriter = outputWriter;
 
         // Debug logger
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
@@ -87,6 +102,21 @@ export class RecursiveSkilledAgent {
 
         // ActionReporter for real-time feedback
         this._actionReporter = null;
+
+        // Session memory management
+        // Supports both single-session (CLI) and multi-session (webchat) modes
+        this._sessions = new Map();
+        this._sessionMeta = new Map(); // Stores { createdAt, lastAccessTime } per session
+        this._sessionConfig = {
+            ...DEFAULT_SESSION_CONFIG,
+            ...sessionConfig,
+        };
+        this._cleanupTimer = null;
+
+        // Start cleanup timer if TTL or maxSessions is configured
+        if (this._sessionConfig.sessionTTL > 0 || this._sessionConfig.maxSessions > 0) {
+            this._startCleanupTimer();
+        }
 
         // Run skill discovery
         this._discoverAndRegister();
@@ -267,6 +297,262 @@ export class RecursiveSkilledAgent {
      */
     getActionReporter() {
         return this._actionReporter || this.llmAgent?._actionReporter || null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Session Memory Management
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Get the session memory for a given session ID.
+     * 
+     * In single-session mode (CLI), call without arguments to get the default session.
+     * In multi-session mode (webchat), pass a sessionId to isolate user state.
+     * 
+     * Also updates session access time and enforces maxSessions limit.
+     * 
+     * @param {string} [sessionId] - Optional session identifier. If null/undefined,
+     *                               uses the default session (for CLI mode).
+     * @returns {Map} The session memory Map for this session
+     */
+    getSessionMemory(sessionId = null) {
+        const key = sessionId || DEFAULT_SESSION_ID;
+        const now = Date.now();
+        
+        if (!this._sessions.has(key)) {
+            // Enforce maxSessions limit before creating new session
+            this._enforceMaxSessions();
+            
+            this._sessions.set(key, new Map());
+            this._sessionMeta.set(key, {
+                createdAt: now,
+                lastAccessTime: now,
+            });
+            this.debugLogger?.log('RecursiveSkilledAgent:createSession', { 
+                sessionId: key,
+                totalSessions: this._sessions.size,
+            });
+        } else {
+            // Update last access time
+            const meta = this._sessionMeta.get(key);
+            if (meta) {
+                meta.lastAccessTime = now;
+            }
+        }
+        
+        return this._sessions.get(key);
+    }
+
+    /**
+     * Clear a specific session's memory.
+     * @param {string} [sessionId] - Session to clear. If null, clears default session.
+     */
+    clearSessionMemory(sessionId = null) {
+        const key = sessionId || DEFAULT_SESSION_ID;
+        const session = this._sessions.get(key);
+        
+        if (session) {
+            session.clear();
+            // Update access time on clear
+            const meta = this._sessionMeta.get(key);
+            if (meta) {
+                meta.lastAccessTime = Date.now();
+            }
+            this.debugLogger?.log('RecursiveSkilledAgent:clearSession', { sessionId: key });
+        }
+    }
+
+    /**
+     * Delete a session entirely.
+     * @param {string} sessionId - Session to delete (cannot delete default session)
+     * @returns {boolean} True if session was deleted
+     */
+    deleteSession(sessionId) {
+        if (!sessionId || sessionId === DEFAULT_SESSION_ID) {
+            // Cannot delete default session, only clear it
+            this.clearSessionMemory(null);
+            return false;
+        }
+        
+        const deleted = this._sessions.delete(sessionId);
+        this._sessionMeta.delete(sessionId);
+        
+        if (deleted) {
+            this.debugLogger?.log('RecursiveSkilledAgent:deleteSession', { 
+                sessionId,
+                remainingSessions: this._sessions.size,
+            });
+        }
+        return deleted;
+    }
+
+    /**
+     * Get all active session IDs.
+     * @returns {string[]} Array of session IDs (excludes default session marker)
+     */
+    getActiveSessions() {
+        return Array.from(this._sessions.keys())
+            .filter(key => key !== DEFAULT_SESSION_ID);
+    }
+
+    /**
+     * Check if a session exists.
+     * @param {string} [sessionId] - Session to check
+     * @returns {boolean} True if session exists
+     */
+    hasSession(sessionId = null) {
+        const key = sessionId || DEFAULT_SESSION_ID;
+        return this._sessions.has(key);
+    }
+
+    /**
+     * Get session statistics for monitoring.
+     * @returns {Object} Session stats
+     */
+    getSessionStats() {
+        const now = Date.now();
+        const sessions = [];
+        
+        for (const [key, meta] of this._sessionMeta.entries()) {
+            if (key === DEFAULT_SESSION_ID) continue;
+            sessions.push({
+                sessionId: key,
+                createdAt: meta.createdAt,
+                lastAccessTime: meta.lastAccessTime,
+                ageMs: now - meta.createdAt,
+                idleMs: now - meta.lastAccessTime,
+                size: this._sessions.get(key)?.size || 0,
+            });
+        }
+        
+        return {
+            totalSessions: this._sessions.size,
+            userSessions: sessions.length,
+            config: this._sessionConfig,
+            sessions,
+        };
+    }
+
+    /**
+     * Manually trigger session cleanup.
+     * Removes expired sessions and enforces maxSessions limit.
+     * @returns {number} Number of sessions cleaned up
+     */
+    cleanupSessions() {
+        const now = Date.now();
+        const { sessionTTL, maxSessions } = this._sessionConfig;
+        let cleaned = 0;
+
+        // Remove expired sessions (TTL-based)
+        if (sessionTTL > 0) {
+            for (const [key, meta] of this._sessionMeta.entries()) {
+                if (key === DEFAULT_SESSION_ID) continue;
+                
+                const idleTime = now - meta.lastAccessTime;
+                if (idleTime > sessionTTL) {
+                    this._sessions.delete(key);
+                    this._sessionMeta.delete(key);
+                    cleaned++;
+                    this.debugLogger?.log('RecursiveSkilledAgent:expiredSession', {
+                        sessionId: key,
+                        idleTimeMs: idleTime,
+                    });
+                }
+            }
+        }
+
+        // Enforce maxSessions (LRU eviction)
+        cleaned += this._enforceMaxSessions();
+
+        if (cleaned > 0) {
+            this.debugLogger?.log('RecursiveSkilledAgent:cleanupComplete', {
+                cleanedSessions: cleaned,
+                remainingSessions: this._sessions.size,
+            });
+        }
+
+        return cleaned;
+    }
+
+    /**
+     * Enforce maxSessions limit using LRU eviction.
+     * @private
+     * @returns {number} Number of sessions evicted
+     */
+    _enforceMaxSessions() {
+        const { maxSessions } = this._sessionConfig;
+        if (maxSessions <= 0) return 0;
+
+        // Count non-default sessions
+        const userSessions = this.getActiveSessions();
+        const excess = userSessions.length - maxSessions + 1; // +1 to make room for new session
+        
+        if (excess <= 0) return 0;
+
+        // Sort by lastAccessTime (oldest first)
+        const sorted = userSessions
+            .map(key => ({
+                key,
+                lastAccess: this._sessionMeta.get(key)?.lastAccessTime || 0,
+            }))
+            .sort((a, b) => a.lastAccess - b.lastAccess);
+
+        // Evict oldest sessions
+        let evicted = 0;
+        for (let i = 0; i < excess && i < sorted.length; i++) {
+            const { key } = sorted[i];
+            this._sessions.delete(key);
+            this._sessionMeta.delete(key);
+            evicted++;
+            this.debugLogger?.log('RecursiveSkilledAgent:evictSession', {
+                sessionId: key,
+                reason: 'maxSessions exceeded',
+            });
+        }
+
+        return evicted;
+    }
+
+    /**
+     * Start the periodic cleanup timer.
+     * @private
+     */
+    _startCleanupTimer() {
+        if (this._cleanupTimer) return;
+
+        const { cleanupInterval } = this._sessionConfig;
+        if (cleanupInterval <= 0) return;
+
+        this._cleanupTimer = setInterval(() => {
+            this.cleanupSessions();
+        }, cleanupInterval);
+
+        // Don't prevent process exit
+        if (this._cleanupTimer.unref) {
+            this._cleanupTimer.unref();
+        }
+    }
+
+    /**
+     * Stop the periodic cleanup timer.
+     * Call this when shutting down the agent.
+     */
+    stopCleanupTimer() {
+        if (this._cleanupTimer) {
+            clearInterval(this._cleanupTimer);
+            this._cleanupTimer = null;
+        }
+    }
+
+    /**
+     * Shutdown the agent gracefully.
+     * Stops cleanup timer and clears all sessions.
+     */
+    shutdown() {
+        this.stopCleanupTimer();
+        this._sessions.clear();
+        this._sessionMeta.clear();
+        this.debugLogger?.log('RecursiveSkilledAgent:shutdown', { message: 'Sessions cleared' });
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -512,12 +798,72 @@ export class RecursiveSkilledAgent {
 
     /**
      * Execute with a specific review mode.
+     * 
+     * Automatically injects sessionMemory into options.context based on:
+     * 1. Explicit options.context.sessionId → uses that session
+     * 2. options.context.user.sessionId → uses user's session (webchat)
+     * 3. Otherwise → uses default session (CLI mode)
+     * 
      * @param {string} taskDescription - The task description
      * @param {Object} options - Execution options
+     * @param {Object} [options.context] - Execution context
+     * @param {string} [options.context.sessionId] - Explicit session ID
+     * @param {Object} [options.context.user] - User info (may contain sessionId)
+     * @param {Map} [options.context.sessionMemory] - Override auto-injection
      * @param {string} reviewMode - Review mode ('none', 'llm', 'human')
      * @returns {Promise<Object>} The execution result
      */
     async executeWithReviewMode(taskDescription, options = {}, reviewMode = 'none') {
+        // Auto-inject sessionMemory if not already provided
+        const context = options.context || {};
+        
+        if (!context.sessionMemory) {
+            // Determine session ID from context
+            const sessionId = context.sessionId 
+                || context.user?.sessionId 
+                || context.user?.sessionToken
+                || null;
+            
+            // Get or create session memory
+            const sessionMemory = this.getSessionMemory(sessionId);
+            
+            // Inject into options
+            options = {
+                ...options,
+                context: {
+                    ...context,
+                    sessionMemory,
+                },
+            };
+            
+            this.debugLogger?.log('RecursiveSkilledAgent:injectSessionMemory', {
+                sessionId: sessionId || '__default__',
+                sessionSize: sessionMemory.size,
+            });
+        }
+
+        // Auto-inject I/O services if configured on agent and not already in context
+        if (this.inputReader || this.outputWriter) {
+            const currentContext = options.context || {};
+            if (!currentContext.io) {
+                options = {
+                    ...options,
+                    context: {
+                        ...currentContext,
+                        io: {
+                            inputReader: this.inputReader,
+                            outputWriter: this.outputWriter,
+                        },
+                    },
+                };
+                
+                this.debugLogger?.log('RecursiveSkilledAgent:injectIO', {
+                    hasInputReader: Boolean(this.inputReader),
+                    hasOutputWriter: Boolean(this.outputWriter),
+                });
+            }
+        }
+        
         return this.executor.execute(taskDescription, options, reviewMode, this);
     }
 
@@ -525,6 +871,7 @@ export class RecursiveSkilledAgent {
      * Execute a prompt (no review).
      * @param {string} promptDescription - The prompt
      * @param {Object} options - Execution options
+     * @param {Object} [options.context] - Execution context (sessionMemory auto-injected)
      * @returns {Promise<Object>} The execution result
      */
     async executePrompt(promptDescription, options = {}) {

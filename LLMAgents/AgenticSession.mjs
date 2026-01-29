@@ -1,11 +1,24 @@
 import { buildAgenticSessionPlannerPrompt, extractJson } from './templates/prompts.mjs';
+//import { appendAgenticAudit } from '../utils/AgenticSessionLogger.mjs';
 import {
     FINAL_ANSWER_TOOL,
     FINAL_ANSWER_DESCRIPTION,
     CANNOT_COMPLETE_TOOL,
     CANNOT_COMPLETE_DESCRIPTION,
+    SESSION_STATUS_IDLE,
+    SESSION_STATUS_RUNNING,
+    SESSION_STATUS_ACTIVE,
+    SESSION_STATUS_AWAITING_INPUT,
+    SESSION_STATUS_DONE,
+    SESSION_STATUS_FAILED,
     normalizeResponsePayload,
 } from './constants.mjs';
+
+// Timestamp helper for logging
+const getTimestamp = () => {
+    const now = new Date();
+    return now.toISOString().slice(11, 23); // HH:MM:SS.mmm
+};
 
 class LoopAgentSession {
     constructor({ agent, tools, options = {} }) {
@@ -51,7 +64,7 @@ class LoopAgentSession {
         this.history = [];
         this.toolCalls = [];
         this.errorCount = 0;
-        this.status = 'idle';
+        this.status = SESSION_STATUS_IDLE;
         this.lastAnswer = null;
         this.systemPrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
         this.failedTurns = [];
@@ -72,13 +85,13 @@ class LoopAgentSession {
 
         // Session-level logging for incoming prompts
         // eslint-disable-next-line no-console
-        console.log(`[AgenticSession] New prompt: "${userPrompt}"`);
+        console.log(`[${getTimestamp()}] [LoopSession] New prompt: "${userPrompt}"`);
 
         const turn = {
             prompt: userPrompt,
             steps: [],
             finalAnswer: null,
-            status: 'running',
+            status: SESSION_STATUS_RUNNING,
             usedTools: false,
             _lastToolName: null,
             _lastToolPrompt: null,
@@ -91,7 +104,7 @@ class LoopAgentSession {
         };
         this.turns.push(turn);
         this.history.push({ type: 'user', prompt: userPrompt });
-        this.status = 'running';
+        this.status = SESSION_STATUS_RUNNING;
 
         const answer = await this._runLoopForPrompt(userPrompt, turn);
         this.lastAnswer = answer;
@@ -153,6 +166,8 @@ class LoopAgentSession {
 
                 try {
                     const toolResult = await this._executeTool(toolName, toolPrompt, turn);
+                    // Debug: log tool result type and key properties
+                    console.log(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, requiresConfirmation=${toolResult?.requiresConfirmation}, requiresInput=${toolResult?.requiresInput}`);
                     const displayResult = toolResult && (toolResult.__finalAnswer || toolResult.__cannotComplete)
                         ? toolResult.text
                         : toolResult;
@@ -163,6 +178,41 @@ class LoopAgentSession {
                         prompt: toolPrompt,
                         result: displayResult,
                     });
+
+                    // Handle interactive tools that require user confirmation or input
+                    // When a tool returns requiresConfirmation or requiresInput, stop and return to user
+                    if (toolResult && typeof toolResult === 'object' && 
+                        (toolResult.requiresConfirmation || toolResult.requiresInput)) {
+                        const message = toolResult.message || JSON.stringify(toolResult);
+                        console.log(`[${getTimestamp()}] [LoopSession] Detected requiresConfirmation/Input, returning message (first 100 chars): "${String(message).substring(0, 100)}..."`);
+                        turn.finalAnswer = message;
+                        turn.status = SESSION_STATUS_AWAITING_INPUT;
+                        this.status = SESSION_STATUS_AWAITING_INPUT;
+                        this.lastAnswer = message;
+                        this.history.push({ 
+                            type: SESSION_STATUS_AWAITING_INPUT, 
+                            answer: message,
+                            tool: toolName,
+                            step: toolResult.step || null
+                        });
+                        return message;
+                    }
+
+                    // Handle successful database/skill results that should be returned immediately
+                    // When a tool returns success:true with records or a message, treat as final answer
+                    if (toolResult && typeof toolResult === 'object' && 
+                        toolResult.success === true && 
+                        (toolResult.records || toolResult.message || toolResult.operation)) {
+                        // This is a successful skill result - return it as final answer
+                        const resultStr = JSON.stringify(toolResult);
+                        console.log(`[${getTimestamp()}] [LoopSession] Detected successful skill result, returning as final answer`);
+                        turn.finalAnswer = resultStr;
+                        turn.status = SESSION_STATUS_DONE;
+                        this.status = SESSION_STATUS_ACTIVE;
+                        this.lastAnswer = resultStr;
+                        this.history.push({ type: 'final_answer', answer: resultStr });
+                        return resultStr;
+                    }
 
                     // Detect true loops: same tool + same prompt + same result
                     // Different prompts with same results are NOT loops (e.g., createDirectory for different paths)
@@ -187,8 +237,8 @@ class LoopAgentSession {
 
                         if (toolResult.__cannotComplete) {
                             turn.finalAnswer = final;
-                            turn.status = 'failed';
-                            this.status = 'failed';
+                            turn.status = SESSION_STATUS_FAILED;
+                            this.status = SESSION_STATUS_FAILED;
                             this.lastAnswer = final;
                             this.failedTurns.push(turn);
                             this.history.push({ type: 'cannot_complete', answer: final });
@@ -197,8 +247,8 @@ class LoopAgentSession {
 
                         if (matchesExpected) {
                             turn.finalAnswer = final;
-                            turn.status = 'done';
-                            this.status = 'active';
+                            turn.status = SESSION_STATUS_DONE;
+                            this.status = SESSION_STATUS_ACTIVE;
                             this.lastAnswer = final;
                             this.history.push({ type: 'final_answer', answer: final });
                             return final;
@@ -214,8 +264,8 @@ class LoopAgentSession {
                         });
                         if (turn.retryCount >= turn.maxRetries) {
                             turn.finalAnswer = final;
-                            turn.status = 'failed';
-                            this.status = 'active';
+                            turn.status = SESSION_STATUS_FAILED;
+                            this.status = SESSION_STATUS_ACTIVE;
                             this.lastAnswer = final;
                             this.failedTurns.push(turn);
                             this.history.push({ type: 'final_answer', answer: final, validationFailed: true });
@@ -228,8 +278,8 @@ class LoopAgentSession {
                     if (turn._sameToolRepeatCount >= 3) {
                         const final = String(displayResult);
                         turn.finalAnswer = final;
-                        turn.status = 'done';
-                        this.status = 'active';
+                        turn.status = SESSION_STATUS_DONE;
+                        this.status = SESSION_STATUS_ACTIVE;
                         this.history.push({ type: 'final_answer', answer: final });
                         return final;
                     }
@@ -241,13 +291,13 @@ class LoopAgentSession {
                         prompt: toolPrompt,
                         error: error.message,
                     });
-                    console.error(`[AgenticSession] Tool "${toolName}" failed with prompt "${toolPrompt}":`, error.message);
+                    console.error(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" failed with prompt "${toolPrompt}":`, error.message);
 
                     if (this.errorCount >= maxErrors) {
                         const message = 'Too many tool errors, aborting.';
                         turn.finalAnswer = message;
-                        turn.status = 'failed';
-                        this.status = 'failed';
+                        turn.status = SESSION_STATUS_FAILED;
+                        this.status = SESSION_STATUS_FAILED;
                         return message;
                     }
                 }
@@ -264,8 +314,8 @@ class LoopAgentSession {
                 if (this.errorCount >= maxErrors) {
                     const message = 'Too many planner errors, aborting.';
                     turn.finalAnswer = message;
-                    turn.status = 'failed';
-                    this.status = 'failed';
+                    turn.status = SESSION_STATUS_FAILED;
+                    this.status = SESSION_STATUS_FAILED;
                     return message;
                 }
                 // eslint-disable-next-line no-continue
@@ -280,16 +330,16 @@ class LoopAgentSession {
             if (this.errorCount >= maxErrors) {
                 const message = 'Too many planner errors, aborting.';
                 turn.finalAnswer = message;
-                turn.status = 'failed';
-                this.status = 'failed';
+                turn.status = SESSION_STATUS_FAILED;
+                this.status = SESSION_STATUS_FAILED;
                 return message;
             }
         }
 
         const fallback = 'Unable to complete within step limit.';
         turn.finalAnswer = fallback;
-        turn.status = 'failed';
-        this.status = 'failed';
+        turn.status = SESSION_STATUS_FAILED;
+        this.status = SESSION_STATUS_FAILED;
         this.history.push({ type: 'timeout', message: fallback });
         this.failedTurns.push(turn);
         return fallback;
@@ -304,6 +354,10 @@ class LoopAgentSession {
             systemPrompt: this.systemPrompt,
             toolVars: this.toolVars,
         });
+
+        // await appendAgenticAudit({
+        //     prompt: plannerPrompt,
+        // });
 
         const raw = await this.agent.complete({
             prompt: plannerPrompt,
@@ -351,7 +405,7 @@ class LoopAgentSession {
             : toolPrompt;
 
         // eslint-disable-next-line no-console
-        console.log(`[AgenticSession] Calling tool "${toolName}" with prompt: "${resolvedPrompt}"`);
+        console.log(`[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${resolvedPrompt}"`);
 
         // Attach session to agent temporarily to support tools that need session context
         this.agent.currentSession = this;
