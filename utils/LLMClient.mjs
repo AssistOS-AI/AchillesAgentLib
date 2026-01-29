@@ -2,6 +2,13 @@ import { loadModelsConfiguration } from './LLMProviders/providers/modelsConfigLo
 export { loadModelsConfiguration };
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
+import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
+
+const envReport = envAutoConfig();
+if (envReport.loaded) {
+    const appliedCount = Object.keys(envReport.variables || {}).length;
+    console.info(`[AchillesAgentsLib] Environment auto-config applied ${appliedCount} key(s).`);
+}
 
 const debugFlag = (process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase();
 const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';

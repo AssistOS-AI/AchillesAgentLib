@@ -12,12 +12,6 @@ import { defaultLLMInvokerStrategy } from '../utils/LLMClient.mjs';
 const debugFlag = (process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase();
 const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
 
-const envReport = envAutoConfig();
-if (DEBUG_ENABLED && envReport.loaded) {
-    const appliedCount = Object.keys(envReport.variables || {}).length;
-    console.info(`[AchillesAgentsLib] Environment auto-config applied ${appliedCount} key(s).`);
-}
-
 try {
     if (DEBUG_ENABLED && defaultLLMInvokerStrategy && typeof defaultLLMInvokerStrategy.describe === 'function') {
         const description = defaultLLMInvokerStrategy.describe();
