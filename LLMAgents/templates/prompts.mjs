@@ -1,5 +1,5 @@
 import { extractJson } from '../markdown.mjs';
-import { FINAL_ANSWER_TOOL } from '../constants.mjs';
+import { FINAL_ANSWER_TOOL, SESSION_STATUS_AWAITING_INPUT } from '../constants.mjs';
 
 const buildInterpretMessagePrompt = (intents, instructions) => {
     const promptSections = [
@@ -164,6 +164,20 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     }
 
     lines.push('');
+    // Check for pending awaiting_input state (tool waiting for user confirmation)
+    let pendingTool = null;
+    for (let i = history.length - 1; i >= 0; i--) {
+        const h = history[i];
+        if (h.type === SESSION_STATUS_AWAITING_INPUT) {
+            pendingTool = h.tool;
+            break;
+        }
+        // If we see a final_answer or user after awaiting_input, the pending state is resolved
+        if (h.type === 'final_answer' || h.type === 'cannot_complete') {
+            break;
+        }
+    }
+
     lines.push('Conversation so far (most recent last):');
     for (const h of history || []) {
         if (h.type === 'user') {
@@ -171,6 +185,8 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         } else if (h.type === 'tool') {
             const value = toolVars.get(h.result.resultRef);
             lines.push(`TOOL[${h.tool}]: resultRef=${h.result.resultRef} result=${formatValue(value)}`);
+        } else if (h.type === SESSION_STATUS_AWAITING_INPUT) {
+            lines.push(`AWAITING_INPUT[${h.tool}]: ${h.answer} (step=${h.step || 'confirmation'})`);
         } else if (h.type === 'final_answer') {
             lines.push(`FINAL: ${h.answer}`);
         } else if (h.type === 'cannot_complete') {
@@ -180,6 +196,13 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         } else if (h.type === 'timeout') {
             lines.push(`TIMEOUT: ${h.reason || 'previous step exceeded time limit'}`);
         }
+    }
+    
+    // If there's a pending tool awaiting input, add explicit instruction
+    if (pendingTool) {
+        lines.push('');
+        lines.push(`IMPORTANT: The tool "${pendingTool}" is awaiting user confirmation/input.`);
+        lines.push(`If the user's response is a confirmation (yes, ok, proceed, etc.) or cancellation (no, cancel, etc.), route it back to "${pendingTool}".`);
     }
     lines.push('');
     lines.push(`Current user instruction: ${userPrompt}`);

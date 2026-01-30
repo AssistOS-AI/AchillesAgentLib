@@ -45,6 +45,8 @@ class LLMAgent {
         this._inputCounter = 0;
         this._outputCounter = 0;
         this._actionReporter = null;
+        this._inputReader = null;
+        this._outputWriter = null;
     }
 
     /**
@@ -61,6 +63,40 @@ class LLMAgent {
      */
     getActionReporter() {
         return this._actionReporter;
+    }
+
+    /**
+     * Set an InputReader for reading user input.
+     * InputReader should have: { read: async (prompt?) => string }
+     * @param {object} reader - The input reader instance
+     */
+    setInputReader(reader) {
+        this._inputReader = reader;
+    }
+
+    /**
+     * Get the current InputReader
+     * @returns {object|null} InputReader with read() method
+     */
+    get inputReader() {
+        return this._inputReader;
+    }
+
+    /**
+     * Set an OutputWriter for writing output to the user.
+     * OutputWriter should have: { write: async (message) => void }
+     * @param {object} writer - The output writer instance
+     */
+    setOutputWriter(writer) {
+        this._outputWriter = writer;
+    }
+
+    /**
+     * Get the current OutputWriter
+     * @returns {object|null} OutputWriter with write() method
+     */
+    get outputWriter() {
+        return this._outputWriter;
     }
 
     parseMarkdownKeyValues(markdown) {

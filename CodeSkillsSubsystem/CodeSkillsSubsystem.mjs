@@ -2,6 +2,12 @@ import {join} from 'node:path';
 import {stat} from 'node:fs/promises';
 import {buildArgumentExtractionPrompt} from './prompts.mjs';
 
+// Timestamp helper for logging
+const getTimestamp = () => {
+    const now = new Date();
+    return now.toISOString().slice(11, 23); // HH:MM:SS.mmm
+};
+
 // Debug logging configuration
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
 
@@ -45,6 +51,14 @@ export class CodeSkillsSubsystem {
     debugLog(`Arguments: ${JSON.stringify(args).substring(0, 200)}...`);
     args.llmAgent = this.llmAgent;
     args.recursiveAgent = recursiveAgent;
+    
+    // Pass through context, sessionMemory, user, and attachments from options
+    args.context = options?.context || {};
+    args.sessionMemory = options?.context?.sessionMemory || null;
+    args.user = options?.context?.user || null;
+    args.attachments = options?.context?.attachments || [];
+    
+    debugLog(`Context passed: sessionMemory=${!!args.sessionMemory}, user=${!!args.user}, attachments=${args.attachments.length}`);
     
     // Execute the already generated code from disk
     debugLog(`Executing code from disk...`);
