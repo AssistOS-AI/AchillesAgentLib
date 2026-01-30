@@ -36,6 +36,11 @@
             "baseURL": "https://api.mistral.ai/v1/chat/completions",
             "apiKeyEnv": "MISTRAL_API_KEY",
             "module": "./utils/LLMProviders/providers/openai.mjs"
+        },
+        "kiro": {
+            "baseURL": "http://localhost:8000/v1",
+            "apiKeyEnv": "PROXY_API_KEY",
+            "module": "./utils/LLMProviders/providers/openai.mjs"
         }
     },
     "models": [
@@ -318,6 +323,38 @@
             "inputPrice": 0.1,
             "outputPrice": 0.1,
             "context": "256k"
+        },
+        {
+            "name": "claude-sonnet-4.5",
+            "provider": "kiro",
+            "mode": "deep",
+            "inputPrice": 3,
+            "outputPrice": 15,
+            "context": "200k"
+        },
+        {
+            "name": "claude-sonnet-4",
+            "provider": "kiro",
+            "mode": "deep",
+            "inputPrice": 3,
+            "outputPrice": 15,
+            "context": "200k"
+        },
+        {
+            "name": "claude-3.7-sonnet",
+            "provider": "kiro",
+            "mode": "deep",
+            "inputPrice": 3,
+            "outputPrice": 15,
+            "context": "200k"
+        },
+        {
+            "name": "claude-haiku-4.5",
+            "provider": "kiro",
+            "mode": "fast",
+            "inputPrice": 1,
+            "outputPrice": 5,
+            "context": "200k"
         }
     ]
 }
