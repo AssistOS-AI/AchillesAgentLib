@@ -17,6 +17,7 @@
     },
     "files": [
         "index.mjs",
+        "LLMConfig.json",
         "LLMAgents",
         "utils",
         "MemoryContainer",
@@ -28,7 +29,8 @@
         "OrchestratorSkillsSubsystem",
         "InteractiveSkillsSubsystem",
         "DBTableSkillsSubsystem",
-        "lightSOPLang"
+        "lightSOPLang",
+        "services"
     ],
     "scripts": {
         "test": "node tests/runAll.js"
