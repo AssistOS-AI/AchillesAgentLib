@@ -23,11 +23,10 @@
         "MemoryContainer",
         "RecursiveSkilledAgents",
         "CodeSkillsSubsystem",
-        "CodeGenerationSkillsSubsystem",
+        "DynamicCodeGenerationSubsystem",
         "ClaudeSkillsSubsystem",
         "MCPSkillsSubsystem",
         "OrchestratorSkillsSubsystem",
-        "InteractiveSkillsSubsystem",
         "DBTableSkillsSubsystem",
         "lightSOPLang",
         "services"
