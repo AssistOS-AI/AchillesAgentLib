@@ -59,13 +59,24 @@ The main exported function and the designated entry point for execution. It acts
 
 ### Input
 - `args` (Object):
-  - `operation` (string): The operation to perform. Can be `hash` or `verify`.
-  - `data` (string): The data to hash or verify.
-  - `salt` (string, optional): The salt to use for hashing.
-  - `hash` (string, optional): The hash to verify against (required for verify).
+  - `promptText` (string): Multi-line `key: value` pairs to be parsed using hardcoded regex.
+
+### Prompt Parsing (REQUIRED)
+Implement a `parsePromptText(promptText)` helper that extracts values using these exact regexes:
+
+- `operation`: `/^operation\s*:\s*(.+)$/mi`
+- `data`: `/^data\s*:\s*(.+)$/mi`
+- `salt`: `/^salt\s*:\s*(.+)$/mi`
+- `hash`: `/^hash\s*:\s*(.+)$/mi`
+
+Rules:
+- Trim extracted values.
+- `salt` is optional for `hash` operation.
+- `hash` is required for `verify` operation.
+- Throw a clear error when a required key is missing.
 
 ### Processing Logic
-1. Destructures `operation`, `data`, `salt`, and `hash` from the `args` object.
+1. Parses `promptText` via `parsePromptText(promptText)`.
 2. Validates that required parameters are present.
 3. **For `hash` operation**: Calls the `hash` method with the provided data and optional salt.
 4. **For `verify` operation**: Validates that hash is provided, then calls the `verify` method.
@@ -87,19 +98,17 @@ import { action } from './index.mjs';
 
 // Hash a password
 const hashResult = await action({
-  operation: 'hash',
-  data: 'password123',
-  salt: 'customSalt123' // Optional: let it generate salt automatically
+  promptText: 'operation: hash\ndata: password123\nsalt: customSalt123'
 });
 
 console.log('Hash result:', hashResult);
 
 // Verify a password
 const verifyResult = await action({
-  operation: 'verify',
-  data: 'password123',
-  hash: hashResult.hash,
-  salt: hashResult.salt
+  promptText: 'operation: verify\n' +
+    'data: password123\n' +
+    `hash: ${hashResult.hash}\n` +
+    `salt: ${hashResult.salt}`
 });
 
 console.log('Verification result:', verifyResult);

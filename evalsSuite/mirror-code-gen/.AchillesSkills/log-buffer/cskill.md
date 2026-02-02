@@ -6,13 +6,13 @@ Stores log messages in memory and flushes them when the buffer is full.
 This skill implements an in-memory log buffer system that stores log messages and automatically flushes them when the buffer reaches a specified limit. It supports different log levels and provides statistics about the buffered logs. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format
-The skill is invoked via an `action` function that accepts a single object specifying the operation to be performed.
+The skill is invoked via an `action` function that accepts an object with a `promptText` string. The `promptText` must use `key: value` pairs, one per line.
 
-- **args** (Object): The container for the command.
-  - `operation` (string, mandatory): The operation to perform. Can be `log`, `getStats`, or `flush`.
+- **promptText** (string): Multi-line text containing `key: value` pairs.
+  - `operation` (string, mandatory): `log`, `getStats`, `flush`, or `setBufferLimit`.
   - `message` (string, mandatory for log): The log message.
-  - `level` (string, optional for log): The log level (e.g., 'info', 'error').
-  - `bufferLimit` (number, optional): The maximum number of logs before auto-flush.
+  - `level` (string, optional for log): The log level (e.g., `info`, `error`).
+  - `bufferLimit` (number, optional): The maximum number of logs before auto-flush (required for `setBufferLimit`).
 
 ## Output Format
 - **Type**: `object`

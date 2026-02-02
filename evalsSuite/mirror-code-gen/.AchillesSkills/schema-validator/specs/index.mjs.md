@@ -41,12 +41,22 @@ The main exported function and the designated entry point for execution. It acts
 
 ### Input
 - `args` (Object):
-  - `operation` (string): The operation to perform (currently only 'validate' is supported).
-  - `data` (object): The data to validate.
-  - `schema` (object): The validation schema.
+  - `promptText` (string): Multi-line `key: value` pairs to be parsed using hardcoded regex.
+
+### Prompt Parsing (REQUIRED)
+Implement a `parsePromptText(promptText)` helper that extracts values using these exact regexes:
+
+- `operation`: `/^operation\s*:\s*(.+)$/mi`
+- `data`: `/^data\s*:\s*(.+)$/mi`
+- `schema`: `/^schema\s*:\s*(.+)$/mi`
+
+Rules:
+- Trim extracted values.
+- `data` and `schema` must be parsed with `JSON.parse`.
+- Throw a clear error when a required key is missing.
 
 ### Processing Logic
-1. Destructures `operation`, `data`, and `schema` from the `args` object.
+1. Parses `promptText` via `parsePromptText(promptText)`.
 2. Validates that required parameters are present.
 3. **For `validate` operation**: Calls the `validate` method with the provided data and schema.
 4. **For unknown operations**: Throws an error indicating the operation is not supported.
@@ -79,9 +89,9 @@ const userData = {
 };
 
 const validationResult = await action({
-  operation: 'validate',
-  data: userData,
-  schema: userSchema
+  promptText: 'operation: validate\n' +
+    'data: {"name":"John Doe","age":25,"email":"john@example.com"}\n' +
+    'schema: {"name":{"type":"string","required":true,"min":3,"max":50},"age":{"type":"number","required":true,"min":18,"max":120},"email":{"type":"string","required":true,"pattern":".+@.+\\..+"}}'
 });
 
 if (validationResult.valid) {

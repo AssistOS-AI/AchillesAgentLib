@@ -6,12 +6,12 @@ Loads and validates configuration from environment variables or objects.
 This skill implements a configuration loader that reads settings from environment variables or objects and validates them against a type schema. It supports automatic type conversion and validation. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format
-The skill is invoked via an `action` function that accepts a single object specifying the operation to be performed.
+The skill is invoked via an `action` function that accepts an object with a `promptText` string. The `promptText` must use `key: value` pairs, one per line.
 
-- **args** (Object): The container for the command.
-  - `operation` (string, mandatory): The operation to perform. Currently only `load` is supported.
-  - `source` (object, mandatory): The configuration source (environment variables or object).
-  - `schema` (object, mandatory): The type validation schema.
+- **promptText** (string): Multi-line text containing `key: value` pairs.
+  - `operation` (string, mandatory): `load`.
+  - `source` (object, mandatory): JSON string for the source object.
+  - `schema` (object, mandatory): JSON string for the schema object.
 
 ## Output Format
 - **Type**: `object`

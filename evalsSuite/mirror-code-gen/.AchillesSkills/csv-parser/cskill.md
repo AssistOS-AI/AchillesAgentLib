@@ -6,14 +6,12 @@ Parses CSV strings and transforms data according to specified rules.
 This skill provides a unified interface for parsing CSV data from strings and applying transformations. It allows for converting CSV strings to JSON arrays, filtering data based on conditions, and mapping field names. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format
-The skill is invoked via an `action` function that accepts a single object specifying the operation to be performed.
+The skill is invoked via an `action` function that accepts an object with a `promptText` string. The `promptText` must use `key: value` pairs, one per line.
 
-- **args** (Object): The container for the command.
-  - `operation` (string, mandatory): The operation to perform. Can be `parse`, `transform`, or `parseAndTransform`.
-  - `csvString` (string, mandatory): The CSV data as a string.
-  - `transformConfig` (object, optional): Configuration for transformation operations.
-    - `fieldMappings` (object): Mapping of field names (e.g., { name: "fullName", age: "userAge" }).
-    - `filters` (object): Filter conditions (e.g., { userAge: { gt: 25 } }).
+- **promptText** (string): Multi-line text containing `key: value` pairs.
+  - `operation` (string, mandatory): `parse`, `transform`, or `parseAndTransform`.
+  - `csvString` (string, mandatory): CSV data as a single line with escaped newlines (use `\n`).
+  - `transformConfig` (object, optional): JSON object as a single-line string. Example: `{"fieldMappings":{"name":"fullName"},"filters":{"userAge":{"gt":25}}}`.
 
 ## Output Format
 - **Type**: `object`

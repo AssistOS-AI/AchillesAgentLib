@@ -71,12 +71,23 @@ The main exported function and the designated entry point for execution. It acts
 
 ### Input
 - `args` (Object):
-  - `operation` (string): The operation to perform. Can be `setRate`, `consume`, or `getStatus`.
-  - `rate` (object, optional): Rate configuration for setRate operation.
-  - `tokens` (number, optional): Number of tokens to consume for consume operation.
+  - `promptText` (string): Multi-line `key: value` pairs to be parsed using hardcoded regex.
+
+### Prompt Parsing (REQUIRED)
+Implement a `parsePromptText(promptText)` helper that extracts values using these exact regexes:
+
+- `operation`: `/^operation\s*:\s*(.+)$/mi`
+- `rate`: `/^rate\s*:\s*(.+)$/mi`
+- `tokens`: `/^tokens\s*:\s*(.+)$/mi`
+
+Rules:
+- Trim extracted values.
+- `rate` is JSON and must be parsed with `JSON.parse` when present.
+- `tokens` is optional; parse as number when present.
+- Throw a clear error when a required key is missing.
 
 ### Processing Logic
-1. Destructures `operation`, `rate`, and `tokens` from the `args` object.
+1. Parses `promptText` via `parsePromptText(promptText)`.
 2. Validates that operation parameter is present.
 3. **For `setRate` operation**: Validates rate is provided, then calls the `setRate` method.
 4. **For `consume` operation**: Validates tokens is provided, then calls the `consume` method.
@@ -142,16 +153,14 @@ import { action } from './index.mjs';
 
 // Set rate limit
 const setResult = await action({
-  operation: 'setRate',
-  rate: { tokensPerSecond: 5, burstLimit: 10 }
+  promptText: 'operation: setRate\nrate: {"tokensPerSecond":5,"burstLimit":10}'
 });
 
 console.log('Rate set:', setResult);
 
 // Consume tokens
 const consumeResult = await action({
-  operation: 'consume',
-  tokens: 3
+  promptText: 'operation: consume\ntokens: 3'
 });
 
 if (consumeResult.success) {
@@ -162,7 +171,7 @@ if (consumeResult.success) {
 
 // Get status
 const statusResult = await action({
-  operation: 'getStatus'
+  promptText: 'operation: getStatus'
 });
 
 console.log('Current status:', statusResult);

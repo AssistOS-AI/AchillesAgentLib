@@ -6,10 +6,10 @@ Provides password hashing and verification using cryptographic functions.
 This skill implements a utility for generating and verifying cryptographic hashes. It supports password hashing with salt and verification of hashed passwords. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format
-The skill is invoked via an `action` function that accepts a single object specifying the operation to be performed.
+The skill is invoked via an `action` function that accepts an object with a `promptText` string. The `promptText` must use `key: value` pairs, one per line.
 
-- **args** (Object): The container for the command.
-  - `operation` (string, mandatory): The operation to perform. Can be `hash` or `verify`.
+- **promptText** (string): Multi-line text containing `key: value` pairs.
+  - `operation` (string, mandatory): `hash` or `verify`.
   - `data` (string, mandatory): The data to hash or verify.
   - `salt` (string, optional for hash): The salt to use for hashing.
   - `hash` (string, mandatory for verify): The hash to verify against.

@@ -70,13 +70,23 @@ The main exported function and the designated entry point for execution. It acts
 
 ### Input
 - `args` (Object):
-  - `operation` (string): The operation to perform. Can be `log`, `getStats`, `flush`, or `setBufferLimit`.
-  - `message` (string, optional): The log message (required for log operation).
-  - `level` (string, optional): The log level (for log operation).
-  - `bufferLimit` (number, optional): The buffer limit (for setBufferLimit operation).
+  - `promptText` (string): Multi-line `key: value` pairs to be parsed using hardcoded regex.
+
+### Prompt Parsing (REQUIRED)
+Implement a `parsePromptText(promptText)` helper that extracts values using these exact regexes:
+
+- `operation`: `/^operation\s*:\s*(.+)$/mi`
+- `message`: `/^message\s*:\s*(.+)$/mi`
+- `level`: `/^level\s*:\s*(.+)$/mi`
+- `bufferLimit`: `/^bufferLimit\s*:\s*(.+)$/mi`
+
+Rules:
+- Trim extracted values.
+- `bufferLimit` is optional; parse as number when present.
+- Throw a clear error when a required key is missing.
 
 ### Processing Logic
-1. Destructures `operation`, `message`, `level`, and `bufferLimit` from the `args` object.
+1. Parses `promptText` via `parsePromptText(promptText)`.
 2. Validates that the operation parameter is present.
 3. **For `log` operation**: Validates that message is provided, then calls the `log` method.
 4. **For `getStats` operation**: Calls the `getStats` method and returns the result.
@@ -102,31 +112,28 @@ import { action } from './index.mjs';
 
 // Add log messages
 const logResult = await action({
-  operation: 'log',
-  message: 'This is a test log',
-  level: 'info'
+  promptText: 'operation: log\nmessage: This is a test log\nlevel: info'
 });
 
 console.log('Log result:', logResult);
 
 // Get buffer statistics
 const statsResult = await action({
-  operation: 'getStats'
+  promptText: 'operation: getStats'
 });
 
 console.log('Stats:', statsResult);
 
 // Manually flush logs
 const flushResult = await action({
-  operation: 'flush'
+  promptText: 'operation: flush'
 });
 
 console.log('Flushed logs:', flushResult.logs);
 
 // Set buffer limit
 const limitResult = await action({
-  operation: 'setBufferLimit',
-  bufferLimit: 5
+  promptText: 'operation: setBufferLimit\nbufferLimit: 5'
 });
 
 console.log('Limit set:', limitResult);

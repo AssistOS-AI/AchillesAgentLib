@@ -6,12 +6,12 @@ Provides a simple key-value store with automatic expiration.
 This skill implements an in-memory cache system with time-to-live (TTL) functionality. It allows storing values with expiration times, checking for key existence, and automatic cleanup of expired entries. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format
-The skill is invoked via an `action` function that accepts a single object specifying the operation to be performed.
+The skill is invoked via an `action` function that accepts an object with a `promptText` string. The `promptText` must use `key: value` pairs, one per line.
 
-- **args** (Object): The container for the command.
-  - `operation` (string, mandatory): The operation to perform. Can be `set`, `get`, `has`, or `delete`.
+- **promptText** (string): Multi-line text containing `key: value` pairs.
+  - `operation` (string, mandatory): `set`, `get`, `has`, or `delete`.
   - `key` (string, mandatory for most operations): The cache key.
-  - `value` (any, mandatory for set): The value to store.
+  - `value` (any, mandatory for set): JSON string for objects (e.g., `{ "data": "test" }`).
   - `ttl` (number, optional for set): Time-to-live in milliseconds.
 
 ## Output Format

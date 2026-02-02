@@ -45,12 +45,22 @@ The main exported function and the designated entry point for execution. It acts
 
 ### Input
 - `args` (Object):
-  - `operation` (string): The operation to perform (currently only 'load' is supported).
-  - `source` (object): The configuration source.
-  - `schema` (object): The type validation schema.
+  - `promptText` (string): Multi-line `key: value` pairs to be parsed using hardcoded regex.
+
+### Prompt Parsing (REQUIRED)
+Implement a `parsePromptText(promptText)` helper that extracts values using these exact regexes:
+
+- `operation`: `/^operation\s*:\s*(.+)$/mi`
+- `source`: `/^source\s*:\s*(.+)$/mi`
+- `schema`: `/^schema\s*:\s*(.+)$/mi`
+
+Rules:
+- Trim extracted values.
+- `source` and `schema` must be parsed with `JSON.parse`.
+- Throw a clear error when a required key is missing.
 
 ### Processing Logic
-1. Destructures `operation`, `source`, and `schema` from the `args` object.
+1. Parses `promptText` via `parsePromptText(promptText)`.
 2. Validates that required parameters are present.
 3. **For `load` operation**: Calls the `load` method with the provided source and schema.
 4. **For unknown operations**: Throws an error indicating the operation is not supported.
@@ -86,9 +96,9 @@ const configSource = {
 
 // Load and validate configuration
 const loadResult = await action({
-  operation: 'load',
-  source: configSource,
-  schema: configSchema
+  promptText: 'operation: load\n' +
+    'source: {"DB_HOST":"localhost","DB_PORT":"5432","DEBUG":"true","FEATURES":"{\\"cache\\":true,\\"logging\\":false}"}\n' +
+    'schema: {"DB_HOST":"string","DB_PORT":"number","DEBUG":"boolean","FEATURES":"json"}'
 });
 
 if (loadResult.success) {

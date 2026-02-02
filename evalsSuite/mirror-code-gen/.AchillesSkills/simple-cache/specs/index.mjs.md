@@ -88,13 +88,24 @@ The main exported function and the designated entry point for execution. It acts
 
 ### Input
 - `args` (Object):
-  - `operation` (string): The operation to perform. Can be `set`, `get`, `has`, or `delete`.
-  - `key` (string): The cache key.
-  - `value` (any, optional): The value to store (required for set operation).
-  - `ttl` (number, optional): Time-to-live in milliseconds (for set operation).
+  - `promptText` (string): Multi-line `key: value` pairs to be parsed using hardcoded regex.
+
+### Prompt Parsing (REQUIRED)
+Implement a `parsePromptText(promptText)` helper that extracts values using these exact regexes:
+
+- `operation`: `/^operation\s*:\s*(.+)$/mi`
+- `key`: `/^key\s*:\s*(.+)$/mi`
+- `value`: `/^value\s*:\s*(.+)$/mi`
+- `ttl`: `/^ttl\s*:\s*(.+)$/mi`
+
+Rules:
+- Trim extracted values.
+- `value` is optional and if present should be JSON-parsed when it starts with `{` or `[`, otherwise use raw string.
+- `ttl` is optional; parse as number when present.
+- Throw a clear error when a required key is missing.
 
 ### Processing Logic
-1. Destructures `operation`, `key`, `value`, and `ttl` from the `args` object.
+1. Parses `promptText` via `parsePromptText(promptText)`.
 2. Validates that required parameters are present.
 3. **For `set` operation**: Validates that value is provided, then calls the `set` method.
 4. **For `get` operation**: Calls the `get` method and returns the result.
@@ -179,26 +190,23 @@ import { action } from './index.mjs';
 
 // Set a cache value with TTL
 const setResult = await action({
-  operation: 'set',
-  key: 'user_data',
-  value: { name: 'John', age: 25 },
-  ttl: 5000 // 5 seconds
+  promptText: 'operation: set\nkey: user_data\n' +
+    'value: {"name":"John","age":25}\n' +
+    'ttl: 5000'
 });
 
 console.log('Set result:', setResult);
 
 // Get a cache value (works even if module was reloaded)
 const getResult = await action({
-  operation: 'get',
-  key: 'user_data'
+  promptText: 'operation: get\nkey: user_data'
 });
 
 console.log('Get result:', getResult);
 
 // Check if key exists (works even if module was reloaded)
 const hasResult = await action({
-  operation: 'has',
-  key: 'user_data'
+  promptText: 'operation: has\nkey: user_data'
 });
 
 console.log('Has result:', hasResult);

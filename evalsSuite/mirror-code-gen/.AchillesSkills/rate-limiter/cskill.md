@@ -6,11 +6,11 @@ Implements rate limiting using the token bucket algorithm.
 This skill implements a token bucket rate limiter that controls the frequency of operations. It supports configurable token refill rates and burst limits. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format
-The skill is invoked via an `action` function that accepts a single object specifying the operation to be performed.
+The skill is invoked via an `action` function that accepts an object with a `promptText` string. The `promptText` must use `key: value` pairs, one per line.
 
-- **args** (Object): The container for the command.
-  - `operation` (string, mandatory): The operation to perform. Can be `setRate`, `consume`, or `getStatus`.
-  - `rate` (object, mandatory for setRate): The rate configuration.
+- **promptText** (string): Multi-line text containing `key: value` pairs.
+  - `operation` (string, mandatory): `setRate`, `consume`, or `getStatus`.
+  - `rate` (object, mandatory for setRate): JSON string for the rate object.
   - `tokens` (number, mandatory for consume): Number of tokens to consume.
 
 ## Output Format

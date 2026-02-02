@@ -43,17 +43,29 @@ The main exported function and public API for the CSV Parser skill. It acts as a
 
 ### Input
 - `args` (Object):
-  - `operation` (string): The operation to perform ('parse', 'transform', or 'parseAndTransform')
-  - `csvString` (string): The CSV data as a string (required for parse operations)
-  - `transformConfig` (object, optional): Transformation configuration (required for transform operations)
+  - `promptText` (string): Multi-line `key: value` pairs to be parsed using hardcoded regex.
+
+### Prompt Parsing (REQUIRED)
+Implement a `parsePromptText(promptText)` helper that extracts values using these exact regexes:
+
+- `operation`: `/^operation\s*:\s*(.+)$/mi`
+- `csvString`: `/^csvString\s*:\s*(.+)$/mi`
+- `transformConfig`: `/^transformConfig\s*:\s*(.+)$/mi`
+
+Rules:
+- Trim extracted values.
+- `csvString` uses literal `\n` sequences; convert them to actual newlines before parsing CSV.
+- `transformConfig` is optional and must be parsed with `JSON.parse` when present.
+- Throw a clear error when a required key is missing.
 
 ### Processing Logic
-1. **Input Validation**: Validates that required parameters are present
-2. **Operation Routing**:
+1. **Input Parsing**: Uses `parsePromptText(promptText)` to extract `operation`, `csvString`, `transformConfig`
+2. **Input Validation**: Validates that required parameters are present
+3. **Operation Routing**:
    - **parse**: Calls `csvParser.parse()` and returns parsed data
    - **transform**: Calls `csvParser.parse()` then `csvParser.transform()` and returns transformed data
    - **parseAndTransform**: Calls both parse and transform, returns both results
-3. **Error Handling**: Throws appropriate errors for invalid operations or missing parameters
+4. **Error Handling**: Throws appropriate errors for invalid operations or missing parameters
 
 ### Output
 - **parse**: `{ parsedData: [...] }` - Array of parsed objects
@@ -64,19 +76,15 @@ The main exported function and public API for the CSV Parser skill. It acts as a
 ```javascript
 // Parse CSV data
 const parseResult = await action({
-  operation: 'parse',
-  csvString: 'name,age\nJohn,25\nJane,30'
+  promptText: 'operation: parse\ncsvString: name,age\\nJohn,25\\nJane,30'
 });
 console.log('Parsed:', parseResult.parsedData);
 
 // Parse and transform CSV data
 const transformResult = await action({
-  operation: 'parseAndTransform',
-  csvString: 'name,age\nJohn,25\nJane,30',
-  transformConfig: {
-    fieldMappings: { name: 'fullName', age: 'userAge' },
-    filters: { userAge: { gt: 25 } }
-  }
+  promptText: 'operation: parseAndTransform\n' +
+    'csvString: name,age\\nJohn,25\\nJane,30\n' +
+    'transformConfig: {"fieldMappings":{"name":"fullName","age":"userAge"},"filters":{"userAge":{"gt":25}}}'
 });
 console.log('Transformed:', transformResult.transformedData);
 ```

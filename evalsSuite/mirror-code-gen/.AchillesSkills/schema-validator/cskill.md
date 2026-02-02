@@ -6,12 +6,12 @@ Validates JavaScript objects against defined schemas.
 This skill implements a simple schema validation system that checks if JavaScript objects conform to specified structures. It supports basic type validation, minimum/maximum constraints, and custom validation rules. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format
-The skill is invoked via an `action` function that accepts a single object specifying the operation to be performed.
+The skill is invoked via an `action` function that accepts an object with a `promptText` string. The `promptText` must use `key: value` pairs, one per line.
 
-- **args** (Object): The container for the command.
-  - `operation` (string, mandatory): The operation to perform. Currently only `validate` is supported.
-  - `data` (object, mandatory): The data to validate.
-  - `schema` (object, mandatory): The validation schema.
+- **promptText** (string): Multi-line text containing `key: value` pairs.
+  - `operation` (string, mandatory): `validate`.
+  - `data` (object, mandatory): JSON string for the data object.
+  - `schema` (object, mandatory): JSON string for the schema object.
 
 ## Output Format
 - **Type**: `object`
