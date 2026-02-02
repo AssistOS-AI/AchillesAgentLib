@@ -463,6 +463,7 @@ ${existingCodeForPrompt || 'No existing code files were available.'}
 - Compare current specs with previous specs when available, and focus changes on the parts that differ.
 - Preserve existing behavior and structure where specs are unchanged and the current code already works.
 - If the specs contain hardcoded values or exact literals, use them verbatim without modification.
+- Do not generate JSDoc-style comment blocks (e.g. /** ... */ with @param/@throws tags) unless explicitly required by the specs.
 - Your response **MUST** be a series of markdown blocks, one for each file.
 - For each file, you **MUST** use a header to specify the relative file path.
 - Do not add any other text, explanations, or apologies.
