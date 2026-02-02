@@ -158,9 +158,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         lines.push(`- tool: ${lastToolCall.tool}`);
         lines.push(`- prompt: ${lastToolCall.prompt}`);
         const lastResultRef = lastToolCall.resultRef;
-        const lastResultValue = toolVars.get(lastResultRef);
         lines.push(`- resultRef: ${lastResultRef}`);
-        lines.push(`- result: ${formatValue(lastResultValue)}`);
     }
 
     lines.push('');
