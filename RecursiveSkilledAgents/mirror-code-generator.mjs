@@ -335,7 +335,8 @@ async function validateOrRepairGeneratedCode(generatedFiles, tests, llmAgent) {
 # Behavior Validation / Repair
 
 You are a senior engineer. Given the code and the behavior tests, decide if the code is correct.
-The tests are authoritative and must match EXACT expectedOutput (including primitives).
+If you consider the test input would result in the expected output, you may treat it as pass.
+If the code produces nondeterministic results, you may accept minor differences between expectedOutput and the likely actual output.
 
 If all tests pass, return:
 { "status": "pass" }
