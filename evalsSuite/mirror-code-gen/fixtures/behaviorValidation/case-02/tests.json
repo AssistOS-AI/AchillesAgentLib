@@ -1,0 +1,12 @@
+[
+  {
+    "name": "length basic",
+    "promptText": "abcd",
+    "expectedOutput": 4
+  },
+  {
+    "name": "length empty",
+    "promptText": "",
+    "expectedOutput": 0
+  }
+]

@@ -194,6 +194,26 @@ function parseMultiFileMarkdown(markdown) {
 }
 
 /**
+ * Safely parse a JSON response from the LLM.
+ * @param {any} response
+ * @param {string} label
+ * @returns {object}
+ */
+function parseJsonResponse(response, label) {
+    if (response && typeof response === 'object') {
+        return response;
+    }
+    if (typeof response !== 'string') {
+        throw new Error(`${label} response is not JSON or string.`);
+    }
+    try {
+        return JSON.parse(response);
+    } catch (error) {
+        throw new Error(`${label} response could not be parsed as JSON: ${error.message}`);
+    }
+}
+
+/**
  * Convert spec relative path to target output path (without specs/ prefix and without .md/.mds).
  * @param {string} relativePath
  * @returns {string}
@@ -232,6 +252,127 @@ function normalizeGeneratedPath(relativePath, sourceName) {
         return null;
     }
     return normalized.replace(/\\/g, '/');
+}
+
+/**
+ * Build a multi-file text block for LLM prompts.
+ * @param {Map<string, string>} generatedFiles
+ * @returns {string}
+ */
+function buildGeneratedFilesBlock(generatedFiles) {
+    let output = '';
+    for (const [filePath, code] of generatedFiles.entries()) {
+        output += `\n\n## file-path: ${filePath}\n\n\`\`\`javascript\n${code}\n\`\`\``;
+    }
+    return output.trim();
+}
+
+/**
+ * Ask LLM to generate behavioral tests for the action(promptText) API.
+ * @param {string} specsForPrompt
+ * @param {string} existingCodeForPrompt
+ * @param {object} llmAgent
+ * @returns {Promise<Array<{name: string, promptText: string, expectedOutput: any}>>}
+ */
+async function generateBehaviorTests(specsForPrompt, existingCodeForPrompt, llmAgent) {
+    const prompt = `
+# Behavior Test Generation
+
+You are an expert test designer. Generate behavior tests for a skill's public API: action({ promptText }).
+Each test must include:
+- name (short string)
+- promptText (string; may be natural language or structured, no restrictions)
+- expectedOutput (exact JSON value the action should return; can be object, array, string, number, boolean, or null)
+
+The tests MUST be based on the specifications and MUST be valid inputs that should not throw.
+Do not generate edge cases.
+Expected outputs must be computed exactly according to the spec.
+The tests are NOT about file names or module structure; only runtime behavior.
+
+## Specifications
+${specsForPrompt}
+
+## Existing Code Context
+${existingCodeForPrompt || 'No existing code context provided.'}
+
+## Output Requirements
+Return STRICT JSON with the following shape and no extra keys:
+{
+  "tests": [
+    {
+      "name": "...",
+      "promptText": "...",
+      "expectedOutput": null
+    }
+  ]
+}
+Keep the test list small (4-8 tests).
+`;
+
+    const response = await llmAgent.executePrompt(prompt, {
+        mode: 'deep',
+        responseShape: 'json',
+        context: { intent: 'generate-behavior-tests' },
+    });
+
+    const parsed = parseJsonResponse(response, 'Behavior test generation');
+    if (!parsed || !Array.isArray(parsed.tests) || parsed.tests.length === 0) {
+        throw new Error('Behavior test generation returned no tests.');
+    }
+    return parsed.tests;
+}
+
+/**
+ * Validate generated code against behavior tests, optionally returning corrected code.
+ * @param {Map<string, string>} generatedFiles
+ * @param {Array<{name: string, promptText: string, expectedOutput: any}>} tests
+ * @param {object} llmAgent
+ * @returns {Promise<{status: 'pass'} | {status: 'fail', files: Array<{path: string, code: string}>}>}
+ */
+async function validateOrRepairGeneratedCode(generatedFiles, tests, llmAgent) {
+    const filesBlock = buildGeneratedFilesBlock(generatedFiles);
+    const prompt = `
+# Behavior Validation / Repair
+
+You are a senior engineer. Given the code and the behavior tests, decide if the code is correct.
+The tests are authoritative and must match EXACT expectedOutput (including primitives).
+
+If all tests pass, return:
+{ "status": "pass" }
+
+If any test would fail, return:
+{
+  "status": "fail",
+  "files": [
+    { "path": "relative/path.ext", "code": "..." }
+  ]
+}
+
+Do NOT include explanations. Only strict JSON.
+
+## Behavior Tests
+${JSON.stringify({ tests }, null, 2)}
+
+## Generated Code
+${filesBlock}
+`;
+
+    const response = await llmAgent.executePrompt(prompt, {
+        mode: 'deep',
+        responseShape: 'json',
+        context: { intent: 'validate-or-repair-generated-code' },
+    });
+
+    const parsed = parseJsonResponse(response, 'Behavior validation');
+    if (!parsed || (parsed.status !== 'pass' && parsed.status !== 'fail')) {
+        throw new Error('Behavior validation returned invalid status.');
+    }
+    if (parsed.status === 'fail') {
+        if (!Array.isArray(parsed.files) || parsed.files.length === 0) {
+            throw new Error('Behavior validation returned fail without files.');
+        }
+    }
+    return parsed;
 }
 
 /**
@@ -357,11 +498,33 @@ Provide the code for all files derived from the specifications.
 
         logger.log(`[generateMirrorCode] Parsed ${generatedFiles.size} files from LLM response for "${sourceName}".`);
 
+        const tests = await generateBehaviorTests(specsForPrompt, existingCodeForPrompt, llmAgent);
+        debugLogger?.log('generateMirrorCode:testsGenerated', { source: sourceName, count: tests.length });
+
+        const validation = await validateOrRepairGeneratedCode(generatedFiles, tests, llmAgent);
+        debugLogger?.log('generateMirrorCode:testsValidated', { source: sourceName, status: validation.status });
+
+        let finalGeneratedFiles = generatedFiles;
+        if (validation.status === 'fail') {
+            const repaired = new Map();
+            for (const file of validation.files) {
+                if (!file?.path || typeof file.code !== 'string') {
+                    continue;
+                }
+                repaired.set(file.path, file.code);
+            }
+            if (repaired.size === 0) {
+                throw new Error('Behavior validation did not return any valid files to write.');
+            }
+            finalGeneratedFiles = repaired;
+            logger.warn(`[generateMirrorCode] Behavior validation failed; writing repaired code for "${sourceName}".`);
+        }
+
         // Track generated file paths for return value
         const generatedFilePaths = [];
 
         // Write generated files directly into source root, respecting target paths
-        for (const [rawRelativePath, code] of generatedFiles.entries()) {
+        for (const [rawRelativePath, code] of finalGeneratedFiles.entries()) {
             const normalizedRelPath = normalizeGeneratedPath(rawRelativePath, sourceName);
             if (!normalizedRelPath) {
                 logger.warn(`[generateMirrorCode] Skipping invalid path "${rawRelativePath}" for "${sourceName}".`);
@@ -387,3 +550,5 @@ Provide the code for all files derived from the specifications.
         throw error;
     }
 }
+
+export { generateBehaviorTests, validateOrRepairGeneratedCode };
