@@ -45,7 +45,6 @@ async function evalCodeGenerationPerformance() {
 
   // Helper to clean up generated files after testing (always removes targets)
   async function cleanupGeneratedFiles(skillName) {
-    return;
     const specsDir = path.resolve(__dirname, '.AchillesSkills', skillName, 'specs');
     const skillDir = path.resolve(__dirname, '.AchillesSkills', skillName);
 

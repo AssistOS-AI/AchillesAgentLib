@@ -69,6 +69,66 @@ async function findSpecFiles(baseDir, currentDir = '') {
 }
 
 /**
+ * Recursively finds all files in a directory, excluding specs/ and .md files.
+ * @param {string} baseDir - The base directory to start searching from.
+ * @param {string} [currentDir=''] - The current subdirectory, used for recursion.
+ * @returns {Promise<Array<{relativePath: string, absolutePath: string}>>} A list of files with their paths.
+ */
+async function findExistingCodeFiles(baseDir, currentDir = '') {
+    const entries = await fs.readdir(path.join(baseDir, currentDir), { withFileTypes: true });
+    let files = [];
+    for (const entry of entries) {
+        const relativePath = path.join(currentDir, entry.name);
+        const normalizedRelPath = relativePath.replace(/\\/g, '/');
+        if (entry.isDirectory()) {
+            if (normalizedRelPath === 'specs' || normalizedRelPath.startsWith('specs/')) {
+                continue;
+            }
+            files = files.concat(await findExistingCodeFiles(baseDir, relativePath));
+        } else if (!entry.name.endsWith('.md') && !entry.name.endsWith('.mds')) {
+            files.push({
+                relativePath,
+                absolutePath: path.join(baseDir, relativePath),
+            });
+        }
+    }
+    return files;
+}
+
+/**
+ * Copy specs directory to specs/.backup, excluding the backup itself.
+ * @param {string} specsDir - The specs directory path.
+ * @returns {Promise<void>}
+ */
+async function backupSpecsDirectory(specsDir) {
+    const backupDir = path.join(specsDir, '.backup');
+    await fs.rm(backupDir, { recursive: true, force: true });
+    await fs.mkdir(backupDir, { recursive: true });
+
+    async function copyDir(sourceDir, targetDir, currentDir = '') {
+        const entries = await fs.readdir(path.join(sourceDir, currentDir), { withFileTypes: true });
+        for (const entry of entries) {
+            const relativePath = path.join(currentDir, entry.name);
+            const normalizedRelPath = relativePath.replace(/\\/g, '/');
+            if (normalizedRelPath === '.backup' || normalizedRelPath.startsWith('.backup/')) {
+                continue;
+            }
+            const sourcePath = path.join(sourceDir, relativePath);
+            const targetPath = path.join(targetDir, relativePath);
+            if (entry.isDirectory()) {
+                await fs.mkdir(targetPath, { recursive: true });
+                await copyDir(sourceDir, targetDir, relativePath);
+            } else {
+                await fs.mkdir(path.dirname(targetPath), { recursive: true });
+                await fs.copyFile(sourcePath, targetPath);
+            }
+        }
+    }
+
+    await copyDir(specsDir, backupDir);
+}
+
+/**
  * Get the newest modification time among spec files.
  * @param {string} dir - Specs directory path.
  * @returns {Promise<number>} Newest mtime or 0 if none.
@@ -184,6 +244,7 @@ function normalizeGeneratedPath(relativePath, sourceName) {
 export async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
     const debugLogger = getDebugLogger();
     const specsDir = path.join(sourcePath, 'specs');
+    const backupSpecsDir = path.join(specsDir, '.backup');
     const sourceName = path.basename(sourcePath);
 
     try {
@@ -214,12 +275,32 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
 
         debugLogger?.log('generateMirrorCode:start', { skill: sourceName, reason: 'Source is missing or outdated.' });
 
-        // Build prompt from specs only
+        // Build prompt from specs and existing code context
         let specsForPrompt = '';
         for (const specFile of specFiles) {
             const content = await fs.readFile(specFile.absolutePath, 'utf-8');
             const targetPath = specPathToTarget(specFile.relativePath);
             specsForPrompt += `\n\n---\n# Spec for: ${targetPath}\n\n${content}`;
+        }
+
+        let backupSpecsForPrompt = '';
+        const backupSpecsExists = await fs.stat(backupSpecsDir).then(stat => stat.isDirectory()).catch(() => false);
+        if (backupSpecsExists) {
+            const backupSpecFiles = await findSpecFiles(backupSpecsDir);
+            for (const specFile of backupSpecFiles) {
+                const content = await fs.readFile(specFile.absolutePath, 'utf-8');
+                const relativeFromBackup = path.relative(backupSpecsDir, specFile.absolutePath);
+                const targetPath = specPathToTarget(relativeFromBackup);
+                backupSpecsForPrompt += `\n\n---\n# Previous spec for: ${targetPath}\n\n${content}`;
+            }
+        }
+
+        let existingCodeForPrompt = '';
+        const existingCodeFiles = await findExistingCodeFiles(sourcePath);
+        for (const file of existingCodeFiles) {
+            const content = await fs.readFile(file.absolutePath, 'utf-8');
+            const normalizedRelPath = file.relativePath.replace(/\\/g, '/');
+            existingCodeForPrompt += `\n\n---\n# Existing code: ${normalizedRelPath}\n\n${content}`;
         }
 
         const prompt = `
@@ -230,8 +311,16 @@ You are an expert JavaScript programmer. Generate the full source code for multi
 ## Module Specifications
 ${specsForPrompt}
 
+## Previous Specifications (from specs/.backup)
+${backupSpecsForPrompt || 'No previous specs were available.'}
+
+## Existing Code Context
+${existingCodeForPrompt || 'No existing code files were available.'}
+
 ## INSTRUCTIONS
 - Use the exact relative file paths implied by the specs (no extra prefixes like the source directory name).
+- Compare current specs with previous specs when available, and focus changes on the parts that differ.
+- Preserve existing behavior and structure where specs are unchanged and the current code already works.
 - Your response **MUST** be a series of markdown blocks, one for each file.
 - For each file, you **MUST** use a header to specify the relative file path.
 - Do not add any other text, explanations, or apologies.
@@ -284,6 +373,9 @@ Provide the code for all files derived from the specifications.
             debugLogger?.log('generateMirrorCode:wroteFile', { source: sourceName, path: outputPath });
             generatedFilePaths.push(normalizedRelPath);
         }
+
+        await backupSpecsDirectory(specsDir);
+        debugLogger?.log('generateMirrorCode:backupSpecs', { source: sourceName, path: backupSpecsDir });
 
         logger.log(`[generateMirrorCode] Successfully generated all ${generatedFiles.size} files for "${sourceName}".`);
 
