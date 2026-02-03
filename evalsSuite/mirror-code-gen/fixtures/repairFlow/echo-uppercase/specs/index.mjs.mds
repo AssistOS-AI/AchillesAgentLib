@@ -1,0 +1,16 @@
+# Echo Uppercase
+
+The action API accepts a promptText string and returns the same string in uppercase.
+
+## Input
+- promptText: any string.
+
+## Output
+- The uppercase version of promptText, unchanged otherwise.
+
+## Constraints
+- Preserve non-letter characters.
+- Do not trim or normalize whitespace.
+
+## Behavior
+- If promptText is an empty string, return an empty string.

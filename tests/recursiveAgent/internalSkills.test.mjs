@@ -50,7 +50,7 @@ test('internal skills', async (t) => {
         assert.ok(skillRecord, 'mirror-code-generator should be registered');
         assert.equal(skillRecord.type, 'orchestrator', 'should be registered as orchestrator type');
         assert.ok(skillRecord.metadata?.modulePath, 'should have modulePath in metadata');
-        assert.ok(skillRecord.metadata.modulePath.includes('mirror-code-generator.mjs'), 'modulePath should point to mirror-code-generator.mjs');
+        assert.ok(skillRecord.metadata.modulePath.includes('mirror-code-generator/index.mjs'), 'modulePath should point to mirror-code-generator/index.mjs');
     });
 
     await t.test('mirror-code-generator is NOT registered when exposeInternalSkills is false', async () => {

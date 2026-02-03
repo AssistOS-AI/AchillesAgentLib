@@ -1,0 +1,14 @@
+# Repeat Text
+
+The action API accepts a promptText string formatted as "text|count".
+Return the text repeated count times, concatenated without separators.
+
+## Input
+- promptText: string like "ha|3".
+
+## Output
+- The repeated string.
+
+## Constraints
+- Count is a non-negative integer.
+- If count is 0, return an empty string.

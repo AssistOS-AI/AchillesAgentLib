@@ -1,0 +1,16 @@
+{
+  "tests": [
+    {
+      "promptText": "hello",
+      "expectedOutput": "HELLO"
+    },
+    {
+      "promptText": "MixedCase",
+      "expectedOutput": "MIXEDCASE"
+    },
+    {
+      "promptText": "123abc",
+      "expectedOutput": "123ABC"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
 import { ConversationalTskillController } from './ConversationalTskillController.mjs';
 import { tskillToSpecs } from './tskillToSpecs.mjs';
-import { generateMirrorCode } from '../RecursiveSkilledAgents/mirror-code-generator.mjs';
+import { generateMirrorCode } from '../RecursiveSkilledAgents/mirror-code-generator/index.mjs';
 
 /**
  * Generate code using spec-based flow via mirror-code-generator.

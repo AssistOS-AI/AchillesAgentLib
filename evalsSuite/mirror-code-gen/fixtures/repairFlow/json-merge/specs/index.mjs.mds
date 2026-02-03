@@ -1,0 +1,14 @@
+# JSON Merge
+
+The action API accepts a promptText string formatted as "<json1>||<json2>".
+Parse both JSON objects and return a merged object where keys from json2 override json1.
+
+## Input
+- promptText: JSON object strings separated by "||".
+
+## Output
+- The merged object.
+
+## Constraints
+- Only plain JSON objects are expected (no arrays).
+- When keys overlap, json2 wins.

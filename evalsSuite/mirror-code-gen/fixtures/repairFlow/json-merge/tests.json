@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "promptText": "{\"a\":1}||{\"b\":2}",
+      "expectedOutput": {
+        "a": 1,
+        "b": 2
+      }
+    },
+    {
+      "promptText": "{\"a\":1,\"b\":2}||{\"b\":5}",
+      "expectedOutput": {
+        "a": 1,
+        "b": 5
+      }
+    },
+    {
+      "promptText": "{}||{\"x\":9}",
+      "expectedOutput": {
+        "x": 9
+      }
+    }
+  ]
+}
