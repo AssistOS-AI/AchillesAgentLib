@@ -56,6 +56,10 @@ async function findSpecFiles(baseDir, currentDir = '') {
     let files = [];
     for (const entry of entries) {
         const relativePath = path.join(currentDir, entry.name);
+        const normalizedRelPath = relativePath.replace(/\\/g, '/');
+        if (normalizedRelPath === '.backup' || normalizedRelPath.startsWith('.backup/')) {
+            continue;
+        }
         if (entry.isDirectory()) {
             files = files.concat(await findSpecFiles(baseDir, relativePath));
         } else if (entry.name.endsWith('.md') || entry.name.endsWith('.mds')) {
