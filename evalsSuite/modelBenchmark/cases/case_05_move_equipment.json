@@ -1,0 +1,9 @@
+{
+    "id": "case_05",
+    "description": "Move equipment from one location to another (update area)",
+    "difficulty": "medium",
+    "prompt": "Move equipment CRL0042 from warehouse to the Smith Construction job site",
+    "expected": {
+        "equipment": "update equipment CRL0042: area=Smith Construction job site"
+    }
+}

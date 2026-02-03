@@ -1,0 +1,9 @@
+{
+    "id": "case_23",
+    "description": "Quarantine equipment for inspection",
+    "difficulty": "medium",
+    "prompt": "Put the laser level CRL0167 in quarantine, it needs recalibration",
+    "expected": {
+        "equipment": "update equipment CRL0167: status=Quarantined"
+    }
+}

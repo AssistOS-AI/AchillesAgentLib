@@ -1,0 +1,9 @@
+{
+    "id": "case_15",
+    "description": "Return equipment from job to warehouse",
+    "difficulty": "medium",
+    "prompt": "Return CRL0078 and CRL0079 from the Henderson site back to the main warehouse",
+    "expected": {
+        "equipment": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null"
+    }
+}

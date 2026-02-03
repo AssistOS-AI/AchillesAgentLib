@@ -1,0 +1,9 @@
+{
+    "id": "case_14",
+    "description": "Complex query: equipment expiring soon in specific category",
+    "difficulty": "hard",
+    "prompt": "Show me all calibrated test equipment expiring in the next 30 days",
+    "expected": {
+        "equipment": "list equipment where verification_type=CALIBRATED and expires_on within 30 days"
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "id": "case_22",
+    "description": "Cancel a pending job",
+    "difficulty": "medium",
+    "prompt": "Cancel job 201-0005, the client changed their mind",
+    "expected": {
+        "job": "update job 201-0005: status=Cancelled"
+    }
+}

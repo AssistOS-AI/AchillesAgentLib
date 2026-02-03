@@ -52,5 +52,7 @@ export async function callLLM(chatContext, options) {
     if (data.error) {
         throw new Error(JSON.stringify(data.error));
     }
-    return data.content?.[0]?.text;
+    // Find the text content block - some models return thinking blocks first
+    const textContent = data.content?.find(c => c.type === 'text');
+    return textContent?.text ?? data.content?.[0]?.text;
 }

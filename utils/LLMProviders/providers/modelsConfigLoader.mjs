@@ -89,6 +89,20 @@ export function normalizeConfig(rawConfig, options = {}) {
         }
     }
 
+    // Parse and validate priority arrays
+    const fastModelPriority = normalizeModelPriorityArray(
+        rawConfig?.fastModelPriority,
+        models,
+        'fast',
+        issues,
+    );
+    const deepModelPriority = normalizeModelPriorityArray(
+        rawConfig?.deepModelPriority,
+        models,
+        'deep',
+        issues,
+    );
+
     return {
         providers,
         models,
@@ -96,8 +110,34 @@ export function normalizeConfig(rawConfig, options = {}) {
         issues,
         raw: rawConfig,
         orderedModels: orderedModelNames,
+        fastModelPriority,
+        deepModelPriority,
         ...validatedDefaults,
     };
+}
+
+function normalizeModelPriorityArray(rawPriority, models, expectedMode, issues) {
+    if (!Array.isArray(rawPriority) || rawPriority.length === 0) {
+        return null;
+    }
+
+    const validated = [];
+    for (const modelName of rawPriority) {
+        if (typeof modelName !== 'string' || !modelName.trim()) {
+            continue;
+        }
+        const trimmed = modelName.trim();
+        const model = models.get(trimmed);
+        if (!model) {
+            issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority is not defined.`);
+            continue;
+        }
+        if (model.mode !== expectedMode) {
+            issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority has mode "${model.mode}" instead of "${expectedMode}".`);
+        }
+        validated.push(trimmed);
+    }
+    return validated.length > 0 ? validated : null;
 }
 
 function normalizeProvider(providerKey, entry, issues, options) {

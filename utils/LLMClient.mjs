@@ -84,6 +84,8 @@ function buildModelCaches() {
     const enabledDeepModels = resolveEnabledSet('deep');
     const defaultFastModel = modelsConfiguration.defaultFastModel || null;
     const defaultDeepModel = modelsConfiguration.defaultDeepModel || null;
+    const fastModelPriority = modelsConfiguration.fastModelPriority || null;
+    const deepModelPriority = modelsConfiguration.deepModelPriority || null;
 
     const orderedNames = Array.isArray(modelsConfiguration.orderedModels) && modelsConfiguration.orderedModels.length
         ? modelsConfiguration.orderedModels
@@ -117,6 +119,43 @@ function buildModelCaches() {
         }
     }
 
+    // Apply priority ordering if specified in config
+    const applyPriorityOrder = (list, priorityList) => {
+        if (!priorityList || !priorityList.length) {
+            return;
+        }
+        // Filter priority list to only include models that are in the list and have API keys
+        const validPriority = priorityList.filter(name => {
+            if (!list.includes(name)) return false;
+            const record = recordMap.get(name);
+            if (!record) return false;
+            // Check if API key is available
+            const apiKeyEnv = record.apiKeyEnv;
+            return !apiKeyEnv || process.env[apiKeyEnv];
+        });
+        
+        if (!validPriority.length) return;
+
+        // Remove priority models from original positions
+        for (const name of validPriority) {
+            const idx = list.indexOf(name);
+            if (idx > -1) {
+                list.splice(idx, 1);
+            }
+        }
+        // Add them at the front in priority order
+        list.unshift(...validPriority);
+    };
+
+    // Apply explicit priority arrays from config (takes precedence)
+    if (!enabledFastModels && fastModelPriority) {
+        applyPriorityOrder(fast, fastModelPriority);
+    }
+    if (!enabledDeepModels && deepModelPriority) {
+        applyPriorityOrder(deep, deepModelPriority);
+    }
+
+    // Legacy: prioritize default model if no priority array is set
     const prioritizeDefault = (list, preferred) => {
         const idx = list.indexOf(preferred);
         if (idx > 0) {
@@ -125,14 +164,14 @@ function buildModelCaches() {
         }
     };
 
-    if (!enabledFastModels && defaultFastModel && recordMap.has(defaultFastModel)) {
+    if (!enabledFastModels && !fastModelPriority && defaultFastModel && recordMap.has(defaultFastModel)) {
         const record = recordMap.get(defaultFastModel);
         if (record.mode === 'fast') {
             prioritizeDefault(fast, defaultFastModel);
         }
     }
 
-    if (!enabledDeepModels && defaultDeepModel && recordMap.has(defaultDeepModel)) {
+    if (!enabledDeepModels && !deepModelPriority && defaultDeepModel && recordMap.has(defaultDeepModel)) {
         const record = recordMap.get(defaultDeepModel);
         if (record.mode === 'deep') {
             prioritizeDefault(deep, defaultDeepModel);

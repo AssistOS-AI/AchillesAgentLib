@@ -1,0 +1,9 @@
+{
+    "id": "case_25",
+    "description": "Bulk update equipment status after inspection",
+    "difficulty": "hard",
+    "prompt": "Mark CRL0301, CRL0302, CRL0303, and CRL0304 as inspected, all passed PAT testing today",
+    "expected": {
+        "equipment": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval"
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "id": "case_11",
+    "description": "Update equipment status to faulty",
+    "difficulty": "medium",
+    "prompt": "The Bosch angle grinder CRL0156 has a broken guard, mark it as faulty",
+    "expected": {
+        "equipment": "update equipment CRL0156: status=Faulty"
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "id": "case_06",
+    "description": "Use field alias 'asset id' instead of 'equipment_id'",
+    "difficulty": "medium",
+    "prompt": "What's the status of asset id CRL0089?",
+    "expected": {
+        "equipment": "query equipment where equipment_id=CRL0089, return status"
+    }
+}

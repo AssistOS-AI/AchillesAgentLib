@@ -1,0 +1,9 @@
+{
+    "id": "case_01",
+    "description": "Add equipment with detailed specifications including PAT test, location, and expiry",
+    "difficulty": "medium",
+    "prompt": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months",
+    "expected": {
+        "equipment": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now"
+    }
+}

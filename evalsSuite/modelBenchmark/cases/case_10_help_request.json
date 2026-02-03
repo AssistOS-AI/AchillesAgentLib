@@ -1,0 +1,9 @@
+{
+    "id": "case_10",
+    "description": "User asks for help",
+    "difficulty": "easy",
+    "prompt": "What can I do with this system? Help me understand the available commands",
+    "expected": {
+        "show-help": "display help information about available commands"
+    }
+}

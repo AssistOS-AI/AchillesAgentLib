@@ -1,0 +1,9 @@
+{
+    "id": "case_02",
+    "description": "Query equipment with status and date filters",
+    "difficulty": "medium",
+    "prompt": "Show me all quarantined equipment that's overdue for inspection",
+    "expected": {
+        "equipment": "list equipment where status=Quarantined and expires_on is past due"
+    }
+}
