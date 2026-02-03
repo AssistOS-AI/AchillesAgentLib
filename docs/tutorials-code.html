@@ -188,7 +188,7 @@ console.log('Result:', result.result);
                  <strong>Automatic Preparation and Execution</strong>:
                  <ul>
                      <li>The <code>RecursiveSkilledAgent</code> automatically discovers skills in <code>.AchillesSkills</code> directories</li>
-                     <li>When it finds a <code>cskill.md</code>, it automatically invokes the shared <strong>mirror-code-generator</strong> (<code>generateMirrorCode</code>)</li>
+                     <li>When it finds a <code>cskill.md</code>, it automatically invokes the shared <a href="mirror-code-generator.html"><strong>mirror-code-generator</strong></a> (<code>generateMirrorCode</code>)</li>
                      <li>The generator compares the newest spec file against the oldest expected target (mirroring <code>specs/</code> paths); missing targets always trigger regeneration</li>
                      <li>Code is generated via a <strong>single-step LLM call</strong> combining all specs; <code>cskill.md</code> sections are not required for the prompt</li>
                      <li>Generated files are written directly under the skill directory matching <code>specs/</code> relative paths (no <code>src/</code> folder)</li>

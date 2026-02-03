@@ -115,7 +115,8 @@
             <h3 id="code-skills-handling">Code Skills Handling</h3>
             <p>
                 When <code>RecursiveSkilledAgent</code> discovers a code skill (<code>cskill.md</code>), it automatically invokes
-                code generation through the shared <code>mirror-code-generator.mjs</code> helper (exported as <code>generateMirrorCode</code>):
+                code generation through the shared <a href="mirror-code-generator.html">mirror code generator</a>
+                (exported as <code>generateMirrorCode</code>):
             </p>
             <ol>
                 <li><strong>Detection</strong>: During skill registration, detects <code>skillRecord.type === 'cskill'</code></li>
@@ -133,7 +134,7 @@
                 <li><strong>Additional preparation</strong>: After code generation, calls <code>subsystem.prepareSkill()</code> for any subsystem-specific setup.</li>
             </ol>
             <p>
-                This design keeps code generation centralized in <code>mirror-code-generator.mjs</code> while allowing the agent to handle discovery and invocation automatically.
+                This design keeps code generation centralized in the <a href="mirror-code-generator.html">mirror code generator</a> while allowing the agent to handle discovery and invocation automatically.
             </p>
 
             <h3>Review Modes</h3>
@@ -146,7 +147,7 @@
             <h3>Internal Skills</h3>
             <p>
                 When <code>exposeInternalSkills: true</code> is set, the agent registers built-in helper skills 
-                (such as <code>mirror-code-generator</code>) for direct invocation. These internal skills are 
+                (such as <a href="mirror-code-generator.html"><code>mirror-code-generator</code></a>) for direct invocation. These internal skills are 
                 implemented as orchestrator module skills and can be called via <code>executeWithReviewMode()</code>
                 with an explicit <code>skillName</code>.
             </p>

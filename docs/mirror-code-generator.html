@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mirror Code Generator · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Mirror Code Generator"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Mirror Code Generator</h1>
+            <p>
+                The mirror code generator is the shared, internal utility that transforms <code>specs/</code> markdown
+                files into executable modules for code skills. It performs regeneration only when specs are newer than
+                their target outputs and validates outputs through test generation, execution, and targeted repairs.
+            </p>
+        </section>
+
+        <section>
+            <h2>Regeneration Preconditions</h2>
+            <p>
+                The generator runs only when a skill directory contains a <code>specs/</code> folder with at least one
+                <code>.md</code> or <code>.mds</code> file. Each spec file maps directly to a target output path by
+                removing the <code>specs/</code> prefix and the <code>.md</code> / <code>.mds</code> extension. A file is
+                regenerated when the spec modification time is newer than the corresponding output file, or the output
+                is missing.
+            </p>
+            <pre><code>specs/index.mjs.mds  ->  index.mjs
+specs/utils/foo.mjs.md  ->  utils/foo.mjs</code></pre>
+        </section>
+
+        <section>
+            <h2>Per-File Generation Workflow</h2>
+            <p>
+                For each spec file that requires regeneration, the generator performs a single-file LLM generation step,
+                then validates the resulting code. Validation behavior depends on whether the spec includes a
+                <code>#Validation</code> or <code>#Testing</code> section.
+            </p>
+
+            <h3>LLM Inputs for Code Generation</h3>
+            <p>The code generation prompt is built from three sources:</p>
+            <ul>
+                <li>Current spec content (the authoritative requirements).</li>
+                <li>Backup spec content from <code>specs/.backup</code>, when present (for diff-aware updates).</li>
+                <li>Existing code file content, when present (for incremental changes).</li>
+            </ul>
+
+            <h3>Case A: Spec contains <code>#Validation</code> or <code>#Testing</code></h3>
+            <p>
+                The generator derives positive test cases strictly from the testing section, then executes the
+                generated code in a temporary runtime. Failures trigger a targeted repair pass. The repaired
+                code is re-tested once; remaining failures only emit warnings and do not block writing outputs.
+            </p>
+            <ol>
+                <li>Generate code with the LLM (inputs listed above).</li>
+                <li>
+                    Generate positive tests using:
+                    <ul>
+                        <li>Testing section content.</li>
+                        <li>The newly generated code.</li>
+                    </ul>
+                </li>
+                <li>Execute tests in <code>/tmp</code> with the generated code.</li>
+                <li>
+                    If tests fail, repair using:
+                    <ul>
+                        <li>Current spec content.</li>
+                        <li>Backup spec content (when present).</li>
+                        <li>Generated code (not the on-disk code).</li>
+                        <li>Failure details (promptText, expectedOutput, actual).</li>
+                    </ul>
+                </li>
+                <li>Re-run tests once. Log warnings if failures remain.</li>
+            </ol>
+
+            <h3>Case B: Spec does not contain <code>#Validation</code> or <code>#Testing</code></h3>
+            <p>
+                The generator asks the LLM to review whether the generated code would pass positive tests derived from
+                the spec and the generated code. A failing review triggers a repair, after which the code is written to disk.
+            </p>
+            <ol>
+                <li>Generate code with the LLM (inputs listed above).</li>
+                <li>
+                    Generate positive tests using:
+                    <ul>
+                        <li>The full spec content.</li>
+                        <li>The newly generated code.</li>
+                    </ul>
+                </li>
+                <li>
+                    Ask the LLM to review pass/fail using:
+                    <ul>
+                        <li>Generated code.</li>
+                        <li>Generated tests.</li>
+                        <li>Target file path.</li>
+                    </ul>
+                </li>
+                <li>
+                    If the review fails, repair using:
+                    <ul>
+                        <li>Current spec content.</li>
+                        <li>Backup spec content (when present).</li>
+                        <li>Generated code (not the on-disk code).</li>
+                        <li>Failure details (promptText, expectedOutput, reason).</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Output and Backup Behavior</h2>
+            <p>
+                Generated output files are written into the skill directory, mirroring the <code>specs/</code> tree.
+                After all files are processed, the generator replaces <code>specs/.backup</code> with the current
+                <code>specs/</code> directory contents.
+            </p>
+        </section>
+
+        <section>
+            <h2>Flow Diagram (ASCII)</h2>
+            <pre><code>Start
+  |
+  v
+Specs folder exists?
+  |-- No --> Stop
+  |
+  v
+Specs newer than outputs?
+  |-- No --> Stop
+  |
+  v
+For each stale spec
+  |
+  v
+Generate code (spec + backup spec + existing code)
+  |
+  v
+Has #Validation/#Testing?
+  |-- Yes --> Generate positive tests (section + generated code)
+  |           Run tests in /tmp
+  |           Failures? -> Repair (spec + backup + generated code + failures)
+  |                     -> Rerun -> Warn if still failing
+  |
+  |-- No --> Generate positive tests (spec + generated code)
+              Review with LLM (tests + generated code + path)
+              Fail? -> Repair (spec + backup + generated code + failures)
+  |
+  v
+Write generated code to skill directory
+  |
+  v
+Replace specs/.backup
+  |
+  v
+Done</code></pre>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>
