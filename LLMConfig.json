@@ -38,9 +38,14 @@
             "module": "./utils/LLMProviders/providers/openai.mjs"
         },
         "kiro": {
-            "baseURL": "http://localhost:8000/v1/chat/completions",
-            "apiKeyEnv": "PROXY_API_KEY",
+            "baseURL": "https://kiro.axiologic.dev/v1/chat/completions",
+            "apiKeyEnv": "KIRO_API_KEY",
             "module": "./utils/LLMProviders/providers/openai.mjs"
+        },
+        "antigravity": {
+            "baseURL": "https://antigravity.axiologic.dev/v1/messages",
+            "apiKeyEnv": "ANTIGRAVITY_API_KEY",
+            "module": "./utils/LLMProviders/providers/anthropic.mjs"
         }
     },
     "models": [
@@ -325,6 +330,14 @@
             "context": "256k"
         },
         {
+            "name": "auto-kiro",
+            "provider": "kiro",
+            "mode": "deep",
+            "inputPrice": 3,
+            "outputPrice": 15,
+            "context": "200k"
+        },
+        {
             "name": "claude-sonnet-4.5",
             "provider": "kiro",
             "mode": "deep",
@@ -355,6 +368,94 @@
             "inputPrice": 1,
             "outputPrice": 5,
             "context": "200k"
+        },
+        {
+            "name": "gemini-2.5-pro",
+            "provider": "antigravity",
+            "mode": "deep",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "1mill"
+        },
+        {
+            "name": "gemini-2.5-flash",
+            "provider": "antigravity",
+            "mode": "fast",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "1mill"
+        },
+        {
+            "name": "gemini-2.5-flash-lite",
+            "provider": "antigravity",
+            "mode": "fast",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "1mill"
+        },
+        {
+            "name": "gemini-2.5-flash-thinking",
+            "provider": "antigravity",
+            "mode": "deep",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "1mill"
+        },
+        {
+            "name": "gemini-3-flash",
+            "provider": "antigravity",
+            "mode": "fast",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "1mill"
+        },
+        {
+            "name": "gemini-3-pro-low",
+            "provider": "antigravity",
+            "mode": "deep",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "1mill"
+        },
+        {
+            "name": "gemini-3-pro-high",
+            "provider": "antigravity",
+            "mode": "deep",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "1mill"
+        },
+        {
+            "name": "gemini-3-pro-image",
+            "provider": "antigravity",
+            "mode": "deep",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "1mill"
+        },
+        {
+            "name": "claude-sonnet-4-5",
+            "provider": "antigravity",
+            "mode": "deep",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "128k"
+        },
+        {
+            "name": "claude-sonnet-4-5-thinking",
+            "provider": "antigravity",
+            "mode": "deep",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "128k"
+        },
+        {
+            "name": "claude-opus-4-5-thinking",
+            "provider": "antigravity",
+            "mode": "deep",
+            "inputPrice": 0,
+            "outputPrice": 0,
+            "context": "128k"
         }
     ]
 }
