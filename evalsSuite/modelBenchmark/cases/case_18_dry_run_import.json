@@ -1,0 +1,9 @@
+{
+    "id": "case_18",
+    "description": "Import with dry run mode",
+    "difficulty": "medium",
+    "prompt": "Preview what would be imported from inventory.csv without actually importing",
+    "expected": {
+        "import": "import from inventory.csv with dryRun=true"
+    }
+}

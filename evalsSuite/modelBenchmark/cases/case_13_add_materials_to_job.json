@@ -1,0 +1,9 @@
+{
+    "id": "case_13",
+    "description": "Add consumable materials to a job",
+    "difficulty": "hard",
+    "prompt": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045",
+    "expected": {
+        "material": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters"
+    }
+}

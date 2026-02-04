@@ -1,0 +1,10 @@
+{
+    "id": "case_08",
+    "description": "Multi-skill operation: create job AND allocate equipment",
+    "difficulty": "hard",
+    "prompt": "Set up job 245-0012 for Acme Corp and allocate drills CRL0101 and CRL0102 to it",
+    "expected": {
+        "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+        "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+    }
+}

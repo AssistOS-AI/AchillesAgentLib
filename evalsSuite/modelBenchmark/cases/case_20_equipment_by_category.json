@@ -1,0 +1,9 @@
+{
+    "id": "case_20",
+    "description": "Query equipment by generic category name",
+    "difficulty": "medium",
+    "prompt": "How many jigsaws do we have in stock?",
+    "expected": {
+        "equipment": "count equipment where generic_name=JIGSAW and status=Available"
+    }
+}

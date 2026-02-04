@@ -1,0 +1,9 @@
+{
+    "id": "case_04",
+    "description": "Import data from Excel file",
+    "difficulty": "easy",
+    "prompt": "Import equipment from the Excel file in shared folder",
+    "expected": {
+        "import": "import equipment from Excel file in shared folder"
+    }
+}

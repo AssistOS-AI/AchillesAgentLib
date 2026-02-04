@@ -1,0 +1,9 @@
+{
+    "id": "case_12",
+    "description": "Create a new storage area",
+    "difficulty": "medium",
+    "prompt": "Add a new van called VAN-003 to the system, location type is Van",
+    "expected": {
+        "area": "create area: name=VAN-003, location_type=Van"
+    }
+}

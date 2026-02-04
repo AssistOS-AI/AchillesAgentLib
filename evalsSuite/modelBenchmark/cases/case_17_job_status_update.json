@@ -1,0 +1,9 @@
+{
+    "id": "case_17",
+    "description": "Update job status",
+    "difficulty": "medium",
+    "prompt": "Mark job 199-0023 as completed, the client signed off today",
+    "expected": {
+        "job": "update job 199-0023: status=Completed"
+    }
+}

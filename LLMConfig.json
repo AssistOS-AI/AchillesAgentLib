@@ -1,6 +1,20 @@
 {
-    "defaultFastModel": "gpt-5-mini",
-    "defaultDeepModel": "gpt-5.1",
+    "defaultFastModel": "gemini-2.5-flash-lite",
+    "defaultDeepModel": "gpt-5.2-codex",
+    "fastModelPriority": [
+        "gemini-2.5-flash-lite",
+        "o4-mini",
+        "gpt-4.1-nano",
+        "gpt-4.1-mini",
+        "claude-haiku-4.5"
+    ],
+    "deepModelPriority": [
+        "claude-opus-4-5-thinking",
+        "gpt-5.2-codex",
+        "gpt-5.2",
+        "gemini-3-pro-high",
+        "gemini-3-pro-low"
+    ],
     "providers": {
         "openai": {
             "baseURL": "https://api.openai.com/v1/chat/completions",
@@ -136,6 +150,22 @@
             "inputPrice": 1.25,
             "outputPrice": 10,
             "context": "400k"
+        },
+        {
+            "name": "gpt-5.2",
+            "provider": "openai",
+            "mode": "deep",
+            "inputPrice": 1.5,
+            "outputPrice": 12,
+            "context": "500k"
+        },
+        {
+            "name": "gpt-5.2-codex",
+            "provider": "openai",
+            "mode": "deep",
+            "inputPrice": 2,
+            "outputPrice": 15,
+            "context": "500k"
         },
         {
             "name": "o1",

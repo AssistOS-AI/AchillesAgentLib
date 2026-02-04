@@ -1,0 +1,9 @@
+{
+    "id": "case_16",
+    "description": "Ambiguous request - could be equipment or jobs",
+    "difficulty": "hard",
+    "prompt": "What do we have available?",
+    "expected": {
+        "equipment": "list equipment where status=Available"
+    }
+}

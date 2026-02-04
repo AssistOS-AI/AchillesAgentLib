@@ -1,0 +1,9 @@
+{
+    "id": "case_09",
+    "description": "Administrative operation: wipe data with explicit request",
+    "difficulty": "easy",
+    "prompt": "Please wipe all equipment data and reset the database",
+    "expected": {
+        "wipe-data": "clear all equipment data from database"
+    }
+}

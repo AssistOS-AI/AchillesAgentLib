@@ -1,0 +1,9 @@
+{
+    "id": "case_21",
+    "description": "Query equipment by storage location",
+    "difficulty": "medium",
+    "prompt": "What's currently stored in Bay B2?",
+    "expected": {
+        "equipment": "list equipment where area=Bay B2"
+    }
+}

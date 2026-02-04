@@ -1,0 +1,9 @@
+{
+    "id": "case_03",
+    "description": "Create a job with client, name, and equipment requests",
+    "difficulty": "hard",
+    "prompt": "Create job 'PA Install Demo' for client Demo Facilities, they need a cordless drill and bandsaw",
+    "expected": {
+        "job": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]"
+    }
+}

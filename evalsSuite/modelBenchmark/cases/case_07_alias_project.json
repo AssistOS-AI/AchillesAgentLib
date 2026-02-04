@@ -1,0 +1,9 @@
+{
+    "id": "case_07",
+    "description": "Use field alias 'project' instead of 'job'",
+    "difficulty": "medium",
+    "prompt": "List all equipment assigned to the Riverside project",
+    "expected": {
+        "equipment": "list equipment where job=Riverside"
+    }
+}

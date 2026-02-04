@@ -1,0 +1,11 @@
+{
+    "id": "case_19",
+    "description": "Three-skill operation: job, equipment, and materials",
+    "difficulty": "very_hard",
+    "prompt": "Start job 'Emergency Repair' for client City Council, allocate the portable generator CRL0200 and add 10L of diesel fuel",
+    "expected": {
+        "job": "create job: job_name=Emergency Repair, client_name=City Council",
+        "equipment": "allocate equipment CRL0200 to new job",
+        "material": "add material: diesel fuel qty=10L to new job"
+    }
+}

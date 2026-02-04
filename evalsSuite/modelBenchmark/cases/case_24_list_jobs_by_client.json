@@ -1,0 +1,9 @@
+{
+    "id": "case_24",
+    "description": "List jobs filtered by client",
+    "difficulty": "medium",
+    "prompt": "Show all active jobs for Pinnacle Construction",
+    "expected": {
+        "job": "list jobs where client_name=Pinnacle Construction and status=Active"
+    }
+}
