@@ -123,11 +123,10 @@ function parseOptionsText(text) {
   for (const rawLine of lines) {
     const line = rawLine.replace(/\r$/, '');
     const numberedMatch = line.match(/^\s*(\d+)[\.)]\s+(.+)$/);
-    const bulletMatch = line.match(/^\s*[-*]\s+(.+)$/);
 
-    if (numberedMatch || bulletMatch) {
+    if (numberedMatch) {
       if (current) items.push(current);
-      const title = numberedMatch ? numberedMatch[2] : bulletMatch[1];
+      const title = numberedMatch[2];
       current = { title: title.trim(), details: '' };
       continue;
     }
