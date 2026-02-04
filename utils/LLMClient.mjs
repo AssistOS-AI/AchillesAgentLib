@@ -1,5 +1,6 @@
-import { loadModelsConfiguration } from './LLMProviders/providers/modelsConfigLoader.mjs';
-export { loadModelsConfiguration };
+import { loadModelsConfiguration, resolveModelName, parseModelReference } from './LLMProviders/providers/modelsConfigLoader.mjs';
+export { loadModelsConfiguration, resolveModelName, parseModelReference };
+import { parseModelList } from './LLMProviders/providers/envConfigLoader.mjs';
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
 import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
@@ -15,6 +16,14 @@ const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
 
 const modelsConfiguration = loadModelsConfiguration();
 
+/**
+ * Parse enabled model list from environment variable.
+ * Returns an ordered array (for priority) with both the raw reference and resolved model name.
+ * Supports provider/model format for disambiguation.
+ * 
+ * @param {string} rawValue - Env var value (comma/semicolon separated or JSON array)
+ * @returns {Array|null} Array of { ref, provider, model, resolved } or null if not set
+ */
 const parseEnabledModelList = (rawValue) => {
     if (rawValue === undefined || rawValue === null) {
         return null;
@@ -25,35 +34,69 @@ const parseEnabledModelList = (rawValue) => {
         return null;
     }
 
-    let entries = [];
-    const hadContent = trimmed.length > 0;
-    try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-            entries = parsed;
-        }
-    } catch {
-        // If JSON parsing fails, fall back to delimiter parsing below.
+    // Use parseModelList which handles provider/model format
+    const parsed = parseModelList(trimmed);
+    
+    if (!parsed.length) {
+        return trimmed.length > 0 ? [] : null;
     }
 
-    if (!entries.length) {
-        entries = trimmed.split(/[;,]/);
-    }
-
-    const normalized = entries
-        .map((value) => (typeof value === 'string' ? value.trim() : ''))
-        .filter(Boolean);
-
-    if (!normalized.length) {
-        return hadContent ? new Set() : null;
-    }
-
-    return new Set(normalized);
+    return parsed;
 };
 
-function resolveEnabledSet(mode) {
+/**
+ * Resolve enabled model list to actual model names using the configuration.
+ * Supports provider/model format for disambiguation.
+ * 
+ * @param {string} mode - 'fast' or 'deep'
+ * @returns {object|null} { list: Array<string>, set: Set<string>, priority: Array<string> } or null
+ */
+function resolveEnabledModels(mode) {
     const envVar = mode === 'deep' ? process.env.ACHILLES_ENABLED_DEEP_MODELS : process.env.ACHILLES_ENABLED_FAST_MODELS;
-    return parseEnabledModelList(envVar);
+    const parsed = parseEnabledModelList(envVar);
+    
+    if (!parsed) {
+        return null;
+    }
+    
+    const resolved = [];
+    const set = new Set();
+    
+    for (const entry of parsed) {
+        // Try to resolve the model reference
+        let modelName = null;
+        
+        if (entry.provider) {
+            // Qualified reference: provider/model
+            modelName = resolveModelName(
+                entry.qualified,
+                modelsConfiguration.models,
+                modelsConfiguration.qualifiedModels
+            );
+        }
+        
+        if (!modelName) {
+            // Try simple model name lookup
+            modelName = resolveModelName(
+                entry.model,
+                modelsConfiguration.models,
+                modelsConfiguration.qualifiedModels
+            );
+        }
+        
+        if (modelName && !set.has(modelName)) {
+            resolved.push(modelName);
+            set.add(modelName);
+        }
+    }
+    
+    return resolved.length > 0 ? { list: resolved, set, priority: resolved } : { list: [], set: new Set(), priority: [] };
+}
+
+// Legacy function for backward compatibility - returns Set
+function resolveEnabledSet(mode) {
+    const result = resolveEnabledModels(mode);
+    return result ? result.set : null;
 }
 
 await registerProvidersFromConfig(modelsConfiguration);
@@ -80,8 +123,17 @@ function buildModelCaches() {
     const recordMap = new Map();
     const fast = [];
     const deep = [];
-    const enabledFastModels = resolveEnabledSet('fast');
-    const enabledDeepModels = resolveEnabledSet('deep');
+    
+    // Get enabled models with priority info (now returns { list, set, priority } or null)
+    const enabledFast = resolveEnabledModels('fast');
+    const enabledDeep = resolveEnabledModels('deep');
+    const enabledFastModels = enabledFast?.set || null;
+    const enabledDeepModels = enabledDeep?.set || null;
+    
+    // Priority from env takes precedence, then config, then default
+    const fastPriorityFromEnv = enabledFast?.priority || null;
+    const deepPriorityFromEnv = enabledDeep?.priority || null;
+    
     const defaultFastModel = modelsConfiguration.defaultFastModel || null;
     const defaultDeepModel = modelsConfiguration.defaultDeepModel || null;
     const fastModelPriority = modelsConfiguration.fastModelPriority || null;
@@ -107,10 +159,16 @@ function buildModelCaches() {
         if (!record) {
             continue;
         }
+        
+        // Check if model is in the allowed list (if one is specified)
         const allowedList = record.mode === 'deep' ? enabledDeepModels : enabledFastModels;
         if (allowedList && !allowedList.has(record.name)) {
             continue;
         }
+        
+        // Also add qualified name to record for lookups
+        record.qualifiedName = `${record.providerKey}/${record.name}`;
+        
         recordMap.set(record.name, record);
         if (record.mode === 'deep') {
             deep.push(record.name);
@@ -119,7 +177,7 @@ function buildModelCaches() {
         }
     }
 
-    // Apply priority ordering if specified in config
+    // Apply priority ordering - env priority takes precedence over config priority
     const applyPriorityOrder = (list, priorityList) => {
         if (!priorityList || !priorityList.length) {
             return;
@@ -147,11 +205,18 @@ function buildModelCaches() {
         list.unshift(...validPriority);
     };
 
-    // Apply explicit priority arrays from config (takes precedence)
-    if (!enabledFastModels && fastModelPriority) {
+    // Apply priority: env priority > config priority > default model
+    // For fast models
+    if (fastPriorityFromEnv && fastPriorityFromEnv.length) {
+        applyPriorityOrder(fast, fastPriorityFromEnv);
+    } else if (fastModelPriority) {
         applyPriorityOrder(fast, fastModelPriority);
     }
-    if (!enabledDeepModels && deepModelPriority) {
+    
+    // For deep models
+    if (deepPriorityFromEnv && deepPriorityFromEnv.length) {
+        applyPriorityOrder(deep, deepPriorityFromEnv);
+    } else if (deepModelPriority) {
         applyPriorityOrder(deep, deepModelPriority);
     }
 
@@ -164,14 +229,14 @@ function buildModelCaches() {
         }
     };
 
-    if (!enabledFastModels && !fastModelPriority && defaultFastModel && recordMap.has(defaultFastModel)) {
+    if (!fastPriorityFromEnv && !fastModelPriority && defaultFastModel && recordMap.has(defaultFastModel)) {
         const record = recordMap.get(defaultFastModel);
         if (record.mode === 'fast') {
             prioritizeDefault(fast, defaultFastModel);
         }
     }
 
-    if (!enabledDeepModels && !deepModelPriority && defaultDeepModel && recordMap.has(defaultDeepModel)) {
+    if (!deepPriorityFromEnv && !deepModelPriority && defaultDeepModel && recordMap.has(defaultDeepModel)) {
         const record = recordMap.get(defaultDeepModel);
         if (record.mode === 'deep') {
             prioritizeDefault(deep, defaultDeepModel);
@@ -240,7 +305,22 @@ function resolvePrioritizedModels({ mode, modelName }) {
     };
 
     if (modelName) {
-        push(modelName);
+        // Support provider/model format - resolve to actual model key
+        let resolvedName = modelName;
+        
+        // Check if it's a provider/model reference
+        if (modelName.includes('/')) {
+            const resolved = resolveModelName(
+                modelName,
+                modelsConfiguration.models,
+                modelsConfiguration.qualifiedModels
+            );
+            if (resolved) {
+                resolvedName = resolved;
+            }
+        }
+        
+        push(resolvedName);
         return prioritized.length ? prioritized : [];
     }
 
@@ -295,7 +375,20 @@ export function listModelsFromCache() {
 }
 
 function getModelMetadata(modelName) {
-    const modelDescriptor = modelsConfiguration.models.get(modelName);
+    // Support provider/model format - resolve to actual model key
+    let resolvedName = modelName;
+    if (modelName && modelName.includes('/')) {
+        const resolved = resolveModelName(
+            modelName,
+            modelsConfiguration.models,
+            modelsConfiguration.qualifiedModels
+        );
+        if (resolved) {
+            resolvedName = resolved;
+        }
+    }
+    
+    const modelDescriptor = modelsConfiguration.models.get(resolvedName);
     if (!modelDescriptor) {
         return null;
     }
@@ -376,8 +469,11 @@ async function callLLMWithModelInternal(modelName, historyArray, prompt, invocat
             throw new Error(`Missing API key for provider "${providerKey}".`);
         }
 
+        // Use the resolved model name (without provider prefix) for the API call
+        const actualModelName = metadata?.model?.name || modelName;
+        
         return await provider.callLLM(history, {
-            model: modelName,
+            model: actualModelName,
             providerKey,
             apiKey,
             baseURL,

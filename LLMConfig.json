@@ -4,16 +4,19 @@
     "fastModelPriority": [
         "gemini-2.5-flash-lite",
         "o4-mini",
-        "gpt-4.1-nano",
-        "gpt-4.1-mini",
-        "claude-haiku-4.5"
+        "gpt-5-nano",
+        "gpt-5-mini",
+        "gemini-2.5-flash",
+        "claude-haiku-4-5"
     ],
     "deepModelPriority": [
-        "claude-opus-4-5-thinking",
         "gpt-5.2-codex",
         "gpt-5.2",
-        "gemini-3-pro-high",
-        "gemini-3-pro-low"
+        "gpt-5.1",
+        "gpt-5",
+        "claude-opus-4-5",
+        "gemini-2.5-pro",
+        "gpt-4.1"
     ],
     "providers": {
         "openai": {
@@ -50,51 +53,9 @@
             "baseURL": "https://api.mistral.ai/v1/chat/completions",
             "apiKeyEnv": "MISTRAL_API_KEY",
             "module": "./utils/LLMProviders/providers/openai.mjs"
-        },
-        "kiro": {
-            "baseURL": "https://kiro.axiologic.dev/v1/chat/completions",
-            "apiKeyEnv": "KIRO_API_KEY",
-            "module": "./utils/LLMProviders/providers/openai.mjs"
-        },
-        "antigravity": {
-            "baseURL": "https://antigravity.axiologic.dev/v1/messages",
-            "apiKeyEnv": "ANTIGRAVITY_API_KEY",
-            "module": "./utils/LLMProviders/providers/anthropic.mjs"
         }
     },
     "models": [
-        {
-            "name": "gpt-4",
-            "provider": "openai",
-            "mode": "deep",
-            "inputPrice": 30,
-            "outputPrice": 60,
-            "context": "8k"
-        },
-        {
-            "name": "gpt-4-turbo",
-            "provider": "openai",
-            "mode": "deep",
-            "inputPrice": 10,
-            "outputPrice": 30,
-            "context": "128k"
-        },
-        {
-            "name": "gpt-4o",
-            "provider": "openai",
-            "mode": "deep",
-            "inputPrice": 5,
-            "outputPrice": 15,
-            "context": "128k"
-        },
-        {
-            "name": "gpt-4o-mini",
-            "provider": "openai",
-            "mode": "fast",
-            "inputPrice": 0.15,
-            "outputPrice": 0.6,
-            "context": "128k"
-        },
         {
             "name": "gpt-4.1",
             "provider": "openai",
@@ -103,54 +64,7 @@
             "outputPrice": 15,
             "context": "128k"
         },
-        {
-            "name": "gpt-4.1-mini",
-            "provider": "openai",
-            "mode": "fast",
-            "inputPrice": 0.3,
-            "outputPrice": 1.2,
-            "context": "128k"
-        },
-        {
-            "name": "gpt-4.1-nano",
-            "provider": "openai",
-            "mode": "fast",
-            "inputPrice": 0.1,
-            "outputPrice": 0.4,
-            "context": "1mill"
-        },
-        {
-            "name": "gpt-5",
-            "provider": "openai",
-            "mode": "deep",
-            "inputPrice": 1.25,
-            "outputPrice": 10,
-            "context": "400k"
-        },
-        {
-            "name": "gpt-5-mini",
-            "provider": "openai",
-            "mode": "fast",
-            "inputPrice": 0.25,
-            "outputPrice": 2,
-            "context": "400k"
-        },
-        {
-            "name": "gpt-5-nano",
-            "provider": "openai",
-            "mode": "fast",
-            "inputPrice": 0.05,
-            "outputPrice": 0.4,
-            "context": "400k"
-        },
-        {
-            "name": "gpt-5.1",
-            "provider": "openai",
-            "mode": "deep",
-            "inputPrice": 1.25,
-            "outputPrice": 10,
-            "context": "400k"
-        },
+
         {
             "name": "gpt-5.2",
             "provider": "openai",
@@ -168,30 +82,6 @@
             "context": "500k"
         },
         {
-            "name": "o1",
-            "provider": "openai",
-            "mode": "deep",
-            "inputPrice": 15,
-            "outputPrice": 60,
-            "context": "200k"
-        },
-        {
-            "name": "o3",
-            "provider": "openai",
-            "mode": "deep",
-            "inputPrice": 2,
-            "outputPrice": 8,
-            "context": "200k"
-        },
-        {
-            "name": "o3-mini",
-            "provider": "openai",
-            "mode": "fast",
-            "inputPrice": 1.1,
-            "outputPrice": 4.4,
-            "context": "200k"
-        },
-        {
             "name": "o4-mini",
             "provider": "openai",
             "mode": "fast",
@@ -205,14 +95,6 @@
             "mode": "deep",
             "inputPrice": 5,
             "outputPrice": 25,
-            "context": "200k"
-        },
-        {
-            "name": "claude-opus-4-1",
-            "provider": "anthropic",
-            "mode": "deep",
-            "inputPrice": 15,
-            "outputPrice": 75,
             "context": "200k"
         },
         {
@@ -232,14 +114,6 @@
             "context": "200k"
         },
         {
-            "name": "gemini-2.5-pro",
-            "provider": "google",
-            "mode": "deep",
-            "inputPrice": 2.5,
-            "outputPrice": 15,
-            "context": "1mill"
-        },
-        {
             "name": "gemini-2.5-flash",
             "provider": "google",
             "mode": "fast",
@@ -254,238 +128,6 @@
             "inputPrice": 0.1,
             "outputPrice": 0.3,
             "context": "1mill"
-        },
-        {
-            "name": "z-ai/glm-4-32b",
-            "provider": "openrouter",
-            "mode": "fast",
-            "inputPrice": 0.1,
-            "outputPrice": 0.1,
-            "context": "128k"
-        },
-        {
-            "name": "z-ai/glm-4.6",
-            "provider": "openrouter",
-            "mode": "fast",
-            "inputPrice": 0.4,
-            "outputPrice": 1.75,
-            "context": "200k"
-        },
-        {
-            "name": "google/gemma-2-2b-it",
-            "provider": "huggingface",
-            "mode": "fast",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "N/A"
-        },
-        {
-            "name": "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-            "provider": "huggingface",
-            "mode": "fast",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "N/A"
-        },
-        {
-            "name": "openai/gpt-oss-120b",
-            "provider": "huggingface",
-            "mode": "fast",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "N/A"
-        },
-        {
-            "name": "zai-org/GLM-4.5V",
-            "provider": "huggingface",
-            "mode": "fast",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "N/A"
-        },
-        {
-            "name": "grok-4-1-fast-reasoning",
-            "provider": "xai",
-            "mode": "fast",
-            "inputPrice": 0.2,
-            "outputPrice": 0.5,
-            "context": "2mill"
-        },
-        {
-            "name": "grok-4-1-fast-non-reasoning",
-            "provider": "xai",
-            "mode": "fast",
-            "inputPrice": 0.2,
-            "outputPrice": 0.5,
-            "context": "2mill"
-        },
-        {
-            "name": "mistral-large-2512",
-            "provider": "mistral",
-            "mode": "deep",
-            "inputPrice": 0.5,
-            "outputPrice": 1.5,
-            "context": "256k"
-        },
-        {
-            "name": "mistral-medium-2508",
-            "provider": "mistral",
-            "mode": "deep",
-            "inputPrice": 0.4,
-            "outputPrice": 2,
-            "context": "128k"
-        },
-        {
-            "name": "ministral-8b-2512",
-            "provider": "mistral",
-            "mode": "fast",
-            "inputPrice": 0.15,
-            "outputPrice": 0.15,
-            "context": "256k"
-        },
-        {
-            "name": "mistral-small-2506",
-            "provider": "mistral",
-            "mode": "fast",
-            "inputPrice": 0.1,
-            "outputPrice": 0.3,
-            "context": "128k"
-        },
-        {
-            "name": "ministral-3b-2512",
-            "provider": "mistral",
-            "mode": "fast",
-            "inputPrice": 0.1,
-            "outputPrice": 0.1,
-            "context": "256k"
-        },
-        {
-            "name": "auto-kiro",
-            "provider": "kiro",
-            "mode": "deep",
-            "inputPrice": 3,
-            "outputPrice": 15,
-            "context": "200k"
-        },
-        {
-            "name": "claude-sonnet-4.5",
-            "provider": "kiro",
-            "mode": "deep",
-            "inputPrice": 3,
-            "outputPrice": 15,
-            "context": "200k"
-        },
-        {
-            "name": "claude-sonnet-4",
-            "provider": "kiro",
-            "mode": "deep",
-            "inputPrice": 3,
-            "outputPrice": 15,
-            "context": "200k"
-        },
-        {
-            "name": "claude-3.7-sonnet",
-            "provider": "kiro",
-            "mode": "deep",
-            "inputPrice": 3,
-            "outputPrice": 15,
-            "context": "200k"
-        },
-        {
-            "name": "claude-haiku-4.5",
-            "provider": "kiro",
-            "mode": "fast",
-            "inputPrice": 1,
-            "outputPrice": 5,
-            "context": "200k"
-        },
-        {
-            "name": "gemini-2.5-pro",
-            "provider": "antigravity",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "gemini-2.5-flash",
-            "provider": "antigravity",
-            "mode": "fast",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "gemini-2.5-flash-lite",
-            "provider": "antigravity",
-            "mode": "fast",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "gemini-2.5-flash-thinking",
-            "provider": "antigravity",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "gemini-3-flash",
-            "provider": "antigravity",
-            "mode": "fast",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "gemini-3-pro-low",
-            "provider": "antigravity",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "gemini-3-pro-high",
-            "provider": "antigravity",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "gemini-3-pro-image",
-            "provider": "antigravity",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "claude-sonnet-4-5",
-            "provider": "antigravity",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "128k"
-        },
-        {
-            "name": "claude-sonnet-4-5-thinking",
-            "provider": "antigravity",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "128k"
-        },
-        {
-            "name": "claude-opus-4-5-thinking",
-            "provider": "antigravity",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "128k"
         }
     ]
 }

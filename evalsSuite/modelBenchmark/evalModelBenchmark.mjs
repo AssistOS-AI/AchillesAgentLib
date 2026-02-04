@@ -24,18 +24,8 @@
 // ============================================================================
 const CONFIG = {
     // Default models to test when --models flag is not provided
-    // Set to null to test all available models with valid API keys
-    // Selected models: >95% accuracy AND <7000ms latency (no thinking models)
-    defaultModels: [
-        'gemini-2.5-flash-lite',    // 100%, 1495ms
-        'o4-mini',                   // 100%, 6046ms
-        'o3',                        // 100%, 6574ms
-        'gpt-4.1-nano',              // 96%, 940ms
-        'gpt-4.1',                   // 96%, 1217ms
-        'gpt-4.1-mini',              // 96%, 1402ms
-        'gpt-5.2',                   // 96%, 1786ms
-        'claude-haiku-4.5',          // 96%, 5493ms
-    ],
+    // 100% accuracy models + fastModelPriority from LLMConfig.json
+    defaultModels: null,
 
     // Number of runs per model/case for averaging (overridden by --runs)
     defaultRuns: 1,
@@ -95,10 +85,39 @@ const COLORS = {
     BOLD: '\x1b[1m',
 };
 
+/**
+ * Resolve default models from configuration or environment variables.
+ * Priority:
+ * 1. CONFIG.defaultModels (if explicitly set as array)
+ * 2. ACHILLES_ENABLED_FAST_MODELS env var (comma-separated list)
+ * 3. null (test all available models)
+ * 
+ * @returns {string[]|null} List of model names to test, or null for all models
+ */
+function resolveDefaultModels() {
+    // If CONFIG has explicit models, use them
+    if (Array.isArray(CONFIG.defaultModels) && CONFIG.defaultModels.length > 0) {
+        return CONFIG.defaultModels;
+    }
+
+    // Check ACHILLES_ENABLED_FAST_MODELS env var
+    const envModels = process.env.ACHILLES_ENABLED_FAST_MODELS;
+    if (envModels && typeof envModels === 'string') {
+        const models = envModels.split(',').map(m => m.trim()).filter(Boolean);
+        if (models.length > 0) {
+            console.log(`${COLORS.CYAN}Using models from ACHILLES_ENABLED_FAST_MODELS:${COLORS.RESET} ${models.length} models`);
+            return models;
+        }
+    }
+
+    // Fall back to null (test all available models)
+    return null;
+}
+
 function parseArgs() {
     const args = process.argv.slice(2);
     const options = {
-        models: CONFIG.defaultModels,
+        models: resolveDefaultModels(),
         caseRange: null,
         difficulties: null,
         runs: CONFIG.defaultRuns,
@@ -163,21 +182,28 @@ ${COLORS.CYAN}Options:${COLORS.RESET}
   --help, -h            Show this help
 
 ${COLORS.CYAN}Current Configuration:${COLORS.RESET}
-  Default models:       ${CONFIG.defaultModels?.join(', ') || 'all available'}
+  Default models:       ${CONFIG.defaultModels?.join(', ') || 'from ACHILLES_ENABLED_FAST_MODELS or all available'}
   Default runs:         ${CONFIG.defaultRuns}
   Skip semantic:        ${CONFIG.skipSemanticByDefault}
   Production prompt:    ${CONFIG.useProductionPrompt}
   Model timeout:        ${CONFIG.modelTimeout}ms
 
+${COLORS.CYAN}Environment Variables:${COLORS.RESET}
+  ACHILLES_ENABLED_FAST_MODELS   Comma-separated list of models to test by default
+                                 Example: "opencode/qwen3-coder,axiologic_antigravity/gemini-2.5-flash-lite"
+
 ${COLORS.CYAN}Examples:${COLORS.RESET}
-  # Test default models (${CONFIG.defaultModels?.join(', ') || 'all'})
+  # Test models from ACHILLES_ENABLED_FAST_MODELS env var (if set)
   node evalsSuite/modelBenchmark/evalModelBenchmark.mjs
 
-  # Test all available models
+  # Test all available models (ignore ACHILLES_ENABLED_FAST_MODELS)
   node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --all-models
 
   # Test specific models
   node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --models "gemini-3-flash,gpt-5-mini"
+
+  # Test with qualified names (provider/model)
+  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --models "opencode/qwen3-coder,axiologic_antigravity/gemini-2.5-flash-lite"
 
   # Test with 3 runs per case for averaging
   node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --runs 3
@@ -247,11 +273,22 @@ function getAvailableModels(modelsConfig, requestedModels) {
         
         if (!apiKey) continue;
 
+        // Build qualified name for matching (provider/model)
+        const qualifiedName = `${descriptor.providerKey}/${name}`;
+        
         // Filter by requested models if specified
-        if (requestedModels && !requestedModels.includes(name)) continue;
+        // Support both simple name and qualified name (provider/model)
+        if (requestedModels) {
+            const matchesSimple = requestedModels.includes(name);
+            const matchesQualified = requestedModels.includes(qualifiedName);
+            if (!matchesSimple && !matchesQualified) continue;
+        }
 
+        // Use qualified name in output to support provider/model format
+        const displayName = requestedModels?.includes(qualifiedName) ? qualifiedName : name;
+        
         available.push({
-            name,
+            name: displayName,
             provider: descriptor.providerKey,
             mode: descriptor.mode || 'fast',
             apiKeyEnv,

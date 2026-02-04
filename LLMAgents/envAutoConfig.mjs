@@ -54,7 +54,13 @@ function parseEnvContent(content) {
             continue;
         }
 
-        const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+        // Support both "KEY=value" and "KEY value" formats
+        // First try the traditional KEY=value format
+        let match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+        if (!match) {
+            // Fall back to KEY<space>value format (space as delimiter)
+            match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s+(.*)$/);
+        }
         if (!match) {
             continue;
         }

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadEnvConfig, parseModelReference } from './envConfigLoader.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -8,6 +9,9 @@ const __dirname = path.dirname(__filename);
 const VALID_MODES = new Set(['fast', 'deep']);
 const DEFAULT_CONFIG_FILENAME = 'LLMConfig.json';
 const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../../', DEFAULT_CONFIG_FILENAME);
+
+// Re-export for use by other modules
+export { parseModelReference } from './envConfigLoader.mjs';
 
 export function loadRawConfig(configPath = DEFAULT_CONFIG_PATH) {
     if (!fs.existsSync(configPath)) {
@@ -271,6 +275,123 @@ function selectString(preferred, fallback) {
     return null;
 }
 
+/**
+ * Merge environment-defined providers and models with JSON config.
+ * Env definitions take precedence and are added first in the model order.
+ * 
+ * @param {object} normalized - Normalized config from JSON
+ * @param {object} envConfig - Config loaded from environment variables
+ * @returns {object} Merged configuration
+ */
+function mergeEnvConfig(normalized, envConfig) {
+    const { providers, models, providerModels, orderedModels, issues } = normalized;
+    
+    // Build a map of qualified names (provider/model) for lookups
+    const qualifiedModels = new Map();
+    
+    // Merge env providers (they take precedence over JSON)
+    for (const [providerKey, envProvider] of envConfig.providers.entries()) {
+        if (providers.has(providerKey)) {
+            // Override existing provider
+            const existing = providers.get(providerKey);
+            providers.set(providerKey, { ...existing, ...envProvider });
+        } else {
+            // Add new provider
+            providers.set(providerKey, envProvider);
+            providerModels.set(providerKey, []);
+        }
+    }
+    
+    // Merge env models (prepend to maintain priority)
+    const envModelNames = [];
+    for (const envModel of envConfig.models) {
+        const qualifiedName = `${envModel.providerKey}/${envModel.name}`;
+        
+        // Check if this model already exists (by qualified name)
+        let existingKey = null;
+        for (const [key, model] of models.entries()) {
+            if (model.providerKey === envModel.providerKey && model.name === envModel.name) {
+                existingKey = key;
+                break;
+            }
+        }
+        
+        if (existingKey) {
+            // Override existing model
+            const existing = models.get(existingKey);
+            models.set(existingKey, { ...existing, ...envModel, fromEnv: true });
+        } else {
+            // Add new model
+            models.set(envModel.name, { ...envModel, fromEnv: true });
+            envModelNames.push(envModel.name);
+            
+            // Add to provider's model list
+            if (!providerModels.has(envModel.providerKey)) {
+                providerModels.set(envModel.providerKey, []);
+            }
+            providerModels.get(envModel.providerKey).push(envModel);
+        }
+        
+        // Always add to qualified lookup
+        qualifiedModels.set(qualifiedName, envModel.name);
+    }
+    
+    // Build qualified name index for all models (including JSON-defined)
+    for (const [modelName, model] of models.entries()) {
+        const qualifiedName = `${model.providerKey}/${model.name}`;
+        if (!qualifiedModels.has(qualifiedName)) {
+            qualifiedModels.set(qualifiedName, modelName);
+        }
+    }
+    
+    // Prepend env model names to ordered list
+    normalized.orderedModels = [...envModelNames, ...orderedModels];
+    
+    // Add qualified models map to normalized config
+    normalized.qualifiedModels = qualifiedModels;
+    
+    // Merge issues
+    issues.errors.push(...envConfig.issues.errors);
+    issues.warnings.push(...envConfig.issues.warnings);
+    
+    return normalized;
+}
+
+/**
+ * Resolve a model name that may be in provider/model format.
+ * Returns the model key used in the models map.
+ * 
+ * @param {string} modelRef - Model reference (either "model" or "provider/model")
+ * @param {Map} models - Map of model names to model configs
+ * @param {Map} qualifiedModels - Map of "provider/model" to model key
+ * @returns {string|null} The model key, or null if not found
+ */
+export function resolveModelName(modelRef, models, qualifiedModels) {
+    if (!modelRef) return null;
+    
+    const { provider, model } = parseModelReference(modelRef);
+    
+    if (provider) {
+        // Qualified lookup: provider/model
+        const qualifiedName = `${provider}/${model}`;
+        if (qualifiedModels?.has(qualifiedName)) {
+            return qualifiedModels.get(qualifiedName);
+        }
+        // Try direct lookup in case model name includes provider
+        if (models.has(modelRef)) {
+            return modelRef;
+        }
+        return null;
+    }
+    
+    // Simple model name lookup
+    if (models.has(model)) {
+        return model;
+    }
+    
+    return null;
+}
+
 export function loadModelsConfiguration(options = {}) {
     const configPath = options.configPath
         || process.env.LLM_MODELS_CONFIG_PATH
@@ -281,5 +402,10 @@ export function loadModelsConfiguration(options = {}) {
     normalized.issues.errors.push(...loadIssues.errors);
     normalized.issues.warnings.push(...loadIssues.warnings);
     normalized.path = configPath;
+    
+    // Load and merge environment-defined providers and models
+    const envConfig = loadEnvConfig();
+    mergeEnvConfig(normalized, envConfig);
+    
     return normalized;
 }
