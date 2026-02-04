@@ -12,6 +12,9 @@
         "./DBTableSkillsSubsystem": "./DBTableSkillsSubsystem/index.mjs",
         "./InteractiveSkillsSubsystem": "./InteractiveSkillsSubsystem/index.mjs",
         "./InteractiveSkillsSubsystem/*": "./InteractiveSkillsSubsystem/*",
+        "./BacklogManager": "./BacklogManager/BacklogManager.mjs",
+        "./BacklogManager/backlogIO.mjs": "./BacklogManager/backlogIO.mjs",
+        "./BacklogManager/backlogDomain.mjs": "./BacklogManager/backlogDomain.mjs",
         "./utils/*": "./utils/*",
         "./package.json": "./package.json"
     },
