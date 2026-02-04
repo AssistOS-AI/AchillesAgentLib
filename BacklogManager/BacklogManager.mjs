@@ -1,6 +1,6 @@
 import { stat } from 'fs/promises';
 import { resolve } from 'path';
-import { loadBacklogFile, saveBacklogFile, forceSave } from './backlogIO.mjs';
+import { loadBacklogFile, saveBacklogFile, forceSave, createBacklogFile } from './backlogIO.mjs';
 export async function loadBacklog(filePath) {
   const backlogPath = resolve(filePath);
   const entry = await loadBacklogFile(backlogPath);
@@ -12,6 +12,11 @@ export async function loadBacklog(filePath) {
     meta = null;
   }
   return { tasks: entry.tasks, history: entry.history, meta };
+}
+
+export async function createBacklog(filePath) {
+  const backlogPath = resolve(filePath);
+  await createBacklogFile(backlogPath);
 }
 
 export async function getTask(filePath, taskIndex) {
@@ -98,6 +103,7 @@ export async function addTask(filePath, initialContent) {
     resolution: ''
   });
   await saveBacklogFile(filePath, { tasks, history });
+  return tasks.length;
 }
 
 export async function saveBacklog(filePath, data) {

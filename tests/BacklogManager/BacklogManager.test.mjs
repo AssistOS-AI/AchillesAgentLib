@@ -65,10 +65,11 @@ console.log('Setting up BacklogManager tests...');
     console.log('markDone tests passed.');
 
     console.log('Testing addTask...');
-    await addTask('specs', 'Second task');
+    const addedTaskId = await addTask('specs', 'Second task');
     const afterAppend = await loadBacklog('specs');
     const appendedTask = afterAppend.tasks.find((task) => task.description === 'Second task');
     assert(appendedTask);
+    assert.strictEqual(addedTaskId, afterAppend.tasks.length);
     console.log('addTask tests passed.');
 
     console.log('Testing updateTask...');

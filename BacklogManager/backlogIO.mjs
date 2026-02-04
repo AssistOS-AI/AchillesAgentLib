@@ -138,6 +138,17 @@ export async function forceSave(filePath, options = {}) {
   await flushModified();
 }
 
+export async function createBacklogFile(filePath, options = {}) {
+  const intervalMs = Number.isFinite(options.saveIntervalMs) ? options.saveIntervalMs : DEFAULT_SAVE_INTERVAL;
+  const backlogPath = ensureBacklogExtension(filePath);
+  await writeJsonFile(backlogPath, {});
+  const entry = getOrCreateCache(backlogPath, intervalMs);
+  entry.tasks = [];
+  entry.history = [];
+  entry.loaded = true;
+  entry.modified = false;
+}
+
 export function getHistoryPath(filePath) {
   const backlogPath = ensureBacklogExtension(filePath);
   return buildHistoryPath(backlogPath);
