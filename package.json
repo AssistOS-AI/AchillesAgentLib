@@ -18,6 +18,7 @@
     "files": [
         "index.mjs",
         "LLMConfig.json",
+        "BacklogManager",
         "LLMAgents",
         "utils",
         "MemoryContainer",
