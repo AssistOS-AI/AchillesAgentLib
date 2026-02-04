@@ -57,15 +57,6 @@
     },
     "models": [
         {
-            "name": "gpt-4.1",
-            "provider": "openai",
-            "mode": "deep",
-            "inputPrice": 5,
-            "outputPrice": 15,
-            "context": "128k"
-        },
-
-        {
             "name": "gpt-5.2",
             "provider": "openai",
             "mode": "deep",
