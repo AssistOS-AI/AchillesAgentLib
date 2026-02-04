@@ -27,18 +27,25 @@ function buildHistoryPath(backlogPath) {
 }
 
 function normalizeTask(task) {
-  const rawOptions = Array.isArray(task?.options) ? task.options : [];
+  if (!task || typeof task !== 'object') {
+    return {
+      description: '',
+      options: [],
+      resolution: ''
+    };
+  }
+  const rawOptions = Array.isArray(task.options) ? task.options : [];
   const options = rawOptions.map((option) => {
     if (typeof option === 'string') return option;
     if (option === null || typeof option === 'undefined') return '';
     return String(option);
   });
-  const normalized = {
-    description: typeof task?.description === 'string' ? task.description : '',
+  return {
+    ...task,
+    description: typeof task.description === 'string' ? task.description : '',
     options,
-    resolution: typeof task?.resolution === 'string' ? task.resolution : ''
+    resolution: typeof task.resolution === 'string' ? task.resolution : ''
   };
-  return normalized;
 }
 
 function normalizeTasks(input) {
@@ -106,10 +113,25 @@ export async function loadBacklogFile(filePath, options = {}) {
   if (!entry.loaded) {
     const backlogData = await readJsonFile(entry.backlogPath, { tasks: [] });
     const historyData = await readJsonFile(entry.historyPath, []);
-    entry.tasks = normalizeTasks(backlogData?.tasks);
+    const tasksSource = Array.isArray(backlogData) ? backlogData : backlogData?.tasks;
+    entry.tasks = normalizeTasks(tasksSource);
     entry.history = normalizeHistory(historyData);
     entry.loaded = true;
   }
+  return entry;
+}
+
+export async function refreshBacklogFile(filePath, options = {}) {
+  const intervalMs = Number.isFinite(options.saveIntervalMs) ? options.saveIntervalMs : DEFAULT_SAVE_INTERVAL;
+  const backlogPath = ensureBacklogExtension(filePath);
+  const entry = getOrCreateCache(backlogPath, intervalMs);
+  const backlogData = await readJsonFile(entry.backlogPath, { tasks: [] });
+  const historyData = await readJsonFile(entry.historyPath, []);
+  const tasksSource = Array.isArray(backlogData) ? backlogData : backlogData?.tasks;
+  entry.tasks = normalizeTasks(tasksSource);
+  entry.history = normalizeHistory(historyData);
+  entry.loaded = true;
+  entry.modified = false;
   return entry;
 }
 
