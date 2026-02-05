@@ -119,6 +119,24 @@ export async function addTask(filePath, initialContent) {
   return tasks.length;
 }
 
+export async function addTasksFromText(filePath, text) {
+  const { tasks, history } = await loadBacklog(filePath);
+  const items = parseOptionsText(text);
+  const createdIndexes = [];
+
+  for (const description of items) {
+    tasks.push({
+      description,
+      options: [],
+      resolution: ''
+    });
+    createdIndexes.push(tasks.length);
+  }
+
+  await saveBacklogFile(filePath, { tasks, history });
+  return createdIndexes;
+}
+
 export async function saveBacklog(filePath, data) {
   await saveBacklogFile(filePath, data);
 }
