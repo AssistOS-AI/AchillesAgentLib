@@ -63,8 +63,7 @@ export async function getApprovedTasks(filePath) {
   const approved = [];
   for (let i = 0; i < tasks.length; i += 1) {
     const task = tasks[i];
-    const options = Array.isArray(task?.options) ? task.options : [];
-    if (!options.length && typeof task?.resolution === 'string' && task.resolution.trim()) {
+    if (typeof task?.resolution === 'string' && task.resolution.trim()) {
       approved.push({ index: i + 1, ...task });
     }
   }
