@@ -159,7 +159,7 @@ export class OrchestratorSkillsSubsystem {
             const sessionOptions = {
                 systemPrompt: skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.',
                 mode: options?.mode || 'fast',
-                maxStepsPerTurn: 10,
+                maxStepsPerTurn: 20,
             };
 
             session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
