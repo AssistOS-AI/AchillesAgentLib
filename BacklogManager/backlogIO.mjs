@@ -41,7 +41,6 @@ function normalizeTask(task) {
     return String(option);
   });
   return {
-    ...task,
     description: typeof task.description === 'string' ? task.description : '',
     options,
     resolution: typeof task.resolution === 'string' ? task.resolution : ''
@@ -79,12 +78,18 @@ async function writeJsonFile(path, data) {
   }
 }
 
+function toPersistedTask(task) {
+  return normalizeTask(task);
+}
+
 async function flushModified() {
   for (const entry of saveQueue.values()) {
     if (!entry.modified) continue;
     entry.modified = false;
-    await writeJsonFile(entry.backlogPath, { tasks: entry.tasks });
-    await writeJsonFile(entry.historyPath, entry.history);
+    const tasks = Array.isArray(entry.tasks) ? entry.tasks.map(toPersistedTask) : [];
+    const history = Array.isArray(entry.history) ? entry.history.map(toPersistedTask) : [];
+    await writeJsonFile(entry.backlogPath, tasks);
+    await writeJsonFile(entry.historyPath, history);
   }
 }
 
@@ -111,11 +116,12 @@ export async function loadBacklogFile(filePath, options = {}) {
   const backlogPath = ensureBacklogExtension(filePath);
   const entry = getOrCreateCache(backlogPath, intervalMs);
   if (!entry.loaded) {
-    const backlogData = await readJsonFile(entry.backlogPath, { tasks: [] });
+    const backlogData = await readJsonFile(entry.backlogPath, []);
     const historyData = await readJsonFile(entry.historyPath, []);
     const tasksSource = Array.isArray(backlogData) ? backlogData : backlogData?.tasks;
+    const historySource = Array.isArray(historyData) ? historyData : historyData?.tasks;
     entry.tasks = normalizeTasks(tasksSource);
-    entry.history = normalizeHistory(historyData);
+    entry.history = normalizeHistory(historySource);
     entry.loaded = true;
   }
   return entry;
@@ -125,11 +131,12 @@ export async function refreshBacklogFile(filePath, options = {}) {
   const intervalMs = Number.isFinite(options.saveIntervalMs) ? options.saveIntervalMs : DEFAULT_SAVE_INTERVAL;
   const backlogPath = ensureBacklogExtension(filePath);
   const entry = getOrCreateCache(backlogPath, intervalMs);
-  const backlogData = await readJsonFile(entry.backlogPath, { tasks: [] });
+  const backlogData = await readJsonFile(entry.backlogPath, []);
   const historyData = await readJsonFile(entry.historyPath, []);
   const tasksSource = Array.isArray(backlogData) ? backlogData : backlogData?.tasks;
+  const historySource = Array.isArray(historyData) ? historyData : historyData?.tasks;
   entry.tasks = normalizeTasks(tasksSource);
-  entry.history = normalizeHistory(historyData);
+  entry.history = normalizeHistory(historySource);
   entry.loaded = true;
   entry.modified = false;
   return entry;
@@ -163,7 +170,8 @@ export async function forceSave(filePath, options = {}) {
 export async function createBacklogFile(filePath, options = {}) {
   const intervalMs = Number.isFinite(options.saveIntervalMs) ? options.saveIntervalMs : DEFAULT_SAVE_INTERVAL;
   const backlogPath = ensureBacklogExtension(filePath);
-  await writeJsonFile(backlogPath, {});
+  await writeJsonFile(backlogPath, []);
+  await writeJsonFile(buildHistoryPath(backlogPath), []);
   const entry = getOrCreateCache(backlogPath, intervalMs);
   entry.tasks = [];
   entry.history = [];

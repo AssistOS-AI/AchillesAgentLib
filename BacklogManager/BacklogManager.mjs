@@ -63,7 +63,8 @@ export async function getApprovedTasks(filePath) {
   const approved = [];
   for (let i = 0; i < tasks.length; i += 1) {
     const task = tasks[i];
-    if (typeof task?.resolution === 'string' && task.resolution.trim()) {
+    const options = Array.isArray(task?.options) ? task.options : [];
+    if (!options.length && typeof task?.resolution === 'string' && task.resolution.trim()) {
       approved.push({ index: i + 1, ...task });
     }
   }
@@ -75,7 +76,9 @@ export async function getNewTasks(filePath) {
   const fresh = [];
   for (let i = 0; i < tasks.length; i += 1) {
     const task = tasks[i];
-    if (!task?.resolution || !task.resolution.trim()) {
+    const options = Array.isArray(task?.options) ? task.options : [];
+    const hasResolution = typeof task?.resolution === 'string' && task.resolution.trim();
+    if (options.length || hasResolution || (!options.length && !hasResolution)) {
       fresh.push({ index: i + 1, ...task });
     }
   }
@@ -102,9 +105,6 @@ export async function updateTask(filePath, taskIndex, updates) {
   if (task) {
     const safeUpdates = normalizeTaskUpdates(updates);
     Object.assign(task, safeUpdates);
-    if (task.resolution) {
-      task.options = [];
-    }
   }
   await saveBacklogFile(filePath, { tasks, history });
 }
