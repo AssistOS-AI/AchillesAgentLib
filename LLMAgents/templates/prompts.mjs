@@ -215,8 +215,8 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push('Guidelines:');
     lines.push('- Use "call_tool" to obtain NEW information or perform calculations.');
     lines.push('- If you want to pass the result of a previous tool as a parameter, use $$resultRef (do not paste the raw value).');
-    lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" with ONLY the final text in "toolPrompt" (no extra wording).`);
-    lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" with a short reason in "toolPrompt".`);
+    lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" via action "call_tool" with ONLY the final text in "toolPrompt" (no extra wording).`);
+    lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" via action "call_tool" with a short reason in "toolPrompt".`);
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
     lines.push('- If the most recent tool result already satisfies the current instruction or expected answer, call "final_answer" and set "toolPrompt" to $$resultRef of that result (do NOT use the literal word "result").');
     lines.push('- If the user instruction explicitly mentions a tool by name, you MUST call that tool at least once in this turn before finishing.');
