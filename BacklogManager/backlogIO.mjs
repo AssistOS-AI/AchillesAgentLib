@@ -16,6 +16,9 @@ function ensureSaveLoop(intervalMs = DEFAULT_SAVE_INTERVAL) {
 function ensureBacklogExtension(filePath) {
   const normalizedPath = resolve(filePath);
   const extension = extname(normalizedPath);
+  if (normalizedPath.endsWith('/.backlog')) {
+    return normalizedPath;
+  }
   if (extension === '.backlog') {
     return normalizedPath;
   }
