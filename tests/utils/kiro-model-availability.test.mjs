@@ -1,35 +1,20 @@
-import { readFile } from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import '../envSetup.mjs';
+import { loadModelsConfiguration } from '../../utils/LLMProviders/providers/modelsConfigLoader.mjs';
 import { callLLM } from '../../utils/LLMProviders/providers/openai.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '..', '..');
-const configPath = path.join(projectRoot, 'LLMConfig.json');
 const PROMPT = 'Hello';
 
-async function loadConfig() {
-    const raw = await readFile(configPath, 'utf8');
-    return JSON.parse(raw);
-}
-
-function getKiroModels(config) {
-    const names = (config?.models || [])
-        .filter(entry => entry?.provider === 'kiro')
-        .map(entry => entry.name);
-    return Array.from(new Set(names));
-}
-
 async function main() {
-    const config = await loadConfig();
-    const kiroConfig = config?.providers?.kiro;
+    const config = loadModelsConfiguration();
+    
+    // Look for axiologic_kiro provider (from .env)
+    const kiroConfig = config.providers.get('axiologic_kiro');
     if (!kiroConfig) {
-        console.error('Kiro provider config not found in LLMConfig.json');
+        console.error('Kiro provider config not found (check .env for OPENAI_AXIOLOGIC_KIRO_*)');
         process.exit(1);
     }
 
-    const apiKeyEnv = kiroConfig.apiKeyEnv || 'PROXY_API_KEY';
+    const apiKeyEnv = kiroConfig.apiKeyEnv || 'AXIOLOGIC_API_KEY';
     const apiKey = process.env[apiKeyEnv];
     if (!apiKey) {
         console.error(`Missing API key. Please set ${apiKeyEnv}.`);
@@ -37,10 +22,14 @@ async function main() {
     }
 
     const baseURL = kiroConfig.baseURL;
-    const models = getKiroModels(config);
-    console.log(`Testing ${models.length} Kiro models with prompt "${PROMPT}"...`);
+    
+    // Get models for axiologic_kiro provider
+    const kiroModels = config.providerModels.get('axiologic_kiro') || [];
+    const modelNames = kiroModels.map(m => m.name);
+    
+    console.log(`Testing ${modelNames.length} Kiro models with prompt "${PROMPT}"...`);
 
-    for (const model of models) {
+    for (const model of modelNames) {
         const chatContext = [{ role: 'user', content: PROMPT }];
         try {
             const output = await callLLM(chatContext, {
@@ -48,7 +37,7 @@ async function main() {
                 apiKey,
                 baseURL,
             });
-            console.log(`✅ ${model}: ${output}`);
+            console.log(`✅ ${model}: ${output?.slice(0, 100)}`);
         } catch (error) {
             console.error(`❌ ${model}: ${error.message}`);
             process.exitCode = 1;

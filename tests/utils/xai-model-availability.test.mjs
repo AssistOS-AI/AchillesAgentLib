@@ -25,8 +25,8 @@ async function main() {
     const config = await loadConfig();
     const providerCfg = config?.providers?.xai;
     if (!providerCfg) {
-        console.error('XAI provider config not found in LLMConfig.json');
-        process.exit(1);
+        console.log('SKIP: XAI provider not configured in LLMConfig.json (use OpenRouter for Grok models)');
+        process.exit(0);  // Exit gracefully - use openrouter/x-ai/grok-* instead
     }
 
     const apiKeyEnv = providerCfg.apiKeyEnv || 'XAI_API_KEY';

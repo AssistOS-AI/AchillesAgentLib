@@ -25,8 +25,8 @@ async function main() {
     const config = await loadConfig();
     const providerCfg = config?.providers?.huggingface;
     if (!providerCfg) {
-        console.error('Hugging Face provider config not found in LLMConfig.json');
-        process.exit(1);
+        console.log('SKIP: Hugging Face provider not configured in LLMConfig.json (intentionally removed)');
+        process.exit(0);  // Exit gracefully - provider intentionally not configured
     }
 
     const apiKeyEnv = providerCfg.apiKeyEnv || 'HUGGINGFACE_API_KEY';
