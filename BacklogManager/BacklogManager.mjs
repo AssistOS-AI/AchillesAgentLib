@@ -122,7 +122,7 @@ export async function addTask(filePath, initialContent) {
 export async function addTasksFromText(filePath, text) {
   const { tasks, history } = await loadBacklog(filePath);
   const items = parseOptionsText(text);
-  const createdIndexes = [];
+  const created = [];
 
   for (const description of items) {
     tasks.push({
@@ -130,11 +130,11 @@ export async function addTasksFromText(filePath, text) {
       options: [],
       resolution: ''
     });
-    createdIndexes.push(tasks.length);
+    created.push(tasks.length - 1);
   }
 
   await saveBacklogFile(filePath, { tasks, history });
-  return createdIndexes;
+  return created;
 }
 
 export async function saveBacklog(filePath, data) {
