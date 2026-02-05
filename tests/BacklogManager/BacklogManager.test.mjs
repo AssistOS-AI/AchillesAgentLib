@@ -47,7 +47,7 @@ console.log('Setting up BacklogManager tests...');
 
     console.log('Testing getApprovedTasks...');
     const approvedTasks = await getApprovedTasks('specs');
-    assert(approvedTasks.some((task) => task.description === 'Test'));
+    assert(approvedTasks.some((task) => task.description === 'Test' && task.index === 1));
     console.log('getApprovedTasks tests passed.');
 
     console.log('Testing getNewTasks...');

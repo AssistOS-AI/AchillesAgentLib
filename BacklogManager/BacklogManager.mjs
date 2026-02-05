@@ -60,12 +60,26 @@ export async function approveOption(filePath, taskIndex, optionIndex) {
 
 export async function getApprovedTasks(filePath) {
   const { tasks } = await loadBacklog(filePath);
-  return tasks.filter((task) => typeof task?.resolution === 'string' && task.resolution.trim());
+  const approved = [];
+  for (let i = 0; i < tasks.length; i += 1) {
+    const task = tasks[i];
+    if (typeof task?.resolution === 'string' && task.resolution.trim()) {
+      approved.push({ index: i + 1, ...task });
+    }
+  }
+  return approved;
 }
 
 export async function getNewTasks(filePath) {
   const { tasks } = await loadBacklog(filePath);
-  return tasks.filter((task) => !task?.resolution || !task.resolution.trim());
+  const fresh = [];
+  for (let i = 0; i < tasks.length; i += 1) {
+    const task = tasks[i];
+    if (!task?.resolution || !task.resolution.trim()) {
+      fresh.push({ index: i + 1, ...task });
+    }
+  }
+  return fresh;
 }
 
 export async function markDone(filePath, taskIndex) {
