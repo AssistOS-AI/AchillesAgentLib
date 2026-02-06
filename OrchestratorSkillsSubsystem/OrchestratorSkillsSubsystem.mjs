@@ -2,6 +2,12 @@ import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../LLMAgents/constants.mjs';
 
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+
+function debugLog(...args) {
+    if (DEBUG_ENABLED) console.log(...args);
+}
+
 const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
@@ -61,7 +67,7 @@ export class OrchestratorSkillsSubsystem {
         const intents = parseIntents(pickSection(sections, SECTION_KEYS.intents));
         const sessionType = pickSection(sections, SECTION_KEYS.sessionType).trim();
 
-        console.log(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}"`);
+        debugLog(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}"`);
 
         skillRecord.metadata = {
             type: this.type,
@@ -137,7 +143,7 @@ export class OrchestratorSkillsSubsystem {
         
         if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {
             // Reuse existing session - continue the conversation
-            console.log(`[Orchestrator] Resuming existing LoopSession for "${skillRecord.name}" (status: ${session.status})`);
+            debugLog(`[Orchestrator] Resuming existing LoopSession for "${skillRecord.name}" (status: ${session.status})`);
             result = await session.newPrompt(promptText);
         } else {
             // Create new session
@@ -169,7 +175,7 @@ export class OrchestratorSkillsSubsystem {
         // Store or clear session based on status
         if (session.status === SESSION_STATUS_AWAITING_INPUT && sessionMemory?.set) {
             // Session is waiting for user input - store it for next call
-            console.log(`[Orchestrator] Storing LoopSession for "${skillRecord.name}" (${SESSION_STATUS_AWAITING_INPUT})`);
+            debugLog(`[Orchestrator] Storing LoopSession for "${skillRecord.name}" (${SESSION_STATUS_AWAITING_INPUT})`);
             sessionMemory.set(sessionKey, session);
         } else if (sessionMemory?.delete) {
             // Session completed - clean up
@@ -243,7 +249,7 @@ export class OrchestratorSkillsSubsystem {
         options = {},
     }) {
         const sessionType = String(skillRecord.metadata?.sessionType || '').trim().toLowerCase();
-        console.log(`[Orchestrator] Skill "${skillRecord.name}" sessionType="${sessionType}" → ${sessionType ? 'LoopSession' : 'SOPSession'}`);
+        debugLog(`[Orchestrator] Skill "${skillRecord.name}" sessionType="${sessionType}" → ${sessionType ? 'LoopSession' : 'SOPSession'}`);
         if (sessionType) {
             return this.executeLoopAgentSession({
                 skillRecord,

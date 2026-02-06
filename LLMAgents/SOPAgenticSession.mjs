@@ -8,6 +8,12 @@ import {
     normalizeResponsePayload,
 } from './constants.mjs';
 
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+
+function debugLog(...args) {
+    if (DEBUG_ENABLED) console.log(...args);
+}
+
 class SOPAgenticSession {
     constructor({ agent, skillsDescription, options = {} }) {
         if (!agent) {
@@ -68,8 +74,7 @@ class SOPAgenticSession {
         }
 
         const modeHint = this.options.planOnly ? ' plan-only' : '';
-        // eslint-disable-next-line no-console
-        console.log(`[SOPAgenticSession${modeHint}] New prompt: "${userPrompt}"`);
+        debugLog(`[SOPAgenticSession${modeHint}] New prompt: "${userPrompt}"`);
  
         const maxAttempts = this.maxPlanAttempts > 0 ? this.maxPlanAttempts : 1;
         let attempt = 0;
@@ -110,8 +115,7 @@ class SOPAgenticSession {
  
             attempt += 1;
             if (attempt >= maxAttempts) {
-                // eslint-disable-next-line no-console
-                console.log('[SOPAgenticSession] Maximum plan attempts reached; stopping retries.');
+                debugLog('[SOPAgenticSession] Maximum plan attempts reached; stopping retries.');
                 break;
             }
  
@@ -300,14 +304,11 @@ ${trimmed}`;
                     const COLOR_YELLOW = '\x1b[33m';
                     const COLOR_DIM = '\x1b[2m';
 
-                    // eslint-disable-next-line no-console
-                    console.log(`[LightSOPLang] Plan generation (${reason}, attempt ${attempt})`);
+                    debugLog(`[LightSOPLang] Plan generation (${reason}, attempt ${attempt})`);
 
                     if (!previous) {
-                        // eslint-disable-next-line no-console
-                        console.log('[LightSOPLang] Generated initial plan:');
-                        // eslint-disable-next-line no-console
-                        console.log(current || '(empty plan)');
+                        debugLog('[LightSOPLang] Generated initial plan:');
+                        debugLog(current || '(empty plan)');
                         return;
                     }
 
@@ -338,8 +339,7 @@ ${trimmed}`;
                     const prevVars = buildVarMap(previous);
                     const currVars = buildVarMap(current);
 
-                    // eslint-disable-next-line no-console
-                    console.log('[LightSOPLang] Plan diff by variable:');
+                    debugLog('[LightSOPLang] Plan diff by variable:');
 
                     const allNames = new Set([...prevVars.keys(), ...currVars.keys()]);
                     const sortedNames = Array.from(allNames).sort();
@@ -349,24 +349,18 @@ ${trimmed}`;
                         const newLine = currVars.get(name) || '';
                         if (oldLine && !newLine) {
                             // Removed
-                            // eslint-disable-next-line no-console
-                            console.log(`${COLOR_RED}- [REMOVED]${COLOR_RESET} ${name}: ${oldLine}`);
+                            debugLog(`${COLOR_RED}- [REMOVED]${COLOR_RESET} ${name}: ${oldLine}`);
                         } else if (!oldLine && newLine) {
                             // Added
-                            // eslint-disable-next-line no-console
-                            console.log(`${COLOR_GREEN}+ [ADDED]${COLOR_RESET}   ${name}: ${newLine}`);
+                            debugLog(`${COLOR_GREEN}+ [ADDED]${COLOR_RESET}   ${name}: ${newLine}`);
                         } else if (oldLine !== newLine) {
                             // Changed
-                            // eslint-disable-next-line no-console
-                            console.log(`${COLOR_YELLOW}~ [CHANGED]${COLOR_RESET} ${name}:`);
-                            // eslint-disable-next-line no-console
-                            console.log(`    old: ${oldLine}`);
-                            // eslint-disable-next-line no-console
-                            console.log(`    new: ${newLine}`);
+                            debugLog(`${COLOR_YELLOW}~ [CHANGED]${COLOR_RESET} ${name}:`);
+                            debugLog(`    old: ${oldLine}`);
+                            debugLog(`    new: ${newLine}`);
                         } else {
                             // Unchanged
-                            // eslint-disable-next-line no-console
-                            console.log(`${COLOR_DIM}= [UNCHANGED]${COLOR_RESET} ${name}: ${oldLine}`);
+                            debugLog(`${COLOR_DIM}= [UNCHANGED]${COLOR_RESET} ${name}: ${oldLine}`);
                         }
                     }
                 } catch (logError) {

@@ -15,11 +15,17 @@ import {
     normalizeResponsePayload,
 } from './constants.mjs';
 
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+
 // Timestamp helper for logging
 const getTimestamp = () => {
     const now = new Date();
     return now.toISOString().slice(11, 23); // HH:MM:SS.mmm
 };
+
+function debugLog(...args) {
+    if (DEBUG_ENABLED) console.log(...args);
+}
 
 class LoopAgentSession {
     constructor({ agent, tools, options = {} }) {
@@ -92,8 +98,7 @@ class LoopAgentSession {
             : this.options.maxRetriesPerTurn;
 
         // Session-level logging for incoming prompts
-        // eslint-disable-next-line no-console
-        console.log(`[${getTimestamp()}] [LoopSession] New prompt: "${userPrompt}"`);
+        debugLog(`[${getTimestamp()}] [LoopSession] New prompt: "${userPrompt}"`);
         this._debug('[LoopSession]', 'New prompt', { prompt: userPrompt, expected });
 
         const turn = {
@@ -183,7 +188,7 @@ class LoopAgentSession {
                 try {
                     const toolResult = await this._executeTool(toolName, toolPrompt, turn);
                     // Debug: log tool result type and key properties
-                    console.log(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, requiresConfirmation=${toolResult?.requiresConfirmation}, requiresInput=${toolResult?.requiresInput}`);
+                    debugLog(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, requiresConfirmation=${toolResult?.requiresConfirmation}, requiresInput=${toolResult?.requiresInput}`);
                     this._debug('[LoopSession]', 'Tool result', {
                         tool: toolName,
                         prompt: toolPrompt,
@@ -207,7 +212,7 @@ class LoopAgentSession {
                     if (toolResult && typeof toolResult === 'object' && 
                         (toolResult.requiresConfirmation || toolResult.requiresInput)) {
                         const message = toolResult.message || JSON.stringify(toolResult);
-                        console.log(`[${getTimestamp()}] [LoopSession] Detected requiresConfirmation/Input, returning message (first 100 chars): "${String(message).substring(0, 100)}..."`);
+                        debugLog(`[${getTimestamp()}] [LoopSession] Detected requiresConfirmation/Input, returning message (first 100 chars): "${String(message).substring(0, 100)}..."`);
                         this._debug('[LoopSession]', 'Tool requires input/confirmation', { tool: toolName, message });
                         turn.finalAnswer = message;
                         turn.status = SESSION_STATUS_AWAITING_INPUT;
@@ -229,7 +234,7 @@ class LoopAgentSession {
                         (toolResult.records || toolResult.message || toolResult.operation)) {
                         // This is a successful skill result - return it as final answer
                         const resultStr = JSON.stringify(toolResult);
-                        console.log(`[${getTimestamp()}] [LoopSession] Detected successful skill result, returning as final answer`);
+                        debugLog(`[${getTimestamp()}] [LoopSession] Detected successful skill result, returning as final answer`);
                         this._debug('[LoopSession]', 'Tool success result returned as final answer', { tool: toolName });
                         turn.finalAnswer = resultStr;
                         turn.status = SESSION_STATUS_DONE;
@@ -479,8 +484,7 @@ class LoopAgentSession {
             })
             : toolPrompt;
 
-        // eslint-disable-next-line no-console
-        console.log(`[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${resolvedPrompt}"`);
+        debugLog(`[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${resolvedPrompt}"`);
         this._debug('[LoopSession]', 'Calling tool', { tool: toolName, prompt: resolvedPrompt });
 
         // Attach session to agent temporarily to support tools that need session context

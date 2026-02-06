@@ -17,6 +17,10 @@ function debugLog(message, ...args) {
   }
 }
 
+function debugError(...args) {
+  if (DEBUG_ENABLED) console.error(...args);
+}
+
 function camelCaseKeys(obj) {
   if (!obj) return {};
   const newObj = {};
@@ -86,7 +90,7 @@ export class CodeSkillsSubsystem {
   }
 
   async extractArguments(userPrompt, specifications) {
-    console.log('[CodeSkills] Extracting arguments with LLM.');
+    debugLog('Extracting arguments with LLM.');
     const prompt = buildArgumentExtractionPrompt(userPrompt, specifications.inputFormat);
     const response = await this.llmAgent.executePrompt(prompt, { responseShape: 'json', mode: 'fast' });
     if (response.error || !response.args) {
@@ -141,8 +145,8 @@ export class CodeSkillsSubsystem {
         return await module.action(args);
       
     } catch (error) {
-      console.error(`[CodeSkills] Dynamic import execution failed: ${error.message}`);
-      console.error(`[CodeSkills] Error stack: ${error.stack}`);
+      debugError(`[CodeSkills] Dynamic import execution failed: ${error.message}`);
+      debugError(`[CodeSkills] Error stack: ${error.stack}`);
       throw new Error(`Execution failed: ${error.message}`);
     }
   }

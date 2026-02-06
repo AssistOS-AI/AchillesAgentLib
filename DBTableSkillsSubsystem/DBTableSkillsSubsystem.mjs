@@ -8,6 +8,16 @@ import { ConversationalTskillController } from './ConversationalTskillController
 import { tskillToSpecs } from './tskillToSpecs.mjs';
 import { generateMirrorCode } from '../RecursiveSkilledAgents/mirror-code-generator/index.mjs';
 
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+
+function debugLog(...args) {
+    if (DEBUG_ENABLED) console.log(...args);
+}
+
+function debugWarn(...args) {
+    if (DEBUG_ENABLED) console.warn(...args);
+}
+
 /**
  * Generate code using spec-based flow via mirror-code-generator.
  * @param {string} skillName - Name of the skill
@@ -17,29 +27,29 @@ import { generateMirrorCode } from '../RecursiveSkilledAgents/mirror-code-genera
  * @returns {Promise<void>}
  */
 async function generateCodeViaSpecs(skillName, skillDir, parsedSkill, llmAgent) {
-    console.log(`[DBTableSkills] ──────────────────────────────────────────`);
-    console.log(`[DBTableSkills] Starting code generation for "${skillName}"`);
-    console.log(`[DBTableSkills] Step 1/2: Generating spec file...`);
+    debugLog(`[DBTableSkills] ──────────────────────────────────────────`);
+    debugLog(`[DBTableSkills] Starting code generation for "${skillName}"`);
+    debugLog(`[DBTableSkills] Step 1/2: Generating spec file...`);
 
     // 1. Generate spec file from parsed skill
     const specPath = await tskillToSpecs(skillDir, parsedSkill);
-    console.log(`[DBTableSkills] Spec written to: ${specPath}`);
+    debugLog(`[DBTableSkills] Spec written to: ${specPath}`);
 
     // 2. Run mirror-code-generator on the skill directory
-    console.log(`[DBTableSkills] Step 2/2: Running mirror-code-generator...`);
+    debugLog(`[DBTableSkills] Step 2/2: Running mirror-code-generator...`);
     const startTime = Date.now();
 
     const generatedFiles = await generateMirrorCode(skillDir, llmAgent, console);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[DBTableSkills] Code generated in ${elapsed}s`);
+    debugLog(`[DBTableSkills] Code generated in ${elapsed}s`);
 
     if (generatedFiles.length === 0) {
         throw new Error(`mirror-code-generator produced no files for "${skillName}"`);
     }
 
-    console.log(`[DBTableSkills] Generated files: ${generatedFiles.join(', ')}`);
-    console.log(`[DBTableSkills] ──────────────────────────────────────────`);
+    debugLog(`[DBTableSkills] Generated files: ${generatedFiles.join(', ')}`);
+    debugLog(`[DBTableSkills] ──────────────────────────────────────────`);
 }
 
 const DEFAULT_TIMEOUT_MS = 60000;
@@ -154,7 +164,7 @@ export class DBTableSkillsSubsystem {
                 if (msg.includes('already exists') || msg.includes('Refusing to overwrite') || msg.includes('Function create')) {
                     // Model already registered, this is fine
                 } else {
-                    console.warn(`Failed to register model "${parsedSkill.tableName}" with DB adapter:`, msg);
+                    debugWarn(`Failed to register model "${parsedSkill.tableName}" with DB adapter:`, msg);
                 }
                 // Continue anyway
             }
@@ -195,7 +205,7 @@ export class DBTableSkillsSubsystem {
 
                 if (!needsRegeneration) {
                     // Load existing generated file (use timestamp to bypass module cache)
-                    console.log(`[DBTableSkills] Loading cached code for "${name}" (up-to-date)`);
+                    debugLog(`[DBTableSkills] Loading cached code for "${name}" (up-to-date)`);
                     const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                     const imported = await import(moduleUrl);
                     // Support both formats: { functions: { global: ... } } or flat { prepareRecord, ... }
@@ -203,7 +213,7 @@ export class DBTableSkillsSubsystem {
                     functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
                 } else {
                     // Source file is newer, regenerate using spec-based flow
-                    console.log(`[DBTableSkills] Regenerating "${name}" - ${regenReason}`);
+                    debugLog(`[DBTableSkills] Regenerating "${name}" - ${regenReason}`);
 
                     // Generate code via specs and mirror-code-generator
                     await generateCodeViaSpecs(name, skillDir, parsedSkill, this.llmAgent);
@@ -222,7 +232,7 @@ export class DBTableSkillsSubsystem {
         }
 
         if (!functions) {
-            console.log(`[DBTableSkills] First-time generation for "${name}"...`);
+            debugLog(`[DBTableSkills] First-time generation for "${name}"...`);
 
             if (generatedPath) {
                 // Generate code via specs and mirror-code-generator
@@ -235,7 +245,7 @@ export class DBTableSkillsSubsystem {
                 functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
             } else {
                 // No output path - cannot generate
-                console.warn(`  Warning: No output path for skill "${name}", code not persisted`);
+                debugWarn(`  Warning: No output path for skill "${name}", code not persisted`);
                 functions = { global: {} };
             }
         }
@@ -312,7 +322,7 @@ export class DBTableSkillsSubsystem {
             // Override selectRecords to use dbAdapter
             enhanced.selectRecords = async function selectRecords(filter) {
                 if (!dbAdapter || typeof dbAdapter.query !== 'function') {
-                    console.warn('DBAdapter not available, returning empty array');
+                    debugWarn('DBAdapter not available, returning empty array');
                     return [];
                 }
                 try {
@@ -369,7 +379,7 @@ export class DBTableSkillsSubsystem {
                                 presented[fieldName] = await Promise.resolve(presenterFn(record[fieldName], record));
                             } catch (e) {
                                 // Keep original value if presenter fails
-                                console.warn(`Presenter for ${fieldName} failed:`, e.message);
+                                debugWarn(`Presenter for ${fieldName} failed:`, e.message);
                             }
                         }
                     }
@@ -387,12 +397,14 @@ export class DBTableSkillsSubsystem {
         const allEnumerators = Object.values(functions.enumerators || {}).join('\n\n');
         const allDerivators = Object.values(functions.derivators || {}).join('\n\n');
 
-        const contextCode = `(function(dbAdapter, tableName) {
+        const contextCode = `(function(dbAdapter, tableName, DEBUG_ENABLED) {
+
+function debugWarn(...args) { if (DEBUG_ENABLED) console.warn(...args); }
 
 // Override selectRecords to use dbAdapter
 async function selectRecords(filter) {
     if (!dbAdapter || typeof dbAdapter.query !== 'function') {
-        console.warn('DBAdapter not available, returning empty array');
+        debugWarn('DBAdapter not available, returning empty array');
         return [];
     }
     try {
@@ -447,7 +459,7 @@ return {
     updateRecord: updateRecord,
     deleteRecord: deleteRecord
 };
-})(dbAdapter, tableName)`;
+})(dbAdapter, tableName, DEBUG_ENABLED)`;
 
         // Debug generated code
         // console.log('Generated Context Code:', contextCode);
