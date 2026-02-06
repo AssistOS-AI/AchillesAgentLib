@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backlog Manager · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Backlog Manager"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Backlog Manager</h1>
+            <p>BacklogManager coordinates backlog files, task approvals, and resolution history for agent planning workflows.</p>
+            <nav class="page-links" aria-label="Backlog resources">
+                <a href="overview.html">Skill System Overview</a>
+                <a href="agent-runtime.html">Agent Runtime</a>
+                <a href="orchestration-skills.html">Orchestration Skills</a>
+            </nav>
+        </section>
+
+        <section>
+            <h2>Responsibilities</h2>
+            <p>
+                The BacklogManager module keeps a structured backlog on disk, supports updates to task descriptions
+                and options, approves a task by writing a resolution, and moves completed work into history.
+            </p>
+            <ul>
+                <li><strong>Load and create</strong> backlog files for a given backlog path.</li>
+                <li><strong>Manage tasks</strong> by adding new tasks or updating existing ones.</li>
+                <li><strong>Approve tasks</strong> by recording a resolution and clearing pending options.</li>
+                <li><strong>Archive work</strong> by moving resolved tasks into history.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Backlog File Shape</h2>
+            <p>Each backlog file contains tasks plus a history archive:</p>
+            <pre><code>{
+  "tasks": [
+    {
+      "description": "Write onboarding email",
+      "options": ["Option A", "Option B"],
+      "resolution": ""
+    }
+  ],
+  "history": [
+    {
+      "description": "Draft release notes",
+      "options": [],
+      "resolution": "Published on the product blog."
+    }
+  ]
+}</code></pre>
+        </section>
+
+        <section>
+            <h2>Public API</h2>
+
+            <h3><code>loadBacklog(filePath)</code></h3>
+            <p>Loads the backlog file and returns tasks, history, and file metadata.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code> - Absolute or relative path to a backlog file.</li>
+                <li><strong>Returns</strong>: <code>{ tasks, history, meta }</code> where <code>meta</code> includes <code>mtime</code> and <code>size</code>.</li>
+            </ul>
+
+            <h3><code>createBacklog(filePath)</code></h3>
+            <p>Creates an empty backlog file on disk.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code></li>
+                <li><strong>Returns</strong>: Promise that resolves after file creation.</li>
+            </ul>
+
+            <h3><code>getTask(filePath, taskIndex)</code></h3>
+            <p>Fetches a specific task by 1-based index.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code>, <code>taskIndex</code> (1-based)</li>
+                <li><strong>Returns</strong>: Task object or <code>null</code> if missing.</li>
+            </ul>
+
+            <h3><code>addTask(filePath, initialContent)</code></h3>
+            <p>Adds a new task with empty options and resolution.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code>, <code>initialContent</code> (string)</li>
+                <li><strong>Returns</strong>: New task index (1-based).</li>
+            </ul>
+
+            <h3><code>addTasksFromText(filePath, text)</code></h3>
+            <p>Splits a numbered list into multiple tasks.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code>, <code>text</code> (numbered list)</li>
+                <li><strong>Returns</strong>: Array of created task indices.</li>
+            </ul>
+
+            <h3><code>addOptionsFromText(filePath, taskIndex, text)</code></h3>
+            <p>Parses a numbered list and appends each option to a task.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code>, <code>taskIndex</code>, <code>text</code></li>
+                <li><strong>Returns</strong>: Updated task or <code>null</code> if missing.</li>
+            </ul>
+
+            <h3><code>approveTask(filePath, taskIndex, resolution)</code></h3>
+            <p>Stores the chosen resolution and clears any pending options.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code>, <code>taskIndex</code>, <code>resolution</code> (string)</li>
+                <li><strong>Returns</strong>: Updated task or <code>null</code> if missing.</li>
+            </ul>
+
+            <h3><code>getApprovedTasks(filePath)</code></h3>
+            <p>Returns tasks with a non-empty resolution.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code></li>
+                <li><strong>Returns</strong>: Array of approved tasks with their 1-based index.</li>
+            </ul>
+
+            <h3><code>getNewTasks(filePath)</code></h3>
+            <p>Returns tasks that are in the backlog, including empty-resolution tasks.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code></li>
+                <li><strong>Returns</strong>: Array of tasks with their 1-based index.</li>
+            </ul>
+
+            <h3><code>updateTask(filePath, taskIndex, updates)</code></h3>
+            <p>Applies partial updates to a task and normalises option/resolution values.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code>, <code>taskIndex</code>, <code>updates</code></li>
+                <li><strong>Returns</strong>: Promise that resolves after saving.</li>
+            </ul>
+
+            <h3><code>markDone(filePath, taskIndex)</code></h3>
+            <p>Moves a task into history with a resolution fallback.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code>, <code>taskIndex</code></li>
+                <li><strong>Returns</strong>: The new history entry or <code>null</code>.</li>
+            </ul>
+
+            <h3><code>saveBacklog(filePath, data)</code></h3>
+            <p>Saves a fully formed backlog payload to disk.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code>, <code>data</code></li>
+                <li><strong>Returns</strong>: Promise that resolves after saving.</li>
+            </ul>
+
+            <h3><code>flush(filePath)</code></h3>
+            <p>Forces a flush of the backlog file using the backing IO helper.</p>
+            <ul>
+                <li><strong>Parameters</strong>: <code>filePath</code></li>
+                <li><strong>Returns</strong>: Promise that resolves after the flush.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Usage Example</h2>
+            <pre><code>import {
+  createBacklog,
+  addTask,
+  addOptionsFromText,
+  approveTask,
+  markDone
+} from 'achillesAgentLib/BacklogManager';
+
+await createBacklog('./docs_backlog.backlog');
+const index = await addTask('./docs_backlog.backlog', 'Draft new onboarding guide');
+await addOptionsFromText('./docs_backlog.backlog', index, '1) Publish this week\n2) Hold for review');
+await approveTask('./docs_backlog.backlog', index, 'Publish this week');
+await markDone('./docs_backlog.backlog', index);</code></pre>
+        </section>
+
+        <section>
+            <h2>Related Guides</h2>
+            <ul>
+                <li><a href="orchestration-skills.html">Orchestration Skills</a> for managing multi-step workflows.</li>
+                <li><a href="agent-runtime.html">Agent Runtime</a> for execution context and session handling.</li>
+                <li><a href="light-sop-lang.html">LightSOPLang</a> for script-based planning.</li>
+            </ul>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

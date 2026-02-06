@@ -42,17 +42,13 @@ export async function addOptionsFromText(filePath, taskIndex, text) {
   return task;
 }
 
-export async function approveOption(filePath, taskIndex, optionIndex) {
+export async function approveTask(filePath, taskIndex, resolution) {
   const { tasks, history } = await loadBacklog(filePath);
   const index = toTaskIndex(taskIndex);
   if (index === null) return null;
   const task = tasks[index];
   if (!task) return null;
-  const optionPosition = Number.parseInt(optionIndex, 10);
-  if (!Number.isFinite(optionPosition) || optionPosition < 1) return null;
-  const optionValue = task.options[optionPosition - 1];
-  if (typeof optionValue !== 'string') return null;
-  task.resolution = optionValue;
+  task.resolution = typeof resolution === 'string' ? resolution : '';
   task.options = [];
   await saveBacklogFile(filePath, { tasks, history });
   return task;
