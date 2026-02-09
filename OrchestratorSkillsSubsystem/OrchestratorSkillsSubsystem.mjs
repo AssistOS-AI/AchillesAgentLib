@@ -10,10 +10,30 @@ function debugLog(...args) {
 
 const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
+    preparation: ['preparation', 'prep', 'context-prep'],
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
     intents: ['intents', 'intentions', 'mappings'],
     sessionType: ['loop'],
 };
+
+function buildContextBlock(contextLines = []) {
+    if (!contextLines.length) {
+        return '';
+    }
+    return contextLines.join('\n');
+}
+
+function injectContextIntoPrompt(promptText, contextLines = []) {
+    if (!contextLines.length) {
+        return promptText;
+    }
+    const block = buildContextBlock(contextLines);
+    if (!promptText) {
+        return block;
+    }
+    return `${promptText}\n\n${block}`;
+}
+
 
 function normaliseBulletList(section = '') {
     return section
@@ -61,6 +81,7 @@ export class OrchestratorSkillsSubsystem {
         const sections = skillRecord.descriptor?.sections || {};
 
         const instructions = pickSection(sections, SECTION_KEYS.instructions);
+        const preparation = pickSection(sections, SECTION_KEYS.preparation);
         const allowedSkills = normaliseBulletList(pickSection(sections, SECTION_KEYS.allowedSkills))
             .map((name) => Sanitiser.sanitiseName(name))
             .filter(Boolean);
@@ -76,6 +97,7 @@ export class OrchestratorSkillsSubsystem {
             body: skillRecord.descriptor?.body || null,
             sections,
             instructions,
+            preparation: preparation || null,
             allowedSkills,
             intents,
             sessionType: sessionType || null,
@@ -133,6 +155,7 @@ export class OrchestratorSkillsSubsystem {
     }
 
 
+
     async executeLoopAgentSession({skillRecord, recursiveAgent, promptText, options}) {
         const sessionMemory = options?.context?.sessionMemory || options?.sessionMemory || null;
         const sessionKey = `${SESSION_KEY_PREFIX}${Sanitiser.sanitiseName(skillRecord.name)}`;
@@ -141,34 +164,54 @@ export class OrchestratorSkillsSubsystem {
         let session = sessionMemory?.get?.(sessionKey) || null;
         let result;
         
+        const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
+        const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
+        const descriptions = this.buildToolDescriptions(allowedSkills);
+
+        const toolsWithDescriptions = {};
+        allowedSkills.forEach(skillRecord => {
+            const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
+            toolsWithDescriptions[toolName] = {
+                handler: tools[toolName],
+                description: descriptions[toolName],
+            };
+        });
+
+        let preparationContextLines = [];
+        if (skillRecord.metadata?.preparation) {
+            const preparationResult = await this.llmAgent.startLoopPreparationSession(
+                toolsWithDescriptions,
+                skillRecord.metadata?.preparation,
+                promptText,
+                {
+                    mode: options?.mode || 'fast',
+                    maxStepsPerTurn: 20,
+                    retries: 1,
+                },
+            );
+            preparationContextLines = preparationResult?.contextLines || [];
+        }
+
+        const promptWithContext = injectContextIntoPrompt(promptText, preparationContextLines);
+
         if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {
             // Reuse existing session - continue the conversation
             debugLog(`[Orchestrator] Resuming existing LoopSession for "${skillRecord.name}" (status: ${session.status})`);
-            result = await session.newPrompt(promptText);
+            const baseSystemPrompt = skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.';
+            session.systemPrompt = injectContextIntoPrompt(baseSystemPrompt, preparationContextLines);
+            result = await session.newPrompt(promptWithContext);
         } else {
             // Create new session
-            const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
-            const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
-            const descriptions = this.buildToolDescriptions(allowedSkills);
-            
-            // Combine tools with descriptions for LoopAgentSession
-            const toolsWithDescriptions = {};
-            allowedSkills.forEach(skillRecord => {
-                const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-                toolsWithDescriptions[toolName] = {
-                    handler: tools[toolName],
-                    description: descriptions[toolName]
-                };
-            });
-            
+            const baseSystemPrompt = skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.';
+            const systemPrompt = injectContextIntoPrompt(baseSystemPrompt, preparationContextLines);
 
             const sessionOptions = {
-                systemPrompt: skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.',
+                systemPrompt,
                 mode: options?.mode || 'fast',
                 maxStepsPerTurn: 20,
             };
 
-            session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
+            session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptWithContext, sessionOptions);
             result = session.getLastResult();
         }
 
@@ -196,39 +239,58 @@ export class OrchestratorSkillsSubsystem {
         const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
         const skillsDescription = this.buildToolDescriptions(allowedSkills);
 
+        const commandsRegistry = {
+            executeCommand: async (payload, response) => {
+                const { command, args } = payload;
+                const skillAction = tools[command];
+
+                if (!skillAction) {
+                    return response.fail(`Unknown skill: ${command}`);
+                }
+
+                try {
+                    if (Array.isArray(args)) {
+                        const prompt = args.join(' ');
+                        const result = await skillAction(this.llmAgent, prompt);
+                        return response.success(result);
+                    }
+                    const result = await skillAction(this.llmAgent, args);
+                    return response.success(result);
+                } catch (error) {
+                    return response.fail(error?.message || String(error));
+                }
+            },
+            listCommands: () => allowedSkills.map(s => ({
+                name: Sanitiser.sanitiseName(s.shortName || s.name),
+                description: s.descriptor?.summary || s.descriptor?.title || s.name,
+            })),
+        };
+
+        let preparationContextLines = [];
+        if (skillRecord.metadata?.preparation) {
+            const preparationResult = await this.llmAgent.startSOPPreparationSession(
+                skillsDescription,
+                skillRecord.metadata?.preparation,
+                promptText,
+                {
+                    mode: options?.mode || 'deep',
+                    commandsRegistry,
+                    retries: 1,
+                },
+            );
+            preparationContextLines = preparationResult?.contextLines || [];
+        }
+
+        const promptWithContext = injectContextIntoPrompt(promptText, preparationContextLines);
+
         const sessionOptions = {
             systemPrompt: skillRecord.metadata?.instructions || 'Plan and execute skills to satisfy the user request.',
             mode: options?.mode || 'deep',
             planOnly: false,
-            commandsRegistry: {
-                executeCommand: async (payload, response) => {
-                    const { command, args } = payload;
-                    const skillAction = tools[command];
-                    
-                    if (!skillAction) {
-                        return response.fail(`Unknown skill: ${command}`);
-                    }
-                    
-                    try {
-                        if (Array.isArray(args)) {
-                            const prompt = args.join(' ');
-                            const result = await skillAction(this.llmAgent, prompt);
-                            return response.success(result);
-                        }
-                        const result = await skillAction(this.llmAgent, args);
-                        return response.success(result);
-                    } catch (error) {
-                        return response.fail(error?.message || String(error));
-                    }
-                },
-                listCommands: () => allowedSkills.map(s => ({
-                    name: Sanitiser.sanitiseName(s.shortName || s.name),
-                    description: s.descriptor?.summary || s.descriptor?.title || s.name,
-                })),
-            },
+            commandsRegistry,
         };
 
-        const session = await this.llmAgent.startSOPLangAgentSession(skillsDescription, promptText, sessionOptions);
+        const session = await this.llmAgent.startSOPLangAgentSession(skillsDescription, promptWithContext, sessionOptions);
         const variables = await session.getVariables();
         const result = session.getLastResult();
 

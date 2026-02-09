@@ -17,6 +17,8 @@ import {
 
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
 
+const PREPARATION_CONTEXT_PREFIX = '@context_';
+
 // Timestamp helper for logging
 const getTimestamp = () => {
     const now = new Date();
@@ -25,6 +27,100 @@ const getTimestamp = () => {
 
 function debugLog(...args) {
     if (DEBUG_ENABLED) console.log(...args);
+}
+
+function coerceResultToText(result) {
+    if (result == null) {
+        return '';
+    }
+    if (typeof result === 'string') {
+        return result;
+    }
+    if (typeof result === 'object') {
+        if (typeof result.text === 'string') {
+            return result.text;
+        }
+        if (typeof result.output === 'string') {
+            return result.output;
+        }
+        if (typeof result.result === 'string') {
+            return result.result;
+        }
+        try {
+            return JSON.stringify(result);
+        } catch (error) {
+            return String(result);
+        }
+    }
+    return String(result);
+}
+
+function parseContextVariables(text = '', prefix = PREPARATION_CONTEXT_PREFIX) {
+    if (!text) {
+        return [];
+    }
+    const lines = text.split(/\r?\n/);
+    const entries = [];
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line.startsWith(prefix)) {
+            continue;
+        }
+        const match = line.match(/^(@context_[A-Za-z0-9_-]+)\s*(?::=|:|=)\s*(.+)$/);
+        if (!match) {
+            continue;
+        }
+        let value = match[2].trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+        entries.push({
+            name: match[1],
+            value,
+        });
+    }
+    return entries;
+}
+
+function buildContextPieceLines(entries = []) {
+    return entries.map((entry, index) => {
+        const safeValue = String(entry.value ?? '').replace(/"/g, '\\"');
+        return `@context-piece-${index + 1} := "${safeValue}"`;
+    });
+}
+
+function buildPreparationPrompt(preparationText, userPrompt) {
+    const preparation = String(preparationText || '').trim();
+    if (!preparation) {
+        return '';
+    }
+    const requestText = String(userPrompt || '').trim();
+    const parts = [
+        'Preparation instructions:',
+        preparation,
+        '',
+    ];
+    if (requestText) {
+        parts.push('User request:');
+        parts.push(requestText);
+        parts.push('');
+    }
+    parts.push('Based on the preparation instructions, output only lines in the format:');
+    parts.push('@context_key := "value"');
+    parts.push('Do not include any extra text.');
+    return parts.join('\n');
+}
+
+async function runWithRetry(fn, retries = 1) {
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError;
 }
 
 class LoopAgentSession {
@@ -156,6 +252,43 @@ class LoopAgentSession {
         } catch {
             return null;
         }
+    }
+
+    static async runPreparation({
+        agent,
+        tools,
+        options = {},
+        preparationText,
+        userPrompt,
+        contextPrefix = PREPARATION_CONTEXT_PREFIX,
+        retries = 1,
+    }) {
+        const preparationPrompt = buildPreparationPrompt(preparationText, userPrompt);
+        if (!preparationPrompt) {
+            return { contextEntries: [], contextLines: [] };
+        }
+
+        const attemptRun = async () => {
+            const sessionOptions = {
+                ...options,
+                systemPrompt: 'Execute skills to prepare context for the user request.',
+            };
+            const session = new LoopAgentSession({
+                agent,
+                tools,
+                options: sessionOptions,
+            });
+            await session.newPrompt(preparationPrompt);
+            if (session.status === SESSION_STATUS_AWAITING_INPUT) {
+                throw new Error('Preparation loop requires user input.');
+            }
+            const resultText = coerceResultToText(session.getLastResult());
+            const contextEntries = parseContextVariables(resultText, contextPrefix);
+            const contextLines = buildContextPieceLines(contextEntries);
+            return { contextEntries, contextLines, rawText: resultText };
+        };
+
+        return runWithRetry(attemptRun, retries);
     }
 
 

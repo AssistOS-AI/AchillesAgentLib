@@ -10,8 +10,104 @@ import {
 
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
 
+const PREPARATION_CONTEXT_PREFIX = '@context_';
+
 function debugLog(...args) {
     if (DEBUG_ENABLED) console.log(...args);
+}
+
+function coerceResultToText(result) {
+    if (result == null) {
+        return '';
+    }
+    if (typeof result === 'string') {
+        return result;
+    }
+    if (typeof result === 'object') {
+        if (typeof result.text === 'string') {
+            return result.text;
+        }
+        if (typeof result.output === 'string') {
+            return result.output;
+        }
+        if (typeof result.result === 'string') {
+            return result.result;
+        }
+        try {
+            return JSON.stringify(result);
+        } catch (error) {
+            return String(result);
+        }
+    }
+    return String(result);
+}
+
+function parseContextVariables(text = '', prefix = PREPARATION_CONTEXT_PREFIX) {
+    if (!text) {
+        return [];
+    }
+    const lines = text.split(/\r?\n/);
+    const entries = [];
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line.startsWith(prefix)) {
+            continue;
+        }
+        const match = line.match(/^(@context_[A-Za-z0-9_-]+)\s*(?::=|:|=)\s*(.+)$/);
+        if (!match) {
+            continue;
+        }
+        let value = match[2].trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+        entries.push({
+            name: match[1],
+            value,
+        });
+    }
+    return entries;
+}
+
+function buildContextPieceLines(entries = []) {
+    return entries.map((entry, index) => {
+        const safeValue = String(entry.value ?? '').replace(/"/g, '\\"');
+        return `@context-piece-${index + 1} := "${safeValue}"`;
+    });
+}
+
+function buildPreparationPrompt(preparationText, userPrompt) {
+    const preparation = String(preparationText || '').trim();
+    if (!preparation) {
+        return '';
+    }
+    const requestText = String(userPrompt || '').trim();
+    const parts = [
+        'Preparation instructions:',
+        preparation,
+        '',
+    ];
+    if (requestText) {
+        parts.push('User request:');
+        parts.push(requestText);
+        parts.push('');
+    }
+    parts.push('Based on the preparation instructions, output only lines in the format:');
+    parts.push('@context_key := "value"');
+    parts.push('Do not include any extra text.');
+    return parts.join('\n');
+}
+
+async function runWithRetry(fn, retries = 1) {
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError;
 }
 
 class SOPAgenticSession {
@@ -65,6 +161,48 @@ class SOPAgenticSession {
         this.maxPlanAttempts = Number.isFinite(options.maxPlanAttempts)
             ? options.maxPlanAttempts
             : 3;
+        this.lastRunFailures = [];
+    }
+
+    static async runPreparation({
+        agent,
+        skillsDescription,
+        commandsRegistry,
+        options = {},
+        preparationText,
+        userPrompt,
+        contextPrefix = PREPARATION_CONTEXT_PREFIX,
+        retries = 1,
+    }) {
+        const preparationPrompt = buildPreparationPrompt(preparationText, userPrompt);
+        if (!preparationPrompt) {
+            return { contextEntries: [], contextLines: [] };
+        }
+
+        const attemptRun = async () => {
+            const sessionOptions = {
+                ...options,
+                planOnly: false,
+                systemPrompt: 'Plan and execute skills to prepare context for the user request.',
+                commandsRegistry,
+            };
+            const session = new SOPAgenticSession({
+                agent,
+                skillsDescription,
+                options: sessionOptions,
+            });
+            await session.newPrompt(preparationPrompt);
+            const failures = Array.isArray(session.lastRunFailures) ? session.lastRunFailures : [];
+            if (failures.length) {
+                throw new Error('Preparation SOP plan reported failures.');
+            }
+            const resultText = coerceResultToText(session.getLastResult());
+            const contextEntries = parseContextVariables(resultText, contextPrefix);
+            const contextLines = buildContextPieceLines(contextEntries);
+            return { contextEntries, contextLines, rawText: resultText };
+        };
+
+        return runWithRetry(attemptRun, retries);
     }
  
      async newPrompt(userPrompt) {
@@ -108,6 +246,7 @@ class SOPAgenticSession {
             const runResult = await this._runPlan(this.currentPlan);
             const hasFailures = runResult?.hasFailures;
             const failures = runResult?.failures || [];
+            this.lastRunFailures = failures;
  
             if (!hasFailures) {
                 break;
@@ -217,6 +356,7 @@ class SOPAgenticSession {
         this._lastFinalAnswer = null;
         const hasFailures = collectedFailures.length > 0;
         const failures = hasFailures ? collectedFailures : [];
+        this.lastRunFailures = failures;
         return { hasFailures, failures };
     }
  

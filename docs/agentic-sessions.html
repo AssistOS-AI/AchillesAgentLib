@@ -34,6 +34,20 @@
         </section>
 
         <section>
+            <h2>Preparation Phase</h2>
+            <p>
+                Orchestrator skills can define a <code>##Preparation</code> section in <code>oskill.md</code> to run a pre-context pass before the main session. The preparation phase uses the same tools as the main session, but its output is parsed to extract context variables.
+            </p>
+            <p>
+                The preparation planner is instructed to emit only lines in the format <code>@context_key := "value"</code>. These lines are collected and mapped to <code>@context-piece-*</code> entries that are injected into the main planner prompt or loop system prompt.
+            </p>
+            <ul>
+                <li><strong>SOP sessions</strong>: Preparation runs once before the main plan is generated.</li>
+                <li><strong>Loop sessions</strong>: Preparation runs per turn before each user prompt is processed.</li>
+            </ul>
+        </section>
+
+        <section>
             <h2>LoopAgentSession</h2>
             <p>
                 <code>LoopAgentSession</code> implements a classic "Thought-Action-Observation" loop (often called ReAct). It is best suited for tasks where the path to the solution isn't known upfront and requires exploration or iterative refinement.
@@ -142,6 +156,28 @@ const result = await session.newPrompt("Also update the summary with today's dat
             <p>
                 A powerful feature of <code>SOPAgenticSession</code> is its ability to self-heal. If the generated script fails during execution (e.g., syntax error, invalid argument, or runtime failure), the session captures the error, provides it to the LLM, and requests a rewritten plan. This <code>maxPlanAttempts</code> loop ensures higher reliability for complex workflows.
             </p>
+        </section>
+
+        <section>
+            <h2>Preparation APIs</h2>
+            <p>
+                Advanced workflows can call preparation directly via <code>LLMAgent</code> helpers. These APIs return parsed context lines that you can inject into subsequent prompts.
+            </p>
+            <pre><code>// Loop preparation (ReAct-style)
+const prep = await llmAgent.startLoopPreparationSession(tools, preparationText, userPrompt, {
+    mode: 'fast',
+    maxStepsPerTurn: 20,
+    retries: 1
+});
+
+// SOP preparation (LightSOPLang)
+const prep = await llmAgent.startSOPPreparationSession(skillsDescription, preparationText, userPrompt, {
+    mode: 'deep',
+    commandsRegistry,
+    retries: 1
+});
+
+// prep.contextLines -> [ '@context-piece-1 := "..."', ... ]</code></pre>
         </section>
 
         <section>
