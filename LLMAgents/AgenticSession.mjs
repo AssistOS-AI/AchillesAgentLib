@@ -19,6 +19,17 @@ const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_D
 
 const PREPARATION_CONTEXT_PREFIX = '@context_';
 
+function injectContextIntoPrompt(promptText, contextLines = []) {
+    if (!contextLines.length) {
+        return promptText;
+    }
+    const block = contextLines.join('\n');
+    if (!promptText) {
+        return block;
+    }
+    return `${promptText}\n\n${block}`;
+}
+
 // Timestamp helper for logging
 const getTimestamp = () => {
     const now = new Date();
@@ -146,6 +157,7 @@ class LoopAgentSession {
         }
 
         this.agent = agent;
+        this._userTools = { ...tools };
         this.tools = {
             ...tools,
             [FINAL_ANSWER_TOOL]: this._buildFinalAnswerTool(),
@@ -170,6 +182,8 @@ class LoopAgentSession {
         this.status = SESSION_STATUS_IDLE;
         this.lastAnswer = null;
         this.systemPrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
+        this.baseSystemPrompt = this.systemPrompt;
+        this.preparation = options.preparation || null;
         this.failedTurns = [];
         this.toolVars = new Map();
         this.toolVarCounter = 0;
@@ -186,6 +200,22 @@ class LoopAgentSession {
         if (!userPrompt || typeof userPrompt !== 'string') {
             throw new Error('newPrompt requires a prompt string.');
         }
+
+        // Run preparation if configured
+        if (this.preparation?.text) {
+            const prepResult = await LoopAgentSession.runPreparation({
+                agent: this.agent,
+                tools: this._userTools,
+                options: { mode: this.options.mode, maxStepsPerTurn: this.options.maxStepsPerTurn },
+                preparationText: this.preparation.text,
+                userPrompt,
+                retries: this.preparation.retries ?? 1,
+            });
+            const contextLines = prepResult?.contextLines || [];
+            this.systemPrompt = injectContextIntoPrompt(this.baseSystemPrompt, contextLines);
+            userPrompt = injectContextIntoPrompt(userPrompt, contextLines);
+        }
+
         const expected = typeof options.expected === 'string' || typeof options.expected === 'number'
             ? String(options.expected)
             : null;

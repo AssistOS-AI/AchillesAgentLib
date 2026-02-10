@@ -16,25 +16,6 @@ const SECTION_KEYS = {
     sessionType: ['loop'],
 };
 
-function buildContextBlock(contextLines = []) {
-    if (!contextLines.length) {
-        return '';
-    }
-    return contextLines.join('\n');
-}
-
-function injectContextIntoPrompt(promptText, contextLines = []) {
-    if (!contextLines.length) {
-        return promptText;
-    }
-    const block = buildContextBlock(contextLines);
-    if (!promptText) {
-        return block;
-    }
-    return `${promptText}\n\n${block}`;
-}
-
-
 function normaliseBulletList(section = '') {
     return section
         .split(/\r?\n/)
@@ -177,41 +158,27 @@ export class OrchestratorSkillsSubsystem {
             };
         });
 
-        let preparationContextLines = [];
-        if (skillRecord.metadata?.preparation) {
-            const preparationResult = await this.llmAgent.startLoopPreparationSession(
-                toolsWithDescriptions,
-                skillRecord.metadata?.preparation,
-                promptText,
-                {
-                    mode: options?.mode || 'deep',
-                    maxStepsPerTurn: 20,
-                    retries: 1,
-                },
-            );
-            preparationContextLines = preparationResult?.contextLines || [];
-        }
-
-        const promptWithContext = injectContextIntoPrompt(promptText, preparationContextLines);
+        const preparation = skillRecord.metadata?.preparation
+            ? { text: skillRecord.metadata.preparation, retries: 1 }
+            : null;
 
         if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {
             // Reuse existing session - continue the conversation
+            // Preparation runs internally in newPrompt() via session.preparation
             debugLog(`[Orchestrator] Resuming existing LoopSession for "${skillRecord.name}" (status: ${session.status})`);
-            const baseSystemPrompt = skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.';
-            session.systemPrompt = injectContextIntoPrompt(baseSystemPrompt, preparationContextLines);
-            result = await session.newPrompt(promptWithContext);
+            result = await session.newPrompt(promptText);
         } else {
             // Create new session
             const baseSystemPrompt = skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.';
-            const systemPrompt = injectContextIntoPrompt(baseSystemPrompt, preparationContextLines);
 
             const sessionOptions = {
-                systemPrompt,
+                systemPrompt: baseSystemPrompt,
                 mode: options?.mode || 'deep',
                 maxStepsPerTurn: 20,
+                preparation,
             };
 
-            session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptWithContext, sessionOptions);
+            session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
             result = session.getLastResult();
         }
 
@@ -266,31 +233,19 @@ export class OrchestratorSkillsSubsystem {
             })),
         };
 
-        let preparationContextLines = [];
-        if (skillRecord.metadata?.preparation) {
-            const preparationResult = await this.llmAgent.startSOPPreparationSession(
-                skillsDescription,
-                skillRecord.metadata?.preparation,
-                promptText,
-                {
-                    mode: options?.mode || 'deep',
-                    commandsRegistry,
-                    retries: 1,
-                },
-            );
-            preparationContextLines = preparationResult?.contextLines || [];
-        }
-
-        const promptWithContext = injectContextIntoPrompt(promptText, preparationContextLines);
+        const preparation = skillRecord.metadata?.preparation
+            ? { text: skillRecord.metadata.preparation, retries: 1 }
+            : null;
 
         const sessionOptions = {
             systemPrompt: skillRecord.metadata?.instructions || 'Plan and execute skills to satisfy the user request.',
             mode: options?.mode || 'deep',
             planOnly: false,
             commandsRegistry,
+            preparation,
         };
 
-        const session = await this.llmAgent.startSOPLangAgentSession(skillsDescription, promptWithContext, sessionOptions);
+        const session = await this.llmAgent.startSOPLangAgentSession(skillsDescription, promptText, sessionOptions);
         const variables = await session.getVariables();
         const result = session.getLastResult();
 

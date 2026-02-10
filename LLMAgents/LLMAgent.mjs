@@ -408,21 +408,6 @@ ${promptText}`
         return session;
     }
 
-    async startLoopPreparationSession(tools, preparationText, userPrompt, options = {}) {
-        if (!tools || typeof tools !== 'object') {
-            throw new Error('startLoopPreparationSession requires a tools object.');
-        }
-        const { retries = 1, ...sessionOptions } = options || {};
-        return LoopAgentSession.runPreparation({
-            agent: this,
-            tools,
-            options: sessionOptions,
-            preparationText,
-            userPrompt,
-            retries,
-        });
-    }
-
     async startSOPLangAgentSession(skillsDescription, initialPrompt, options = {}) {
         if (!skillsDescription || typeof skillsDescription !== 'object') {
             throw new Error('startSOPLangAgentSession requires a skillsDescription object.');
@@ -451,21 +436,6 @@ ${promptText}`
         return session;
     }
 
-    async startSOPPreparationSession(skillsDescription, preparationText, userPrompt, options = {}) {
-        if (!skillsDescription || typeof skillsDescription !== 'object') {
-            throw new Error('startSOPPreparationSession requires a skillsDescription object.');
-        }
-        const { retries = 1, ...sessionOptions } = options || {};
-        return SOPAgenticSession.runPreparation({
-            agent: this,
-            skillsDescription,
-            commandsRegistry: sessionOptions.commandsRegistry,
-            options: sessionOptions,
-            preparationText,
-            userPrompt,
-            retries,
-        });
-    }
 }
  
 export {

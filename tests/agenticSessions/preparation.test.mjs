@@ -30,29 +30,6 @@ function createStubLLMAgent(completeHandler) {
             await session.newPrompt(initialPrompt);
             return session;
         },
-        startLoopPreparationSession: async function (tools, preparationText, userPrompt, options) {
-            const { retries = 1, ...sessionOptions } = options || {};
-            return LoopAgentSession.runPreparation({
-                agent: this,
-                tools,
-                options: sessionOptions,
-                preparationText,
-                userPrompt,
-                retries,
-            });
-        },
-        startSOPPreparationSession: async function (skillsDescription, preparationText, userPrompt, options) {
-            const { retries = 1, ...sessionOptions } = options || {};
-            return SOPAgenticSession.runPreparation({
-                agent: this,
-                skillsDescription,
-                commandsRegistry: sessionOptions.commandsRegistry,
-                options: sessionOptions,
-                preparationText,
-                userPrompt,
-                retries,
-            });
-        },
     };
 }
 
@@ -277,18 +254,11 @@ test('OrchestratorSkillsSubsystem prepareSkill parses ##Preparation section', ()
 });
 
 test('OrchestratorSkillsSubsystem injects preparation context into loop session', async () => {
-    let capturedPrompt = null;
-    let capturedSystemPrompt = null;
+    let capturedOptions = null;
 
     const stubLLMAgent = {
-        startLoopPreparationSession: async () => ({
-            contextEntries: [{ name: '@context_user', value: 'testuser' }],
-            contextLines: ['@context-piece-1 := "testuser"'],
-            rawText: '@context_user := "testuser"',
-        }),
         startLoopAgentSession: async (tools, prompt, options) => {
-            capturedPrompt = prompt;
-            capturedSystemPrompt = options?.systemPrompt;
+            capturedOptions = options;
             return {
                 status: 'done',
                 getLastResult: () => 'Loop completed',
@@ -320,21 +290,17 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
     });
 
     assert.equal(result.session, 'loop');
-    assert.ok(capturedPrompt.includes('@context-piece-1'), 'prompt should contain context piece');
-    assert.ok(capturedSystemPrompt.includes('@context-piece-1'), 'systemPrompt should contain context piece');
+    assert.ok(capturedOptions.preparation, 'preparation option should be passed');
+    assert.equal(capturedOptions.preparation.text, 'Load user context');
+    assert.equal(capturedOptions.preparation.retries, 1);
 });
 
 test('OrchestratorSkillsSubsystem injects preparation context into SOP session', async () => {
-    let capturedPrompt = null;
+    let capturedOptions = null;
 
     const stubLLMAgent = {
-        startSOPPreparationSession: async () => ({
-            contextEntries: [{ name: '@context_data', value: 'prepared' }],
-            contextLines: ['@context-piece-1 := "prepared"'],
-            rawText: '@context_data := "prepared"',
-        }),
         startSOPLangAgentSession: async (skillsDescription, prompt, options) => {
-            capturedPrompt = prompt;
+            capturedOptions = options;
             return {
                 getVariables: async () => ({}),
                 getLastResult: () => 'SOP completed',
@@ -366,20 +332,17 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
     });
 
     assert.equal(result.session, 'sop');
-    assert.ok(capturedPrompt.includes('@context-piece-1'), 'prompt should contain context piece');
+    assert.ok(capturedOptions.preparation, 'preparation option should be passed');
+    assert.equal(capturedOptions.preparation.text, 'Load data context');
+    assert.equal(capturedOptions.preparation.retries, 1);
 });
 
 test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation section', async () => {
-    let prepCalled = false;
-    let mainCalled = false;
+    let capturedOptions = null;
 
     const stubLLMAgent = {
-        startLoopPreparationSession: async () => {
-            prepCalled = true;
-            return { contextEntries: [], contextLines: [] };
-        },
-        startLoopAgentSession: async () => {
-            mainCalled = true;
+        startLoopAgentSession: async (tools, prompt, options) => {
+            capturedOptions = options;
             return {
                 status: 'done',
                 getLastResult: () => 'Done',
@@ -410,8 +373,7 @@ test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation sectio
         options: {},
     });
 
-    assert.equal(prepCalled, false, 'preparation should not be called');
-    assert.equal(mainCalled, true, 'main session should be called');
+    assert.equal(capturedOptions.preparation, null, 'preparation should be null when no preparation section');
 });
 
 // =============================================================================

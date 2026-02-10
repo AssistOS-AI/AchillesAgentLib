@@ -12,6 +12,17 @@ const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_D
 
 const PREPARATION_CONTEXT_PREFIX = '@context_';
 
+function injectContextIntoPrompt(promptText, contextLines = []) {
+    if (!contextLines.length) {
+        return promptText;
+    }
+    const block = contextLines.join('\n');
+    if (!promptText) {
+        return block;
+    }
+    return `${promptText}\n\n${block}`;
+}
+
 function debugLog(...args) {
     if (DEBUG_ENABLED) console.log(...args);
 }
@@ -133,6 +144,7 @@ class SOPAgenticSession {
         }
 
         this.agent = agent;
+        this._userSkillsDescription = { ...skillsDescription };
         this.skillsDescription = { ...skillsDescription };
         this.skillsDescription[FINAL_ANSWER_TOOL] = FINAL_ANSWER_DESCRIPTION;
         this.skillsDescription[CANNOT_COMPLETE_TOOL] = CANNOT_COMPLETE_DESCRIPTION;
@@ -148,11 +160,14 @@ class SOPAgenticSession {
             || options.planGenerator
             || this.executionInterpreterOptions
             || {};
+        this._unwrappedCommandsRegistry = options.commandsRegistry || null;
         this.commandsRegistry = options.commandsRegistry && typeof options.commandsRegistry === 'object'
             ? this._wrapExecutionRegistry(options.commandsRegistry)
             : null;
         this.planCommandsRegistry = this._createPlanCommandsRegistry();
         this.systemPrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
+        this.baseSystemPrompt = this.systemPrompt;
+        this.preparation = options.preparation || null;
 
         this.history = [];
         this.currentPlan = '';
@@ -209,6 +224,22 @@ class SOPAgenticSession {
 
         if (!userPrompt || typeof userPrompt !== 'string') {
             throw new Error('newPrompt requires a prompt string.');
+        }
+
+        // Run preparation if configured
+        if (this.preparation?.text) {
+            const prepResult = await SOPAgenticSession.runPreparation({
+                agent: this.agent,
+                skillsDescription: this._userSkillsDescription,
+                commandsRegistry: this._unwrappedCommandsRegistry,
+                options: { mode: this.options.mode },
+                preparationText: this.preparation.text,
+                userPrompt,
+                retries: this.preparation.retries ?? 1,
+            });
+            const contextLines = prepResult?.contextLines || [];
+            this.systemPrompt = injectContextIntoPrompt(this.baseSystemPrompt, contextLines);
+            userPrompt = injectContextIntoPrompt(userPrompt, contextLines);
         }
 
         const modeHint = this.options.planOnly ? ' plan-only' : '';
