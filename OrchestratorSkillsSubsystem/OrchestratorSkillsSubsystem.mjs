@@ -184,7 +184,7 @@ export class OrchestratorSkillsSubsystem {
                 skillRecord.metadata?.preparation,
                 promptText,
                 {
-                    mode: options?.mode || 'fast',
+                    mode: options?.mode || 'deep',
                     maxStepsPerTurn: 20,
                     retries: 1,
                 },
@@ -207,7 +207,7 @@ export class OrchestratorSkillsSubsystem {
 
             const sessionOptions = {
                 systemPrompt,
-                mode: options?.mode || 'fast',
+                mode: options?.mode || 'deep',
                 maxStepsPerTurn: 20,
             };
 
