@@ -5,15 +5,46 @@
  */
 export function parseMultiFileMarkdown(markdown) {
     const files = new Map();
-    const fileBlockPattern = /##\s*file-path:\s*([^\s]+)\s*\n+```javascript\n([\s\S]+?)\n```/g;
+
+    // Pattern 1: fenced code blocks with "file-path:" header (```javascript ... ```)
+    const fencedPattern = /##\s*file-path:\s*([^\s\n]+)\s*\n+```(?:javascript|js)?\n([\s\S]+?)\n```/g;
     let match;
-    while ((match = fileBlockPattern.exec(markdown)) !== null) {
+    while ((match = fencedPattern.exec(markdown)) !== null) {
         const filePath = match[1].trim();
         const code = match[2].trim();
         if (filePath && code) {
             files.set(filePath, code);
         }
     }
+
+    // Pattern 2: fenced code blocks with bare filename header (## filename.mjs)
+    // Some LLMs omit the "file-path:" prefix
+    if (files.size === 0) {
+        const bareFencedPattern = /##\s+([^\s\n]+\.(?:mjs|js|ts|mts))\s*\n+```(?:javascript|js)?\n([\s\S]+?)\n```/g;
+        while ((match = bareFencedPattern.exec(markdown)) !== null) {
+            const filePath = match[1].trim();
+            const code = match[2].trim();
+            if (filePath && code) {
+                files.set(filePath, code);
+            }
+        }
+    }
+
+    // Pattern 3: unfenced — code follows the header directly (no ``` markers)
+    // Only try this if no fenced pattern found anything
+    if (files.size === 0) {
+        const unfencedPattern = /##\s*file-path:\s*([^\s\n]+)\s*\n\n([\s\S]+?)(?=\n##\s*file-path:|\s*$)/g;
+        while ((match = unfencedPattern.exec(markdown)) !== null) {
+            const filePath = match[1].trim();
+            let code = match[2].trim();
+            // Strip leading/trailing code fences if partially present
+            code = code.replace(/^```(?:javascript|js)?\n?/, '').replace(/\n?```$/, '').trim();
+            if (filePath && code) {
+                files.set(filePath, code);
+            }
+        }
+    }
+
     return files;
 }
 

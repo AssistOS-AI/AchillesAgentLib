@@ -7,7 +7,7 @@ import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
 
 envAutoConfig();
 
-const debugFlag = (process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase();
+const debugFlag = (process.env.ACHILLES_DEBUG ?? '').toLowerCase();
 const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
 
 const modelsConfiguration = loadModelsConfiguration();
@@ -609,6 +609,7 @@ export function createDefaultLLMInvokerStrategy() {
                     mode: effectiveMode,
                 };
             } catch (error) {
+                console.warn(`[AchillesAgentsLib] LLM cascade fail -> model: ${candidate}, error: ${error?.message || error}`);
                 attempts.push({ model: candidate, error });
             }
         }
