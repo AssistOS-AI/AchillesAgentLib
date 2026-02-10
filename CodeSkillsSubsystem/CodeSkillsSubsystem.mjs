@@ -9,7 +9,7 @@ const getTimestamp = () => {
 };
 
 // Debug logging configuration
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
 function debugLog(message, ...args) {
   if (DEBUG_ENABLED) {

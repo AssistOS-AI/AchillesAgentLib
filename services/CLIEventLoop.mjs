@@ -49,7 +49,7 @@ export class CLIEventLoop {
      */
     constructor(options = {}) {
         this.inactivityTimeoutMs = options.inactivityTimeoutMs ?? DEFAULT_INACTIVITY_TIMEOUT_MS;
-        this.debug = options.debug ?? (process.env.ACHILLES_DEBUG_ENABLED === 'true');
+        this.debug = options.debug ?? (process.env.ACHILLES_DEBUG === 'true');
         this.debugLog = options.debugLog ?? ((...args) => {
             if (this.debug) {
                 console.log('[CLIEventLoop]', ...args);

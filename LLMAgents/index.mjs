@@ -9,7 +9,7 @@ import {
 import { envAutoConfig } from './envAutoConfig.mjs';
 import { defaultLLMInvokerStrategy } from '../utils/LLMClient.mjs';
 
-const debugFlag = (process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase();
+const debugFlag = (process.env.ACHILLES_DEBUG ?? '').toLowerCase();
 const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
 
 try {

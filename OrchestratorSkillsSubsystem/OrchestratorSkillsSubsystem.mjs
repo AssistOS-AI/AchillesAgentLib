@@ -2,7 +2,7 @@ import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../LLMAgents/constants.mjs';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
 function debugLog(...args) {
     if (DEBUG_ENABLED) console.log(...args);

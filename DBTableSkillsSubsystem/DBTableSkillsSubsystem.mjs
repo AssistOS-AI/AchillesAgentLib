@@ -8,7 +8,7 @@ import { ConversationalTskillController } from './ConversationalTskillController
 import { tskillToSpecs } from './tskillToSpecs.mjs';
 import { generateMirrorCode } from '../RecursiveSkilledAgents/mirror-code-generator/index.mjs';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
 function debugLog(...args) {
     if (DEBUG_ENABLED) console.log(...args);
