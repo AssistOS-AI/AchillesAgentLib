@@ -15,7 +15,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
 function debugLog(...args) {
     if (DEBUG_ENABLED) console.log(...args);

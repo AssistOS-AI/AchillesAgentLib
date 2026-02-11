@@ -1,6 +1,6 @@
 {
     "defaultFastModel": "gemini-2.5-flash-lite",
-    "defaultDeepModel": "gpt-5.2-codex",
+    "defaultDeepModel": "gpt-5.2",
     "fastModelPriority": [
         "gemini-2.5-flash-lite",
         "o4-mini",
@@ -10,11 +10,11 @@
         "claude-haiku-4-5"
     ],
     "deepModelPriority": [
-        "gpt-5.2-codex",
         "gpt-5.2",
+        "gpt-5.2-codex",
         "gpt-5.1",
         "gpt-5",
-        "claude-opus-4-5",
+        "claude-opus-4-6",
         "gemini-2.5-pro",
         "gpt-4.1"
     ],
@@ -53,6 +53,11 @@
             "baseURL": "https://api.mistral.ai/v1/chat/completions",
             "apiKeyEnv": "MISTRAL_API_KEY",
             "module": "./utils/LLMProviders/providers/openai.mjs"
+        },
+        "openai-completions": {
+            "baseURL": "https://api.openai.com/v1/completions",
+            "apiKeyEnv": "OPENAI_API_KEY",
+            "module": "./utils/LLMProviders/providers/openaiCompletions.mjs"
         }
     },
     "models": [
@@ -68,9 +73,9 @@
             "name": "gpt-5.2-codex",
             "provider": "openai",
             "mode": "deep",
-            "inputPrice": 2,
-            "outputPrice": 15,
-            "context": "500k"
+            "inputPrice": 1.75,
+            "outputPrice": 14,
+            "context": "400k"
         },
         {
             "name": "o4-mini",
@@ -81,7 +86,7 @@
             "context": "200k"
         },
         {
-            "name": "claude-opus-4-5",
+            "name": "claude-opus-4-6",
             "provider": "anthropic",
             "mode": "deep",
             "inputPrice": 5,

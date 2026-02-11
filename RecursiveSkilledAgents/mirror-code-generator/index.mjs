@@ -258,26 +258,46 @@ Provide the code for the file derived from the specification.
                     }
                 }
             } else {
-                const tests = await generateBehaviorTests(specForPrompt, generatedCode, llmAgent);
-                debugLogger?.log('generateMirrorCode:testsGenerated', { source: sourceName, path: targetPath, count: tests.length });
+                try {
+                    const tests = await generateBehaviorTests(specForPrompt, generatedCode, llmAgent);
+                    debugLogger?.log('generateMirrorCode:testsGenerated', { source: sourceName, path: targetPath, count: tests.length });
 
-                debugLogger?.log('generateMirrorCode:review:start', { source: sourceName, path: targetPath });
-                const review = await reviewGeneratedCodeWithTests(targetPath, generatedCode, tests, llmAgent);
-                debugLogger?.log('generateMirrorCode:review:complete', { source: sourceName, path: targetPath, status: review.status });
-                if (review.status === 'fail') {
-                    debugLogger?.log('generateMirrorCode:repair:start', { source: sourceName, path: targetPath, failures: review.failures.length });
-                    const repaired = await repairGeneratedFile(
-                        targetPath,
-                        specForPrompt,
-                        backupSpecForPrompt,
-                        generatedCode,
-                        review.failures,
-                        llmAgent,
-                        'repair-single-file-from-review-failures'
-                    );
-                    debugLogger?.log('generateMirrorCode:repair:complete', { source: sourceName, path: targetPath });
-                    generatedCode = repaired;
+                    debugLogger?.log('generateMirrorCode:review:start', { source: sourceName, path: targetPath });
+                    const review = await reviewGeneratedCodeWithTests(targetPath, generatedCode, tests, llmAgent);
+                    debugLogger?.log('generateMirrorCode:review:complete', { source: sourceName, path: targetPath, status: review.status });
+                    if (review.status === 'fail') {
+                        debugLogger?.log('generateMirrorCode:repair:start', { source: sourceName, path: targetPath, failures: review.failures.length });
+                        const repaired = await repairGeneratedFile(
+                            targetPath,
+                            specForPrompt,
+                            backupSpecForPrompt,
+                            generatedCode,
+                            review.failures,
+                            llmAgent,
+                            'repair-single-file-from-review-failures'
+                        );
+                        debugLogger?.log('generateMirrorCode:repair:complete', { source: sourceName, path: targetPath });
+                        generatedCode = repaired;
+                    }
+                } catch (reviewError) {
+                    // Review/repair is best-effort; use the generated code as-is
+                    logger.warn(`[generateMirrorCode] Review step failed for "${targetPath}", using generated code as-is: ${reviewError.message}`);
                 }
+            }
+
+            // Validate generated code is not truncated before writing
+            const openBraces = (generatedCode.match(/\{/g) || []).length;
+            const closeBraces = (generatedCode.match(/\}/g) || []).length;
+            const openParens = (generatedCode.match(/\(/g) || []).length;
+            const closeParens = (generatedCode.match(/\)/g) || []).length;
+            const braceImbalance = Math.abs(openBraces - closeBraces);
+            const parenImbalance = Math.abs(openParens - closeParens);
+            if (braceImbalance > 2 || parenImbalance > 2) {
+                logger.warn(
+                    `[generateMirrorCode] Generated code for "${targetPath}" appears truncated ` +
+                    `(braces: ${openBraces}/${closeBraces}, parens: ${openParens}/${closeParens}), skipping write.`
+                );
+                continue;
             }
 
             await fs.mkdir(path.dirname(outputPath), { recursive: true });

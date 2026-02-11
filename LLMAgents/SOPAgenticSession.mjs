@@ -8,7 +8,7 @@ import {
     normalizeResponsePayload,
 } from './constants.mjs';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? process.env.ACHILES_DEBUG ?? '').toLowerCase() === 'true';
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
 const PREPARATION_CONTEXT_PREFIX = '@context_';
 

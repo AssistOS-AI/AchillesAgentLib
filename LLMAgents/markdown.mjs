@@ -229,14 +229,47 @@ export function extractJson(text) {
     }
 
     const trimmed = text.trim();
-    const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)```\s*$/);
-    const jsonString = fenceMatch ? fenceMatch[1] : trimmed;
 
+    // 1. Try the whole string as JSON
     try {
-        return JSON.parse(jsonString);
-    } catch (e) {
-        return null;
+        return JSON.parse(trimmed);
+    } catch (_) { /* fall through */ }
+
+    // 2. Try stripping markdown code fences
+    const fenceMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (fenceMatch) {
+        try {
+            return JSON.parse(fenceMatch[1].trim());
+        } catch (_) { /* fall through */ }
     }
+
+    // 3. Find the first { ... } or [ ... ] block in the text
+    for (let i = 0; i < trimmed.length; i++) {
+        const ch = trimmed[i];
+        if (ch !== '{' && ch !== '[') continue;
+        const close = ch === '{' ? '}' : ']';
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        for (let j = i; j < trimmed.length; j++) {
+            const c = trimmed[j];
+            if (escape) { escape = false; continue; }
+            if (c === '\\' && inString) { escape = true; continue; }
+            if (c === '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (c === ch) depth++;
+            else if (c === close) {
+                depth--;
+                if (depth === 0) {
+                    try {
+                        return JSON.parse(trimmed.slice(i, j + 1));
+                    } catch (_) { break; }
+                }
+            }
+        }
+    }
+
+    return null;
 }
 
 export {
