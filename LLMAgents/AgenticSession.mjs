@@ -298,6 +298,12 @@ class LoopAgentSession {
             return { contextEntries: [], contextLines: [] };
         }
 
+        debugLog(`[${getTimestamp()}] [LoopSession] Preparation start`, {
+            preparationLength: String(preparationText || '').length,
+            userPromptLength: String(userPrompt || '').length,
+            retries,
+        });
+
         const attemptRun = async () => {
             const sessionOptions = {
                 ...options,
@@ -308,13 +314,24 @@ class LoopAgentSession {
                 tools,
                 options: sessionOptions,
             });
+            debugLog(`[${getTimestamp()}] [LoopSession] Preparation session start`, {
+                promptLength: String(preparationPrompt || '').length,
+            });
             await session.newPrompt(preparationPrompt);
             if (session.status === SESSION_STATUS_AWAITING_INPUT) {
+                debugLog(`[${getTimestamp()}] [LoopSession] Preparation awaiting input`, {
+                    status: session.status,
+                });
                 throw new Error('Preparation loop requires user input.');
             }
             const resultText = coerceResultToText(session.getLastResult());
             const contextEntries = parseContextVariables(resultText, contextPrefix);
             const contextLines = buildContextPieceLines(contextEntries);
+            debugLog(`[${getTimestamp()}] [LoopSession] Preparation result parsed`, {
+                rawTextLength: String(resultText || '').length,
+                contextEntries: contextEntries.length,
+                contextLines: contextLines.length,
+            });
             return { contextEntries, contextLines, rawText: resultText };
         };
 

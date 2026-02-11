@@ -194,6 +194,12 @@ class SOPAgenticSession {
             return { contextEntries: [], contextLines: [] };
         }
 
+        debugLog('[SOPAgenticSession] Preparation start', {
+            preparationLength: String(preparationText || '').length,
+            userPromptLength: String(userPrompt || '').length,
+            retries,
+        });
+
         const attemptRun = async () => {
             const sessionOptions = {
                 ...options,
@@ -206,14 +212,25 @@ class SOPAgenticSession {
                 skillsDescription,
                 options: sessionOptions,
             });
+            debugLog('[SOPAgenticSession] Preparation session start', {
+                promptLength: String(preparationPrompt || '').length,
+            });
             await session.newPrompt(preparationPrompt);
             const failures = Array.isArray(session.lastRunFailures) ? session.lastRunFailures : [];
             if (failures.length) {
+                debugLog('[SOPAgenticSession] Preparation session failures', {
+                    failureCount: failures.length,
+                });
                 throw new Error('Preparation SOP plan reported failures.');
             }
             const resultText = coerceResultToText(session.getLastResult());
             const contextEntries = parseContextVariables(resultText, contextPrefix);
             const contextLines = buildContextPieceLines(contextEntries);
+            debugLog('[SOPAgenticSession] Preparation result parsed', {
+                rawTextLength: String(resultText || '').length,
+                contextEntries: contextEntries.length,
+                contextLines: contextLines.length,
+            });
             return { contextEntries, contextLines, rawText: resultText };
         };
 
