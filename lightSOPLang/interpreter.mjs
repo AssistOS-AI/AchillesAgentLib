@@ -15,6 +15,7 @@ import {
     createPropagatedCanceledValue,
     cloneValueWith,
 } from './valueHelpers.mjs';
+import { getInternalCommands } from './internalCommands.mjs';
 import {
     DefaultExecutionMonitor,
     ensureExecutionMonitor,
@@ -35,6 +36,14 @@ function ensureCommandsRegistry(commandsRegistry) {
         throw new Error('commandsRegistry.listCommands must be a function');
     }
     return commandsRegistry;
+}
+
+function buildCommandNames(entries) {
+    if (!Array.isArray(entries)) return new Set();
+    const names = entries
+        .map((entry) => entry?.name || entry?.command)
+        .filter((name) => typeof name === 'string' && name.trim());
+    return new Set(names);
 }
 
 function ensureOnFail(onFail) {
@@ -110,7 +119,10 @@ export class LightSOPLangInterpreter {
     constructor(code, commandsRegistry, ...rest) {
         const { inputValue, onFailOrOptions, maybeOptions } = normalizeConstructorArgs(rest);
         const { onFail, options } = extractOptions(onFailOrOptions ?? {}, maybeOptions);
-        this.commandsRegistry = ensureCommandsRegistry(commandsRegistry);
+        this._externalRegistry = ensureCommandsRegistry(commandsRegistry);
+        this._internalCommands = getInternalCommands();
+        this._externalCommandNames = null;
+        this.commandsRegistry = this._createMergedRegistry(this._externalRegistry);
         this.onFail = ensureOnFail(onFail ?? options.onFail);
         this.llmAgent = options.llmAgent ?? null;
         this.maxLlmaRounds = Number.isFinite(options.maxLlmaRounds) ? options.maxLlmaRounds : 5;
@@ -142,6 +154,37 @@ export class LightSOPLangInterpreter {
         if (code) {
             this.updateCode(code);
         }
+    }
+
+    _createMergedRegistry(externalRegistry) {
+        const getExternalNames = () => {
+            if (!this._externalCommandNames) {
+                let raw = [];
+                try {
+                    raw = externalRegistry.listCommands() || [];
+                } catch {
+                    raw = [];
+                }
+                this._externalCommandNames = buildCommandNames(raw);
+            }
+            return this._externalCommandNames;
+        };
+
+        return {
+            executeCommand: async (payload, responder) => {
+                const commandName = payload?.command;
+                if (commandName && Object.prototype.hasOwnProperty.call(this._internalCommands, commandName)) {
+                    const names = getExternalNames();
+                    if (!names.has(commandName)) {
+                        return this._internalCommands[commandName](payload, responder);
+                    }
+                }
+                return externalRegistry.executeCommand(payload, responder);
+            },
+            listCommands: () => externalRegistry.listCommands(),
+            cancelHeuristic: externalRegistry.cancelHeuristic,
+            autoCancel: externalRegistry.autoCancel,
+        };
     }
 
     updateCode(rawCode, metadata = {}) {

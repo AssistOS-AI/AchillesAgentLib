@@ -85,8 +85,28 @@ function buildContextPieceLines(entries = []) {
         const explicitName = String(entry.name || '').trim();
         const name = explicitName || `@context-piece-${index + 1}`;
         const safeValue = String(entry.value ?? '').replace(/"/g, '\\"');
-        return `${name} := "${safeValue}"`;
+        return `${name} has the value "${safeValue}"`;
     });
+}
+
+function escapeSopString(value) {
+    return String(value ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/\r/g, '\\r')
+        .replace(/\n/g, '\\n')
+        .replace(/\t/g, '\\t')
+        .replace(/"/g, '\\"');
+}
+
+function buildAssignLines(entries = []) {
+    const lines = [];
+    entries.forEach((entry, index) => {
+        const explicitName = String(entry?.name || '').trim();
+        const name = explicitName || `@context_piece_${index + 1}`;
+        const safeValue = escapeSopString(entry?.value ?? '');
+        lines.push(`${name} assign "${safeValue}"`);
+    });
+    return lines;
 }
 
 
@@ -188,6 +208,7 @@ class SOPAgenticSession {
         this.currentPlan = '';
         this.lastExecution = null;
         this._lastFinalAnswer = null;
+        this.preparationContextEntries = [];
         this.maxPlanAttempts = Number.isFinite(options.maxPlanAttempts)
             ? options.maxPlanAttempts
             : 3;
@@ -289,6 +310,9 @@ class SOPAgenticSession {
             });
             const contextLines = prepResult?.contextLines || [];
             const preparationPlan = prepResult?.preparationPlan || '';
+            this.preparationContextEntries = Array.isArray(prepResult?.contextEntries)
+                ? prepResult.contextEntries
+                : [];
             const systemContextLines = [];
 
             if (preparationPlan) {
@@ -391,6 +415,14 @@ class SOPAgenticSession {
             this.lastExecution = null;
             return { hasFailures: false, failures: [] };
         }
+        const contextAssignLines = buildAssignLines(this.preparationContextEntries);
+        const planWithContext = contextAssignLines.length
+            ? `${contextAssignLines.join('\n')}\n${planSource}`
+            : planSource;
+        if (planWithContext !== planSource) {
+            debugLog('[SOPAgenticSession] Executing plan with injected context variables:');
+            debugLog(planWithContext);
+        }
         const baseOptions = this.executionInterpreterOptions || {};
         const originalOnFail = typeof baseOptions.onFail === 'function'
             ? baseOptions.onFail
@@ -416,11 +448,11 @@ class SOPAgenticSession {
             interpreterOptions.llmAgent = this.agent;
         }
             this._lastFinalAnswer = null;
-            let interpreter;
-            try {
-                interpreter = new LightSOPLangInterpreter(
-                    planSource,
-                    this.commandsRegistry,
+        let interpreter;
+        try {
+            interpreter = new LightSOPLangInterpreter(
+                planWithContext,
+                this.commandsRegistry,
                 interpreterOptions,
             );
             await interpreter.ready;
