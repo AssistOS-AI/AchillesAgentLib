@@ -31,6 +31,7 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
             'Instructions:',
             '- Emit ONLY valid LightSOPLang code.',
             '- Use descriptive variable names and preserve context between steps.',
+            '- IMPORTANT: Do NOT use variable interpolation inside strings (e.g., "Result: $var"). Pass variables as separate arguments (e.g., "Result:" $var).',
             FINAL_RESPONSE_NOTE,
         ].join('\n');
     }
@@ -55,6 +56,7 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
     lines.push('- If the new requirement changes the behaviour of an existing step, you may update that step\'s declaration.');
     lines.push('- When you update declarations, the runtime will automatically recalculate the affected variables based on dependencies.');
     lines.push('- Avoid deleting existing steps unless they are clearly obsolete for all requirements.');
+    lines.push('- IMPORTANT: Do NOT use variable interpolation inside strings (e.g., "Result: $var"). Pass variables as separate arguments (e.g., "Result:" $var).');
     lines.push(FINAL_RESPONSE_NOTE);
     lines.push('');
     lines.push('Emit ONLY valid LightSOPLang code for the updated plan, with all steps needed for the combined behaviour.');
@@ -62,6 +64,31 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
     return lines.join('\n');
 };
 
+const buildPreparationPrompt = (preparationText, userPrompt) => {
+    const preparation = String(preparationText || '').trim();
+    if (!preparation) {
+        return '';
+    }
+    const requestText = String(userPrompt || '').trim();
+    const parts = [
+        'Preparation instructions:',
+        preparation,
+        '',
+    ];
+    if (requestText) {
+        parts.push('User request:');
+        parts.push(requestText);
+        parts.push('');
+    }
+    parts.push('If you need to return multiple prepared outputs, finish with:');
+    parts.push('@lastAnswer final_answer $var1 $var2 $var3');
+    parts.push('Use variables for each prepared output so they can be mapped into context.');
+    parts.push('Do NOT use variable interpolation inside strings (e.g., "Result: $var"). Pass variables as separate arguments (e.g., "Result:" $var).');
+    parts.push('Do not include any extra text.');
+    return parts.join('\n');
+};
+
 export {
     buildSOPAgenticInstructions,
+    buildPreparationPrompt,
 };

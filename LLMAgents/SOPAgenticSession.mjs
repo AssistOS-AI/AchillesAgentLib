@@ -1,5 +1,5 @@
 import { LightSOPLangInterpreter } from '../lightSOPLang/interpreter.mjs';
-import { buildSOPAgenticInstructions } from './templates/sopAgenticSessionPrompts.mjs';
+import { buildSOPAgenticInstructions, buildPreparationPrompt } from './templates/sopAgenticSessionPrompts.mjs';
 import {
     FINAL_ANSWER_TOOL,
     FINAL_ANSWER_DESCRIPTION,
@@ -109,29 +109,6 @@ function buildAssignLines(entries = []) {
     return lines;
 }
 
-
-function buildPreparationPrompt(preparationText, userPrompt) {
-    const preparation = String(preparationText || '').trim();
-    if (!preparation) {
-        return '';
-    }
-    const requestText = String(userPrompt || '').trim();
-    const parts = [
-        'Preparation instructions:',
-        preparation,
-        '',
-    ];
-    if (requestText) {
-        parts.push('User request:');
-        parts.push(requestText);
-        parts.push('');
-    }
-    parts.push('If you need to return multiple prepared outputs, finish with:');
-    parts.push('@lastAnswer final_answer $var1 $var2 $var3');
-    parts.push('Use variables for each prepared output so they can be mapped into context.');
-    parts.push('Do not include any extra text.');
-    return parts.join('\n');
-}
 
 function buildContextNameFromVariable(variableName) {
     const rawName = String(variableName ?? '').replace(/^\$+/, '');

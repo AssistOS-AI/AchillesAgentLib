@@ -228,6 +228,28 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     return lines.join('\n');
 };
 
+const buildPreparationPrompt = (preparationText, userPrompt) => {
+    const preparation = String(preparationText || '').trim();
+    if (!preparation) {
+        return '';
+    }
+    const requestText = String(userPrompt || '').trim();
+    const parts = [
+        'Preparation instructions:',
+        preparation,
+        '',
+    ];
+    if (requestText) {
+        parts.push('User request:');
+        parts.push(requestText);
+        parts.push('');
+    }
+    parts.push('Based on the preparation instructions, output only lines in the format:');
+    parts.push('@context_key := "value"');
+    parts.push('Do not include any extra text.');
+    return parts.join('\n');
+};
+
 export {
     buildInterpretMessagePrompt,
     buildDoTaskPrompt,
@@ -235,6 +257,7 @@ export {
     buildDetectIntentsPrompt,
     buildResolveConfirmationPrompt,
     buildAgenticSessionPlannerPrompt,
+    buildPreparationPrompt,
     extractJson,
 };
     const formatValue = (value) => {

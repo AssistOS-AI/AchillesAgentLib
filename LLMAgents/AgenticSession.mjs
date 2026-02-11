@@ -1,4 +1,4 @@
-import { buildAgenticSessionPlannerPrompt, extractJson } from './templates/prompts.mjs';
+import { buildAgenticSessionPlannerPrompt, buildPreparationPrompt, extractJson } from './templates/prompts.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 //import { appendAgenticAudit } from '../utils/AgenticSessionLogger.mjs';
 import {
@@ -98,28 +98,6 @@ function buildContextPieceLines(entries = []) {
         const safeValue = String(entry.value ?? '').replace(/"/g, '\\"');
         return `@context-piece-${index + 1} := "${safeValue}"`;
     });
-}
-
-function buildPreparationPrompt(preparationText, userPrompt) {
-    const preparation = String(preparationText || '').trim();
-    if (!preparation) {
-        return '';
-    }
-    const requestText = String(userPrompt || '').trim();
-    const parts = [
-        'Preparation instructions:',
-        preparation,
-        '',
-    ];
-    if (requestText) {
-        parts.push('User request:');
-        parts.push(requestText);
-        parts.push('');
-    }
-    parts.push('Based on the preparation instructions, output only lines in the format:');
-    parts.push('@context_key := "value"');
-    parts.push('Do not include any extra text.');
-    return parts.join('\n');
 }
 
 async function runWithRetry(fn, retries = 1) {
