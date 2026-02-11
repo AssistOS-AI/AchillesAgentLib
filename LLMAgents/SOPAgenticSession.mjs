@@ -87,6 +87,7 @@ function buildContextPieceLines(entries = []) {
     });
 }
 
+
 function buildPreparationPrompt(preparationText, userPrompt) {
     const preparation = String(preparationText || '').trim();
     if (!preparation) {
@@ -227,12 +228,13 @@ class SOPAgenticSession {
             const resultText = coerceResultToText(session.getLastResult());
             const contextEntries = parseContextVariables(resultText, contextPrefix);
             const contextLines = buildContextPieceLines(contextEntries);
+            const preparationPlan = session.currentPlan || '';
             debugLog('[SOPAgenticSession] Preparation result parsed', {
                 rawTextLength: String(resultText || '').length,
                 contextEntries: contextEntries.length,
                 contextLines: contextLines.length,
             });
-            return { contextEntries, contextLines, rawText: resultText };
+            return { contextEntries, contextLines, rawText: resultText, preparationPlan };
         };
 
         return runWithRetry(attemptRun, retries);
@@ -256,7 +258,20 @@ class SOPAgenticSession {
                 retries: this.preparation.retries ?? 1,
             });
             const contextLines = prepResult?.contextLines || [];
-            this.systemPrompt = injectContextIntoPrompt(this.baseSystemPrompt, contextLines);
+            const preparationPlan = prepResult?.preparationPlan || '';
+            const systemContextLines = [];
+
+            if (preparationPlan) {
+                systemContextLines.push('As preparation to provide context, the following plan was executed:');
+                systemContextLines.push(preparationPlan);
+                systemContextLines.push('');
+            }
+            if (contextLines.length) {
+                systemContextLines.push('You can use these variables as context if needed.');
+                systemContextLines.push(...contextLines);
+            }
+
+            this.systemPrompt = injectContextIntoPrompt(this.baseSystemPrompt, systemContextLines);
             userPrompt = injectContextIntoPrompt(userPrompt, contextLines);
         }
 
