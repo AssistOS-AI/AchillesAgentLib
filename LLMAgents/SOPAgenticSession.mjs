@@ -216,6 +216,7 @@ class SOPAgenticSession {
                 promptLength: String(preparationPrompt || '').length,
             });
             await session.newPrompt(preparationPrompt);
+            debugLog('[SOPAgenticSession] Preparation plan generated:', session.currentPlan || '(empty plan)');
             const failures = Array.isArray(session.lastRunFailures) ? session.lastRunFailures : [];
             if (failures.length) {
                 debugLog('[SOPAgenticSession] Preparation session failures', {
