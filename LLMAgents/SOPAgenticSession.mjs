@@ -126,8 +126,6 @@ function buildPreparationPrompt(preparationText, userPrompt) {
         parts.push(requestText);
         parts.push('');
     }
-    parts.push('Based on the preparation instructions, output only lines in the format:');
-    parts.push('@context_key := "value"');
     parts.push('If you need to return multiple prepared outputs, finish with:');
     parts.push('@lastAnswer final_answer $var1 $var2 $var3');
     parts.push('Use variables for each prepared output so they can be mapped into context.');
