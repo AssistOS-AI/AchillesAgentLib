@@ -58,6 +58,11 @@
             "baseURL": "https://api.openai.com/v1/completions",
             "apiKeyEnv": "OPENAI_API_KEY",
             "module": "./utils/LLMProviders/providers/openaiCompletions.mjs"
+        },
+        "openai_responses": {
+            "baseURL": "https://api.openai.com/v1/responses",
+            "apiKeyEnv": "OPENAI_API_KEY",
+            "module": "./utils/LLMProviders/providers/openaiResponses.mjs"
         }
     },
     "models": [
@@ -71,7 +76,7 @@
         },
         {
             "name": "gpt-5.2-codex",
-            "provider": "openai",
+            "provider": "openai_responses",
             "mode": "deep",
             "inputPrice": 1.75,
             "outputPrice": 14,

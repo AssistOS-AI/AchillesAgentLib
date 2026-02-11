@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 /**
- * Model Benchmark Evaluation Suite
+ * Deep Models Benchmark Evaluation Suite
  * 
- * Tests all configured LLM models for:
- * 1. Response speed (latency)
+ * Tests all configured deep LLM models for:
+ * 1. Response quality and reasoning depth
  * 2. Correctness (skill/tool selection accuracy)
  * 3. Parameter extraction quality
+ * 4. Semantic accuracy (enabled by default for deep models)
+ * 
+ * Deep models are expected to produce higher-quality responses at the cost
+ * of higher latency and token usage. This benchmark focuses on correctness
+ * and semantic accuracy rather than raw speed.
  * 
  * Usage:
- *   node evalsSuite/modelBenchmark/evalModelBenchmark.mjs [options]
+ *   node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs [options]
  * 
  * Options:
- *   --models <list>    Comma-separated list of models to test (default: all available)
+ *   --models <list>    Comma-separated list of models to test (default: all available deep models)
  *   --cases <range>    Test case range, e.g., "1-5" or "3" (default: all)
  *   --runs <n>         Number of runs per model/case (default: 1)
  *   --output <file>    Save results to JSON file
@@ -23,21 +28,22 @@
 // CONFIGURATION - Edit these values to customize benchmark behavior
 // ============================================================================
 const CONFIG = {
-    // Default models to test when --models flag is not provided
-    // 100% accuracy models + fastModelPriority from LLMConfig.json
+    // Default deep models to test when --models flag is not provided
+    // Resolved from ACHILLES_ENABLED_DEEP_MODELS env var or deepModelPriority in LLMConfig.json
     defaultModels: null,
 
     // Number of runs per model/case for averaging (overridden by --runs)
     defaultRuns: 1,
 
-    // Skip semantic matching by default (faster, less accurate)
-    // Semantic matching uses LLM to compare expected vs actual descriptions
-    skipSemanticByDefault: true,
+    // Semantic matching enabled by default for deep models (more thorough evaluation)
+    // Deep models justify the extra cost of semantic comparison
+    skipSemanticByDefault: false,
 
     // Timeout for individual model calls (milliseconds)
-    modelTimeout: 30000,
+    // Higher than fast models since deep models take longer to respond
+    modelTimeout: 120000,
 
-    // Models to always exclude from benchmarks (e.g., expensive or slow models)
+    // Models to always exclude from benchmarks (e.g., extremely expensive models)
     excludeModels: [],
 
     // Difficulty levels to include (null = all)
@@ -89,8 +95,8 @@ const COLORS = {
  * Resolve default models from configuration or environment variables.
  * Priority:
  * 1. CONFIG.defaultModels (if explicitly set as array)
- * 2. ACHILLES_ENABLED_FAST_MODELS env var (comma-separated list)
- * 3. null (test all available models)
+ * 2. ACHILLES_ENABLED_DEEP_MODELS env var (comma-separated list)
+ * 3. null (test all available deep models)
  * 
  * @returns {string[]|null} List of model names to test, or null for all models
  */
@@ -100,17 +106,17 @@ function resolveDefaultModels() {
         return CONFIG.defaultModels;
     }
 
-    // Check ACHILLES_ENABLED_FAST_MODELS env var
-    const envModels = process.env.ACHILLES_ENABLED_FAST_MODELS;
+    // Check ACHILLES_ENABLED_DEEP_MODELS env var
+    const envModels = process.env.ACHILLES_ENABLED_DEEP_MODELS;
     if (envModels && typeof envModels === 'string') {
         const models = envModels.split(',').map(m => m.trim()).filter(Boolean);
         if (models.length > 0) {
-            console.log(`${COLORS.CYAN}Using models from ACHILLES_ENABLED_FAST_MODELS:${COLORS.RESET} ${models.length} models`);
+            console.log(`${COLORS.CYAN}Using models from ACHILLES_ENABLED_DEEP_MODELS:${COLORS.RESET} ${models.length} models`);
             return models;
         }
     }
 
-    // Fall back to null (test all available models)
+    // Fall back to null (test all available deep models)
     return null;
 }
 
@@ -138,7 +144,7 @@ function parseArgs() {
         } else if (arg === '--models' || arg === '-m') {
             options.models = args[++i]?.split(',').map(m => m.trim()).filter(Boolean) || null;
         } else if (arg === '--all-models') {
-            options.models = null; // Test all available models
+            options.models = null; // Test all available deep models
         } else if (arg === '--cases' || arg === '-c') {
             options.caseRange = args[++i];
         } else if (arg === '--difficulty' || arg === '-d') {
@@ -159,60 +165,61 @@ function parseArgs() {
 
 function printHelp() {
     console.log(`
-${COLORS.BOLD}Model Benchmark Evaluation Suite${COLORS.RESET}
+${COLORS.BOLD}Deep Models Benchmark Evaluation Suite${COLORS.RESET}
 
-Tests all configured LLM models for speed and correctness.
+Tests all configured deep LLM models for quality and correctness.
+Deep models are evaluated with semantic matching enabled by default.
 
 ${COLORS.CYAN}Usage:${COLORS.RESET}
-  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs [options]
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs [options]
 
 ${COLORS.CYAN}Options:${COLORS.RESET}
-  --models, -m <list>   Comma-separated list of models to test
-                        Example: --models "gemini-3-flash,claude-sonnet-4.5"
-                        Default: ${CONFIG.defaultModels?.join(', ') || 'all available'}
-  --all-models          Test all available models (override default list)
+  --models, -m <list>   Comma-separated list of deep models to test
+                        Example: --models "gpt-5.2,claude-opus-4-6"
+                        Default: ${CONFIG.defaultModels?.join(', ') || 'from ACHILLES_ENABLED_DEEP_MODELS or all available'}
+  --all-models          Test all available deep models (override default list)
   --cases, -c <range>   Test case range (e.g., "1-5" or "3")
   --difficulty, -d <l>  Filter by difficulty (e.g., "medium,hard")
   --runs, -r <n>        Number of runs per model/case (default: ${CONFIG.defaultRuns})
   --output, -o <file>   Save detailed results to JSON file
   --skip-semantic       Skip semantic matching (faster)
-  --with-semantic       Enable semantic matching (more accurate)
+  --with-semantic       Enable semantic matching (default for deep models)
   --simple-prompt       Use simple benchmark prompt (not production)
   --production-prompt   Use production buildDetectIntentsPrompt (default)
   --help, -h            Show this help
 
 ${COLORS.CYAN}Current Configuration:${COLORS.RESET}
-  Default models:       ${CONFIG.defaultModels?.join(', ') || 'from ACHILLES_ENABLED_FAST_MODELS or all available'}
+  Default models:       ${CONFIG.defaultModels?.join(', ') || 'from ACHILLES_ENABLED_DEEP_MODELS or all available'}
   Default runs:         ${CONFIG.defaultRuns}
   Skip semantic:        ${CONFIG.skipSemanticByDefault}
   Production prompt:    ${CONFIG.useProductionPrompt}
   Model timeout:        ${CONFIG.modelTimeout}ms
 
 ${COLORS.CYAN}Environment Variables:${COLORS.RESET}
-  ACHILLES_ENABLED_FAST_MODELS   Comma-separated list of models to test by default
-                                 Example: "opencode/qwen3-coder,axiologic_antigravity/gemini-2.5-flash-lite"
+  ACHILLES_ENABLED_DEEP_MODELS   Comma-separated list of deep models to test by default
+                                 Example: "openai/gpt-5.2,axiologic_antigravity/claude-opus-4-6-thinking"
 
 ${COLORS.CYAN}Examples:${COLORS.RESET}
-  # Test models from ACHILLES_ENABLED_FAST_MODELS env var (if set)
-  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs
+  # Test models from ACHILLES_ENABLED_DEEP_MODELS env var (if set)
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs
 
-  # Test all available models (ignore ACHILLES_ENABLED_FAST_MODELS)
-  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --all-models
+  # Test all available deep models (ignore ACHILLES_ENABLED_DEEP_MODELS)
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --all-models
 
-  # Test specific models
-  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --models "gemini-3-flash,gpt-5-mini"
+  # Test specific deep models
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --models "gpt-5.2,claude-opus-4-6"
 
   # Test with qualified names (provider/model)
-  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --models "opencode/qwen3-coder,axiologic_antigravity/gemini-2.5-flash-lite"
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --models "openai/gpt-5.2,axiologic_antigravity/claude-opus-4-6-thinking"
+
+  # Test only hard/very_hard cases (best for evaluating deep model strengths)
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --difficulty "hard,very_hard"
 
   # Test with 3 runs per case for averaging
-  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --runs 3
-
-  # Test with semantic matching enabled
-  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --with-semantic
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --runs 3
 
   # Save results to file
-  node evalsSuite/modelBenchmark/evalModelBenchmark.mjs --output results.json
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --output deep_results.json
 `);
 }
 
@@ -257,6 +264,14 @@ async function loadTestCases(caseRange, difficulties = null) {
     return cases;
 }
 
+/**
+ * Get available deep models from configuration.
+ * When no requestedModels are specified, filters to only deep-mode models.
+ * 
+ * @param {Object} modelsConfig - The loaded models configuration
+ * @param {string[]|null} requestedModels - Explicitly requested model names
+ * @returns {Array} - Available deep models with API keys
+ */
 function getAvailableModels(modelsConfig, requestedModels) {
     const available = [];
     
@@ -282,6 +297,9 @@ function getAvailableModels(modelsConfig, requestedModels) {
             const matchesSimple = requestedModels.includes(name);
             const matchesQualified = requestedModels.includes(qualifiedName);
             if (!matchesSimple && !matchesQualified) continue;
+        } else {
+            // When no models are explicitly requested, only include deep models
+            if (descriptor.mode !== 'deep') continue;
         }
 
         // Use qualified name in output to support provider/model format
@@ -290,7 +308,7 @@ function getAvailableModels(modelsConfig, requestedModels) {
         available.push({
             name: displayName,
             provider: descriptor.providerKey,
-            mode: descriptor.mode || 'fast',
+            mode: descriptor.mode || 'deep',
             apiKeyEnv,
         });
     }
@@ -344,8 +362,8 @@ async function testModel(agent, modelName, skillsDescription, testCase, skipSema
         const response = await agent.complete({
             prompt,
             model: modelName,
-            mode: 'fast',
-            context: { intent: 'benchmark-skill-selection' },
+            mode: 'deep',
+            context: { intent: 'deep-benchmark-skill-selection' },
         });
         
         const endTime = Date.now();
@@ -387,12 +405,12 @@ async function testModel(agent, modelName, skillsDescription, testCase, skipSema
             if (inActual) {
                 keyMatches++;
                 
-                // Semantic match check (optional)
+                // Semantic match check (enabled by default for deep models)
                 if (!skipSemantic) {
                     const isSemanticMatch = await checkSemanticMatch(
                         agent, 
                         testCase.expected[key], 
-                        parsed[key]
+                        parsed[key],
                     );
                     if (isSemanticMatch) {
                         semanticMatches++;
@@ -468,8 +486,8 @@ Do they describe essentially the same action? Answer ONLY "YES" or "NO".`;
 
         const response = await agent.complete({
             prompt,
-            mode: 'fast',
-            context: { intent: 'benchmark-semantic-check' },
+            mode: 'deep',
+            context: { intent: 'deep-benchmark-semantic-check' },
         });
 
         return response.trim().toUpperCase().includes('YES');
@@ -511,7 +529,8 @@ function printModelResults(modelName, results) {
 }
 
 /**
- * Sort models by performance: highest accuracy first, then fastest if tied.
+ * Sort models by performance: highest accuracy first, then by latency if tied.
+ * For deep models, accuracy is heavily prioritised over speed.
  * @param {Object} allResults - Results keyed by model name
  * @returns {string[]} - Model names in sorted order
  */
@@ -521,25 +540,29 @@ function sortModelsByPerformance(allResults) {
             const successful = results.filter(r => r.success).length;
             const total = results.length;
             const avgLatency = results.reduce((sum, r) => sum + r.latencyMs, 0) / total;
+            const avgSemanticAcc = results.reduce((sum, r) => sum + (r.semanticAccuracy || 0), 0) / total;
             return {
                 model,
                 successRate: total > 0 ? successful / total : 0,
+                avgSemanticAcc,
                 avgLatency,
             };
         })
         .sort((a, b) => {
             // Sort by accuracy descending first
             if (b.successRate !== a.successRate) return b.successRate - a.successRate;
-            // If accuracy is the same, sort by latency ascending (faster first)
+            // Then by semantic accuracy descending
+            if (b.avgSemanticAcc !== a.avgSemanticAcc) return b.avgSemanticAcc - a.avgSemanticAcc;
+            // If accuracy is the same, sort by latency ascending
             return a.avgLatency - b.avgLatency;
         })
         .map(item => item.model);
 }
 
 function printSummaryTable(allResults) {
-    console.log(`\n${COLORS.BOLD}${COLORS.CYAN}=== BENCHMARK SUMMARY ===${COLORS.RESET}\n`);
+    console.log(`\n${COLORS.BOLD}${COLORS.CYAN}=== DEEP MODELS BENCHMARK SUMMARY ===${COLORS.RESET}\n`);
 
-    // Sort by success rate, then by latency
+    // Sort by success rate, then semantic accuracy, then by latency
     const sorted = Object.entries(allResults)
         .map(([model, results]) => {
             const successful = results.filter(r => r.success).length;
@@ -559,37 +582,40 @@ function printSummaryTable(allResults) {
         })
         .sort((a, b) => {
             if (b.successRate !== a.successRate) return b.successRate - a.successRate;
+            if (b.avgSemAcc !== a.avgSemAcc) return b.avgSemAcc - a.avgSemAcc;
             return a.avgLatency - b.avgLatency;
         });
 
     // Print header
-    console.log(`${'Model'.padEnd(35)} ${'Pass'.padStart(8)} ${'Latency'.padStart(10)} ${'KeyAcc'.padStart(8)} ${'SemAcc'.padStart(8)}`);
-    console.log('-'.repeat(75));
+    console.log(`${'Model'.padEnd(45)} ${'Pass'.padStart(8)} ${'Latency'.padStart(10)} ${'KeyAcc'.padStart(8)} ${'SemAcc'.padStart(8)}`);
+    console.log('-'.repeat(85));
 
     for (const row of sorted) {
         const color = row.successRate === 1 ? COLORS.GREEN :
                       row.successRate >= 0.7 ? COLORS.YELLOW : COLORS.RED;
         
         console.log(
-            `${color}${row.model.padEnd(35)}${COLORS.RESET} ` +
+            `${color}${row.model.padEnd(45)}${COLORS.RESET} ` +
             `${(row.successRate * 100).toFixed(0).padStart(6)}% ` +
             `${row.avgLatency.toFixed(0).padStart(8)}ms ` +
             `${(row.avgKeyAcc * 100).toFixed(0).padStart(6)}% ` +
-            `${(row.avgSemAcc * 100).toFixed(0).padStart(6)}%`
+            `${(row.avgSemAcc * 100).toFixed(0).padStart(6)}%`,
         );
     }
 
-    console.log('-'.repeat(75));
+    console.log('-'.repeat(85));
 
     // Best model recommendation
     if (sorted.length > 0) {
         const best = sorted[0];
-        const fastest = [...sorted].sort((a, b) => a.avgLatency - b.avgLatency)[0];
+        const bestValue = [...sorted]
+            .filter(m => m.successRate >= 0.9)
+            .sort((a, b) => a.avgLatency - b.avgLatency)[0];
         
         console.log(`\n${COLORS.BOLD}Recommendations:${COLORS.RESET}`);
-        console.log(`  ${COLORS.GREEN}Best Overall:${COLORS.RESET} ${best.model} (${(best.successRate*100).toFixed(0)}% accuracy, ${best.avgLatency.toFixed(0)}ms)`);
-        if (fastest.model !== best.model) {
-            console.log(`  ${COLORS.CYAN}Fastest:${COLORS.RESET} ${fastest.model} (${fastest.avgLatency.toFixed(0)}ms, ${(fastest.successRate*100).toFixed(0)}% accuracy)`);
+        console.log(`  ${COLORS.GREEN}Best Quality:${COLORS.RESET} ${best.model} (${(best.successRate*100).toFixed(0)}% accuracy, ${(best.avgSemAcc*100).toFixed(0)}% semantic, ${best.avgLatency.toFixed(0)}ms)`);
+        if (bestValue && bestValue.model !== best.model) {
+            console.log(`  ${COLORS.CYAN}Best Value:${COLORS.RESET} ${bestValue.model} (${(bestValue.successRate*100).toFixed(0)}% accuracy, ${bestValue.avgLatency.toFixed(0)}ms)`);
         }
     }
 }
@@ -602,7 +628,7 @@ async function main() {
         return;
     }
 
-    console.log(`${COLORS.BOLD}${COLORS.CYAN}Model Benchmark Evaluation Suite${COLORS.RESET}\n`);
+    console.log(`${COLORS.BOLD}${COLORS.CYAN}Deep Models Benchmark Evaluation Suite${COLORS.RESET}\n`);
 
     // Load configurations
     const modelsConfig = loadModelsConfiguration();
@@ -611,10 +637,11 @@ async function main() {
     const availableModels = getAvailableModels(modelsConfig, config.models);
 
     if (availableModels.length === 0) {
-        console.log(`${COLORS.RED}No models available to test.${COLORS.RESET}`);
+        console.log(`${COLORS.RED}No deep models available to test.${COLORS.RESET}`);
         console.log('Make sure API keys are set in environment variables.');
-        console.log('\nConfigured models and their API key requirements:');
+        console.log('\nConfigured deep models and their API key requirements:');
         for (const [name, descriptor] of modelsConfig.models.entries()) {
+            if (descriptor.mode !== 'deep') continue;
             const providerConfig = modelsConfig.providers.get(descriptor.providerKey);
             const apiKeyEnv = descriptor.apiKeyEnv || providerConfig?.apiKeyEnv || 'N/A';
             const hasKey = apiKeyEnv !== 'N/A' && process.env[apiKeyEnv] ? '✓' : '✗';
@@ -623,15 +650,16 @@ async function main() {
         return;
     }
 
-    console.log(`${COLORS.CYAN}Models to test:${COLORS.RESET} ${availableModels.length}`);
-    availableModels.forEach(m => console.log(`  - ${m.name} (${m.provider})`));
+    console.log(`${COLORS.CYAN}Deep models to test:${COLORS.RESET} ${availableModels.length}`);
+    availableModels.forEach(m => console.log(`  - ${m.name} (${m.provider}, mode: ${m.mode})`));
     console.log(`${COLORS.CYAN}Test cases:${COLORS.RESET} ${testCases.length}`);
     console.log(`${COLORS.CYAN}Runs per case:${COLORS.RESET} ${config.runs}`);
-    console.log(`${COLORS.CYAN}Semantic matching:${COLORS.RESET} ${config.skipSemantic ? 'disabled' : 'enabled'}`);
+    console.log(`${COLORS.CYAN}Semantic matching:${COLORS.RESET} ${config.skipSemantic ? 'disabled' : 'enabled (default for deep models)'}`);
     console.log(`${COLORS.CYAN}Prompt type:${COLORS.RESET} ${config.useProductionPrompt ? 'production (buildDetectIntentsPrompt)' : 'simple benchmark'}`);
+    console.log(`${COLORS.CYAN}Model timeout:${COLORS.RESET} ${CONFIG.modelTimeout}ms`);
     console.log();
 
-    const agent = new LLMAgent({ name: 'ModelBenchmark' });
+    const agent = new LLMAgent({ name: 'DeepModelBenchmark' });
     const promptBuilder = getPromptBuilder(config.useProductionPrompt);
     const allResults = {};
     const totalTests = availableModels.length * testCases.length * config.runs;
@@ -651,7 +679,7 @@ async function main() {
                     skillsDescription,
                     testCase,
                     config.skipSemantic,
-                    promptBuilder
+                    promptBuilder,
                 );
 
                 allResults[modelInfo.name].push({
@@ -682,12 +710,14 @@ async function main() {
     if (config.outputFile) {
         const output = {
             timestamp: new Date().toISOString(),
+            benchmarkType: 'deep',
             config: {
                 runs: config.runs,
                 skipSemantic: config.skipSemantic,
                 caseRange: config.caseRange,
                 difficulties: config.difficulties,
                 useProductionPrompt: config.useProductionPrompt,
+                modelTimeout: CONFIG.modelTimeout,
             },
             models: availableModels,
             testCases: testCases.map(c => ({ id: c.id, difficulty: c.difficulty })),

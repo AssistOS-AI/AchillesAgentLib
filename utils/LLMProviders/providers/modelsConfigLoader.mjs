@@ -292,9 +292,16 @@ function mergeEnvConfig(normalized, envConfig) {
     // Merge env providers (they take precedence over JSON)
     for (const [providerKey, envProvider] of envConfig.providers.entries()) {
         if (providers.has(providerKey)) {
-            // Override existing provider
+            // Override existing provider, but preserve the JSON-defined module
+            // path when present. The env config loader always assigns a generic
+            // module (openai.mjs or anthropic.mjs) because it cannot infer
+            // custom provider modules from env vars alone.
             const existing = providers.get(providerKey);
-            providers.set(providerKey, { ...existing, ...envProvider });
+            const merged = { ...existing, ...envProvider };
+            if (existing.module) {
+                merged.module = existing.module;
+            }
+            providers.set(providerKey, merged);
         } else {
             // Add new provider
             providers.set(providerKey, envProvider);
