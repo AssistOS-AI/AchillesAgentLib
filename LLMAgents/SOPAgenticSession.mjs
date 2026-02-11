@@ -82,8 +82,10 @@ function parseContextVariables(text = '', prefix = PREPARATION_CONTEXT_PREFIX) {
 
 function buildContextPieceLines(entries = []) {
     return entries.map((entry, index) => {
+        const explicitName = String(entry.name || '').trim();
+        const name = explicitName || `@context-piece-${index + 1}`;
         const safeValue = String(entry.value ?? '').replace(/"/g, '\\"');
-        return `@context-piece-${index + 1} := "${safeValue}"`;
+        return `${name} := "${safeValue}"`;
     });
 }
 
@@ -106,8 +108,20 @@ function buildPreparationPrompt(preparationText, userPrompt) {
     }
     parts.push('Based on the preparation instructions, output only lines in the format:');
     parts.push('@context_key := "value"');
+    parts.push('If you need to return multiple prepared outputs, finish with:');
+    parts.push('@lastAnswer final_answer $var1 $var2 $var3');
+    parts.push('Use variables for each prepared output so they can be mapped into context.');
     parts.push('Do not include any extra text.');
     return parts.join('\n');
+}
+
+function buildContextNameFromVariable(variableName) {
+    const rawName = String(variableName ?? '').replace(/^\$+/, '');
+    const sanitized = rawName.replace(/[^A-Za-z0-9_-]/g, '_');
+    if (!sanitized) {
+        return '';
+    }
+    return `@context_${sanitized}`;
 }
 
 async function runWithRetry(fn, retries = 1) {
@@ -207,6 +221,7 @@ class SOPAgenticSession {
                 planOnly: false,
                 systemPrompt: 'Plan and execute skills to prepare context for the user request.',
                 commandsRegistry,
+                allowMultiFinalArgs: true,
             };
             const session = new SOPAgenticSession({
                 agent,
@@ -225,8 +240,23 @@ class SOPAgenticSession {
                 });
                 throw new Error('Preparation SOP plan reported failures.');
             }
-            const resultText = coerceResultToText(session.getLastResult());
+            const lastResult = session.getLastResult();
+            const resultText = coerceResultToText(lastResult);
             const contextEntries = parseContextVariables(resultText, contextPrefix);
+            if (lastResult && typeof lastResult === 'object' && lastResult.type === 'multi-final-args') {
+                const values = Array.isArray(lastResult.values) ? lastResult.values : [];
+                const names = Array.isArray(lastResult.names) ? lastResult.names : [];
+                values.forEach((value, index) => {
+                    const rawName = names[index];
+                    const contextName = rawName
+                        ? buildContextNameFromVariable(rawName)
+                        : `@context_piece_${index + 1}`;
+                    if (!contextName) {
+                        return;
+                    }
+                    contextEntries.push({ name: contextName, value });
+                });
+            }
             const contextLines = buildContextPieceLines(contextEntries);
             const preparationPlan = session.currentPlan || '';
             debugLog('[SOPAgenticSession] Preparation result parsed', {
@@ -601,7 +631,22 @@ ${trimmed}`;
         return {
             executeCommand: async (payload, responder) => {
                 if (payload?.command === FINAL_ANSWER_TOOL) {
-                    const text = normalizeResponsePayload(payload?.args?.[0] ?? '');
+                    const args = Array.isArray(payload?.args) ? payload.args : [];
+                    const allowMultiFinalArgs = Boolean(this.options.allowMultiFinalArgs);
+                    if (allowMultiFinalArgs && args.length > 1) {
+                        const argMeta = Array.isArray(payload?.variableState?.arguments)
+                            ? payload.variableState.arguments
+                            : [];
+                        const names = argMeta.map((arg) => (arg?.type === 'variable' ? arg.name : null));
+                        const multiResult = {
+                            type: 'multi-final-args',
+                            values: args,
+                            names,
+                        };
+                        this._lastFinalAnswer = multiResult;
+                        return responder.success(multiResult);
+                    }
+                    const text = normalizeResponsePayload(args[0] ?? '');
                     this._lastFinalAnswer = text;
                     return responder.success(text);
                 }
