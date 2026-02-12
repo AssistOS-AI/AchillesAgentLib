@@ -80,10 +80,15 @@ function parseContextVariables(text = '', prefix = PREPARATION_CONTEXT_PREFIX) {
     return entries;
 }
 
-function buildContextPieceLines(entries = []) {
-    return entries.map((entry, index) => {
+function buildContextPieceLines(entries = [], fallbackValue = '') {
+    const safeEntries = Array.isArray(entries) ? entries : [];
+    if (!safeEntries.length && fallbackValue) {
+        const safeValue = String(fallbackValue ?? '').replace(/"/g, '\\"');
+        return [`@context_piece_1 has the value "${safeValue}"`];
+    }
+    return safeEntries.map((entry, index) => {
         const explicitName = String(entry.name || '').trim();
-        const name = explicitName || `@context-piece-${index + 1}`;
+        const name = explicitName || `@context_piece_${index + 1}`;
         const safeValue = String(entry.value ?? '').replace(/"/g, '\\"');
         return `${name} has the value "${safeValue}"`;
     });
@@ -228,7 +233,6 @@ class SOPAgenticSession {
                 promptLength: String(preparationPrompt || '').length,
             });
             await session.newPrompt(preparationPrompt);
-            debugLog('[SOPAgenticSession] Preparation plan generated:', session.currentPlan || '(empty plan)');
             const failures = Array.isArray(session.lastRunFailures) ? session.lastRunFailures : [];
             if (failures.length) {
                 debugLog('[SOPAgenticSession] Preparation session failures', {
@@ -253,7 +257,7 @@ class SOPAgenticSession {
                     contextEntries.push({ name: contextName, value });
                 });
             }
-            const contextLines = buildContextPieceLines(contextEntries);
+            const contextLines = buildContextPieceLines(contextEntries, resultText);
             const preparationPlan = session.currentPlan || '';
             debugLog('[SOPAgenticSession] Preparation result parsed', {
                 rawTextLength: String(resultText || '').length,
