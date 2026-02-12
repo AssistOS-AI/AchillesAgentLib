@@ -3,10 +3,6 @@ export { loadModelsConfiguration, resolveModelName, parseModelReference };
 import { parseModelList } from './LLMProviders/providers/envConfigLoader.mjs';
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
-import { envAutoConfig } from '../LLMAgents/envAutoConfig.mjs';
-
-envAutoConfig();
-
 const debugFlag = (process.env.ACHILLES_DEBUG ?? '').toLowerCase();
 const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
 

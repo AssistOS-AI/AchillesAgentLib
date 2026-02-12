@@ -311,7 +311,7 @@ describe('Config Merging: .env and LLMConfig.json', () => {
     describe('ACHILLES env var priority', () => {
         it('should support ACHILLES_DEFAULT_FAST_MODEL env override', () => {
             // This test documents the expected behavior for ACHILLES_* env vars
-            // The actual implementation may be in envAutoConfig.mjs
+            // ACHILLES_* env vars are injected by ploinky via docker -e flags
             const envVar = process.env.ACHILLES_DEFAULT_FAST_MODEL;
             
             // Just verify the env var format is understood

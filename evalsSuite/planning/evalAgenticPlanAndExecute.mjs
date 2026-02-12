@@ -1,10 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
 import { extractJson } from '../../LLMAgents/markdown.mjs';
 
-envAutoConfig();
 const { LLMAgent } = await import('../../LLMAgents/LLMAgent.mjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

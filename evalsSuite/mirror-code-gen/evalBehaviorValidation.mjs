@@ -2,7 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
-import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
 import { validateOrRepairGeneratedCode } from '../../RecursiveSkilledAgents/mirror-code-generator/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,7 +61,6 @@ async function runFixture(fixtureName, llmAgent) {
 }
 
 async function evalBehaviorValidation() {
-  await envAutoConfig();
   const llmAgent = new LLMAgent({ name: 'evalBehaviorValidation' });
 
   const fixtures = await listFixtureDirs();

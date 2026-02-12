@@ -3,7 +3,6 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
-import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
 import { generateBehaviorTests } from '../../RecursiveSkilledAgents/mirror-code-generator/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -66,7 +65,6 @@ async function runFixture(fixtureName, llmAgent) {
 }
 
 async function evalBehaviorTestGeneration() {
-  await envAutoConfig();
   const llmAgent = new LLMAgent({ name: 'evalBehaviorTests' });
 
   const fixtures = await listFixtureDirs();

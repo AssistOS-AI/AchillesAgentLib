@@ -2,16 +2,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
-import { envAutoConfig } from '../../LLMAgents/envAutoConfig.mjs';
 import { rm, mkdir } from 'node:fs/promises';
 import fs from 'node:fs/promises';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function evalCodeGenerationPerformance() {
-  // Configure LLM environment for code generation
-  await envAutoConfig();
-
   // Initialize the agent with a real LLM for code generation
   const llmAgent = new LLMAgent({ name: 'evalCodeGen' });
   const agent = new RecursiveSkilledAgent({

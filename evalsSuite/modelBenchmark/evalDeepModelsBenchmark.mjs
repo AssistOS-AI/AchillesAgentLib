@@ -66,10 +66,6 @@ const CONFIG = {
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { envAutoConfig } from '../../LLMAgents/index.mjs';
-
-envAutoConfig();
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILLS_PATH = path.join(__dirname, 'skillsForBenchmark.json');
 const CASES_DIR = path.join(__dirname, 'cases');

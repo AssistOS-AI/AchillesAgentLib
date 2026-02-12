@@ -157,3 +157,4 @@ export function normalizeGeneratedPath(relativePath, sourceName) {
     }
     return normalized.replace(/\\/g, '/');
 }
+

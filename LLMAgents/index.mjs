@@ -6,7 +6,6 @@ import {
     classifyIntent,
     responseToJSON,
 } from './markdown.mjs';
-import { envAutoConfig } from './envAutoConfig.mjs';
 import { defaultLLMInvokerStrategy } from '../utils/LLMClient.mjs';
 
 const debugFlag = (process.env.ACHILLES_DEBUG ?? '').toLowerCase();
@@ -72,7 +71,6 @@ export {
     extractIdeaList,
     classifyIntent,
     responseToJSON,
-    envAutoConfig,
     registerLLMAgent,
     registerDefaultLLMAgent,
     getLLMAgent,
