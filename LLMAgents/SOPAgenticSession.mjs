@@ -103,6 +103,24 @@ function escapeSopString(value) {
         .replace(/"/g, '\\"');
 }
 
+function createPrepContextPrompt(prepResult) {
+    const contextLines = prepResult?.contextLines || [];
+    const preparationPlan = prepResult?.preparationPlan || '';
+    const preparationContextLines = [];
+
+    if (preparationPlan) {
+        preparationContextLines.push('As preparation to provide context, the following plan was executed:');
+        preparationContextLines.push(preparationPlan);
+        preparationContextLines.push('');
+    }
+    if (contextLines.length) {
+        preparationContextLines.push('You can use these variables as context if needed.');
+        preparationContextLines.push(...contextLines);
+    }
+
+    return preparationContextLines;
+}
+
 function buildAssignLines(entries = []) {
     const lines = [];
     entries.forEach((entry, index) => {
@@ -276,6 +294,7 @@ class SOPAgenticSession {
             throw new Error('newPrompt requires a prompt string.');
         }
 
+        let preparationContext = [];
         // Run preparation if configured
         if (this.preparation?.text) {
             const prepResult = await SOPAgenticSession.runPreparation({
@@ -287,25 +306,11 @@ class SOPAgenticSession {
                 userPrompt,
                 retries: this.preparation.retries ?? 1,
             });
-            const contextLines = prepResult?.contextLines || [];
-            const preparationPlan = prepResult?.preparationPlan || '';
             this.preparationContextEntries = Array.isArray(prepResult?.contextEntries)
                 ? prepResult.contextEntries
                 : [];
-            const systemContextLines = [];
-
-            if (preparationPlan) {
-                systemContextLines.push('As preparation to provide context, the following plan was executed:');
-                systemContextLines.push(preparationPlan);
-                systemContextLines.push('');
-            }
-            if (contextLines.length) {
-                systemContextLines.push('You can use these variables as context if needed.');
-                systemContextLines.push(...contextLines);
-            }
-
-            this.systemPrompt = injectContextIntoPrompt(this.baseSystemPrompt, systemContextLines);
-            userPrompt = injectContextIntoPrompt(userPrompt, contextLines);
+            preparationContext = createPrepContextPrompt(prepResult);
+            this.systemPrompt = this.baseSystemPrompt;
         }
 
         const modeHint = this.options.planOnly ? ' plan-only' : '';
@@ -320,6 +325,7 @@ class SOPAgenticSession {
                 currentPlan: this.currentPlan,
                 userPrompt,
                 systemPrompt: this.systemPrompt,
+                preparationContext,
             });
  
             const feedbackBlock = this._buildExecutionFeedbackComment(lastFeedback);

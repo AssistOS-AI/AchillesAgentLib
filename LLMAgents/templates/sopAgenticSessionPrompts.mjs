@@ -9,7 +9,7 @@ const FINAL_RESPONSE_NOTE = [
     '- When an argument is a literal string containing spaces, wrap it in double quotes (e.g., @step tool "foo bar" $var).',
 ].join('\n');
 
-const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', systemPrompt = '' }) => {
+const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', systemPrompt = '', preparationContext = [] }) => {
     const rawPrompt = typeof userPrompt === 'string' ? userPrompt : '';
     const promptText = rawPrompt.trim();
     const existingPlan = typeof currentPlan === 'string' ? currentPlan.trim() : '';
@@ -19,11 +19,15 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
         systemLines.push(systemPrompt.trim());
         systemLines.push('');
     }
+    const prepLines = Array.isArray(preparationContext) ? preparationContext.filter(Boolean) : [];
 
     if (!existingPlan) {
         return [
             'You are generating a new LightSOPLang plan.',
             ...systemLines,
+            ...(prepLines.length
+                ? ['Preparation context (do not restate as user input):', ...prepLines, '']
+                : []),
             '',
             'User requirement:',
             promptText,
@@ -41,6 +45,11 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
     if (systemLines.length) {
         lines.push('');
         lines.push(...systemLines);
+    }
+    if (prepLines.length) {
+        lines.push('');
+        lines.push('Preparation context (do not restate as user input):');
+        lines.push(...prepLines);
     }
     lines.push('');
     lines.push('Current plan:');
