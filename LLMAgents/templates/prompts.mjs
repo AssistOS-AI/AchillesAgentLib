@@ -244,6 +244,7 @@ const buildPreparationPrompt = (preparationText, userPrompt) => {
         parts.push(requestText);
         parts.push('');
     }
+    parts.push('Do NOT execute the user request in this step; use it only as context to follow the preparation instructions.');
     parts.push('Based on the preparation instructions, output only lines in the format:');
     parts.push('@context_key := "value"');
     parts.push('Do not include any extra text.');
