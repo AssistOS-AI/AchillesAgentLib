@@ -63,37 +63,62 @@ export function parseCode(code) {
     const declarations = new Map();
     const lines = code.split(/\r?\n/);
 
-    lines.forEach((line, index) => {
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index];
         const stripped = stripComments(line);
         const trimmed = stripped.trim();
         if (!trimmed) {
-            return;
+            continue;
         }
-        const tokens = tokenize(trimmed, index + 1);
+        const declarationLine = index + 1;
+        const tokens = tokenize(trimmed, declarationLine);
         if (!tokens.length) {
-            return;
+            continue;
         }
         const [firstToken, ...restTokens] = tokens;
         if (!firstToken.value.startsWith('@')) {
-            throw new Error(`Line ${index + 1}: declaration must start with @`);
+            throw new Error(`Line ${declarationLine}: declaration must start with @`);
         }
         const variableName = firstToken.value.slice(1);
         if (!variableName) {
-            throw new Error(`Line ${index + 1}: variable name missing`);
+            throw new Error(`Line ${declarationLine}: variable name missing`);
         }
         if (declarations.has(variableName)) {
             throw new Error(`Variable ${variableName} declared multiple times`);
         }
         if (!restTokens.length) {
-            throw new Error(`Line ${index + 1}: command name missing for @${variableName}`);
+            throw new Error(`Line ${declarationLine}: command name missing for @${variableName}`);
         }
         const [commandToken, ...argumentTokens] = restTokens;
         const commandName = commandToken.value;
         if (!commandName) {
-            throw new Error(`Line ${index + 1}: command name missing for @${variableName}`);
+            throw new Error(`Line ${declarationLine}: command name missing for @${variableName}`);
         }
-
-        const argumentDescriptors = argumentTokens.map(buildArgumentDescriptor);
+        let argumentDescriptors = argumentTokens.map(buildArgumentDescriptor);
+        if (commandName === 'assign' && argumentDescriptors.length === 0) {
+            const nextLine = lines[index + 1];
+            if (typeof nextLine === 'string') {
+                const beginMatch = nextLine.trim().match(/^--begin-(.+)--$/);
+                if (beginMatch) {
+                    const token = beginMatch[1];
+                    const endMarker = `--end-${token}--`;
+                    const contentLines = [];
+                    let endIndex = -1;
+                    for (let scan = index + 2; scan < lines.length; scan += 1) {
+                        if (lines[scan].trim() === endMarker) {
+                            endIndex = scan;
+                            break;
+                        }
+                        contentLines.push(lines[scan]);
+                    }
+                    if (endIndex === -1) {
+                        throw new Error(`Line ${index + 2}: missing ${endMarker} for here-doc`);
+                    }
+                    argumentDescriptors = [{ type: 'literal', value: contentLines.join('\n') }];
+                    index = endIndex;
+                }
+            }
+        }
         const dependencies = new Set(
             argumentDescriptors
                 .filter(descriptor => descriptor.type === 'variable')
@@ -106,9 +131,9 @@ export function parseCode(code) {
             arguments: argumentDescriptors,
             dependencies,
             signature: buildSignature(commandName, argumentDescriptors),
-            lineNumber: index + 1,
+            lineNumber: declarationLine,
         });
-    });
+    }
 
     return declarations;
 }

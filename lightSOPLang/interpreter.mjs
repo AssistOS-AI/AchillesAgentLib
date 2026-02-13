@@ -301,7 +301,7 @@ export class LightSOPLangInterpreter {
             seenNames.add(name);
         }
 
-        if (this.englishContext && finalDeclarations === 0) {
+        if (this.englishContext && finalDeclarations === 0 && this._supportsFinalAnswer()) {
             throw new Error(`LightSOPLang plans generated from #!english must include at least one "${FINAL_ANSWER_TOOL}" or "${CANNOT_COMPLETE_TOOL}" declaration (for example "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>").`);
         }
 
@@ -510,6 +510,11 @@ export class LightSOPLangInterpreter {
             .filter(entry => entry.name.length);
     }
 
+    _supportsFinalAnswer() {
+        const commands = this._listCommands();
+        return commands.some((entry) => entry.name === FINAL_ANSWER_TOOL || entry.name === CANNOT_COMPLETE_TOOL);
+    }
+
     _buildLlmaPrompt(context) {
         const lines = [];
         lines.push('You are an assistant that emits LightSOPLang code.');
@@ -529,6 +534,9 @@ export class LightSOPLangInterpreter {
         lines.push('- IMPORTANT: When a string literal contains spaces, wrap it in double quotes, but still keep each argument as a separate token with no commas.');
     lines.push('');
         const commandEntries = Array.isArray(context.commands) ? context.commands : [];
+        const supportsFinalAnswer = commandEntries.some((entry) => (
+            entry?.name === FINAL_ANSWER_TOOL || entry?.name === CANNOT_COMPLETE_TOOL
+        ));
         if (commandEntries.length) {
             lines.push('Available commands:');
             commandEntries.forEach((entry) => {
@@ -542,8 +550,10 @@ export class LightSOPLangInterpreter {
         lines.push('- Create a generic plan that would work for any input of that type.');
         lines.push('- IMPORTANT: Link skill parameters to available variables or context from the prompt. If a variable holds an entity (like a PR or Ticket) or a result from a previous step, use that variable as an argument for subsequent commands instead of literals, to maintain context.');
         lines.push('- IMPORTANT: Do NOT use variable interpolation inside strings (e.g., "Result: $var"). LightSOPLang does NOT support this. Instead, pass strings and variables as separate arguments (e.g., "Result:" $var).');
-        lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" so the runtime knows the final response. Do not emit final responses in any other way.`);
-        lines.push('');
+        if (supportsFinalAnswer) {
+            lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" so the runtime knows the final response. Do not emit final responses in any other way.`);
+            lines.push('');
+        }
         if (context.reason === 'initial') {
             lines.push('Generate an initial script that meets the instructions.');
         } else {
@@ -579,7 +589,9 @@ export class LightSOPLangInterpreter {
                 lines.push(`- ${variable.name}: ${variable.status} => ${variable.value}`);
             }
         }
-        lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" or "@lastAnswer ${CANNOT_COMPLETE_TOOL} <reason>" so the runtime knows the final response. Do not emit final responses in any other way.`);
+        if (supportsFinalAnswer) {
+            lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" or "@lastAnswer ${CANNOT_COMPLETE_TOOL} <reason>" so the runtime knows the final response. Do not emit final responses in any other way.`);
+        }
         lines.push('Respond with only valid LightSOPLang code, no explanations.');
         return lines.join('\n');
     }

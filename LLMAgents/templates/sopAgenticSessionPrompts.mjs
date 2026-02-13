@@ -90,9 +90,7 @@ const buildPreparationPrompt = (preparationText, userPrompt) => {
         parts.push('');
     }
     parts.push('Do NOT execute the user request in this step; use it only as context to follow the preparation instructions.');
-    parts.push('If you need to return multiple prepared outputs, finish with:');
-    parts.push('@lastAnswer final_answer $var1 $var2 $var3');
-    parts.push('Use variables for each prepared output so they can be mapped into context.');
+    parts.push('Finish with a single final answer value.');
     parts.push('Do NOT use variable interpolation inside strings (e.g., "Result: $var"). Pass variables as separate arguments (e.g., "Result:" $var).');
     parts.push('Do not include any extra text.');
     return parts.join('\n');
