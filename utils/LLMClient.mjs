@@ -595,7 +595,7 @@ export function createDefaultLLMInvokerStrategy() {
                 const attemptHistory = Array.isArray(history) ? history.slice() : [];
                 const effectiveMode = record.mode;
                 if (DEBUG_ENABLED) {
-                    console.info(`[AchillesAgentsLib] LLM call -> model: ${candidate}, mode: ${effectiveMode}`);
+                    console.info(`[AchillesAgentsLib] LLM call -> provider: ${record.providerKey}, model: ${candidate}, mode: ${effectiveMode}`);
                 }
                 const output = await callLLMWithModel(candidate, attemptHistory, prompt, invocationConfig);
                 lastInvocationDetails = { model: candidate, mode: effectiveMode };
@@ -605,7 +605,7 @@ export function createDefaultLLMInvokerStrategy() {
                     mode: effectiveMode,
                 };
             } catch (error) {
-                console.warn(`[AchillesAgentsLib] LLM cascade fail -> model: ${candidate}, error: ${error?.message || error}`);
+                console.warn(`[AchillesAgentsLib] LLM cascade fail -> provider: ${record.providerKey}, model: ${candidate}, error: ${error?.message || error}`);
                 attempts.push({ model: candidate, error });
             }
         }
