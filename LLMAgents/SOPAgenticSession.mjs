@@ -432,7 +432,10 @@ class SOPAgenticSession {
         if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmAgent')) {
             interpreterOptions.llmAgent = this.agent;
         }
-            this._lastFinalAnswer = null;
+        if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmMode')) {
+            interpreterOptions.llmMode = this.options.mode;
+        }
+        this._lastFinalAnswer = null;
         let interpreter;
         try {
             interpreter = new LightSOPLangInterpreter(
@@ -620,6 +623,9 @@ ${trimmed}`;
                 }
             },
         };
+        if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmMode')) {
+            planOptions.llmMode = this.options.mode;
+        }
         const interpreter = new LightSOPLangInterpreter(
             englishSource,
             this.planCommandsRegistry,
