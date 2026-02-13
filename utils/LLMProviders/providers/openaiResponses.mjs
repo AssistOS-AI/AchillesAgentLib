@@ -1,4 +1,5 @@
 import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
+import { parseSSEStream } from './sseParser.mjs';
 
 /**
  * OpenAI Responses API provider.
@@ -114,4 +115,92 @@ export async function callLLM(chatContext, options) {
     }
 
     return extractOutputText(data.output);
+}
+
+/**
+ * Streaming variant of callLLM for the OpenAI Responses API.
+ *
+ * Sets `stream: true`.  The Responses API emits typed SSE events:
+ *   - `response.output_text.delta` with `{ delta: string }` — text chunk
+ *   - `response.completed` — final event
+ *   - `error` — API error
+ *
+ * @param {Array}  chatContext - Conversation history.
+ * @param {object} options     - Same shape as callLLM options.
+ * @yields {StreamChunk}
+ */
+export async function* callLLMStreaming(chatContext, options) {
+    if (!options || typeof options !== 'object') {
+        throw new Error('OpenAI Responses provider requires invocation options.');
+    }
+
+    const { model, apiKey, baseURL, signal, params, headers } = options;
+    const providerLabel = deriveProviderLabel(baseURL);
+    if (!model) throw new Error(`${providerLabel} Responses provider requires a model name.`);
+    if (!apiKey) throw new Error(`${providerLabel} Responses provider requires an API key.`);
+    if (!baseURL) throw new Error(`${providerLabel} Responses provider requires a baseURL.`);
+
+    const input = toResponsesInput(chatContext);
+    const payload = {
+        model,
+        input,
+        stream: true,
+    };
+
+    if (params && typeof params === 'object') {
+        Object.assign(payload, params);
+    }
+
+    const response = await fetch(baseURL, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            ...(headers || {}),
+        },
+        body: JSON.stringify(payload),
+        signal,
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`${providerLabel} Responses API Error (${response.status}): ${errorBody}`);
+    }
+
+    let fullText = '';
+    let usage = null;
+
+    try {
+        for await (const frame of parseSSEStream(response.body, { doneSentinel: null })) {
+            const data = frame.parsedData;
+            if (!data) continue;
+
+            // The Responses API uses the SSE event field for event type
+            const eventType = frame.event || data.type;
+
+            if (eventType === 'error') {
+                const errPayload = data.error || data;
+                yield { type: 'error', error: new Error(`${providerLabel} Responses API Error: ${JSON.stringify(errPayload)}`) };
+                return;
+            }
+
+            if (data.usage || data.response?.usage) {
+                usage = data.usage || data.response?.usage;
+            }
+
+            if (eventType === 'response.output_text.delta' && typeof data.delta === 'string') {
+                fullText += data.delta;
+                yield { type: 'text_delta', text: data.delta };
+            }
+
+            if (eventType === 'response.completed') {
+                break;
+            }
+        }
+    } catch (err) {
+        yield { type: 'error', error: err };
+        return;
+    }
+
+    yield { type: 'done', fullText, usage };
 }

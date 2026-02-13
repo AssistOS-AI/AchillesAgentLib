@@ -1,4 +1,5 @@
 import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
+import { parseSSEStream } from './sseParser.mjs';
 
 export async function callLLM(chatContext, options) {
     if (!options || typeof options !== 'object') {
@@ -55,4 +56,85 @@ export async function callLLM(chatContext, options) {
     }
 
     return typeof data === 'string' ? data : JSON.stringify(data);
+}
+
+/**
+ * Streaming variant of callLLM for Hugging Face.
+ *
+ * Uses the OpenAI-compatible streaming format: `stream: true` in payload,
+ * SSE chunks with `choices[0].delta.content`, sentinel `[DONE]`.
+ *
+ * @param {Array}  chatContext - Conversation history.
+ * @param {object} options     - Same shape as callLLM options.
+ * @yields {StreamChunk}
+ */
+export async function* callLLMStreaming(chatContext, options) {
+    if (!options || typeof options !== 'object') {
+        throw new Error('Hugging Face provider requires invocation options.');
+    }
+
+    const { model, apiKey, baseURL, signal, params, headers } = options;
+
+    if (!model) throw new Error('Hugging Face provider requires a model name.');
+    if (!baseURL) throw new Error('Hugging Face provider requires a baseURL.');
+
+    const messages = toOpenAIChatMessages(chatContext);
+    const payload = {
+        model,
+        messages,
+        stream: true,
+    };
+
+    if (params && typeof params === 'object') {
+        Object.assign(payload, params);
+    }
+
+    const response = await fetch(baseURL, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey || ''}`,
+            'Content-Type': 'application/json',
+            ...(headers || {}),
+        },
+        body: JSON.stringify(payload),
+        signal,
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        if (response.status === 503) {
+            throw new Error('Hugging Face model is currently loading or unavailable (503 Service Unavailable). Please try again later.');
+        }
+        throw new Error(`Hugging Face API Error (${response.status}): ${errorBody}`);
+    }
+
+    let fullText = '';
+    let usage = null;
+
+    try {
+        for await (const frame of parseSSEStream(response.body)) {
+            const data = frame.parsedData;
+            if (!data) continue;
+
+            if (data.error) {
+                yield { type: 'error', error: new Error(`Hugging Face API Error: ${JSON.stringify(data.error)}`) };
+                return;
+            }
+
+            if (data.usage) {
+                usage = data.usage;
+            }
+
+            const content = data.choices?.[0]?.delta?.content;
+            if (typeof content === 'string' && content.length > 0) {
+                fullText += content;
+                yield { type: 'text_delta', text: content };
+            }
+        }
+    } catch (err) {
+        yield { type: 'error', error: err };
+        return;
+    }
+
+    yield { type: 'done', fullText, usage };
 }
