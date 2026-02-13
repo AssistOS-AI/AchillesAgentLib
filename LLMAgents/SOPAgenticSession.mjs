@@ -205,10 +205,16 @@ class SOPAgenticSession {
         let preparationContext = [];
         // Run preparation if configured
         if (this.preparation?.text) {
+            const preparationSkillsDescription = this.preparation?.skillsDescription && typeof this.preparation.skillsDescription === 'object'
+                ? this.preparation.skillsDescription
+                : this._userSkillsDescription;
+            const preparationCommandsRegistry = this.preparation?.commandsRegistry && typeof this.preparation.commandsRegistry === 'object'
+                ? this.preparation.commandsRegistry
+                : this._unwrappedCommandsRegistry;
             const prepResult = await SOPAgenticSession.runPreparation({
                 agent: this.agent,
-                skillsDescription: this._userSkillsDescription,
-                commandsRegistry: this._unwrappedCommandsRegistry,
+                skillsDescription: preparationSkillsDescription,
+                commandsRegistry: preparationCommandsRegistry,
                 options: { mode: this.options.mode },
                 preparationText: this.preparation.text,
                 userPrompt,

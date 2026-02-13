@@ -181,9 +181,12 @@ class LoopAgentSession {
 
         // Run preparation if configured
         if (this.preparation?.text) {
+            const preparationTools = this.preparation?.tools && typeof this.preparation.tools === 'object'
+                ? this.preparation.tools
+                : this._userTools;
             const prepResult = await LoopAgentSession.runPreparation({
                 agent: this.agent,
-                tools: this._userTools,
+                tools: preparationTools,
                 options: { mode: this.options.mode, maxStepsPerTurn: this.options.maxStepsPerTurn },
                 preparationText: this.preparation.text,
                 userPrompt,

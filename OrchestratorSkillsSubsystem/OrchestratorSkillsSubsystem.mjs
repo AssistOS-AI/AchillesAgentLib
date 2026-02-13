@@ -12,6 +12,7 @@ const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
     preparation: ['preparation', 'prep', 'context-prep'],
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
+    allowedPrepSkills: ['allowed-prep-skills', 'allowed-preparation-skills', 'prep-skills'],
     intents: ['intents', 'intentions', 'mappings'],
     sessionType: ['loop'],
 };
@@ -31,6 +32,16 @@ function pickSection(sections = {}, aliases = []) {
         }
     }
     return '';
+}
+
+function hasSection(sections = {}, aliases = []) {
+    for (const alias of aliases) {
+        const key = alias.trim().toLowerCase();
+        if (sections && Object.prototype.hasOwnProperty.call(sections, key)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function parseIntents(section = '') {
@@ -66,6 +77,10 @@ export class OrchestratorSkillsSubsystem {
         const allowedSkills = normaliseBulletList(pickSection(sections, SECTION_KEYS.allowedSkills))
             .map((name) => Sanitiser.sanitiseName(name))
             .filter(Boolean);
+        const allowedPrepSkillsSectionPresent = hasSection(sections, SECTION_KEYS.allowedPrepSkills);
+        const allowedPrepSkills = normaliseBulletList(pickSection(sections, SECTION_KEYS.allowedPrepSkills))
+            .map((name) => Sanitiser.sanitiseName(name))
+            .filter(Boolean);
         const intents = parseIntents(pickSection(sections, SECTION_KEYS.intents));
         const sessionType = pickSection(sections, SECTION_KEYS.sessionType).trim();
 
@@ -80,6 +95,8 @@ export class OrchestratorSkillsSubsystem {
             instructions,
             preparation: preparation || null,
             allowedSkills,
+            allowedPrepSkills,
+            allowedPrepSkillsSectionPresent,
             intents,
             sessionType: sessionType || null,
         };
@@ -102,6 +119,32 @@ export class OrchestratorSkillsSubsystem {
         });
 
         return filtered;
+    }
+
+    resolveAllowedPrepSkills(skillRecord, recursiveAgent, fallbackSkills = null) {
+        const allowList = skillRecord.metadata?.allowedPrepSkills || [];
+        const sectionPresent = Boolean(skillRecord.metadata?.allowedPrepSkillsSectionPresent);
+
+        if (!sectionPresent) {
+            return Array.isArray(fallbackSkills)
+                ? fallbackSkills
+                : this.resolveAllowedSkills(skillRecord, recursiveAgent);
+        }
+
+        if (!allowList.length) {
+            return [];
+        }
+
+        const allSkills = Array.from(recursiveAgent.skillCatalog.values());
+        const selfCanonical = Sanitiser.sanitiseName(skillRecord.name);
+
+        return allSkills.filter((record) => {
+            const canonical = Sanitiser.sanitiseName(record.name);
+            if (canonical === selfCanonical) {
+                return false;
+            }
+            return allowList.includes(canonical) || allowList.includes(Sanitiser.sanitiseName(record.shortName));
+        });
     }
 
     async buildSkillsAsTools(allowedSkills, recursiveAgent, options) {
@@ -135,6 +178,47 @@ export class OrchestratorSkillsSubsystem {
         return descriptions;
     }
 
+    buildToolsWithDescriptions(allowedSkills, tools, descriptions) {
+        const toolsWithDescriptions = {};
+        allowedSkills.forEach(skillRecord => {
+            const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
+            toolsWithDescriptions[toolName] = {
+                handler: tools[toolName],
+                description: descriptions[toolName],
+            };
+        });
+        return toolsWithDescriptions;
+    }
+
+    buildCommandsRegistry(allowedSkills, tools) {
+        return {
+            executeCommand: async (payload, response) => {
+                const { command, args } = payload;
+                const skillAction = tools[command];
+
+                if (!skillAction) {
+                    return response.fail(`Unknown skill: ${command}`);
+                }
+
+                try {
+                    if (Array.isArray(args)) {
+                        const prompt = args.join(' ');
+                        const result = await skillAction(this.llmAgent, prompt);
+                        return response.success(result);
+                    }
+                    const result = await skillAction(this.llmAgent, args);
+                    return response.success(result);
+                } catch (error) {
+                    return response.fail(error?.message || String(error));
+                }
+            },
+            listCommands: () => allowedSkills.map(s => ({
+                name: Sanitiser.sanitiseName(s.shortName || s.name),
+                description: s.descriptor?.summary || s.descriptor?.title || s.name,
+            })),
+        };
+    }
+
 
 
     async executeLoopAgentSession({skillRecord, recursiveAgent, promptText, options}) {
@@ -146,20 +230,17 @@ export class OrchestratorSkillsSubsystem {
         let result;
         
         const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
+        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, recursiveAgent, allowedSkills);
         const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
         const descriptions = this.buildToolDescriptions(allowedSkills);
 
-        const toolsWithDescriptions = {};
-        allowedSkills.forEach(skillRecord => {
-            const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-            toolsWithDescriptions[toolName] = {
-                handler: tools[toolName],
-                description: descriptions[toolName],
-            };
-        });
+        const toolsWithDescriptions = this.buildToolsWithDescriptions(allowedSkills, tools, descriptions);
+        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, recursiveAgent, options);
+        const prepDescriptions = this.buildToolDescriptions(allowedPrepSkills);
+        const prepToolsWithDescriptions = this.buildToolsWithDescriptions(allowedPrepSkills, prepTools, prepDescriptions);
 
         const preparation = skillRecord.metadata?.preparation
-            ? { text: skillRecord.metadata.preparation, retries: 1 }
+            ? { text: skillRecord.metadata.preparation, retries: 1, tools: prepToolsWithDescriptions }
             : null;
 
         if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {
@@ -203,38 +284,21 @@ export class OrchestratorSkillsSubsystem {
 
     async executeSOPAgentSession({skillRecord, recursiveAgent, promptText, options}) {
         const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
+        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, recursiveAgent, allowedSkills);
         const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
         const skillsDescription = this.buildToolDescriptions(allowedSkills);
-
-        const commandsRegistry = {
-            executeCommand: async (payload, response) => {
-                const { command, args } = payload;
-                const skillAction = tools[command];
-
-                if (!skillAction) {
-                    return response.fail(`Unknown skill: ${command}`);
-                }
-
-                try {
-                    if (Array.isArray(args)) {
-                        const prompt = args.join(' ');
-                        const result = await skillAction(this.llmAgent, prompt);
-                        return response.success(result);
-                    }
-                    const result = await skillAction(this.llmAgent, args);
-                    return response.success(result);
-                } catch (error) {
-                    return response.fail(error?.message || String(error));
-                }
-            },
-            listCommands: () => allowedSkills.map(s => ({
-                name: Sanitiser.sanitiseName(s.shortName || s.name),
-                description: s.descriptor?.summary || s.descriptor?.title || s.name,
-            })),
-        };
+        const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools);
+        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, recursiveAgent, options);
+        const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
+        const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools);
 
         const preparation = skillRecord.metadata?.preparation
-            ? { text: skillRecord.metadata.preparation, retries: 1 }
+            ? {
+                text: skillRecord.metadata.preparation,
+                retries: 1,
+                skillsDescription: prepSkillsDescription,
+                commandsRegistry: prepCommandsRegistry,
+            }
             : null;
 
         const sessionOptions = {
