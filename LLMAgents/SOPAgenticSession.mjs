@@ -1,5 +1,6 @@
 import { LightSOPLangInterpreter } from '../lightSOPLang/interpreter.mjs';
 import { parseCode } from '../lightSOPLang/parser.mjs';
+import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import { buildSOPAgenticInstructions, buildPreparationPrompt } from './templates/sopAgenticSessionPrompts.mjs';
 import {
     FINAL_ANSWER_TOOL,
@@ -89,6 +90,23 @@ function wrapPreparationContext(text) {
 
 function commentLines(lines) {
     return lines.map((line) => (line ? `# ${line}` : '#'));
+}
+
+function logPreparationDebug(debugLogger, { userPrompt, preparationPlan, lastResult, resultText }) {
+    if (!debugLogger) {
+        return;
+    }
+    const payload = {
+        type: 'preparation-result',
+        timestamp: new Date().toISOString(),
+        userPromptLength: String(userPrompt || '').length,
+        preparationPlan: preparationPlan || '',
+        lastResult: typeof lastResult === 'string'
+            ? lastResult
+            : (lastResult ? JSON.stringify(lastResult, null, 2) : ''),
+        resultText: resultText || '',
+    };
+    debugLogger.log('[SOPAgenticSession] preparation-result', payload);
 }
 
 function createPrepContextPrompt(prepResult) {
@@ -231,6 +249,12 @@ class SOPAgenticSession {
             const lastResult = session.getLastResult();
             const resultText = coerceResultToText(lastResult);
             const preparationPlan = session.currentPlan || '';
+            logPreparationDebug(DEBUG_ACTIVE ? getDebugLogger() : null, {
+                userPrompt,
+                preparationPlan,
+                lastResult,
+                resultText,
+            });
             debugLog('[SOPAgenticSession] Preparation result parsed', {
                 rawTextLength: String(resultText || '').length,
                 contextTextLength: String(resultText || '').length,
