@@ -92,18 +92,13 @@ function commentLines(lines) {
     return lines.map((line) => (line ? `# ${line}` : '#'));
 }
 
-function logPreparationDebug(debugLogger, { userPrompt, preparationPlan, lastResult, resultText }) {
+function logPreparationDebug(debugLogger, { resultText }) {
     if (!debugLogger) {
         return;
     }
     const payload = {
         type: 'preparation-result',
         timestamp: new Date().toISOString(),
-        userPromptLength: String(userPrompt || '').length,
-        preparationPlan: preparationPlan || '',
-        lastResult: typeof lastResult === 'string'
-            ? lastResult
-            : (lastResult ? JSON.stringify(lastResult, null, 2) : ''),
         resultText: resultText || '',
     };
     debugLogger.log('[SOPAgenticSession] preparation-result', payload);
@@ -250,9 +245,6 @@ class SOPAgenticSession {
             const resultText = coerceResultToText(lastResult);
             const preparationPlan = session.currentPlan || '';
             logPreparationDebug(DEBUG_ACTIVE ? getDebugLogger() : null, {
-                userPrompt,
-                preparationPlan,
-                lastResult,
                 resultText,
             });
             debugLog('[SOPAgenticSession] Preparation result parsed', {
