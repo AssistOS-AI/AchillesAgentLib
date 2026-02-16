@@ -30,7 +30,17 @@ function getProviderConfig(providerKey) {
 }
 
 function getModelDescriptor(modelName) {
-    return modelsConfiguration.models.get(modelName) || null;
+    const descriptor = modelsConfiguration.models.get(modelName);
+    if (descriptor) return descriptor;
+
+    // Fallback: resolve via qualified names (handles promoted duplicate names)
+    if (modelsConfiguration.qualifiedModels) {
+        const resolved = modelsConfiguration.qualifiedModels.get(modelName);
+        if (resolved) {
+            return modelsConfiguration.models.get(resolved) || null;
+        }
+    }
+    return null;
 }
 
 function createAgentModelRecord(providerConfig, modelDescriptor) {

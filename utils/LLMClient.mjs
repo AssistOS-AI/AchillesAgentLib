@@ -154,18 +154,19 @@ function buildModelCaches() {
         
         // Check if model is in the allowed list (if one is specified)
         const allowedList = record.mode === 'deep' ? enabledDeepModels : enabledFastModels;
-        if (allowedList && !allowedList.has(record.name)) {
+        if (allowedList && !allowedList.has(name) && !allowedList.has(record.name)) {
             continue;
         }
         
         // Also add qualified name to record for lookups
         record.qualifiedName = `${record.providerKey}/${record.name}`;
-        
-        recordMap.set(record.name, record);
+
+        // Use the map key (which may be qualified for duplicate names)
+        recordMap.set(name, record);
         if (record.mode === 'deep') {
-            deep.push(record.name);
+            deep.push(name);
         } else {
-            fast.push(record.name);
+            fast.push(name);
         }
     }
 
@@ -367,9 +368,9 @@ export function listModelsFromCache() {
 }
 
 function getModelMetadata(modelName) {
-    // Support provider/model format - resolve to actual model key
+    // Resolve model name (supports provider/model format and promoted duplicate names)
     let resolvedName = modelName;
-    if (modelName && modelName.includes('/')) {
+    if (modelName) {
         const resolved = resolveModelName(
             modelName,
             modelsConfiguration.models,
@@ -379,7 +380,7 @@ function getModelMetadata(modelName) {
             resolvedName = resolved;
         }
     }
-    
+
     const modelDescriptor = modelsConfiguration.models.get(resolvedName);
     if (!modelDescriptor) {
         return null;

@@ -30,7 +30,21 @@
 const CONFIG = {
     // Default deep models to test when --models flag is not provided
     // Resolved from ACHILLES_ENABLED_DEEP_MODELS env var or deepModelPriority in LLMConfig.json
-    defaultModels: null,
+    defaultModels: [
+        'axiologic_proxy/gpt-5.3-codex',
+        'axiologic_proxy/gpt-5.3-codex-spark',
+        'axiologic_proxy/gpt-5.2-codex',
+        'axiologic_proxy/gpt-5.2',
+        'axiologic_proxy/gpt-5.1-codex',
+        'axiologic_proxy/gpt-5.1-codex-max',
+        'axiologic_proxy/gpt-5.1-codex-mini',
+        'axiologic_proxy/gpt-5.1',
+        'axiologic_proxy/gpt-5-codex',
+        'axiologic_proxy/gpt-5-codex-mini',
+        'axiologic_proxy/gpt-5',
+        'axiologic_proxy/gemini-2.5-pro',
+        'axiologic_proxy/gemini-3-pro-preview',
+    ],
 
     // Number of runs per model/case for averaging (overridden by --runs)
     defaultRuns: 1,
@@ -193,7 +207,7 @@ ${COLORS.CYAN}Current Configuration:${COLORS.RESET}
 
 ${COLORS.CYAN}Environment Variables:${COLORS.RESET}
   ACHILLES_ENABLED_DEEP_MODELS   Comma-separated list of deep models to test by default
-                                 Example: "openai/gpt-5.2,axiologic_antigravity/claude-opus-4-6-thinking"
+                                 Example: "axiologic_proxy/gpt-5.3-codex,axiologic_proxy/gemini-2.5-pro"
 
 ${COLORS.CYAN}Examples:${COLORS.RESET}
   # Test models from ACHILLES_ENABLED_DEEP_MODELS env var (if set)
@@ -206,7 +220,7 @@ ${COLORS.CYAN}Examples:${COLORS.RESET}
   node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --models "gpt-5.2,claude-opus-4-6"
 
   # Test with qualified names (provider/model)
-  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --models "openai/gpt-5.2,axiologic_antigravity/claude-opus-4-6-thinking"
+  node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --models "axiologic_proxy/gpt-5.3-codex,axiologic_proxy/gemini-2.5-pro"
 
   # Test only hard/very_hard cases (best for evaluating deep model strengths)
   node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --difficulty "hard,very_hard"

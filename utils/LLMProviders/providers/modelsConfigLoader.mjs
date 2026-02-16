@@ -38,7 +38,9 @@ export function normalizeConfig(rawConfig, options = {}) {
     const providers = new Map();
     const models = new Map();
     const providerModels = new Map();
+    const qualifiedModels = new Map();
     const orderedModelNames = [];
+    const promotedNames = new Set();
     const defaultFastModel = selectString(rawConfig?.defaultFastModel, null);
     const defaultDeepModel = selectString(rawConfig?.defaultDeepModel, null);
 
@@ -57,8 +59,39 @@ export function normalizeConfig(rawConfig, options = {}) {
             continue;
         }
         const modelName = normalized.name;
-        models.set(modelName, normalized);
-        orderedModelNames.push(modelName);
+        const qualifiedName = `${normalized.providerKey}/${modelName}`;
+
+        let mapKey;
+
+        if (models.has(modelName) && !promotedNames.has(modelName)) {
+            // First collision: promote existing entry to its qualified key
+            const existing = models.get(modelName);
+            const existingQualified = `${existing.providerKey}/${existing.name}`;
+
+            models.set(existingQualified, existing);
+            models.delete(modelName);
+            qualifiedModels.set(existingQualified, existingQualified);
+            // Unqualified fallback resolves to the first entry
+            qualifiedModels.set(modelName, existingQualified);
+
+            const idx = orderedModelNames.indexOf(modelName);
+            if (idx !== -1) {
+                orderedModelNames[idx] = existingQualified;
+            }
+
+            promotedNames.add(modelName);
+            mapKey = qualifiedName;
+        } else if (promotedNames.has(modelName)) {
+            // Subsequent collision: use qualified key
+            mapKey = qualifiedName;
+        } else {
+            // No collision: use unqualified name
+            mapKey = modelName;
+        }
+
+        models.set(mapKey, normalized);
+        orderedModelNames.push(mapKey);
+        qualifiedModels.set(qualifiedName, mapKey);
 
         if (!providerModels.has(normalized.providerKey)) {
             providerModels.set(normalized.providerKey, []);
@@ -99,18 +132,21 @@ export function normalizeConfig(rawConfig, options = {}) {
         models,
         'fast',
         issues,
+        qualifiedModels,
     );
     const deepModelPriority = normalizeModelPriorityArray(
         rawConfig?.deepModelPriority,
         models,
         'deep',
         issues,
+        qualifiedModels,
     );
 
     return {
         providers,
         models,
         providerModels,
+        qualifiedModels,
         issues,
         raw: rawConfig,
         orderedModels: orderedModelNames,
@@ -120,7 +156,7 @@ export function normalizeConfig(rawConfig, options = {}) {
     };
 }
 
-function normalizeModelPriorityArray(rawPriority, models, expectedMode, issues) {
+function normalizeModelPriorityArray(rawPriority, models, expectedMode, issues, qualifiedModels) {
     if (!Array.isArray(rawPriority) || rawPriority.length === 0) {
         return null;
     }
@@ -131,7 +167,19 @@ function normalizeModelPriorityArray(rawPriority, models, expectedMode, issues) 
             continue;
         }
         const trimmed = modelName.trim();
-        const model = models.get(trimmed);
+
+        // Try direct lookup first, then resolve via qualified names
+        let resolvedKey = trimmed;
+        let model = models.get(trimmed);
+
+        if (!model && qualifiedModels) {
+            const resolved = resolveModelName(trimmed, models, qualifiedModels);
+            if (resolved) {
+                resolvedKey = resolved;
+                model = models.get(resolvedKey);
+            }
+        }
+
         if (!model) {
             issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority is not defined.`);
             continue;
@@ -139,7 +187,7 @@ function normalizeModelPriorityArray(rawPriority, models, expectedMode, issues) 
         if (model.mode !== expectedMode) {
             issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority has mode "${model.mode}" instead of "${expectedMode}".`);
         }
-        validated.push(trimmed);
+        validated.push(resolvedKey);
     }
     return validated.length > 0 ? validated : null;
 }
@@ -284,10 +332,7 @@ function selectString(preferred, fallback) {
  * @returns {object} Merged configuration
  */
 function mergeEnvConfig(normalized, envConfig) {
-    const { providers, models, providerModels, orderedModels, issues } = normalized;
-    
-    // Build a map of qualified names (provider/model) for lookups
-    const qualifiedModels = new Map();
+    const { providers, models, providerModels, orderedModels, issues, qualifiedModels } = normalized;
     
     // Merge env providers (they take precedence over JSON)
     for (const [providerKey, envProvider] of envConfig.providers.entries()) {
@@ -353,10 +398,7 @@ function mergeEnvConfig(normalized, envConfig) {
     
     // Prepend env model names to ordered list
     normalized.orderedModels = [...envModelNames, ...orderedModels];
-    
-    // Add qualified models map to normalized config
-    normalized.qualifiedModels = qualifiedModels;
-    
+
     // Merge issues
     issues.errors.push(...envConfig.issues.errors);
     issues.warnings.push(...envConfig.issues.warnings);
@@ -395,7 +437,12 @@ export function resolveModelName(modelRef, models, qualifiedModels) {
     if (models.has(model)) {
         return model;
     }
-    
+
+    // Fallback: check qualifiedModels for unqualified name (handles promoted/duplicate names)
+    if (qualifiedModels?.has(model)) {
+        return qualifiedModels.get(model);
+    }
+
     return null;
 }
 
