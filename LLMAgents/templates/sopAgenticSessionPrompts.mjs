@@ -26,7 +26,15 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
             'You are generating a new LightSOPLang plan.',
             ...systemLines,
             ...(prepLines.length
-                ? ['Preparation context (do not restate as user input):', ...prepLines, '']
+                ? [
+                    'Preparation context (do not restate as user input):',
+                    ...prepLines,
+                    '',
+                    'Note: Each loaded file is provided as two variables: a path variable and a content variable.',
+                    'Example: @spec_DS001_Vision assign "docs/specs/DS001-Vision.md" and @spec_DS001_VisionContent assign ...',
+                    'You can reference these variables in your plan as $spec_DS001_Vision (path) and $spec_DS001_VisionContent (content).',
+                    '',
+                ]
                 : []),
             '',
             'User requirement:',
@@ -50,6 +58,10 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
         lines.push('');
         lines.push('Preparation context (do not restate as user input):');
         lines.push(...prepLines);
+        lines.push('');
+        lines.push('Note: Each loaded file is provided as two variables: a path variable and a content variable.');
+        lines.push('Example: @spec_DS001_Vision assign "docs/specs/DS001-Vision.md" and @spec_DS001_VisionContent assign ...');
+        lines.push('You can reference these variables in your plan as $spec_DS001_Vision (path) and $spec_DS001_VisionContent (content).');
     }
     lines.push('');
     lines.push('Current plan:');
