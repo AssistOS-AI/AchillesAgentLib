@@ -537,13 +537,6 @@ export class LightSOPLangInterpreter {
         const supportsFinalAnswer = commandEntries.some((entry) => (
             entry?.name === FINAL_ANSWER_TOOL || entry?.name === CANNOT_COMPLETE_TOOL
         ));
-        if (commandEntries.length) {
-            lines.push('Available commands:');
-            commandEntries.forEach((entry) => {
-                lines.push(`- ${entry.name}: ${entry.description || ''}`);
-            });
-            lines.push('');
-        }
         lines.push('Guidelines:');
         lines.push('- Assume required input values are available as variables (e.g. $input, $A, $B) or use literals if the prompt specifies values.');
         lines.push('- Do NOT initialize input variables with dummy values (like \'assign false\') unless the prompt explicitly asks to set them.');
@@ -571,6 +564,7 @@ export class LightSOPLangInterpreter {
             lines.push('Available commands and descriptions:');
             for (const command of context.commands) {
                 lines.push(`- ${command.name}: ${command.description}`);
+                lines.push('---------');
             }
         }
         if (context.previousCode) {
