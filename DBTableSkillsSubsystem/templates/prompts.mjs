@@ -57,7 +57,53 @@ ${fieldInfo}
 User said: "${userInput}"
 
 Respond with JSON: { "changes": { "fieldName": "newValue", ... } }
-Only include fields the user explicitly wants to change.`;
+Rules:
+- Only include fields the user explicitly wants to change.
+- Do not infer or invent values.
+- Do not copy values from the current record unless the user explicitly provided that value.
+- If the user message is ambiguous, vague, or only references field names without values, return { "changes": {} }.`;
+}
+
+/**
+ * Build prompt for extracting create data from user input during CREATE capture.
+ * Supports capturing one or multiple fields from natural language in one turn.
+ * @param {string} entityName - Name of the entity/table
+ * @param {Object} currentRecord - Partial record collected so far
+ * @param {string[]} requiredFields - Required field names
+ * @param {string[]} missingFields - Still-missing required field names
+ * @param {string} fieldInfo - Formatted field information string
+ * @param {string} userInput - The user's latest input
+ * @returns {string} The formatted prompt
+ */
+export function buildExtractCreateDataPrompt(
+    entityName,
+    currentRecord,
+    requiredFields,
+    missingFields,
+    fieldInfo,
+    userInput,
+) {
+    return `Extract field values for creating a "${entityName}" record from the user's message.
+
+Current partial record:
+${JSON.stringify(currentRecord || {}, null, 2)}
+
+Required fields:
+${JSON.stringify(requiredFields || [])}
+
+Missing required fields:
+${JSON.stringify(missingFields || [])}
+
+Available fields:
+${fieldInfo}
+
+User said: "${userInput}"
+
+Respond with JSON: { "data": { "fieldName": "value", ... } }
+Rules:
+- Extract all fields that are explicitly provided (one or multiple).
+- Use only available fields listed above.
+- If no field value is clearly provided, return { "data": {} }.`;
 }
 
 /**
