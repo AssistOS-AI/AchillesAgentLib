@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 const LOG_DIR_NAME = 'debuglogs';
-const LOG_FILE_NAME = 'agentic-sessions.log';
+const LOG_FILE_NAME = `agentic-sessions-${process.pid}.log`;
 
 function isEnabled() {
     const flag = String(process.env.ACHILLES_SESSION_DEBUG || '').toLowerCase();
