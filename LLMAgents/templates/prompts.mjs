@@ -147,6 +147,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
             ? spec.description
             : '';
         lines.push(`- ${name}: ${description}`);
+        lines.push('---------');
     }
 
     const lastToolCall = toolCalls && toolCalls.length
