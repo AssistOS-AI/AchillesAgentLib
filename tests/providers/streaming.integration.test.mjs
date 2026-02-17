@@ -1,13 +1,13 @@
 /**
  * Integration tests for callLLMStreaming() against real LLM APIs.
  *
- * Uses cheap/free models to keep costs minimal.  Each test sends a tiny prompt
- * ("Say hi") and verifies the streaming contract:
+ * All tests use axiologic_proxy models to keep costs at zero.  Each test sends
+ * a tiny prompt ("Say hi") and verifies the streaming contract:
  *   - At least one text_delta chunk
  *   - A final done chunk with non-empty fullText
  *   - No error chunks
  *
- * Requires API keys loaded from ~/work/.env.
+ * Requires AXIOLOGIC_PROXY_API_KEY loaded from ~/work/.env.
  * Run:  node --test tests/providers/streaming.integration.test.mjs
  */
 
@@ -17,8 +17,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { callLLMStreaming as openaiStreaming } from '../../utils/LLMProviders/providers/openai.mjs';
-import { callLLMStreaming as anthropicStreaming } from '../../utils/LLMProviders/providers/anthropic.mjs';
-import { callLLMStreaming as openaiResponsesStreaming } from '../../utils/LLMProviders/providers/openaiResponses.mjs';
 
 // ---------------------------------------------------------------------------
 // Load env
@@ -50,8 +48,8 @@ function getKey(name) {
     return process.env[name] || ENV[name] || '';
 }
 
-const OPENROUTER_KEY = getKey('OPENROUTER_API_KEY');
-const OPENCODE_KEY = 'sk-fYXKk5M16ORDO6ohiHeAEwPn7ukTHGv7w5fNINnirwDWR7fp5mbW9Jy2aumuO2AA';
+const API_KEY = getKey('AXIOLOGIC_PROXY_API_KEY');
+const BASE_URL = 'https://proxy.axiologic.dev/v1/chat/completions';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -88,157 +86,29 @@ async function collectAndVerify(gen, label) {
     return { chunks, done };
 }
 
-// ===========================================================================
-// PROVIDER: openai.mjs  (OpenAI Chat Completions format)
-// Via OpenRouter — tests multiple backend providers through one gateway
-// ===========================================================================
-
-test('openai.mjs — OpenRouter / DeepSeek V3.2', { timeout: 30000 }, async () => {
-    if (!OPENROUTER_KEY) return test.skip('OPENROUTER_API_KEY not set');
-    await collectAndVerify(
-        openaiStreaming(SIMPLE_HISTORY, {
-            model: 'deepseek/deepseek-v3.2',
-            apiKey: OPENROUTER_KEY,
-            baseURL: 'https://openrouter.ai/api/v1/chat/completions',
-        }),
-        'OpenRouter/DeepSeek-V3.2',
-    );
-});
-
-test('openai.mjs — OpenRouter / Qwen3 Coder Plus', { timeout: 30000 }, async () => {
-    if (!OPENROUTER_KEY) return test.skip('OPENROUTER_API_KEY not set');
-    await collectAndVerify(
-        openaiStreaming(SIMPLE_HISTORY, {
-            model: 'qwen/qwen3-coder-plus',
-            apiKey: OPENROUTER_KEY,
-            baseURL: 'https://openrouter.ai/api/v1/chat/completions',
-        }),
-        'OpenRouter/Qwen3-Coder-Plus',
-    );
-});
-
-test('openai.mjs — OpenRouter / Mistral Codestral', { timeout: 30000 }, async () => {
-    if (!OPENROUTER_KEY) return test.skip('OPENROUTER_API_KEY not set');
-    await collectAndVerify(
-        openaiStreaming(SIMPLE_HISTORY, {
-            model: 'mistralai/codestral-2508',
-            apiKey: OPENROUTER_KEY,
-            baseURL: 'https://openrouter.ai/api/v1/chat/completions',
-        }),
-        'OpenRouter/Codestral-2508',
-    );
-});
-
-test('openai.mjs — OpenRouter / Google Gemini 2.5 Flash', { timeout: 30000 }, async () => {
-    if (!OPENROUTER_KEY) return test.skip('OPENROUTER_API_KEY not set');
-    await collectAndVerify(
-        openaiStreaming(SIMPLE_HISTORY, {
-            model: 'google/gemini-2.5-flash',
-            apiKey: OPENROUTER_KEY,
-            baseURL: 'https://openrouter.ai/api/v1/chat/completions',
-        }),
-        'OpenRouter/Gemini-2.5-Flash',
-    );
-});
-
-test('openai.mjs — OpenRouter / Anthropic Claude Haiku 4.5', { timeout: 30000 }, async () => {
-    if (!OPENROUTER_KEY) return test.skip('OPENROUTER_API_KEY not set');
-    await collectAndVerify(
-        openaiStreaming(SIMPLE_HISTORY, {
-            model: 'anthropic/claude-haiku-4.5',
-            apiKey: OPENROUTER_KEY,
-            baseURL: 'https://openrouter.ai/api/v1/chat/completions',
-        }),
-        'OpenRouter/Claude-Haiku-4.5',
-    );
-});
-
-test('openai.mjs — OpenRouter / xAI Grok 4.1 Fast', { timeout: 30000 }, async () => {
-    if (!OPENROUTER_KEY) return test.skip('OPENROUTER_API_KEY not set');
-    await collectAndVerify(
-        openaiStreaming(SIMPLE_HISTORY, {
-            model: 'x-ai/grok-4.1-fast',
-            apiKey: OPENROUTER_KEY,
-            baseURL: 'https://openrouter.ai/api/v1/chat/completions',
-        }),
-        'OpenRouter/Grok-4.1-Fast',
-    );
-});
-
-// Via OpenCode (OpenAI-compatible proxy)
-
-test('openai.mjs — OpenCode / GPT 5.2', { timeout: 30000 }, async () => {
-    await collectAndVerify(
-        openaiStreaming(SIMPLE_HISTORY, {
-            model: 'gpt-5.2',
-            apiKey: OPENCODE_KEY,
-            baseURL: 'https://opencode.ai/zen/v1/chat/completions',
-        }),
-        'OpenCode/GPT-5.2',
-    );
-});
-
-test('openai.mjs — OpenCode / Claude Haiku 4.5', { timeout: 30000 }, async () => {
-    await collectAndVerify(
-        openaiStreaming(SIMPLE_HISTORY, {
-            model: 'claude-haiku-4-5',
-            apiKey: OPENCODE_KEY,
-            baseURL: 'https://opencode.ai/zen/v1/chat/completions',
-        }),
-        'OpenCode/Claude-Haiku-4.5',
-    );
-});
+function proxyTest(label, model, timeout = 30000) {
+    test(`openai.mjs — axiologic_proxy / ${label}`, { timeout }, async () => {
+        if (!API_KEY) return test.skip('AXIOLOGIC_PROXY_API_KEY not set');
+        await collectAndVerify(
+            openaiStreaming(SIMPLE_HISTORY, { model, apiKey: API_KEY, baseURL: BASE_URL }),
+            `axiologic_proxy/${label}`,
+        );
+    });
+}
 
 // ===========================================================================
-// PROVIDER: anthropic.mjs  (Anthropic Messages API format)
-// Via OpenCode Anthropic-compatible endpoint
+// Fast models
 // ===========================================================================
 
-test('anthropic.mjs — OpenCode / Claude Sonnet 4.5', { timeout: 45000 }, async () => {
-    await collectAndVerify(
-        anthropicStreaming(SIMPLE_HISTORY, {
-            model: 'claude-sonnet-4-5',
-            apiKey: OPENCODE_KEY,
-            baseURL: 'https://opencode.ai/zen/v1/messages',
-        }),
-        'OpenCode-Anthropic/Claude-Sonnet-4.5',
-    );
-});
-
-test('anthropic.mjs — OpenCode / Claude Haiku 4.5', { timeout: 30000 }, async () => {
-    await collectAndVerify(
-        anthropicStreaming(SIMPLE_HISTORY, {
-            model: 'claude-haiku-4-5',
-            apiKey: OPENCODE_KEY,
-            baseURL: 'https://opencode.ai/zen/v1/messages',
-        }),
-        'OpenCode-Anthropic/Claude-Haiku-4.5',
-    );
-});
+proxyTest('Gemini 2.5 Flash Lite', 'gemini-2.5-flash-lite');
+proxyTest('Gemini 2.5 Flash', 'gemini-2.5-flash');
 
 // ===========================================================================
-// PROVIDER: openaiResponses.mjs  (OpenAI Responses API format)
-// Via OpenCode Responses endpoint
+// Deep models
 // ===========================================================================
 
-test('openaiResponses.mjs — OpenCode / GPT 5.2 Codex', { timeout: 60000 }, async () => {
-    await collectAndVerify(
-        openaiResponsesStreaming(SIMPLE_HISTORY, {
-            model: 'gpt-5.2-codex',
-            apiKey: OPENCODE_KEY,
-            baseURL: 'https://opencode.ai/zen/v1/responses',
-        }),
-        'OpenCode-Responses/GPT-5.2-Codex',
-    );
-});
-
-test('openaiResponses.mjs — OpenCode / GPT 5.1 Codex', { timeout: 60000 }, async () => {
-    await collectAndVerify(
-        openaiResponsesStreaming(SIMPLE_HISTORY, {
-            model: 'gpt-5.1-codex',
-            apiKey: OPENCODE_KEY,
-            baseURL: 'https://opencode.ai/zen/v1/responses',
-        }),
-        'OpenCode-Responses/GPT-5.1-Codex',
-    );
-});
+proxyTest('GPT 5.3 Codex', 'gpt-5.3-codex', 60000);
+proxyTest('GPT 5.2 Codex', 'gpt-5.2-codex', 60000);
+proxyTest('GPT 5.2', 'gpt-5.2', 60000);
+proxyTest('GPT 5.1 Codex', 'gpt-5.1-codex', 60000);
+proxyTest('Gemini 2.5 Pro', 'gemini-2.5-pro', 60000);
