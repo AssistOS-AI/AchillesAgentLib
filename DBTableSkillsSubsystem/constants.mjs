@@ -18,8 +18,12 @@ export const CRUD_OPERATIONS = {
  */
 export const PENDING_STATE_SUFFIXES = {
     CREATE: 'create',
+    CREATE_CAPTURE: 'create_capture',
     UPDATE: 'update',
+    UPDATE_TARGET_CAPTURE: 'update_target_capture',
     DELETE: 'delete',
+    DELETE_CAPTURE: 'delete_capture',
+    SELECT_PAGINATION: 'select_pagination',
     VALIDATION: 'validation',
     UPDATE_CAPTURE: 'update_capture',
 };
@@ -54,3 +58,8 @@ export const NULL_DISPLAY_VALUE = '—';
  * Can be overridden via ACHILLES_DBTABLE_TIMEOUT env var.
  */
 export const DEFAULT_DBTABLE_TIMEOUT_MS = 60000;
+
+/**
+ * Default page size for conversational record selection and large list displays.
+ */
+export const DEFAULT_SELECTION_PAGE_SIZE = 20;

@@ -117,8 +117,8 @@ test('ConversationalTskillController uses tableName_id as default primary key', 
 
 test('execute routes SELECT and returns records', async () => {
     const store = new RecordStore([
-        { equipment_id: 'E1', name: 'Drill', status: 'Active' },
-        { equipment_id: 'E2', name: 'Saw', status: 'Active' },
+        { equipment_id: 'E1', name: 'Drill', status: 'Active', id: 'EQUIPME.1' },
+        { equipment_id: 'E2', name: 'Saw', status: 'Active', id: 'EQUIPME.2' },
     ]);
     const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
     const { template } = createTemplate({ store, llmAgent: llm });
@@ -130,6 +130,8 @@ test('execute routes SELECT and returns records', async () => {
     assert.strictEqual(result.operation, 'SELECT');
     assert.strictEqual(result.count, 2);
     assert.strictEqual(result.records.length, 2);
+    assert.strictEqual(result.records[0].id, undefined);
+    assert.strictEqual(result.records[1].id, undefined);
 });
 
 test('execute SELECT returns empty set gracefully', async () => {
@@ -144,6 +146,76 @@ test('execute SELECT returns empty set gracefully', async () => {
     assert.strictEqual(result.operation, 'SELECT');
     assert.strictEqual(result.count, 0);
     assert.ok(result.message.includes('No equipment'));
+});
+
+test('execute SELECT returns full large result sets by default', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 25 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(2, '0')}`,
+            name: `Tool ${idx + 1}`,
+            status: 'Active',
+        })),
+    );
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('list equipment', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'SELECT');
+    assert.strictEqual(result.count, 25);
+    assert.strictEqual(result.totalCount, 25);
+    assert.strictEqual(result.records.length, 25);
+    assert.strictEqual(result.requiresInput, false);
+    assert.strictEqual(result.pagination?.hasNext, false);
+    assert.ok(result.message.includes('Showing all 25 equipment(s).'));
+    assert.strictEqual(memory.has('pending_equipment_select_pagination'), false);
+});
+
+test('execute SELECT with prompt "next" still returns full list (no pagination state)', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 45 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(3, '0')}`,
+            name: `Tool ${idx + 1}`,
+            status: 'Active',
+        })),
+    );
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const second = await template.execute('next', { sessionMemory: memory });
+    assert.strictEqual(second.success, true);
+    assert.strictEqual(second.count, 45);
+    assert.strictEqual(second.requiresInput, false);
+    assert.strictEqual(second.pagination?.hasNext, false);
+    assert.ok(second.message.includes('Showing all 45 equipment(s).'));
+    assert.strictEqual(memory.has('pending_equipment_select_pagination'), false);
+});
+
+test('execute SELECT supports explicit show all command', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 45 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(3, '0')}`,
+            name: `Tool ${idx + 1}`,
+            status: 'Active',
+        })),
+    );
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const all = await template.execute('show all', { sessionMemory: memory });
+
+    assert.strictEqual(all.success, true);
+    assert.strictEqual(all.operation, 'SELECT');
+    assert.strictEqual(all.count, 45);
+    assert.strictEqual(all.totalCount, 45);
+    assert.strictEqual(all.requiresInput, false);
+    assert.strictEqual(all.pagination?.hasNext, false);
+    assert.ok(all.message.includes('Showing all 45 equipment(s).'));
+    assert.strictEqual(memory.has('pending_equipment_select_pagination'), false);
 });
 
 // ============= execute: CREATE flow =============
@@ -277,6 +349,77 @@ test('execute DELETE stores pending and requires confirmation', async () => {
     assert.ok(memory.has('pending_equipment_delete'));
 });
 
+test('execute DELETE without primary key requests ID capture', async () => {
+    const store = new RecordStore([
+        { equipment_id: 'E1', name: 'Drill' },
+        { equipment_id: 'E2', name: 'Saw' },
+    ]);
+    const llm = buildMockLLM({
+        operation: 'DELETE',
+        filter: {},
+    });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('delete equipment', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'DELETE');
+    assert.strictEqual(result.requiresInput, true);
+    assert.ok(result.message.includes('Please provide the Unique ID'));
+    assert.ok(result.message.includes('E1'));
+    assert.ok(memory.has('pending_equipment_delete_capture'));
+});
+
+test('DELETE id capture resolves to single-record confirmation', async () => {
+    const store = new RecordStore([
+        { equipment_id: 'E1', name: 'Drill' },
+        { equipment_id: 'E2', name: 'Saw' },
+    ]);
+    const llm = buildMockLLM({
+        operation: 'DELETE',
+        filter: {},
+    });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    await template.execute('delete equipment', { sessionMemory: memory });
+    const result = await template.execute('E2', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'DELETE');
+    assert.strictEqual(result.requiresConfirmation, true);
+    assert.ok(memory.has('pending_equipment_delete'));
+
+    const pendingDelete = memory.get('pending_equipment_delete');
+    assert.strictEqual(pendingDelete.records.length, 1);
+    assert.strictEqual(pendingDelete.records[0].equipment_id, 'E2');
+});
+
+test('DELETE id capture supports next/prev pagination commands', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 25 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(2, '0')}`,
+            name: `Tool ${idx + 1}`,
+        })),
+    );
+    const llm = buildMockLLM({
+        operation: 'DELETE',
+        filter: {},
+    });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const first = await template.execute('delete equipment', { sessionMemory: memory });
+    assert.strictEqual(first.requiresInput, true);
+    assert.ok(first.message.includes('Page 1/2'));
+
+    const second = await template.execute('next', { sessionMemory: memory });
+    assert.strictEqual(second.requiresInput, true);
+    assert.ok(second.message.includes('Page 2/2'));
+    assert.ok(second.message.includes('E21'));
+});
+
 test('DELETE with no matching records returns error', async () => {
     const store = new RecordStore([]);
     const llm = buildMockLLM({
@@ -348,6 +491,80 @@ test('execute UPDATE with changes stores pending and requires confirmation', asy
     assert.strictEqual(result.operation, 'UPDATE');
     assert.strictEqual(result.requiresConfirmation, true);
     assert.ok(memory.has('pending_equipment_update'));
+});
+
+test('execute UPDATE without primary key requests ID capture', async () => {
+    const store = new RecordStore([
+        { equipment_id: 'E1', name: 'Old Drill', status: 'Active' },
+        { equipment_id: 'E2', name: 'Old Saw', status: 'Active' },
+    ]);
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: {},
+        data: { name: 'Renamed' },
+    });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('rename equipment', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'UPDATE');
+    assert.strictEqual(result.requiresInput, true);
+    assert.ok(result.message.includes('Please provide the Unique ID'));
+    assert.ok(memory.has('pending_equipment_update_target_capture'));
+});
+
+test('UPDATE id capture resolves to update confirmation', async () => {
+    const store = new RecordStore([
+        { equipment_id: 'E1', name: 'Old Drill', status: 'Active' },
+        { equipment_id: 'E2', name: 'Old Saw', status: 'Active' },
+    ]);
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: {},
+        data: { name: 'Renamed' },
+    });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    await template.execute('rename equipment', { sessionMemory: memory });
+    const result = await template.execute('E2', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'UPDATE');
+    assert.strictEqual(result.requiresConfirmation, true);
+    assert.ok(memory.has('pending_equipment_update'));
+
+    const pendingUpdate = memory.get('pending_equipment_update');
+    assert.strictEqual(pendingUpdate.id, 'E2');
+    assert.strictEqual(pendingUpdate.changes.name, 'Renamed');
+});
+
+test('UPDATE id capture supports next/prev pagination commands', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 25 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(2, '0')}`,
+            name: `Tool ${idx + 1}`,
+            status: 'Active',
+        })),
+    );
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: {},
+        data: { name: 'Renamed' },
+    });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const first = await template.execute('rename equipment', { sessionMemory: memory });
+    assert.strictEqual(first.requiresInput, true);
+    assert.ok(first.message.includes('Page 1/2'));
+
+    const second = await template.execute('next', { sessionMemory: memory });
+    assert.strictEqual(second.requiresInput, true);
+    assert.ok(second.message.includes('Page 2/2'));
+    assert.ok(second.message.includes('E21'));
 });
 
 test('execute UPDATE with no matching records returns error', async () => {

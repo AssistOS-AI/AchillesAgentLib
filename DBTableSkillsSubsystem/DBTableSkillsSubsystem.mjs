@@ -482,11 +482,26 @@ return {
         // Create execution context with all functions
         const tableName = parsedSkill.tableName || 'unknown';
         const execContext = this.createExecutionContext(functions, tableName);
-
-        // Generate primary key if needed
+        // Generate primary key only if caller did not provide one
         if (execContext.generatePKValues) {
-            const pkValues = execContext.generatePKValues({});
-            Object.assign(newRecord, pkValues);
+            const primaryKeyField = parsedSkill.primaryKey || parsedSkill.primaryKeyField || 'id';
+            const hasPrimaryKey = Boolean(
+                newRecord[primaryKeyField] !== undefined &&
+                newRecord[primaryKeyField] !== null &&
+                newRecord[primaryKeyField] !== ''
+            );
+            if (!hasPrimaryKey) {
+                let existingRecords = [];
+                if (execContext.selectRecords) {
+                    try {
+                        existingRecords = await execContext.selectRecords({});
+                    } catch (_ignored) {
+                        existingRecords = [];
+                    }
+                }
+                const pkValues = execContext.generatePKValues(newRecord, existingRecords);
+                Object.assign(newRecord, pkValues);
+            }
         }
 
         // Prepare record
