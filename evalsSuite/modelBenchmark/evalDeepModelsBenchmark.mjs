@@ -29,22 +29,8 @@
 // ============================================================================
 const CONFIG = {
     // Default deep models to test when --models flag is not provided
-    // Resolved from ACHILLES_ENABLED_DEEP_MODELS env var or deepModelPriority in LLMConfig.json
-    defaultModels: [
-        'axiologic_proxy/gpt-5.3-codex',
-        'axiologic_proxy/gpt-5.3-codex-spark',
-        'axiologic_proxy/gpt-5.2-codex',
-        'axiologic_proxy/gpt-5.2',
-        'axiologic_proxy/gpt-5.1-codex',
-        'axiologic_proxy/gpt-5.1-codex-max',
-        'axiologic_proxy/gpt-5.1-codex-mini',
-        'axiologic_proxy/gpt-5.1',
-        'axiologic_proxy/gpt-5-codex',
-        'axiologic_proxy/gpt-5-codex-mini',
-        'axiologic_proxy/gpt-5',
-        'axiologic_proxy/gemini-2.5-pro',
-        'axiologic_proxy/gemini-3-pro-preview',
-    ],
+    // Resolved from ACHILLES_ENABLED_DEEP_MODELS env var or all available deep models
+    defaultModels: null,
 
     // Number of runs per model/case for averaging (overridden by --runs)
     defaultRuns: 1,
