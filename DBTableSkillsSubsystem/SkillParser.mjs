@@ -12,6 +12,7 @@ export function parseSkillMarkdown(content) {
         tableName: '',
         tablePurpose: '',
         instructions: '',  // LLM instructions for query interpretation
+        deleteGuard: null,
         fields: {},
         derivedFields: {},
         indexes: [],
@@ -94,6 +95,17 @@ export function parseSkillMarkdown(content) {
             continue;
         }
 
+        // Handle delete guard section (## Delete Guard)
+        if (trimmedLine.match(/^##\s+Delete Guard$/i)) {
+            saveCurrentContent();
+            currentSection = 'deleteGuard';
+            currentField = null;
+            currentSubSection = null;
+            currentContent = [];
+            sectionDepth = 2;
+            continue;
+        }
+
         // Handle field definition (### FieldName)
         const fieldMatch = trimmedLine.match(/^###\s+(.+)$/);
         if (fieldMatch && currentSection === 'fields') {
@@ -141,6 +153,8 @@ export function parseSkillMarkdown(content) {
             skill.tablePurpose = content;
         } else if (currentSection === 'instructions' && !currentField) {
             skill.instructions = content;
+        } else if (currentSection === 'deleteGuard' && !currentField) {
+            parseDeleteGuard(content, skill);
         } else if (currentSection === 'relationships' && !currentField) {
             parseRelationships(content, skill);
         } else if (currentSection === 'businessRules' && !currentField) {
@@ -490,38 +504,121 @@ function identifyDerivedFields(skill) {
     }
 }
 
+function parseTableFieldRef(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const match = text.match(/^([a-zA-Z_][\w]*)\s*\.\s*([a-zA-Z_][\w]*)$/);
+    if (!match) return null;
+    return {
+        table: match[1],
+        field: match[2],
+    };
+}
+
+function parseFieldReferencesExpression(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const match = text.match(
+        /([a-zA-Z_][\w]*\.[a-zA-Z_][\w]*)\s*(?:references|->|=>)\s*([a-zA-Z_][\w]*\.[a-zA-Z_][\w]*)/i,
+    );
+    if (!match) return null;
+    const source = parseTableFieldRef(match[1]);
+    const target = parseTableFieldRef(match[2]);
+    if (!source || !target) return null;
+    return { source, target };
+}
+
 /**
  * Parse relationships section
  */
 function parseRelationships(content, skill) {
     const lines = content.split('\n');
     let currentRelation = null;
+    const relationHeaderRegex = /^###\s+(.+)$/;
+    const bulletRegex = /^[-*]\s+(.+)$/;
 
     for (const line of lines) {
         const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        const headerMatch = trimmed.match(relationHeaderRegex);
+        if (headerMatch) {
+            currentRelation = {
+                type: headerMatch[1].trim(),
+                foreign: null,
+                reference: null,
+                referencedBy: null,
+                field: null,
+                cascade: null,
+                sourceTable: null,
+                sourceField: null,
+                targetTable: null,
+                targetField: null
+            };
+            skill.relationships.push(currentRelation);
+            continue;
+        }
 
         // Check for relationship definition
-        if (trimmed.match(/^[-*]\s+/)) {
-            const relationText = trimmed.replace(/^[-*]\s+/, '');
+        const bulletMatch = trimmed.match(bulletRegex);
+        if (bulletMatch) {
+            const relationText = bulletMatch[1].trim();
 
             // Parse relationship format: "Type: one-to-many with orders.customer_id"
             const match = relationText.match(/(.+?):\s*(.+)/);
             if (match) {
                 const [, key, value] = match;
+                const cleanedValue = value.trim();
+                const keyLower = key.toLowerCase().trim();
 
-                if (key.toLowerCase().includes('type')) {
+                if (keyLower.includes('type')) {
                     currentRelation = {
-                        type: value.trim(),
+                        type: cleanedValue,
                         foreign: null,
-                        cascade: null
+                        reference: null,
+                        referencedBy: null,
+                        field: null,
+                        cascade: null,
+                        sourceTable: null,
+                        sourceField: null,
+                        targetTable: null,
+                        targetField: null
                     };
                     skill.relationships.push(currentRelation);
                 } else if (currentRelation) {
-                    const keyLower = key.toLowerCase();
-                    if (keyLower.includes('foreign')) {
-                        currentRelation.foreign = value.trim();
+                    if (keyLower.includes('referenced by')) {
+                        currentRelation.referencedBy = cleanedValue;
+                        const pair = parseTableFieldRef(cleanedValue);
+                        if (pair) {
+                            currentRelation.sourceTable = pair.table;
+                            currentRelation.sourceField = pair.field;
+                        }
+                    } else if (keyLower.includes('foreign')) {
+                        currentRelation.foreign = cleanedValue;
                     } else if (keyLower.includes('cascade')) {
-                        currentRelation.cascade = value.trim();
+                        currentRelation.cascade = cleanedValue;
+                    } else if (keyLower.includes('reference')) {
+                        currentRelation.reference = cleanedValue;
+                        const pair = parseTableFieldRef(cleanedValue);
+                        if (pair) {
+                            currentRelation.targetTable = pair.table;
+                            currentRelation.targetField = pair.field;
+                        }
+                    } else if (keyLower === 'field') {
+                        currentRelation.field = cleanedValue;
+                        const refs = parseFieldReferencesExpression(cleanedValue);
+                        if (refs) {
+                            currentRelation.sourceTable = refs.source.table;
+                            currentRelation.sourceField = refs.source.field;
+                            currentRelation.targetTable = refs.target.table;
+                            currentRelation.targetField = refs.target.field;
+                        } else {
+                            const sourcePair = parseTableFieldRef(cleanedValue);
+                            if (sourcePair) {
+                                currentRelation.sourceTable = sourcePair.table;
+                                currentRelation.sourceField = sourcePair.field;
+                            }
+                        }
                     }
                 }
             }
@@ -552,6 +649,30 @@ function parseBusinessRules(content, skill) {
 }
 
 /**
+ * Parse delete guard section.
+ */
+function parseDeleteGuard(content, skill) {
+    const trimmed = String(content || '').trim();
+    if (!trimmed) {
+        return;
+    }
+
+    // Supported syntax:
+    // - DeleteGuard: block_if_referenced
+    // - block_if_referenced
+    const explicitMatch = trimmed.match(/DeleteGuard\s*:\s*([a-zA-Z0-9_-]+)/i);
+    const mode = explicitMatch
+        ? explicitMatch[1].toLowerCase()
+        : trimmed.split(/\s+/)[0].toLowerCase();
+
+    if (!mode) {
+        return;
+    }
+
+    skill.deleteGuard = { mode };
+}
+
+/**
  * Validate parsed skill structure
  */
 export function validateSkill(skill) {
@@ -577,6 +698,14 @@ export function validateSkill(skill) {
     // Check for primary key
     if (!skill.primaryKey) {
         warnings.push('No primary key defined - consider adding one for database operations');
+    }
+
+    // Validate delete guard mode if present
+    if (skill.deleteGuard && skill.deleteGuard.mode) {
+        const allowedModes = new Set(['block_if_referenced']);
+        if (!allowedModes.has(String(skill.deleteGuard.mode).toLowerCase())) {
+            warnings.push(`Unknown delete guard mode "${skill.deleteGuard.mode}"`);
+        }
     }
 
     // Validate field definitions

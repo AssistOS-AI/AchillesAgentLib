@@ -1553,6 +1553,11 @@ export class ConversationalTskillController {
                 const deleted = [];
                 for (const record of pending.records) {
                     const recordId = record[this.primaryKey];
+                    if (typeof this.subsystem?.runDeleteValidation === 'function') {
+                        await this.subsystem.runDeleteValidation(execContext, this.parsedSkill, recordId, record);
+                    } else if (typeof this.subsystem?.assertDeleteAllowed === 'function') {
+                        await this.subsystem.assertDeleteAllowed(this.parsedSkill, recordId);
+                    }
                     await execContext.deleteRecord(recordId);
                     deleted.push(recordId);
                 }
