@@ -108,6 +108,9 @@ Description of what this table stores
 #### Description
 Basic field description and data type
 
+#### Field Display Name
+Short user-facing label used in prompts and table headers
+
 #### Aliases
 ["alternative_name", "other_name"]
 

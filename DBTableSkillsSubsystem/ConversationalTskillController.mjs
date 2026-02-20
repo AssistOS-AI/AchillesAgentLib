@@ -11,164 +11,51 @@
  * Each tskill gets these flows automatically via DBTableSkillsSubsystem.
  */
 
-import {
-    resolveConfirmation,
-    isYesResponse,
-    isNoResponse,
-} from '../utils/ConfirmationUtils.mjs';
 import { IOServices } from '../services/IOServices.mjs';
 import {
     CRUD_OPERATIONS,
     PENDING_STATE_SUFFIXES,
     pendingKey,
-    HIDDEN_AUDIT_FIELDS,
     NULL_DISPLAY_VALUE,
     DEFAULT_SELECTION_PAGE_SIZE,
 } from './constants.mjs';
 import {
-    buildParseOperationPrompt,
-    buildExtractCreateDataPrompt,
-    buildExtractFieldChangesPrompt,
-    buildValidationCorrectionPrompt,
-    formatFieldInfo,
-    formatFieldInfoSimple,
-} from './templates/prompts.mjs';
-
-/**
- * Format a record as a markdown table for display.
- * @param {Object} record - Record to format
- * @param {Object} fields - Field definitions from parsedSkill
- * @param {string[]} [excludeFields] - Fields to exclude from display
- * @returns {string} Markdown table
- */
-function formatRecordTable(record, fields, excludeFields = [], options = {}) {
-    const hiddenFields = new Set([
-        ...HIDDEN_AUDIT_FIELDS,
-        ...excludeFields,
-    ]);
-    const resolveLabel = typeof options.resolveLabel === 'function'
-        ? options.resolveLabel
-        : ((fieldName, fieldDef) => fieldDef.description || fieldName);
-
-    const rows = [];
-    rows.push('| Field | Value |');
-    rows.push('|-------|-------|');
-
-    for (const [fieldName, fieldDef] of Object.entries(fields || {})) {
-        if (hiddenFields.has(fieldName)) continue;
-        const value = record[fieldName];
-        const displayValue = value === undefined || value === null ? NULL_DISPLAY_VALUE : String(value);
-        const label = resolveLabel(fieldName, fieldDef);
-        rows.push(`| ${label} | ${displayValue} |`);
-    }
-
-    return rows.join('\n');
-}
-
-/**
- * Format a list of records as a markdown table.
- * @param {Object[]} records - Records to format
- * @param {Object} fields - Field definitions
- * @param {string} entityName - Entity name for header
- * @returns {string} Markdown table
- */
-function formatRecordsTable(records, fields, entityName, options = {}) {
-    if (!records || records.length === 0) {
-        return `No ${entityName} records found.`;
-    }
-    const resolveLabel = typeof options.resolveLabel === 'function'
-        ? options.resolveLabel
-        : ((fieldName, fieldDef) => fieldDef.description || fieldName);
-
-    const hiddenFields = new Set(HIDDEN_AUDIT_FIELDS);
-
-    // Get visible field names
-    const visibleFields = Object.entries(fields || {})
-        .filter(([name]) => !hiddenFields.has(name));
-
-    if (visibleFields.length === 0) return JSON.stringify(records, null, 2);
-
-    const header = visibleFields.map(([name, def]) => resolveLabel(name, def)).join(' | ');
-    const separator = visibleFields.map(() => '---').join(' | ');
-
-    const rows = records.map(record =>
-        visibleFields.map(([name]) => {
-            const val = record[name];
-            return val === undefined || val === null ? NULL_DISPLAY_VALUE : String(val);
-        }).join(' | ')
-    );
-
-    return [
-        `| ${header} |`,
-        `| ${separator} |`,
-        ...rows.map(r => `| ${r} |`),
-    ].join('\n');
-}
-
-function escapeRegex(value) {
-    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function stripExampleHints(value) {
-    const raw = String(value || '').trim();
-    if (!raw) return '';
-    // Remove parenthesized example hints such as:
-    // (e.g., "..."), (eg. "..."), (for example: ...)
-    const withoutExamples = raw.replace(/\s*\((?:e\.?\s*g\.?|for example)[^)]*\)\s*/gi, ' ');
-    return withoutExamples.replace(/\s+/g, ' ').trim();
-}
-
-function humanizeFieldName(fieldName) {
-    const text = String(fieldName || '').trim();
-    if (!text) return '';
-    return text
-        .replace(/[_-]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/\b\w/g, char => char.toUpperCase());
-}
-
-const INTERNAL_RESPONSE_FIELDS = new Set(['id']);
-
-function sanitizeRecordForUser(record) {
-    if (!record || typeof record !== 'object') return record;
-    const sanitized = {};
-    for (const [key, value] of Object.entries(record)) {
-        if (INTERNAL_RESPONSE_FIELDS.has(key)) continue;
-        sanitized[key] = value;
-    }
-    return sanitized;
-}
-
-function sanitizeRecordsForUser(records) {
-    if (!Array.isArray(records)) return [];
-    return records.map(record => sanitizeRecordForUser(record));
-}
-
-function paginateRecords(records, page = 0, pageSize = DEFAULT_SELECTION_PAGE_SIZE) {
-    const normalizedRecords = Array.isArray(records) ? records : [];
-    const normalizedPageSize = Number.isFinite(pageSize) && pageSize > 0
-        ? Math.floor(pageSize)
-        : DEFAULT_SELECTION_PAGE_SIZE;
-
-    const total = normalizedRecords.length;
-    const totalPages = Math.max(1, Math.ceil(total / normalizedPageSize));
-    const rawPage = Number.isFinite(page) ? Math.floor(page) : 0;
-    const safePage = Math.min(Math.max(rawPage, 0), totalPages - 1);
-
-    const start = safePage * normalizedPageSize;
-    const end = Math.min(start + normalizedPageSize, total);
-    const items = normalizedRecords.slice(start, end);
-
-    return {
-        items,
-        total,
-        totalPages,
-        page: safePage,
-        pageSize: normalizedPageSize,
-        start,
-        end,
-    };
-}
+    formatRecordTable,
+    formatRecordsTable,
+    escapeRegex,
+    stripExampleHints,
+    humanizeFieldName,
+    sanitizeRecordForUser,
+    sanitizeRecordsForUser,
+    paginateRecords,
+} from './helpers/conversationDisplayUtils.mjs';
+import {
+    extractCreateDataFromInput as extractCreateDataFromInputFlow,
+    prepareCreateForConfirmation as prepareCreateForConfirmationFlow,
+    handleCreateFieldCapture as handleCreateFieldCaptureFlow,
+    handleCreateConfirmation as handleCreateConfirmationFlow,
+    handleCreateConflictUpdateConfirmation as handleCreateConflictUpdateConfirmationFlow,
+    createFlow as createFlowHandler,
+} from './flows/createFlowHandlers.mjs';
+import {
+    handleUpdateConfirmation as handleUpdateConfirmationFlow,
+    prepareUpdateForRecord as prepareUpdateForRecordFlow,
+    handleUpdateTargetCapture as handleUpdateTargetCaptureFlow,
+    handleUpdateFieldCapture as handleUpdateFieldCaptureFlow,
+    updateFlow as updateFlowHandler,
+} from './flows/updateFlowHandlers.mjs';
+import {
+    handleDeleteIdCapture as handleDeleteIdCaptureFlow,
+    handleDeleteConfirmation as handleDeleteConfirmationFlow,
+    deleteFlow as deleteFlowHandler,
+} from './flows/deleteFlowHandlers.mjs';
+import { handleValidationCorrections as handleValidationCorrectionsFlow } from './flows/validationFlowHandlers.mjs';
+import {
+    handleSelectPagination as handleSelectPaginationFlow,
+    handlePendingState as handlePendingStateFlow,
+    parseOperation as parseOperationFlow,
+    selectFlow as selectFlowHandler,
+} from './flows/routingFlowHandlers.mjs';
 
 
 export class ConversationalTskillController {
@@ -209,20 +96,78 @@ export class ConversationalTskillController {
         return String(left).trim() === String(right).trim();
     }
 
+    normalizePrimaryKeyForComparison(value) {
+        if (!this.hasValue(value)) return '';
+        const text = String(value).trim();
+        if (String(this.entityName || '').toLowerCase() === 'equipment') {
+            return text.toUpperCase().replace(/-/g, '');
+        }
+        return text;
+    }
+
+    async findCreateCollisionRecord(record, execContext) {
+        if (String(this.entityName || '').toLowerCase() !== 'equipment') return null;
+        const candidatePk = record?.[this.primaryKey];
+        if (!this.hasValue(candidatePk)) return null;
+        if (!execContext || typeof execContext.selectRecords !== 'function') return null;
+
+        const records = await execContext.selectRecords({});
+        const normalizedCandidate = this.normalizePrimaryKeyForComparison(candidatePk);
+        if (!normalizedCandidate) return null;
+
+        for (const existing of records || []) {
+            const existingPk = existing?.[this.primaryKey];
+            if (!this.hasValue(existingPk)) continue;
+            if (this.normalizePrimaryKeyForComparison(existingPk) === normalizedCandidate) {
+                return existing;
+            }
+        }
+        return null;
+    }
+
+    buildCreateConflictUpdateMessage(newRecord, existingRecord) {
+        const incomingPk = this.formatDisplayValue(newRecord?.[this.primaryKey]);
+        const existingPk = this.formatDisplayValue(existingRecord?.[this.primaryKey]);
+        const pkLabel = this.getFieldShortLabel(this.primaryKey);
+
+        return `A ${this.entityName} with ${pkLabel} **${existingPk}** already exists.\n\nYour value **${incomingPk}** matches the same identifier (comparison ignores "-").\n\nDo you want to update the existing record with the values you provided? Reply **yes** to update or **no** to cancel.`;
+    }
+
     getFieldFullLabel(fieldName) {
         const fieldDef = this.fields?.[fieldName];
         return String(fieldDef?.description || humanizeFieldName(fieldName) || fieldName);
     }
 
     getFieldShortLabel(fieldName) {
-        const full = this.getFieldFullLabel(fieldName);
-        return stripExampleHints(full) || full;
+        const fieldDef = this.fields?.[fieldName] || {};
+        const explicitShort = fieldDef.shortLabel
+            || fieldDef.short_label
+            || fieldDef.label
+            || null;
+        if (explicitShort && String(explicitShort).trim()) {
+            return stripExampleHints(explicitShort) || String(explicitShort).trim();
+        }
+
+        // Keep "Field" concise and predictable across all tables.
+        return String(fieldName || '').trim();
     }
 
     getFieldLabel(fieldName, mode = 'short') {
         return mode === 'full'
             ? this.getFieldFullLabel(fieldName)
             : this.getFieldShortLabel(fieldName);
+    }
+
+    isFieldMandatory(fieldName) {
+        return Boolean(this.fields?.[fieldName]?.isRequired);
+    }
+
+    getFieldGuidance(fieldName) {
+        const description = this.getFieldFullLabel(fieldName);
+        if (this.isFieldMandatory(fieldName)) {
+            return `**Mandatory**: ${description}`;
+        }
+        return `Optional: ${description}`;
     }
 
     formatFieldLabelList(fieldNames, mode = 'short') {
@@ -451,12 +396,12 @@ export class ConversationalTskillController {
 
         for (const fieldName of requiredFields || []) {
             const shortLabel = this.getFieldShortLabel(fieldName);
-            const description = this.getFieldFullLabel(fieldName);
+            const guidance = this.getFieldGuidance(fieldName);
             const value = record?.[fieldName];
             const hasValue = this.hasValue(value);
             const status = hasValue ? 'Completed' : 'Missing';
             const displayValue = this.formatDisplayValue(value);
-            rows.push(`| ${shortLabel} | ${description} | ${status} | ${displayValue} |`);
+            rows.push(`| ${shortLabel} | ${guidance} | ${status} | ${displayValue} |`);
         }
 
         return rows.join('\n');
@@ -488,10 +433,12 @@ export class ConversationalTskillController {
     clearCreatePendingStates(sessionMemory) {
         if (!sessionMemory) return;
         const createKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.CREATE);
+        const createConflictKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.CREATE_CONFLICT_UPDATE);
         const createCaptureKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.CREATE_CAPTURE);
         const validationKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.VALIDATION);
 
         sessionMemory.delete(createKey);
+        sessionMemory.delete(createConflictKey);
         sessionMemory.delete(createCaptureKey);
 
         const pendingValidation = sessionMemory.get(validationKey);
@@ -529,7 +476,7 @@ export class ConversationalTskillController {
         rows.push('|----------------|----------|');
 
         for (const fieldName of fieldNames) {
-            rows.push(`| ${this.getFieldShortLabel(fieldName)} | ${this.getFieldFullLabel(fieldName)} |`);
+            rows.push(`| ${this.getFieldShortLabel(fieldName)} | ${this.getFieldGuidance(fieldName)} |`);
         }
 
         return rows.join('\n');
@@ -709,62 +656,7 @@ export class ConversationalTskillController {
     }
 
     async handleSelectPagination(prompt, pending, sessionMemory, key) {
-        const text = String(prompt || '').trim();
-        if (!text) {
-            return this.buildSelectPageResult(
-                pending.records || [],
-                pending.page || 0,
-                pending.pageSize || DEFAULT_SELECTION_PAGE_SIZE,
-            );
-        }
-
-        if (isNoResponse(prompt) || /^cancel$/i.test(text) || /^(stop|close)$/i.test(text.toLowerCase())) {
-            sessionMemory.delete(key);
-            return {
-                success: true,
-                operation: 'SELECT',
-                cancelled: true,
-                message: 'Pagination closed.',
-            };
-        }
-
-        const paginationCommand = this.parseSelectPaginationCommand(prompt);
-        if (!paginationCommand) {
-            // Non-navigation input should continue as a fresh request.
-            sessionMemory.delete(key);
-            return null;
-        }
-
-        if (paginationCommand === 'all') {
-            sessionMemory.delete(key);
-            return this.buildSelectAllResult(pending.records || []);
-        }
-
-        const paging = paginateRecords(
-            pending.records || [],
-            pending.page || 0,
-            pending.pageSize || DEFAULT_SELECTION_PAGE_SIZE,
-        );
-
-        let nextPage = paging.page;
-        if (paginationCommand === 'next' && nextPage < paging.totalPages - 1) nextPage++;
-        if (paginationCommand === 'prev' && nextPage > 0) nextPage--;
-
-        pending.page = nextPage;
-        pending.pageSize = paging.pageSize;
-        sessionMemory.set(key, pending);
-
-        const atBoundary = nextPage === paging.page && paging.totalPages > 1;
-        const boundaryMessage = atBoundary
-                ? `You're already on ${paginationCommand === 'next' ? 'the last' : 'the first'} page.`
-                : '';
-
-        return this.buildSelectPageResult(
-            pending.records || [],
-            pending.page,
-            pending.pageSize,
-            boundaryMessage,
-        );
+        return handleSelectPaginationFlow(this, prompt, pending, sessionMemory, key);
     }
 
     extractPrimaryKeyFromPrompt(prompt, records) {
@@ -863,867 +755,55 @@ export class ConversationalTskillController {
      * Returns a result if a pending state was found, null otherwise.
      */
     async handlePendingState(prompt, sessionMemory) {
-        // Create confirmation
-        const createKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.CREATE);
-        const pendingCreate = sessionMemory.get(createKey);
-        if (pendingCreate) {
-            return this.handleCreateConfirmation(prompt, pendingCreate, sessionMemory, createKey);
-        }
-
-        // Create required-field capture
-        const createCaptureKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.CREATE_CAPTURE);
-        const pendingCreateCapture = sessionMemory.get(createCaptureKey);
-        if (pendingCreateCapture) {
-            return this.handleCreateFieldCapture(prompt, pendingCreateCapture, sessionMemory, createCaptureKey);
-        }
-
-        // Update confirmation
-        const updateKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.UPDATE);
-        const pendingUpdate = sessionMemory.get(updateKey);
-        if (pendingUpdate) {
-            return this.handleUpdateConfirmation(prompt, pendingUpdate, sessionMemory, updateKey);
-        }
-
-        // Update target capture (user must provide primary key to update)
-        const updateTargetCaptureKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.UPDATE_TARGET_CAPTURE);
-        const pendingUpdateTargetCapture = sessionMemory.get(updateTargetCaptureKey);
-        if (pendingUpdateTargetCapture) {
-            return this.handleUpdateTargetCapture(prompt, pendingUpdateTargetCapture, sessionMemory, updateTargetCaptureKey);
-        }
-
-        // Update field capture (user is specifying what to change)
-        const captureKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.UPDATE_CAPTURE);
-        const pendingCapture = sessionMemory.get(captureKey);
-        if (pendingCapture) {
-            return this.handleUpdateFieldCapture(prompt, pendingCapture, sessionMemory, captureKey);
-        }
-
-        // Delete id capture (user must provide primary key to delete)
-        const deleteCaptureKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.DELETE_CAPTURE);
-        const pendingDeleteCapture = sessionMemory.get(deleteCaptureKey);
-        if (pendingDeleteCapture) {
-            return this.handleDeleteIdCapture(prompt, pendingDeleteCapture, sessionMemory, deleteCaptureKey);
-        }
-
-        // Delete confirmation
-        const deleteKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.DELETE);
-        const pendingDelete = sessionMemory.get(deleteKey);
-        if (pendingDelete) {
-            return this.handleDeleteConfirmation(prompt, pendingDelete, sessionMemory, deleteKey);
-        }
-
-        // Validation corrections
-        const validationKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.VALIDATION);
-        const pendingValidation = sessionMemory.get(validationKey);
-        if (pendingValidation) {
-            return this.handleValidationCorrections(prompt, pendingValidation, sessionMemory, validationKey);
-        }
-
-        // Select pagination (next/prev navigation over large SELECT results)
-        const selectPaginationKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.SELECT_PAGINATION);
-        const pendingSelectPagination = sessionMemory.get(selectPaginationKey);
-        if (pendingSelectPagination) {
-            sessionMemory.delete(selectPaginationKey);
-        }
-
-        return null;
+        return handlePendingStateFlow(this, prompt, sessionMemory);
     }
 
     async extractCreateDataFromInput(prompt, pending) {
-        const fieldInfo = formatFieldInfo(this.fields);
-        const extractionPrompt = buildExtractCreateDataPrompt(
-            this.entityName,
-            pending?.record || {},
-            pending?.requiredFields || [],
-            pending?.missingFields || [],
-            fieldInfo,
-            prompt,
-        );
-
-        const extracted = await this.llmAgent.executePrompt(extractionPrompt, {
-            mode: 'fast',
-            responseShape: 'json',
-        });
-
-        return this.filterKnownFields(extracted?.data || {});
+        return extractCreateDataFromInputFlow(this, prompt, pending);
     }
 
     async prepareCreateForConfirmation(record, execContext, sessionMemory) {
-        const validation = execContext.validateRecord
-            ? await execContext.validateRecord(record)
-            : { isValid: true, errors: [] };
-
-        if (!validation.isValid) {
-            if (sessionMemory) {
-                sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.VALIDATION), {
-                    operation: 'CREATE',
-                    record,
-                    errors: validation.errors,
-                });
-            }
-            const errorList = this.formatValidationErrorList(validation.errors, 'full');
-            return {
-                success: false,
-                operation: 'CREATE',
-                message: `Validation errors:\n- ${errorList}\n\nPlease provide corrections or type **cancel** to abort.`,
-            };
-        }
-
-        if (sessionMemory) {
-            sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.CREATE), {
-                record,
-            });
-        }
-
-        const table = formatRecordTable(record, this.fields);
-        return {
-            success: true,
-            operation: 'CREATE',
-            requiresConfirmation: true,
-            message: `Create ${this.entityName}:\n\n${table}\n\nReply **yes** to confirm or **no** to cancel.`,
-        };
+        return prepareCreateForConfirmationFlow(this, record, execContext, sessionMemory);
     }
 
     async handleCreateFieldCapture(prompt, pending, sessionMemory, key) {
-        if (this.isAbortCommand(prompt)) {
-            this.clearCreatePendingStates(sessionMemory);
-            return {
-                success: true,
-                operation: 'CREATE',
-                message: 'Create cancelled.',
-                cancelled: true,
-            };
-        }
-
-        const execContext = this.subsystem.createExecutionContext(
-            this.functions,
-            this.entityName,
-        );
-
-        let extractedData = {};
-        try {
-            extractedData = await this.extractCreateDataFromInput(prompt, pending);
-        } catch (error) {
-            sessionMemory.set(key, pending);
-            return {
-                success: false,
-                operation: 'CREATE',
-                requiresInput: true,
-                message: `${this.buildCreateCaptureMessage(pending, 'I could not process that input.')}\n\nDetails: ${error.message}`,
-            };
-        }
-
-        if (Object.keys(extractedData).length === 0) {
-            sessionMemory.set(key, pending);
-            return {
-                success: true,
-                operation: 'CREATE',
-                requiresInput: true,
-                message: this.buildCreateCaptureMessage(
-                    pending,
-                    'I could not identify any field values in your message.',
-                ),
-            };
-        }
-
-        const mergedRecord = { ...(pending.record || {}), ...extractedData };
-        const prepared = execContext.prepareRecord
-            ? await execContext.prepareRecord(mergedRecord)
-            : mergedRecord;
-
-        const requiredFields = pending.requiredFields || this.getRequiredCreateFields();
-        const missingFields = this.getMissingRequiredFields(prepared, requiredFields);
-        const capturedFields = this.formatFieldLabelList(Object.keys(extractedData), 'short');
-
-        if (missingFields.length > 0) {
-            const nextPending = {
-                record: prepared,
-                requiredFields,
-                missingFields,
-            };
-            sessionMemory.set(key, nextPending);
-            return {
-                success: true,
-                operation: 'CREATE',
-                requiresInput: true,
-                message: this.buildCreateCaptureMessage(
-                    nextPending,
-                    `Captured field values: ${capturedFields}.`,
-                ),
-            };
-        }
-
-        sessionMemory.delete(key);
-        return this.prepareCreateForConfirmation(prepared, execContext, sessionMemory);
+        return handleCreateFieldCaptureFlow(this, prompt, pending, sessionMemory, key);
     }
 
     async handleCreateConfirmation(prompt, pending, sessionMemory, key) {
-        if (this.isAbortCommand(prompt)) {
-            this.clearCreatePendingStates(sessionMemory);
-            return {
-                success: true,
-                operation: 'CREATE',
-                message: 'Create cancelled.',
-                cancelled: true,
-            };
-        }
+        return handleCreateConfirmationFlow(this, prompt, pending, sessionMemory, key);
+    }
 
-        const decision = await resolveConfirmation(prompt, this.llmAgent, {
-            actionContext: `confirming creation of ${this.entityName}`,
-        });
-
-        if (decision === 'yes') {
-            sessionMemory.delete(key);
-            // Execute the insert
-            await this.writeProgress(`Creating ${this.entityName}...`);
-            const execContext = this.subsystem.createExecutionContext(
-                this.functions, this.entityName,
-            );
-            try {
-                const insertResult = await execContext.insertRecord(pending.record);
-                const inserted = { ...pending.record, ...insertResult };
-                const presented = execContext.presentRecord
-                    ? await execContext.presentRecord(inserted)
-                    : inserted;
-                const safeRecord = sanitizeRecordForUser(presented);
-                return {
-                    success: true,
-                    operation: 'CREATE',
-                    record: safeRecord,
-                    message: `${this.entityName} created successfully.`,
-                };
-            } catch (error) {
-                return {
-                    success: false,
-                    operation: 'CREATE',
-                    message: `Failed to create ${this.entityName}: ${error.message}`,
-                };
-            }
-        }
-
-        if (decision === 'no') {
-            sessionMemory.delete(key);
-            return {
-                success: true,
-                operation: 'CREATE',
-                message: 'Operation cancelled.',
-                cancelled: true,
-            };
-        }
-
-        // Unclear
-        return {
-            success: true,
-            operation: 'CREATE',
-            message: `Please reply **yes** to create the ${this.entityName} or **no** to cancel.`,
-        };
+    async handleCreateConflictUpdateConfirmation(prompt, pending, sessionMemory, key) {
+        return handleCreateConflictUpdateConfirmationFlow(this, prompt, pending, sessionMemory, key);
     }
 
     async handleUpdateConfirmation(prompt, pending, sessionMemory, key) {
-        const decision = await resolveConfirmation(prompt, this.llmAgent, {
-            actionContext: `confirming update of ${this.entityName}`,
-        });
-
-        if (decision === 'yes') {
-            sessionMemory.delete(key);
-            await this.writeProgress(`Updating ${this.entityName}...`);
-            const execContext = this.subsystem.createExecutionContext(
-                this.functions, this.entityName,
-            );
-            try {
-                const recordId = pending.id;
-                const updateResult = await execContext.updateRecord(recordId, pending.changes);
-                const updated = { ...pending.original, ...pending.changes, ...updateResult };
-                const presented = execContext.presentRecord
-                    ? await execContext.presentRecord(updated)
-                    : updated;
-                const safeRecord = sanitizeRecordForUser(presented);
-                return {
-                    success: true,
-                    operation: 'UPDATE',
-                    record: safeRecord,
-                    message: `${this.entityName} updated successfully.`,
-                };
-            } catch (error) {
-                const details = error?.message || String(error);
-                const dependencyConflict = /(foreign key|constraint|referenc|dependent|violat)/i.test(details);
-                return {
-                    success: false,
-                    operation: 'UPDATE',
-                    blockedByDependencies: dependencyConflict,
-                    message: dependencyConflict
-                        ? `Update blocked because this ${this.entityName} is referenced or constrained by related records. Details: ${details}`
-                        : `Failed to update ${this.entityName}: ${details}`,
-                };
-            }
-        }
-
-        if (decision === 'no') {
-            sessionMemory.delete(key);
-            return {
-                success: true,
-                operation: 'UPDATE',
-                message: 'Update cancelled.',
-                cancelled: true,
-            };
-        }
-
-        return {
-            success: true,
-            operation: 'UPDATE',
-            message: `Please reply **yes** to apply the changes or **no** to cancel.`,
-        };
+        return handleUpdateConfirmationFlow(this, prompt, pending, sessionMemory, key);
     }
 
     async prepareUpdateForRecord(record, changes, execContext, sessionMemory, options = {}) {
-        const recordId = record[this.primaryKey];
-        const hasChanges = Object.keys(changes || {}).length > 0;
-        const immutableNotice = this.buildImmutableUpdateNotice(options?.blockedFields || []);
-
-        if (!hasChanges) {
-            // No changes specified — show current record and ask what to change
-            if (sessionMemory) {
-                sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.UPDATE_CAPTURE), {
-                    id: recordId,
-                    record,
-                });
-            }
-            const presented = execContext.presentRecord
-                ? await execContext.presentRecord(record)
-                : record;
-            const safeRecord = sanitizeRecordForUser(presented);
-            const table = formatRecordTable(safeRecord, this.fields);
-            return {
-                success: true,
-                operation: 'UPDATE',
-                requiresInput: true,
-                message: `Current ${this.entityName} ${recordId}:\n\n${table}\n\n${this.buildUpdateCaptureInstructions(immutableNotice)}`,
-            };
-        }
-
-        // Has changes — validate
-        const patched = { ...record, ...changes };
-        const prepared = execContext.prepareRecord
-            ? await execContext.prepareRecord(patched)
-            : patched;
-        const validation = execContext.validateRecord
-            ? await execContext.validateRecord(prepared)
-            : { isValid: true, errors: [] };
-
-        if (!validation.isValid) {
-            if (sessionMemory) {
-                sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.VALIDATION), {
-                    operation: 'UPDATE',
-                    record,
-                    changes,
-                    id: recordId,
-                    errors: validation.errors,
-                    blockedFields: options?.blockedFields || [],
-                });
-            }
-            const errorList = this.formatValidationErrorList(validation.errors, 'full');
-            const noticeSection = immutableNotice ? `${immutableNotice}\n\n` : '';
-            return {
-                success: false,
-                operation: 'UPDATE',
-                message: `${noticeSection}Validation errors:\n- ${errorList}\n\nPlease provide corrections or type **cancel** to abort.`,
-            };
-        }
-
-        // Show changes and ask for confirmation
-        if (sessionMemory) {
-            sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.UPDATE), {
-                id: recordId,
-                original: record,
-                changes: prepared,
-            });
-        }
-
-        const changeTable = Object.entries(changes)
-            .map(([field, value]) => {
-                const label = this.getFieldLabel(field, 'full');
-                return `| ${label} | ${this.formatDisplayValue(record[field])} | ${this.formatDisplayValue(value)} |`;
-            })
-            .join('\n');
-
-        return {
-            success: true,
-            operation: 'UPDATE',
-            requiresConfirmation: true,
-            message: `${immutableNotice ? `${immutableNotice}\n\n` : ''}Update ${this.entityName} ${recordId}:\n\n| Field | Current | New |\n|-------|---------|-----|\n${changeTable}\n\nReply **yes** to apply or **no** to cancel.`,
-        };
+        return prepareUpdateForRecordFlow(this, record, changes, execContext, sessionMemory, options);
     }
 
     async handleUpdateTargetCapture(prompt, pending, sessionMemory, key) {
-        if (isNoResponse(prompt) || this.isAbortCommand(prompt)) {
-            this.clearUpdatePendingStates(sessionMemory);
-            return {
-                success: true,
-                operation: 'UPDATE',
-                message: 'Update cancelled.',
-                cancelled: true,
-            };
-        }
-
-        const navigation = this.parseNavigationCommand(prompt);
-        if (navigation) {
-            const paging = paginateRecords(
-                pending.records || [],
-                pending.page || 0,
-                pending.pageSize || DEFAULT_SELECTION_PAGE_SIZE,
-            );
-
-            let nextPage = paging.page;
-            if (navigation === 'next' && nextPage < paging.totalPages - 1) nextPage++;
-            if (navigation === 'prev' && nextPage > 0) nextPage--;
-
-            pending.page = nextPage;
-            pending.pageSize = paging.pageSize;
-            sessionMemory.set(key, pending);
-
-            const atBoundary = nextPage === paging.page && paging.totalPages > 1;
-            const boundaryMessage = atBoundary
-                ? `You're already on ${navigation === 'next' ? 'the last' : 'the first'} page.\n\n`
-                : '';
-
-            return {
-                success: true,
-                operation: 'UPDATE',
-                requiresInput: true,
-                message: `${boundaryMessage}${this.buildPrimaryKeyPrompt('update', pending.records, false, pending.page, pending.pageSize)}`,
-            };
-        }
-
-        const targetId = this.extractPrimaryKeyFromPrompt(prompt, pending.records);
-        if (!this.hasValue(targetId)) {
-            return {
-                success: true,
-                operation: 'UPDATE',
-                requiresInput: true,
-                message: this.buildPrimaryKeyPrompt('update', pending.records, true, pending.page || 0, pending.pageSize || DEFAULT_SELECTION_PAGE_SIZE),
-            };
-        }
-
-        const selectedRecord = (pending.records || []).find(record =>
-            String(record?.[this.primaryKey]).toLowerCase() === String(targetId).toLowerCase(),
-        );
-        if (!selectedRecord) {
-            return {
-                success: true,
-                operation: 'UPDATE',
-                requiresInput: true,
-                message: this.buildPrimaryKeyPrompt('update', pending.records, true, pending.page || 0, pending.pageSize || DEFAULT_SELECTION_PAGE_SIZE),
-            };
-        }
-
-        sessionMemory.delete(key);
-        const execContext = this.subsystem.createExecutionContext(
-            this.functions,
-            this.entityName,
-        );
-        return this.prepareUpdateForRecord(
-            selectedRecord,
-            pending.changes || {},
-            execContext,
-            sessionMemory,
-            { blockedFields: pending.blockedFields || [] },
-        );
+        return handleUpdateTargetCaptureFlow(this, prompt, pending, sessionMemory, key);
     }
 
     async handleUpdateFieldCapture(prompt, pending, sessionMemory, key) {
-        if (this.isAbortCommand(prompt)) {
-            this.clearUpdatePendingStates(sessionMemory);
-            return {
-                success: true,
-                operation: 'UPDATE',
-                message: 'Update cancelled.',
-                cancelled: true,
-            };
-        }
-
-        // The user is specifying what fields to change.
-        // Use LLM to extract field changes from the prompt.
-        sessionMemory.delete(key);
-
-        const fieldInfo = formatFieldInfoSimple(this.getMutableUpdateFields());
-        const extractPrompt = buildExtractFieldChangesPrompt(
-            this.entityName,
-            pending.record,
-            fieldInfo,
-            prompt,
-        );
-
-        try {
-            const extracted = await this.llmAgent.executePrompt(extractPrompt, {
-                mode: 'fast',
-                responseShape: 'json',
-            });
-
-            const {
-                changes,
-                blockedFields: extractedBlockedFields,
-            } = this.sanitizeUpdateChanges(extracted?.changes || {}, {
-                currentRecord: pending.record,
-            });
-            const mentionedBlockedFields = this.detectImmutableFieldsMentionedInPrompt(prompt);
-            const blockedFields = Array.from(new Set([
-                ...(Array.isArray(extractedBlockedFields) ? extractedBlockedFields : []),
-                ...(Array.isArray(mentionedBlockedFields) ? mentionedBlockedFields : []),
-            ]));
-            const blockedFieldsForNoChangeNotice = Array.from(new Set(
-                Array.isArray(mentionedBlockedFields) ? mentionedBlockedFields : [],
-            ));
-            const immutableNotice = this.buildImmutableUpdateNotice(
-                Object.keys(changes).length === 0 ? blockedFieldsForNoChangeNotice : blockedFields,
-            );
-            if (Object.keys(changes).length === 0) {
-                if (sessionMemory) {
-                    sessionMemory.set(key, pending);
-                }
-                return {
-                    success: true,
-                    operation: 'UPDATE',
-                    requiresInput: true,
-                    message: this.buildUpdateClarificationMessage(prompt, immutableNotice),
-                };
-            }
-
-            // Validate changes
-            const execContext = this.subsystem.createExecutionContext(
-                this.functions, this.entityName,
-            );
-            const patched = { ...pending.record, ...changes };
-            const prepared = execContext.prepareRecord
-                ? await execContext.prepareRecord(patched)
-                : patched;
-            const validation = execContext.validateRecord
-                ? await execContext.validateRecord(prepared)
-                : { isValid: true, errors: [] };
-
-            if (!validation.isValid) {
-                // Store for corrections
-                sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.VALIDATION), {
-                    operation: 'UPDATE',
-                    record: pending.record,
-                    changes,
-                    id: pending.id,
-                    errors: validation.errors,
-                    blockedFields,
-                });
-                const errorList = this.formatValidationErrorList(validation.errors, 'full');
-                return {
-                    success: false,
-                    operation: 'UPDATE',
-                    message: `${immutableNotice ? `${immutableNotice}\n\n` : ''}Validation errors:\n- ${errorList}\n\nPlease provide corrections or type **cancel** to abort.`,
-                };
-            }
-
-            // Show confirmation
-            const changeTable = Object.entries(changes)
-                .map(([field, value]) => {
-                    const label = this.getFieldLabel(field, 'full');
-                    return `| ${label} | ${this.formatDisplayValue(pending.record[field])} | ${this.formatDisplayValue(value)} |`;
-                })
-                .join('\n');
-
-            const updateKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.UPDATE);
-            sessionMemory.set(updateKey, {
-                id: pending.id,
-                original: pending.record,
-                changes: prepared,
-            });
-
-            return {
-                success: true,
-                operation: 'UPDATE',
-                requiresConfirmation: true,
-                message: `${immutableNotice ? `${immutableNotice}\n\n` : ''}Proposed changes for ${this.entityName} ${pending.id}:\n\n| Field | Current | New |\n|-------|---------|-----|\n${changeTable}\n\nReply **yes** to apply or **no** to cancel.`,
-            };
-        } catch (error) {
-            if (sessionMemory) {
-                sessionMemory.set(key, pending);
-            }
-            return {
-                success: false,
-                operation: 'UPDATE',
-                requiresInput: true,
-                message: `I could not process that update request.\n\n${this.buildUpdateCaptureInstructions()}\n\nDetails: ${error.message}`,
-            };
-        }
+        return handleUpdateFieldCaptureFlow(this, prompt, pending, sessionMemory, key);
     }
 
     async handleDeleteIdCapture(prompt, pending, sessionMemory, key) {
-        if (isNoResponse(prompt) || /^cancel$/i.test(String(prompt || '').trim())) {
-            sessionMemory.delete(key);
-            return {
-                success: true,
-                operation: 'DELETE',
-                message: 'Delete cancelled.',
-                cancelled: true,
-            };
-        }
-
-        const navigation = this.parseNavigationCommand(prompt);
-        if (navigation) {
-            const paging = paginateRecords(
-                pending.records || [],
-                pending.page || 0,
-                pending.pageSize || DEFAULT_SELECTION_PAGE_SIZE,
-            );
-
-            let nextPage = paging.page;
-            if (navigation === 'next' && nextPage < paging.totalPages - 1) nextPage++;
-            if (navigation === 'prev' && nextPage > 0) nextPage--;
-
-            pending.page = nextPage;
-            pending.pageSize = paging.pageSize;
-            sessionMemory.set(key, pending);
-
-            const atBoundary = nextPage === paging.page && paging.totalPages > 1;
-            const boundaryMessage = atBoundary
-                ? `You're already on ${navigation === 'next' ? 'the last' : 'the first'} page.\n\n`
-                : '';
-
-            return {
-                success: true,
-                operation: 'DELETE',
-                requiresInput: true,
-                message: `${boundaryMessage}${this.buildPrimaryKeyPrompt('delete', pending.records, false, pending.page, pending.pageSize)}`,
-            };
-        }
-
-        const targetId = this.extractPrimaryKeyFromPrompt(prompt, pending.records);
-        if (!this.hasValue(targetId)) {
-            return {
-                success: true,
-                operation: 'DELETE',
-                requiresInput: true,
-                message: this.buildPrimaryKeyPrompt('delete', pending.records, true, pending.page || 0, pending.pageSize || DEFAULT_SELECTION_PAGE_SIZE),
-            };
-        }
-
-        const selectedRecord = (pending.records || []).find(record =>
-            String(record?.[this.primaryKey]).toLowerCase() === String(targetId).toLowerCase(),
-        );
-
-        if (!selectedRecord) {
-            return {
-                success: true,
-                operation: 'DELETE',
-                requiresInput: true,
-                message: this.buildPrimaryKeyPrompt('delete', pending.records, true, pending.page || 0, pending.pageSize || DEFAULT_SELECTION_PAGE_SIZE),
-            };
-        }
-
-        sessionMemory.delete(key);
-        sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.DELETE), {
-            records: [selectedRecord],
-        });
-
-        const execContext = this.subsystem.createExecutionContext(
-            this.functions,
-            this.entityName,
-        );
-        const presented = execContext.presentRecord
-            ? await execContext.presentRecord(selectedRecord)
-            : selectedRecord;
-        const safeRecord = sanitizeRecordForUser(presented);
-        const table = formatRecordsTable([safeRecord], this.fields, this.entityName);
-
-        return {
-            success: true,
-            operation: 'DELETE',
-            requiresConfirmation: true,
-            message: `About to delete 1 ${this.entityName} record:\n\n${table}\n\nReply **yes** to confirm or **no** to cancel.`,
-        };
+        return handleDeleteIdCaptureFlow(this, prompt, pending, sessionMemory, key);
     }
 
     async handleDeleteConfirmation(prompt, pending, sessionMemory, key) {
-        const decision = await resolveConfirmation(prompt, this.llmAgent, {
-            actionContext: `confirming deletion of ${this.entityName}`,
-        });
-
-        if (decision === 'yes') {
-            sessionMemory.delete(key);
-            await this.writeProgress(`Deleting ${this.entityName} record(s)...`);
-            const execContext = this.subsystem.createExecutionContext(
-                this.functions, this.entityName,
-            );
-            try {
-                const deleted = [];
-                for (const record of pending.records) {
-                    const recordId = record[this.primaryKey];
-                    if (typeof this.subsystem?.runDeleteValidation === 'function') {
-                        await this.subsystem.runDeleteValidation(execContext, this.parsedSkill, recordId, record);
-                    } else if (typeof this.subsystem?.assertDeleteAllowed === 'function') {
-                        await this.subsystem.assertDeleteAllowed(this.parsedSkill, recordId);
-                    }
-                    await execContext.deleteRecord(recordId);
-                    deleted.push(recordId);
-                }
-                return {
-                    success: true,
-                    operation: 'DELETE',
-                    message: `Deleted ${deleted.length} ${this.entityName} record(s).`,
-                    count: deleted.length,
-                };
-            } catch (error) {
-                const details = error?.message || String(error);
-                const dependencyConflict = /(foreign key|constraint|referenc|dependent|violat)/i.test(details);
-                return {
-                    success: false,
-                    operation: 'DELETE',
-                    blockedByDependencies: dependencyConflict,
-                    message: dependencyConflict
-                        ? `Delete blocked because this ${this.entityName} is referenced by related records in other tables. Details: ${details}`
-                        : `Failed to delete ${this.entityName}: ${details}`,
-                };
-            }
-        }
-
-        if (decision === 'no') {
-            sessionMemory.delete(key);
-            return {
-                success: true,
-                operation: 'DELETE',
-                message: 'Delete cancelled.',
-                cancelled: true,
-            };
-        }
-
-        return {
-            success: true,
-            operation: 'DELETE',
-            message: `Please reply **yes** to delete or **no** to cancel.`,
-        };
+        return handleDeleteConfirmationFlow(this, prompt, pending, sessionMemory, key);
     }
 
     async handleValidationCorrections(prompt, pending, sessionMemory, key) {
-        // Check for cancel/abort
-        const trimmedPrompt = String(prompt || '').trim();
-        const shouldAbort = isNoResponse(prompt) || /^cancel$/i.test(trimmedPrompt) || this.isAbortCommand(trimmedPrompt);
-        if (shouldAbort) {
-            if (pending.operation === 'CREATE') {
-                this.clearCreatePendingStates(sessionMemory);
-            } else {
-                sessionMemory.delete(key);
-            }
-            return {
-                success: true,
-                operation: pending.operation,
-                message: 'Operation cancelled.',
-                cancelled: true,
-            };
-        }
-
-        // Use LLM to apply corrections
-        sessionMemory.delete(key);
-
-        const errorList = this.formatValidationErrorList(pending.errors || [], 'full');
-
-        const correctionFields = pending.operation === 'UPDATE'
-            ? this.getMutableUpdateFields()
-            : this.fields;
-        const fieldInfo = formatFieldInfoSimple(correctionFields);
-        const correctionPrompt = buildValidationCorrectionPrompt(
-            this.entityName,
-            errorList,
-            pending.changes || pending.record,
-            prompt,
-            fieldInfo,
-        );
-
-        try {
-            const result = await this.llmAgent.executePrompt(correctionPrompt, {
-                mode: 'fast',
-                responseShape: 'json',
-            });
-            let corrected = result?.correctedData || {};
-            let blockedFields = Array.isArray(pending.blockedFields)
-                ? [...pending.blockedFields]
-                : [];
-
-            if (pending.operation === 'UPDATE') {
-                const merged = {
-                    ...(pending.record || {}),
-                    ...(corrected || {}),
-                };
-                const sanitized = this.sanitizeUpdateChanges(merged, {
-                    currentRecord: pending.record,
-                });
-                corrected = {
-                    ...(pending.record || {}),
-                    ...sanitized.changes,
-                };
-                blockedFields = Array.from(new Set([
-                    ...blockedFields,
-                    ...(sanitized.blockedFields || []),
-                ]));
-            }
-
-            const immutableNotice = this.buildImmutableUpdateNotice(blockedFields);
-
-            // Re-validate
-            const execContext = this.subsystem.createExecutionContext(
-                this.functions, this.entityName,
-            );
-            const prepared = execContext.prepareRecord
-                ? await execContext.prepareRecord(corrected)
-                : corrected;
-            const validation = execContext.validateRecord
-                ? await execContext.validateRecord(prepared)
-                : { isValid: true, errors: [] };
-
-            if (!validation.isValid) {
-                // Still invalid, ask again
-                sessionMemory.set(key, {
-                    ...pending,
-                    changes: corrected,
-                    errors: validation.errors,
-                    blockedFields,
-                });
-                const newErrors = this.formatValidationErrorList(validation.errors, 'full');
-                return {
-                    success: false,
-                    operation: pending.operation,
-                    message: `${immutableNotice ? `${immutableNotice}\n\n` : ''}Still has validation errors:\n- ${newErrors}\n\nPlease provide corrections or type **cancel** to abort.`,
-                };
-            }
-
-            // Valid — proceed based on operation type
-            if (pending.operation === 'CREATE') {
-                const createKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.CREATE);
-                sessionMemory.set(createKey, { record: prepared });
-                const table = formatRecordTable(prepared, this.fields);
-                return {
-                    success: true,
-                    operation: 'CREATE',
-                    requiresConfirmation: true,
-                    message: `Create ${this.entityName}:\n\n${table}\n\nReply **yes** to confirm or **no** to cancel.`,
-                };
-            }
-
-            if (pending.operation === 'UPDATE') {
-                const updateKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.UPDATE);
-                sessionMemory.set(updateKey, {
-                    id: pending.id,
-                    original: pending.record,
-                    changes: prepared,
-                });
-                return {
-                    success: true,
-                    operation: 'UPDATE',
-                    requiresConfirmation: true,
-                    message: `${immutableNotice ? `${immutableNotice}\n\n` : ''}Updated data is valid.\n\nReply **yes** to apply changes or **no** to cancel.`,
-                };
-            }
-        } catch (error) {
-            return {
-                success: false,
-                operation: pending.operation,
-                message: `Failed to process corrections: ${error.message}`,
-            };
-        }
+        return handleValidationCorrectionsFlow(this, prompt, pending, sessionMemory, key);
     }
 
     // =============================================
@@ -1734,19 +814,7 @@ export class ConversationalTskillController {
      * Parse the user's prompt to determine the CRUD operation.
      */
     async parseOperation(prompt) {
-        const fieldInfo = formatFieldInfo(this.fields);
-        const operationPrompt = buildParseOperationPrompt(
-            prompt,
-            this.entityName,
-            this.parsedSkill.tablePurpose,
-            fieldInfo,
-            this.parsedSkill.instructions || '',
-        );
-
-        return this.llmAgent.executePrompt(operationPrompt, {
-            mode: 'fast',
-            responseShape: 'json',
-        });
+        return parseOperationFlow(this, prompt);
     }
 
     /**
@@ -1756,212 +824,27 @@ export class ConversationalTskillController {
      * - ask confirmation before insert
      */
     async createFlow(operation, execContext, sessionMemory) {
-        const newRecord = this.filterKnownFields(operation.data || {});
-        // Generate primary key only if caller did not provide one
-        if (execContext.generatePKValues) {
-            try {
-                const hasPrimaryKey = Boolean(
-                    this.primaryKey &&
-                    newRecord[this.primaryKey] !== undefined &&
-                    newRecord[this.primaryKey] !== null &&
-                    newRecord[this.primaryKey] !== ''
-                );
-                if (!hasPrimaryKey) {
-                    let existingRecords = [];
-                    if (execContext.selectRecords) {
-                        try {
-                            existingRecords = await execContext.selectRecords({});
-                        } catch (_ignored) {
-                    existingRecords = [];
-                        }
-                    }
-                    const pkValues = execContext.generatePKValues(newRecord, existingRecords);
-                    Object.assign(newRecord, pkValues);
-                }
-            } catch (_e) {
-                // PK generation is optional
-            }
-        }
-
-        // Prepare record
-        const prepared = execContext.prepareRecord
-            ? await execContext.prepareRecord(newRecord)
-            : newRecord;
-
-        const requiredFields = this.getRequiredCreateFields();
-        const missingFields = this.getMissingRequiredFields(prepared, requiredFields);
-        if (missingFields.length > 0) {
-            if (sessionMemory) {
-                sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.CREATE_CAPTURE), {
-                    record: prepared,
-                    requiredFields,
-                    missingFields,
-                });
-            }
-            return {
-                success: true,
-                operation: 'CREATE',
-                requiresInput: true,
-                message: this.buildCreateCaptureMessage({
-                    record: prepared,
-                    requiredFields,
-                    missingFields,
-                }),
-            };
-        }
-
-        return this.prepareCreateForConfirmation(prepared, execContext, sessionMemory);
+        return createFlowHandler(this, operation, execContext, sessionMemory);
     }
 
     /**
      * UPDATE flow: find record → show current → capture changes → validate → confirm
      */
     async updateFlow(operation, execContext, sessionMemory) {
-        const providedPrimaryKey = operation?.filter?.[this.primaryKey] ?? operation?.data?.[this.primaryKey];
-        const hasProvidedPrimaryKey = this.hasValue(providedPrimaryKey);
-        const normalizedFilter = {
-            ...(operation.filter || {}),
-            ...(hasProvidedPrimaryKey ? { [this.primaryKey]: String(providedPrimaryKey).trim() } : {}),
-        };
-
-        const existing = await execContext.selectRecords(normalizedFilter);
-        if (!existing || existing.length === 0) {
-            return {
-                success: false,
-                operation: 'UPDATE',
-                message: `No ${this.entityName} found matching your criteria.`,
-            };
-        }
-
-        const baselineRecord = existing.length === 1 ? existing[0] : null;
-        const { changes, blockedFields } = this.sanitizeUpdateChanges(operation.data || {}, {
-            currentRecord: baselineRecord,
-        });
-        if (this.requiresPrimaryKeyForCriticalOperation(CRUD_OPERATIONS.UPDATE) && !hasProvidedPrimaryKey) {
-            if (sessionMemory) {
-                sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.UPDATE_TARGET_CAPTURE), {
-                    records: existing,
-                    changes,
-                    blockedFields,
-                    page: 0,
-                    pageSize: DEFAULT_SELECTION_PAGE_SIZE,
-                });
-            }
-            return {
-                success: true,
-                operation: 'UPDATE',
-                requiresInput: true,
-                message: this.buildPrimaryKeyPrompt('update', existing, false, 0, DEFAULT_SELECTION_PAGE_SIZE),
-            };
-        }
-
-        const targetRecord = existing[0];
-        return this.prepareUpdateForRecord(
-            targetRecord,
-            changes,
-            execContext,
-            sessionMemory,
-            { blockedFields },
-        );
+        return updateFlowHandler(this, operation, execContext, sessionMemory);
     }
 
     /**
      * SELECT flow: query + present
      */
     async selectFlow(operation, execContext, sessionMemory) {
-        const selectPaginationKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.SELECT_PAGINATION);
-        const records = await execContext.selectRecords(operation.filter || {});
-
-        if (!records || records.length === 0) {
-            if (sessionMemory) {
-                sessionMemory.delete(selectPaginationKey);
-            }
-            return {
-                success: true,
-                operation: 'SELECT',
-                records: [],
-                count: 0,
-                message: `No ${this.entityName} records found.`,
-            };
-        }
-
-        // Present each record
-        const presented = await Promise.all(
-            records.map(record =>
-                execContext.presentRecord
-                    ? execContext.presentRecord(record)
-                    : record
-            ),
-        );
-
-        const safePresented = sanitizeRecordsForUser(presented);
-        if (sessionMemory) {
-            sessionMemory.delete(selectPaginationKey);
-        }
-        return this.buildSelectAllResult(safePresented);
+        return selectFlowHandler(this, operation, execContext, sessionMemory);
     }
 
     /**
      * DELETE flow: find records → show → ask confirmation
      */
     async deleteFlow(operation, execContext, sessionMemory) {
-        const providedPrimaryKey = operation?.filter?.[this.primaryKey] ?? operation?.data?.[this.primaryKey];
-        const hasProvidedPrimaryKey = this.hasValue(providedPrimaryKey);
-
-        const normalizedFilter = {
-            ...(operation.filter || {}),
-            ...(hasProvidedPrimaryKey ? { [this.primaryKey]: String(providedPrimaryKey).trim() } : {}),
-        };
-
-        const records = await execContext.selectRecords(normalizedFilter);
-
-        if (!records || records.length === 0) {
-            return {
-                success: false,
-                operation: 'DELETE',
-                message: `No ${this.entityName} found matching your criteria.`,
-            };
-        }
-
-        if (this.requiresPrimaryKeyForCriticalOperation(CRUD_OPERATIONS.DELETE) && !hasProvidedPrimaryKey) {
-            if (sessionMemory) {
-                sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.DELETE_CAPTURE), {
-                    records,
-                    page: 0,
-                    pageSize: DEFAULT_SELECTION_PAGE_SIZE,
-                });
-            }
-            return {
-                success: true,
-                operation: 'DELETE',
-                requiresInput: true,
-                message: this.buildPrimaryKeyPrompt('delete', records, false, 0, DEFAULT_SELECTION_PAGE_SIZE),
-            };
-        }
-
-        // Show what will be deleted
-        const presented = await Promise.all(
-            records.map(record =>
-                execContext.presentRecord
-                    ? execContext.presentRecord(record)
-                    : record
-            ),
-        );
-
-        const safePresented = sanitizeRecordsForUser(presented);
-        const table = formatRecordsTable(safePresented, this.fields, this.entityName);
-
-        if (sessionMemory) {
-            sessionMemory.set(pendingKey(this.entityName, PENDING_STATE_SUFFIXES.DELETE), {
-                records,
-            });
-        }
-
-        return {
-            success: true,
-            operation: 'DELETE',
-            requiresConfirmation: true,
-            message: `About to delete ${records.length} ${this.entityName} record(s):\n\n${table}\n\nReply **yes** to confirm or **no** to cancel.`,
-        };
+        return deleteFlowHandler(this, operation, execContext, sessionMemory);
     }
 }

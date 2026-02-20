@@ -113,6 +113,91 @@ test('ConversationalTskillController uses tableName_id as default primary key', 
     assert.strictEqual(template.primaryKey, 'equipment_id');
 });
 
+test('create/update field tables use short field names and descriptive guidance', () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                isRequired: true,
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                isRequired: true,
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+                isRequired: true,
+            },
+        },
+    };
+
+    const { template } = createTemplate({ parsedSkill });
+    const createTable = template.formatCreateRequiredFieldsTable(['equipment_id', 'name'], {});
+    assert.ok(createTable.includes('| equipment_id | **Mandatory**: Unique identifier for the equipment item. String type, primary key. |'));
+    assert.ok(createTable.includes('| name | **Mandatory**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+    assert.ok(!createTable.includes('| Unique identifier for the equipment item. String type, primary key. | Unique identifier for the equipment item. String type, primary key. |'));
+
+    const updateTable = template.buildEditableUpdateFieldsTable();
+    assert.ok(updateTable.includes('| name | **Mandatory**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+    assert.ok(updateTable.includes('| status | **Mandatory**: Current operational status of the equipment |'));
+});
+
+
+test('create/update field tables prefer tskill display labels when provided', () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                label: 'Equipment ID',
+                isRequired: true,
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                shortLabel: 'Equipment Name',
+                isRequired: true,
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+                isRequired: true,
+            },
+        },
+    };
+
+    const { template } = createTemplate({ parsedSkill });
+    const createTable = template.formatCreateRequiredFieldsTable(['equipment_id', 'name'], {});
+    assert.ok(createTable.includes('| Equipment ID | **Mandatory**: Unique identifier for the equipment item. String type, primary key. |'));
+    assert.ok(createTable.includes('| Equipment Name | **Mandatory**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+
+    const prompt = template.buildPrimaryKeyPrompt('delete', [{ equipment_id: 'EQ-1', name: 'Drill' }]);
+    assert.ok(prompt.includes('Please provide the Equipment ID'));
+});
+
+test('update guidance marks non-required fields as optional', () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                isRequired: true,
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                isRequired: true,
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+                isRequired: false,
+            },
+        },
+    };
+
+    const { template } = createTemplate({ parsedSkill });
+    const updateTable = template.buildEditableUpdateFieldsTable();
+    assert.ok(updateTable.includes('| status | Optional: Current operational status of the equipment |'));
+});
+
 // ============= execute: SELECT flow =============
 
 test('execute routes SELECT and returns records', async () => {
@@ -366,7 +451,7 @@ test('execute DELETE without primary key requests ID capture', async () => {
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.operation, 'DELETE');
     assert.strictEqual(result.requiresInput, true);
-    assert.ok(result.message.includes('Please provide the Unique ID'));
+    assert.ok(result.message.includes('Please provide the equipment_id'));
     assert.ok(result.message.includes('E1'));
     assert.ok(memory.has('pending_equipment_delete_capture'));
 });
@@ -511,7 +596,7 @@ test('execute UPDATE without primary key requests ID capture', async () => {
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.operation, 'UPDATE');
     assert.strictEqual(result.requiresInput, true);
-    assert.ok(result.message.includes('Please provide the Unique ID'));
+    assert.ok(result.message.includes('Please provide the equipment_id'));
     assert.ok(memory.has('pending_equipment_update_target_capture'));
 });
 

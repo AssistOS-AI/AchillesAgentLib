@@ -40,6 +40,9 @@ UUID auto-generated
 #### Description
 Product display name (string, max 200 characters)
 
+#### Field Display Name
+Product Name
+
 #### Field Value Presenter
 Display in Title Case
 
@@ -53,6 +56,9 @@ Always required
 
 #### Description
 Product price in cents (integer)
+
+#### Field Short Label
+Price
 
 #### Field Value Presenter
 Format as currency with dollar sign
@@ -609,6 +615,13 @@ test('parseSkillMarkdown: correctly parses field validators', () => {
 
     assert.ok(parsed.fields.name.validatorDescription.includes('2 and 200 characters'));
     assert.ok(parsed.fields.price.validatorDescription.includes('positive integer'));
+});
+
+test('parseSkillMarkdown: correctly parses field display labels', () => {
+    const parsed = parseSkillMarkdown(SIMPLE_TSKILL);
+
+    assert.strictEqual(parsed.fields.name.label, 'Product Name');
+    assert.strictEqual(parsed.fields.price.shortLabel, 'Price');
 });
 
 test('parseSkillMarkdown: correctly parses field presenters', () => {

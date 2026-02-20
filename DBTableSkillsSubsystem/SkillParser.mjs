@@ -179,6 +179,8 @@ function createEmptyField(fieldName) {
     return {
         name: fieldName,
         description: '',
+        label: null,
+        shortLabel: null,
         type: 'string', // default type
         aliases: [],
         presenterDescription: null,
@@ -217,6 +219,18 @@ function processSubSection(skill, fieldName, subSection, content) {
             field.description = trimmedContent;
             // Try to extract type from description
             extractFieldType(field, trimmedContent);
+            break;
+
+        case 'fielddisplayname':
+        case 'displayname':
+        case 'fieldlabel':
+        case 'label':
+            field.label = trimmedContent;
+            break;
+
+        case 'fieldshortlabel':
+        case 'shortlabel':
+            field.shortLabel = trimmedContent;
             break;
 
         case 'aliases':
