@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import assert from 'node:assert/strict';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 import { generateBehaviorTests } from '../../RecursiveSkilledAgents/mirror-code-generator/index.mjs';
+import { runBehaviorTestsOnDisk } from '../../RecursiveSkilledAgents/mirror-code-generator/testing.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.join(__dirname, 'fixtures', 'behaviorTestGeneration');
@@ -30,37 +30,35 @@ async function loadFixture(fixtureName) {
 }
 
 async function runFixture(fixtureName, llmAgent) {
-  const { specs, code, codePath } = await loadFixture(fixtureName);
-  const tests = await generateBehaviorTests(specs, code, llmAgent);
+  const { baseDir, specs, code, codePath } = await loadFixture(fixtureName);
+  const importPath = '../code/index.mjs';
+  const { tests, runnerCode } = await generateBehaviorTests(specs, code, llmAgent, { importPath });
 
-  const moduleUrl = pathToFileURL(codePath).href;
-  const module = await import(moduleUrl);
-  if (typeof module.action !== 'function') {
-    throw new Error(`Fixture ${fixtureName} does not export action()`);
+  const testResults = await runBehaviorTestsOnDisk(
+    baseDir,
+    'code/index.mjs',
+    tests,
+    runnerCode,
+    { logger: console }
+  );
+
+  if (testResults?.skipped) {
+    throw new Error(`Fixture ${fixtureName} runner/cases validation failed; tests skipped.`);
   }
 
-  for (const test of tests) {
-    if (!test || typeof test.promptText !== 'string') {
-      throw new Error(`Fixture ${fixtureName} returned invalid test promptText`);
-    }
-    if (!Object.prototype.hasOwnProperty.call(test, 'expectedOutput')) {
-      throw new Error(`Fixture ${fixtureName} test missing expectedOutput`);
-    }
-
-    const result = await module.action({ promptText: test.promptText });
-    try {
-      assert.deepStrictEqual(result, test.expectedOutput);
-    } catch (error) {
+  const failures = testResults.results.filter(result => !result.pass);
+  if (failures.length > 0) {
+    for (const failure of failures) {
       const debugPayload = {
         fixture: fixtureName,
-        testName: test.name || null,
-        promptText: test.promptText,
-        expectedOutput: test.expectedOutput,
-        actualOutput: result,
+        testName: failure.name || null,
+        input: failure.input ?? null,
+        expectedOutput: failure.expectedOutput,
+        actualOutput: failure.actual,
       };
       console.log('Generated test case failed:', JSON.stringify(debugPayload, null, 2));
-      throw error;
     }
+    throw new Error(`Fixture ${fixtureName} returned failing tests.`);
   }
 }
 

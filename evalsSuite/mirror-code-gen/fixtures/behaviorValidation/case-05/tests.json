@@ -1,7 +1,0 @@
-[
-  {
-    "name": "length basic",
-    "promptText": "abcd",
-    "expectedOutput": 4
-  }
-]

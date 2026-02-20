@@ -1,7 +1,0 @@
-[
-  {
-    "name": "upper simple",
-    "promptText": "hello",
-    "expectedOutput": "HELLO"
-  }
-]

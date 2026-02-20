@@ -1,15 +1,18 @@
 {
   "tests": [
     {
-      "promptText": "hello",
+      "name": "lowercase",
+      "input": "hello",
       "expectedOutput": "HELLO"
     },
     {
-      "promptText": "MixedCase",
+      "name": "mixed-case",
+      "input": "MixedCase",
       "expectedOutput": "MIXEDCASE"
     },
     {
-      "promptText": "123abc",
+      "name": "alphanumeric",
+      "input": "123abc",
       "expectedOutput": "123ABC"
     }
   ]

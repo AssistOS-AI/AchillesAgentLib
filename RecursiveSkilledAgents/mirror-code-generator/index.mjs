@@ -1,22 +1,20 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { getDebugLogger } from '../../utils/DebugLogger.mjs';
 import {
     backupSpecsDirectory,
     extractTestingSection,
-    findExistingCodeFiles,
     findSpecFiles,
-    normalizeGeneratedPath,
     specPathToTarget,
 } from './spec-utils.mjs';
 import { parseMultiFileMarkdown } from './llm-utils.mjs';
 import {
+    DEFAULT_TESTING_INSTRUCTIONS,
     generateBehaviorTests,
-    generateBehaviorTestsFromSection,
     repairGeneratedFile,
-    reviewGeneratedCodeWithTests,
-    runBehaviorTestsInTemp,
-    validateOrRepairGeneratedCode,
+    runBehaviorTestsOnDisk,
 } from './testing.mjs';
 
 /**
@@ -71,6 +69,7 @@ export async function action(context) {
  */
 export async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
     const debugLogger = getDebugLogger();
+    const execFileAsync = promisify(execFile);
     const specsDir = path.join(sourcePath, 'specs');
     const backupSpecsDir = path.join(specsDir, '.backup');
     const sourceName = path.basename(sourcePath);
@@ -118,7 +117,9 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
         debugLogger?.log('generateMirrorCode:start', { skill: sourceName, reason: 'Source is missing or outdated.' });
 
         const generatedFilePaths = [];
+        const generatedFiles = new Map();
 
+        // Pass 1: generate all stale files
         for (const entry of specEntries) {
             const { specFile, targetPath, needsRegeneration } = entry;
             const outputPath = path.join(sourcePath, targetPath);
@@ -166,6 +167,7 @@ ${existingCodeForFile || 'No existing code was available for this file.'}
 - Use the exact relative file path implied by the spec (no extra prefixes like the source directory name).
 - Compare current spec with previous spec when available, and focus changes on the parts that differ.
 - Preserve existing behavior and structure where the spec is unchanged and the current code already works.
+- If the current spec and existing code already implement the same behavior, return the existing code without changes.
 - If the spec contains hardcoded values or exact literals, use them verbatim without modification.
 - Do not generate JSDoc-style comment blocks (e.g. /** ... */ with @param/@throws tags) unless explicitly required by the spec.
 - Your response **MUST** be a single markdown block for the file.
@@ -207,103 +209,195 @@ Provide the code for the file derived from the specification.
                 throw new Error(`LLM response did not include a usable file for "${targetPath}".`);
             }
 
-            if (testingSection) {
-                const tests = await generateBehaviorTestsFromSection(testingSection, generatedCode, llmAgent);
-                debugLogger?.log('generateMirrorCode:testsGenerated', { source: sourceName, path: targetPath, count: tests.length });
+            entry.generatedCode = generatedCode;
+            entry.testingSection = testingSection;
+            entry.specForPrompt = specForPrompt;
+            entry.backupSpecForPrompt = backupSpecForPrompt;
+            generatedFiles.set(targetPath, generatedCode);
+        }
 
-                debugLogger?.log('generateMirrorCode:testsRun:start', { source: sourceName, path: targetPath, phase: 'initial' });
-                let testResults = await runBehaviorTestsInTemp(targetPath, generatedCode, tests);
-                debugLogger?.log('generateMirrorCode:testsRun:complete', {
-                    source: sourceName,
-                    path: targetPath,
-                    phase: 'initial',
-                    failures: testResults.results.filter(result => !result.pass).length,
-                });
-                const failures = testResults.results.filter(result => !result.pass);
-
-                if (failures.length > 0) {
-                    debugLogger?.log('generateMirrorCode:repair:start', { source: sourceName, path: targetPath, failures: failures.length });
-                    const repairFailures = failures.map(failure => ({
-                        promptText: failure.promptText,
-                        expectedOutput: failure.expectedOutput,
-                        actual: failure.actual,
-                    }));
-                    generatedCode = await repairGeneratedFile(
-                        targetPath,
-                        specForPrompt,
-                        backupSpecForPrompt,
-                        generatedCode,
-                        repairFailures,
-                        llmAgent,
-                        'repair-single-file-from-test-failures'
-                    );
-
-                    debugLogger?.log('generateMirrorCode:repair:complete', { source: sourceName, path: targetPath });
-                    debugLogger?.log('generateMirrorCode:testsRun:start', { source: sourceName, path: targetPath, phase: 'rerun' });
-                    testResults = await runBehaviorTestsInTemp(targetPath, generatedCode, tests);
-                    debugLogger?.log('generateMirrorCode:testsRun:complete', {
-                        source: sourceName,
-                        path: targetPath,
-                        phase: 'rerun',
-                        failures: testResults.results.filter(result => !result.pass).length,
-                    });
-                    const retryFailures = testResults.results.filter(result => !result.pass);
-                    for (const failure of retryFailures) {
-                        logger.warn(
-                            `[generateMirrorCode] Test failed after repair for "${targetPath}". ` +
-                            `Input: ${JSON.stringify(failure.promptText)} ` +
-                            `ExpectedOutput: ${JSON.stringify(failure.expectedOutput)} ` +
-                            `Actual: ${JSON.stringify(failure.actual)}`
-                        );
-                    }
-                }
-            } else {
-                try {
-                    const tests = await generateBehaviorTests(specForPrompt, generatedCode, llmAgent);
-                    debugLogger?.log('generateMirrorCode:testsGenerated', { source: sourceName, path: targetPath, count: tests.length });
-
-                    debugLogger?.log('generateMirrorCode:review:start', { source: sourceName, path: targetPath });
-                    const review = await reviewGeneratedCodeWithTests(targetPath, generatedCode, tests, llmAgent);
-                    debugLogger?.log('generateMirrorCode:review:complete', { source: sourceName, path: targetPath, status: review.status });
-                    if (review.status === 'fail') {
-                        debugLogger?.log('generateMirrorCode:repair:start', { source: sourceName, path: targetPath, failures: review.failures.length });
-                        const repaired = await repairGeneratedFile(
-                            targetPath,
-                            specForPrompt,
-                            backupSpecForPrompt,
-                            generatedCode,
-                            review.failures,
-                            llmAgent,
-                            'repair-single-file-from-review-failures'
-                        );
-                        debugLogger?.log('generateMirrorCode:repair:complete', { source: sourceName, path: targetPath });
-                        generatedCode = repaired;
-                    }
-                } catch (reviewError) {
-                    // Review/repair is best-effort; use the generated code as-is
-                    logger.warn(`[generateMirrorCode] Review step failed for "${targetPath}", using generated code as-is: ${reviewError.message}`);
-                }
+        const runNodeSyntaxCheck = async (filePath) => {
+            try {
+                await execFileAsync('node', ['--check', filePath]);
+                return { ok: true };
+            } catch (error) {
+                const stderr = error?.stderr ? String(error.stderr) : '';
+                const stdout = error?.stdout ? String(error.stdout) : '';
+                const message = error?.message ? String(error.message) : '';
+                const details = [message, stderr, stdout].filter(Boolean).join('\n');
+                return { ok: false, error: details || 'Unknown syntax error.' };
             }
+        };
 
-            // Validate generated code is not truncated before writing
-            const openBraces = (generatedCode.match(/\{/g) || []).length;
-            const closeBraces = (generatedCode.match(/\}/g) || []).length;
-            const openParens = (generatedCode.match(/\(/g) || []).length;
-            const closeParens = (generatedCode.match(/\)/g) || []).length;
-            const braceImbalance = Math.abs(openBraces - closeBraces);
-            const parenImbalance = Math.abs(openParens - closeParens);
-            if (braceImbalance > 2 || parenImbalance > 2) {
-                logger.warn(
-                    `[generateMirrorCode] Generated code for "${targetPath}" appears truncated ` +
-                    `(braces: ${openBraces}/${closeBraces}, parens: ${openParens}/${closeParens}), skipping write.`
-                );
+        // Pass 1.5: write generated files to disk before testing
+        for (const entry of specEntries) {
+            const { targetPath, needsRegeneration } = entry;
+            if (!needsRegeneration) {
                 continue;
             }
 
+            const generatedCode = generatedFiles.get(targetPath);
+            if (!generatedCode) {
+                continue;
+            }
+
+            const outputPath = path.join(sourcePath, targetPath);
+            const existingFileExists = await fs.stat(outputPath).then(stat => stat.isFile()).catch(() => false);
+            if (existingFileExists) {
+                entry.previousFileContent = await fs.readFile(outputPath, 'utf-8');
+            } else {
+                entry.previousFileContent = null;
+            }
             await fs.mkdir(path.dirname(outputPath), { recursive: true });
             await fs.writeFile(outputPath, generatedCode, 'utf-8');
             debugLogger?.log('generateMirrorCode:wroteFile', { source: sourceName, path: outputPath });
             generatedFilePaths.push(targetPath);
+
+            const initialCheck = await runNodeSyntaxCheck(outputPath);
+            if (!initialCheck.ok) {
+                logger.warn(
+                    `[generateMirrorCode] Syntax check failed for "${targetPath}". ` +
+                    `Attempting regeneration.\n${initialCheck.error}`
+                );
+                const specForPrompt = entry.specForPrompt || '';
+                const backupSpecForPrompt = entry.backupSpecForPrompt || '';
+                const repairFailures = [
+                    {
+                        reason: 'Node syntax check failed.',
+                        error: initialCheck.error,
+                    },
+                ];
+                const repairedCode = await repairGeneratedFile(
+                    targetPath,
+                    specForPrompt,
+                    backupSpecForPrompt,
+                    generatedCode,
+                    repairFailures,
+                    llmAgent,
+                    'repair-single-file-from-syntax-error'
+                );
+                generatedFiles.set(targetPath, repairedCode);
+                await fs.writeFile(outputPath, repairedCode, 'utf-8');
+                debugLogger?.log('generateMirrorCode:wroteFile', { source: sourceName, path: outputPath });
+
+                const retryCheck = await runNodeSyntaxCheck(outputPath);
+                if (!retryCheck.ok) {
+                    logger.warn(
+                        `[generateMirrorCode] Syntax check failed again for "${targetPath}". ` +
+                        `Reverting to previous version and skipping tests.\n${retryCheck.error}`
+                    );
+                    if (entry.previousFileContent !== null) {
+                        await fs.writeFile(outputPath, entry.previousFileContent, 'utf-8');
+                    } else {
+                        await fs.rm(outputPath, { force: true });
+                    }
+                    entry.skipTests = true;
+                    continue;
+                }
+            }
+        }
+
+        // Pass 2: test + repair for regenerated files
+        for (const entry of specEntries) {
+            const { targetPath, needsRegeneration } = entry;
+            if (!needsRegeneration) {
+                continue;
+            }
+
+            let generatedCode = generatedFiles.get(targetPath);
+            if (!generatedCode) {
+                continue;
+            }
+
+            if (entry.skipTests) {
+                continue;
+            }
+
+            const testingSection = entry.testingSection;
+            const specForPrompt = entry.specForPrompt;
+            const backupSpecForPrompt = entry.backupSpecForPrompt;
+
+            const normalizedTargetPath = targetPath.replace(/\\/g, '/');
+            const importPath = `../${normalizedTargetPath}`;
+            const { tests, runnerCode } = testingSection
+                ? await generateBehaviorTests(specForPrompt, generatedCode, llmAgent, {
+                    testingInstructions: testingSection,
+                    intent: 'generate-behavior-tests-from-section',
+                    errorLabel: 'Behavior test generation (section)',
+                    importPath,
+                })
+                : await generateBehaviorTests(specForPrompt, generatedCode, llmAgent, {
+                    testingInstructions: DEFAULT_TESTING_INSTRUCTIONS,
+                    intent: 'generate-core-behavior-tests',
+                    errorLabel: 'Core behavior test generation',
+                    importPath,
+                });
+            debugLogger?.log('generateMirrorCode:testsGenerated', { source: sourceName, path: targetPath, count: tests.length });
+
+            debugLogger?.log('generateMirrorCode:testsRun:start', { source: sourceName, path: targetPath, phase: 'initial' });
+            let testResults = await runBehaviorTestsOnDisk(sourcePath, targetPath, tests, runnerCode, { logger });
+            if (testResults?.skipped) {
+                debugLogger?.log('generateMirrorCode:testsRun:skipped', { source: sourceName, path: targetPath, phase: 'initial' });
+                continue;
+            }
+            debugLogger?.log('generateMirrorCode:testsRun:complete', {
+                source: sourceName,
+                path: targetPath,
+                phase: 'initial',
+                failures: testResults.results.filter(result => !result.pass).length,
+            });
+            const failures = testResults.results.filter(result => !result.pass);
+
+            if (failures.length > 0) {
+                debugLogger?.log('generateMirrorCode:repair:start', { source: sourceName, path: targetPath, failures: failures.length });
+                const repairFailures = failures.map(failure => ({
+                    name: failure.name,
+                    input: failure.input,
+                    expectedOutput: failure.expectedOutput,
+                    actual: failure.actual,
+                }));
+                generatedCode = await repairGeneratedFile(
+                    targetPath,
+                    specForPrompt,
+                    backupSpecForPrompt,
+                    generatedCode,
+                    repairFailures,
+                    llmAgent,
+                    'repair-single-file-from-test-failures',
+                    { runnerCode, tests }
+                );
+
+                generatedFiles.set(targetPath, generatedCode);
+                const outputPath = path.join(sourcePath, targetPath);
+                await fs.mkdir(path.dirname(outputPath), { recursive: true });
+                await fs.writeFile(outputPath, generatedCode, 'utf-8');
+                debugLogger?.log('generateMirrorCode:wroteFile', { source: sourceName, path: outputPath });
+
+                debugLogger?.log('generateMirrorCode:repair:complete', { source: sourceName, path: targetPath });
+                debugLogger?.log('generateMirrorCode:testsRun:start', { source: sourceName, path: targetPath, phase: 'rerun' });
+                testResults = await runBehaviorTestsOnDisk(sourcePath, targetPath, tests, runnerCode, { logger });
+                if (testResults?.skipped) {
+                    debugLogger?.log('generateMirrorCode:testsRun:skipped', { source: sourceName, path: targetPath, phase: 'rerun' });
+                    continue;
+                }
+                debugLogger?.log('generateMirrorCode:testsRun:complete', {
+                    source: sourceName,
+                    path: targetPath,
+                    phase: 'rerun',
+                    failures: testResults.results.filter(result => !result.pass).length,
+                });
+                const retryFailures = testResults.results.filter(result => !result.pass);
+                for (const failure of retryFailures) {
+                    logger.warn(
+                        `[generateMirrorCode] Test failed after repair for "${targetPath}". ` +
+                        `Name: ${JSON.stringify(failure.name)} ` +
+                        `Input: ${JSON.stringify(failure.input)} ` +
+                        `ExpectedOutput: ${JSON.stringify(failure.expectedOutput)} ` +
+                        `Actual: ${JSON.stringify(failure.actual)}`
+                    );
+                }
+            }
+
         }
 
         await backupSpecsDirectory(specsDir);
@@ -319,7 +413,4 @@ Provide the code for the file derived from the specification.
     }
 }
 
-export {
-    generateBehaviorTests,
-    validateOrRepairGeneratedCode,
-};
+export { generateBehaviorTests };
