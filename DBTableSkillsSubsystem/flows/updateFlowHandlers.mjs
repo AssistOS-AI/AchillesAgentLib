@@ -13,7 +13,6 @@ import {
     formatFieldInfoSimple,
 } from '../templates/prompts.mjs';
 import {
-    formatRecordTable,
     paginateRecords,
     sanitizeRecordForUser,
 } from '../helpers/conversationDisplayUtils.mjs';
@@ -98,14 +97,11 @@ export async function prepareUpdateForRecord(
             ? await execContext.presentRecord(record)
             : record;
         const safeRecord = sanitizeRecordForUser(presented);
-        const table = formatRecordTable(safeRecord, controller.fields, [], {
-            resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
-        });
         return {
             success: true,
             operation: 'UPDATE',
             requiresInput: true,
-            message: `Current ${controller.entityName} ${recordId}:\n\n${table}\n\n${controller.buildUpdateCaptureInstructions(immutableNotice)}`,
+            message: `Current ${controller.entityName} ${recordId}:\n\n${controller.buildUpdateCaptureInstructions(immutableNotice, safeRecord)}`,
         };
     }
 
@@ -293,7 +289,7 @@ export async function handleUpdateFieldCapture(controller, prompt, pending, sess
                 success: true,
                 operation: 'UPDATE',
                 requiresInput: true,
-                message: controller.buildUpdateClarificationMessage(prompt, immutableNotice),
+                message: controller.buildUpdateClarificationMessage(prompt, immutableNotice, pending.record),
             };
         }
 
@@ -356,7 +352,7 @@ export async function handleUpdateFieldCapture(controller, prompt, pending, sess
             success: false,
             operation: 'UPDATE',
             requiresInput: true,
-            message: `I could not process that update request.\n\n${controller.buildUpdateCaptureInstructions()}\n\nDetails: ${error.message}`,
+            message: `I could not process that update request.\n\n${controller.buildUpdateCaptureInstructions('', pending.record)}\n\nDetails: ${error.message}`,
         };
     }
 }

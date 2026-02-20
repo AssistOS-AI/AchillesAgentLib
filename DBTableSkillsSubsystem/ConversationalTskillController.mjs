@@ -326,7 +326,7 @@ export class ConversationalTskillController {
         return `These identifier fields cannot be updated: **${labels}**.`;
     }
 
-    buildUpdateClarificationMessage(prompt, immutableNotice = '') {
+    buildUpdateClarificationMessage(prompt, immutableNotice = '', currentRecord = null) {
         const mentionedMutableFields = this.detectMutableFieldsMentionedInPrompt(prompt);
         const immutableSection = immutableNotice ? `${immutableNotice}\n\n` : '';
 
@@ -340,7 +340,7 @@ export class ConversationalTskillController {
             return `${immutableSection}I detected multiple fields, but I still need explicit values.\n\nFields detected: **${fieldsLabel}**.\nPlease provide field-value pairs in one message. Example: "Field A is \\"value\\", Field B is \\"value\\"".\nType **cancel** to abort.`;
         }
 
-        return `${immutableSection}I could not determine which fields to update.\n\n${this.buildUpdateCaptureInstructions()}`;
+        return `${immutableSection}I could not determine which fields to update.\n\n${this.buildUpdateCaptureInstructions('', currentRecord)}`;
     }
 
     normalizeMatchText(value) {
@@ -395,8 +395,8 @@ export class ConversationalTskillController {
 
     formatCreateRequiredFieldsTable(requiredFields, record) {
         const rows = [];
-        rows.push('| Field | Guidance | Status | Value |');
-        rows.push('|-------|----------|--------|-------|');
+        rows.push('| Field | Description | Status | Value |');
+        rows.push('|-------|-------------|--------|-------|');
 
         for (const fieldName of requiredFields || []) {
             const shortLabel = this.getFieldShortLabel(fieldName);
@@ -471,7 +471,7 @@ export class ConversationalTskillController {
         }
     }
 
-    buildEditableUpdateFieldsTable() {
+    buildEditableUpdateFieldsTable(currentRecord = null) {
         const mutableFields = this.getMutableUpdateFields();
         const fieldNames = Object.keys(mutableFields || {});
         if (fieldNames.length === 0) {
@@ -479,19 +479,32 @@ export class ConversationalTskillController {
         }
 
         const rows = [];
-        rows.push('| Editable field | Guidance |');
-        rows.push('|----------------|----------|');
+        const hasCurrentRecord = currentRecord && typeof currentRecord === 'object';
+        if (hasCurrentRecord) {
+            rows.push('| Field | Current Value | Description |');
+            rows.push('|-------|---------------|-------------|');
+        } else {
+            rows.push('| Editable field | Description |');
+            rows.push('|----------------|-------------|');
+        }
 
         for (const fieldName of fieldNames) {
-            rows.push(`| ${this.getFieldShortLabel(fieldName)} | ${this.getFieldGuidance(fieldName)} |`);
+            const shortLabel = this.getFieldShortLabel(fieldName);
+            const guidance = this.getFieldGuidance(fieldName);
+            if (hasCurrentRecord) {
+                const currentValue = this.formatDisplayValue(currentRecord[fieldName]);
+                rows.push(`| ${shortLabel} | ${currentValue} | ${guidance} |`);
+            } else {
+                rows.push(`| ${shortLabel} | ${guidance} |`);
+            }
         }
 
         return rows.join('\n');
     }
 
-    buildUpdateCaptureInstructions(immutableNotice = '') {
+    buildUpdateCaptureInstructions(immutableNotice = '', currentRecord = null) {
         const noticeSection = immutableNotice ? `${immutableNotice}\n\n` : '';
-        const editableTable = this.buildEditableUpdateFieldsTable();
+        const editableTable = this.buildEditableUpdateFieldsTable(currentRecord);
         return `${noticeSection}You can update only these fields:\n\n${editableTable}\n\nWhat would you like to change? Specify the field and new value, or type **cancel** to abort.`;
     }
 
@@ -743,7 +756,7 @@ export class ConversationalTskillController {
             case CRUD_OPERATIONS.DELETE:
                 return this.deleteFlow(operation, execContext, sessionMemory);
             case CRUD_OPERATIONS.SELECT:
-                return this.selectFlow(operation, execContext, sessionMemory);
+                return this.selectFlow(operation, execContext, sessionMemory, prompt);
             default:
                 return {
                     success: false,
@@ -844,8 +857,8 @@ export class ConversationalTskillController {
     /**
      * SELECT flow: query + present
      */
-    async selectFlow(operation, execContext, sessionMemory) {
-        return selectFlowHandler(this, operation, execContext, sessionMemory);
+    async selectFlow(operation, execContext, sessionMemory, prompt = '') {
+        return selectFlowHandler(this, operation, execContext, sessionMemory, prompt);
     }
 
     /**

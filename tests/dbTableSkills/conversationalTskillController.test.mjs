@@ -334,6 +334,74 @@ test('execute SELECT supports explicit show all command', async () => {
     assert.strictEqual(memory.has('pending_equipment_select_pagination'), false);
 });
 
+test('execute SELECT supports first N window', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 10 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(2, '0')}`,
+            name: `Tool ${idx + 1}`,
+            status: 'Active',
+        })),
+    );
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('list first 4 equipment', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'SELECT');
+    assert.strictEqual(result.count, 4);
+    assert.strictEqual(result.totalCount, 10);
+    assert.strictEqual(result.records[0].equipment_id, 'E01');
+    assert.strictEqual(result.records[3].equipment_id, 'E04');
+    assert.ok(result.message.includes('Showing first 4 equipment(s).'));
+});
+
+test('execute SELECT supports last N window', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 10 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(2, '0')}`,
+            name: `Tool ${idx + 1}`,
+            status: 'Active',
+        })),
+    );
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('list last 3 equipment', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'SELECT');
+    assert.strictEqual(result.count, 3);
+    assert.strictEqual(result.totalCount, 10);
+    assert.strictEqual(result.records[0].equipment_id, 'E08');
+    assert.strictEqual(result.records[2].equipment_id, 'E10');
+    assert.ok(result.message.includes('Showing last 3 equipment(s).'));
+});
+
+test('execute SELECT supports text filters with contains syntax', async () => {
+    const store = new RecordStore([
+        { equipment_id: 'E1', name: 'Drill Alpha', status: 'Active' },
+        { equipment_id: 'E2', name: 'Saw', status: 'Active' },
+        { equipment_id: 'E3', name: 'DRILL Beta', status: 'Active' },
+    ]);
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('list equipment where name contains drill', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'SELECT');
+    assert.strictEqual(result.count, 2);
+    assert.strictEqual(result.totalCount, 2);
+    assert.deepStrictEqual(
+        result.records.map(r => r.equipment_id),
+        ['E1', 'E3'],
+    );
+});
+
 // ============= execute: CREATE flow =============
 
 test('execute CREATE stores pending state and requires confirmation', async () => {
@@ -752,8 +820,9 @@ test('UPDATE without data uses short field labels in current-record table', asyn
 
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.operation, 'UPDATE');
-    assert.ok(result.message.includes('| Equipment ID | E1 |'));
+    assert.ok(result.message.includes('| Field | Current Value | Description |'));
     assert.ok(result.message.includes('| Name | Drill |'));
+    assert.ok(!result.message.includes('| Field | Value |'));
     assert.ok(!result.message.includes('Unique identifier for the equipment item. String type, primary key.'));
 });
 
