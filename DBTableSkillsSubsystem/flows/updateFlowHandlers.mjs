@@ -98,7 +98,9 @@ export async function prepareUpdateForRecord(
             ? await execContext.presentRecord(record)
             : record;
         const safeRecord = sanitizeRecordForUser(presented);
-        const table = formatRecordTable(safeRecord, controller.fields);
+        const table = formatRecordTable(safeRecord, controller.fields, [], {
+            resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
+        });
         return {
             success: true,
             operation: 'UPDATE',
@@ -127,7 +129,7 @@ export async function prepareUpdateForRecord(
                 blockedFields: options?.blockedFields || [],
             });
         }
-        const errorList = controller.formatValidationErrorList(validation.errors, 'full');
+        const errorList = controller.formatValidationErrorList(validation.errors, 'short');
         const noticeSection = immutableNotice ? `${immutableNotice}\n\n` : '';
         return {
             success: false,
@@ -147,7 +149,7 @@ export async function prepareUpdateForRecord(
 
     const changeTable = Object.entries(changes)
         .map(([field, value]) => {
-            const label = controller.getFieldLabel(field, 'full');
+            const label = controller.getFieldLabel(field, 'short');
             return `| ${label} | ${controller.formatDisplayValue(record[field])} | ${controller.formatDisplayValue(value)} |`;
         })
         .join('\n');
@@ -317,7 +319,7 @@ export async function handleUpdateFieldCapture(controller, prompt, pending, sess
                 errors: validation.errors,
                 blockedFields,
             });
-            const errorList = controller.formatValidationErrorList(validation.errors, 'full');
+            const errorList = controller.formatValidationErrorList(validation.errors, 'short');
             return {
                 success: false,
                 operation: 'UPDATE',
@@ -328,7 +330,7 @@ export async function handleUpdateFieldCapture(controller, prompt, pending, sess
         // Show confirmation
         const changeTable = Object.entries(changes)
             .map(([field, value]) => {
-                const label = controller.getFieldLabel(field, 'full');
+                const label = controller.getFieldLabel(field, 'short');
                 return `| ${label} | ${controller.formatDisplayValue(pending.record[field])} | ${controller.formatDisplayValue(value)} |`;
             })
             .join('\n');
@@ -367,7 +369,15 @@ export async function updateFlow(controller, operation, execContext, sessionMemo
         ...(hasProvidedPrimaryKey ? { [controller.primaryKey]: String(providedPrimaryKey).trim() } : {}),
     };
 
-    const existing = await execContext.selectRecords(normalizedFilter);
+    let existing = await execContext.selectRecords(normalizedFilter);
+    if ((!existing || existing.length === 0) && hasProvidedPrimaryKey) {
+        // Fallback to case-insensitive / normalized PK matching when adapter filtering is strict.
+        const allRecords = await execContext.selectRecords({});
+        const normalizedTargetPk = controller.normalizePrimaryKeyForComparison(providedPrimaryKey);
+        existing = (allRecords || []).filter(record =>
+            controller.normalizePrimaryKeyForComparison(record?.[controller.primaryKey]) === normalizedTargetPk,
+        );
+    }
     if (!existing || existing.length === 0) {
         return {
             success: false,

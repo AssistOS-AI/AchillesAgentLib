@@ -91,7 +91,9 @@ export async function handleDeleteIdCapture(controller, prompt, pending, session
         ? await execContext.presentRecord(selectedRecord)
         : selectedRecord;
     const safeRecord = sanitizeRecordForUser(presented);
-    const table = formatRecordsTable([safeRecord], controller.fields, controller.entityName);
+    const table = formatRecordsTable([safeRecord], controller.fields, controller.entityName, {
+        resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
+    });
 
     return {
         success: true,
@@ -170,7 +172,15 @@ export async function deleteFlow(controller, operation, execContext, sessionMemo
         ...(hasProvidedPrimaryKey ? { [controller.primaryKey]: String(providedPrimaryKey).trim() } : {}),
     };
 
-    const records = await execContext.selectRecords(normalizedFilter);
+    let records = await execContext.selectRecords(normalizedFilter);
+    if ((!records || records.length === 0) && hasProvidedPrimaryKey) {
+        // Fallback to case-insensitive / normalized PK matching when adapter filtering is strict.
+        const allRecords = await execContext.selectRecords({});
+        const normalizedTargetPk = controller.normalizePrimaryKeyForComparison(providedPrimaryKey);
+        records = (allRecords || []).filter(record =>
+            controller.normalizePrimaryKeyForComparison(record?.[controller.primaryKey]) === normalizedTargetPk,
+        );
+    }
 
     if (!records || records.length === 0) {
         return {
@@ -206,7 +216,9 @@ export async function deleteFlow(controller, operation, execContext, sessionMemo
     );
 
     const safePresented = sanitizeRecordsForUser(presented);
-    const table = formatRecordsTable(safePresented, controller.fields, controller.entityName);
+    const table = formatRecordsTable(safePresented, controller.fields, controller.entityName, {
+        resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
+    });
 
     if (sessionMemory) {
         sessionMemory.set(pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.DELETE), {

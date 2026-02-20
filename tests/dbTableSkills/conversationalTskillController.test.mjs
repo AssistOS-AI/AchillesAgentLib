@@ -720,6 +720,43 @@ test('execute UPDATE without data asks what to change', async () => {
     assert.ok(memory.has('pending_equipment_update_capture'));
 });
 
+test('UPDATE without data uses short field labels in current-record table', async () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                label: 'Equipment ID',
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                shortLabel: 'Name',
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+            },
+        },
+    };
+    const store = new RecordStore([
+        { equipment_id: 'E1', name: 'Drill', status: 'Active' },
+    ]);
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: { equipment_id: 'E1' },
+        data: {},
+    });
+    const { template } = createTemplate({ store, llmAgent: llm, parsedSkill });
+    const memory = new Map();
+
+    const result = await template.execute('update E1', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'UPDATE');
+    assert.ok(result.message.includes('| Equipment ID | E1 |'));
+    assert.ok(result.message.includes('| Name | Drill |'));
+    assert.ok(!result.message.includes('Unique identifier for the equipment item. String type, primary key.'));
+});
+
 test('UPDATE confirmation: yes executes update', async () => {
     const store = new RecordStore();
     const { template } = createTemplate({ store });

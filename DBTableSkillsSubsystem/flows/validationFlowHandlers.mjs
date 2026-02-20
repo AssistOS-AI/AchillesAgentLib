@@ -27,7 +27,7 @@ export async function handleValidationCorrections(controller, prompt, pending, s
     // Use LLM to apply corrections
     sessionMemory.delete(key);
 
-    const errorList = controller.formatValidationErrorList(pending.errors || [], 'full');
+    const errorList = controller.formatValidationErrorList(pending.errors || [], 'short');
 
     const correctionFields = pending.operation === 'UPDATE'
         ? controller.getMutableUpdateFields()
@@ -90,7 +90,7 @@ export async function handleValidationCorrections(controller, prompt, pending, s
                 errors: validation.errors,
                 blockedFields,
             });
-            const newErrors = controller.formatValidationErrorList(validation.errors, 'full');
+            const newErrors = controller.formatValidationErrorList(validation.errors, 'short');
             return {
                 success: false,
                 operation: pending.operation,
@@ -102,7 +102,9 @@ export async function handleValidationCorrections(controller, prompt, pending, s
         if (pending.operation === 'CREATE') {
             const createKey = pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.CREATE);
             sessionMemory.set(createKey, { record: prepared });
-            const table = formatRecordTable(prepared, controller.fields);
+            const table = formatRecordTable(prepared, controller.fields, [], {
+                resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
+            });
             return {
                 success: true,
                 operation: 'CREATE',

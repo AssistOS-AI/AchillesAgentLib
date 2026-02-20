@@ -6,6 +6,22 @@ import {
 
 export const INTERNAL_RESPONSE_FIELDS = new Set(['id']);
 
+function resolveDefaultFieldLabel(fieldName, fieldDef = {}) {
+    const explicitShort = fieldDef?.shortLabel
+        || fieldDef?.short_label
+        || fieldDef?.label
+        || null;
+
+    if (explicitShort && String(explicitShort).trim()) {
+        return stripExampleHints(explicitShort) || String(explicitShort).trim();
+    }
+
+    const normalizedFieldName = String(fieldName || '').trim();
+    if (normalizedFieldName) return normalizedFieldName;
+
+    return humanizeFieldName(fieldName) || String(fieldName || '');
+}
+
 /**
  * Format a record as a markdown table for display.
  * @param {Object} record - Record to format
@@ -20,7 +36,7 @@ export function formatRecordTable(record, fields, excludeFields = [], options = 
     ]);
     const resolveLabel = typeof options.resolveLabel === 'function'
         ? options.resolveLabel
-        : ((fieldName, fieldDef) => fieldDef.description || fieldName);
+        : ((fieldName, fieldDef) => resolveDefaultFieldLabel(fieldName, fieldDef));
 
     const rows = [];
     rows.push('| Field | Value |');
@@ -50,7 +66,7 @@ export function formatRecordsTable(records, fields, entityName, options = {}) {
     }
     const resolveLabel = typeof options.resolveLabel === 'function'
         ? options.resolveLabel
-        : ((fieldName, fieldDef) => fieldDef.description || fieldName);
+        : ((fieldName, fieldDef) => resolveDefaultFieldLabel(fieldName, fieldDef));
 
     const hiddenFields = new Set(HIDDEN_AUDIT_FIELDS);
 

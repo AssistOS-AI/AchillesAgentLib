@@ -10,6 +10,16 @@ import {
     INTERNAL_RESPONSE_FIELDS,
 } from '../helpers/conversationDisplayUtils.mjs';
 
+const FRESH_OPERATION_PREFIX_RE = /^\s*(list|show|display|view|get|find|search|add|create|new|update|edit|change|delete|remove)\b/i;
+const CONFIRMATION_PREFIX_RE = /^\s*(yes|y|no|n)\b/i;
+
+function looksLikeFreshOperationPrompt(prompt) {
+    const text = String(prompt || '').trim();
+    if (!text) return false;
+    if (CONFIRMATION_PREFIX_RE.test(text)) return false;
+    return FRESH_OPERATION_PREFIX_RE.test(text);
+}
+
 export async function extractCreateDataFromInput(controller, prompt, pending) {
     const fieldInfo = formatFieldInfo(controller.fields);
     const extractionPrompt = buildExtractCreateDataPrompt(
@@ -42,7 +52,7 @@ export async function prepareCreateForConfirmation(controller, record, execConte
                 errors: validation.errors,
             });
         }
-        const errorList = controller.formatValidationErrorList(validation.errors, 'full');
+        const errorList = controller.formatValidationErrorList(validation.errors, 'short');
         return {
             success: false,
             operation: 'CREATE',
@@ -56,7 +66,9 @@ export async function prepareCreateForConfirmation(controller, record, execConte
         });
     }
 
-    const table = formatRecordTable(record, controller.fields);
+    const table = formatRecordTable(record, controller.fields, [], {
+        resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
+    });
     return {
         success: true,
         operation: 'CREATE',
@@ -74,6 +86,13 @@ export async function handleCreateFieldCapture(controller, prompt, pending, sess
             message: 'Create cancelled.',
             cancelled: true,
         };
+    }
+
+    // User switched to a fresh command (e.g. "list ...", "update ...").
+    // Drop create capture state and continue normal routing.
+    if (looksLikeFreshOperationPrompt(prompt)) {
+        controller.clearCreatePendingStates(sessionMemory);
+        return null;
     }
 
     const execContext = controller.subsystem.createExecutionContext(
@@ -286,7 +305,7 @@ export async function handleCreateConflictUpdateConfirmation(
                 : { isValid: true, errors: [] };
 
             if (!validation.isValid) {
-                const errorList = controller.formatValidationErrorList(validation.errors, 'full');
+                const errorList = controller.formatValidationErrorList(validation.errors, 'short');
                 return {
                     success: false,
                     operation: 'UPDATE',

@@ -13,6 +13,33 @@ import {
     sanitizeRecordsForUser,
 } from '../helpers/conversationDisplayUtils.mjs';
 
+const SELECT_PREFIX_RE = /^\s*(list|show|display|view|get|find|search)\b/i;
+const MUTATION_PREFIX_RE = /^\s*(add|create|new|insert|update|edit|change|delete|remove|drop)\b/i;
+const PK_SHORTCUT_RE = /^\s*(update|edit|change|delete|remove|drop)\s+([a-zA-Z_][\w-]*)\s+([^\s,]+)\s*$/i;
+
+function looksLikeSelectCommand(prompt) {
+    const text = String(prompt || '').trim().toLowerCase();
+    if (!text) return false;
+    if (!SELECT_PREFIX_RE.test(text)) return false;
+    if (MUTATION_PREFIX_RE.test(text)) return false;
+    return true;
+}
+
+function extractPrimaryKeyShortcut(prompt, entityName) {
+    const text = String(prompt || '').trim();
+    const targetEntity = String(entityName || '').trim().toLowerCase();
+    if (!text || !targetEntity) return null;
+
+    const match = text.match(PK_SHORTCUT_RE);
+    if (!match) return null;
+
+    const mentionedEntity = String(match[2] || '').trim().toLowerCase();
+    const entityMatches = mentionedEntity === targetEntity || mentionedEntity === `${targetEntity}s`;
+    if (!entityMatches) return null;
+
+    return String(match[3] || '').trim() || null;
+}
+
 export async function handleSelectPagination(controller, prompt, pending, sessionMemory, key) {
     const text = String(prompt || '').trim();
     if (!text) {
@@ -160,10 +187,46 @@ export async function parseOperation(controller, prompt) {
         controller.parsedSkill.instructions || '',
     );
 
-    return controller.llmAgent.executePrompt(operationPrompt, {
+    const parsed = await controller.llmAgent.executePrompt(operationPrompt, {
         mode: 'fast',
         responseShape: 'json',
     });
+
+    let normalizedParsed = parsed && typeof parsed === 'object' ? { ...parsed } : {};
+    const parsedOperation = String(normalizedParsed?.operation || '').toUpperCase();
+
+    // Guard against LLM misclassifying explicit listing intents as CREATE/UPDATE.
+    if (looksLikeSelectCommand(prompt) && parsedOperation !== 'SELECT') {
+        const safeFilter = parsed && typeof parsed.filter === 'object' && parsed.filter !== null
+            ? parsed.filter
+            : {};
+        normalizedParsed = {
+            ...normalizedParsed,
+            operation: 'SELECT',
+            filter: safeFilter,
+        };
+    }
+
+    // Guard against LLM mapping shorthand "change <entity> <id>" to non-PK filters.
+    const pkShortcut = extractPrimaryKeyShortcut(prompt, controller.entityName);
+    const normalizedOperation = String(normalizedParsed?.operation || '').toUpperCase();
+    if (pkShortcut && (normalizedOperation === 'UPDATE' || normalizedOperation === 'DELETE')) {
+        const currentFilter = normalizedParsed && typeof normalizedParsed.filter === 'object' && normalizedParsed.filter !== null
+            ? normalizedParsed.filter
+            : {};
+        const hasPrimaryKey = Object.prototype.hasOwnProperty.call(currentFilter, controller.primaryKey)
+            && String(currentFilter[controller.primaryKey] || '').trim() !== '';
+        if (!hasPrimaryKey) {
+            normalizedParsed = {
+                ...normalizedParsed,
+                filter: {
+                    [controller.primaryKey]: pkShortcut,
+                },
+            };
+        }
+    }
+
+    return normalizedParsed;
 }
 
 export async function selectFlow(controller, operation, execContext, sessionMemory) {

@@ -102,7 +102,7 @@ export class ConversationalTskillController {
         if (String(this.entityName || '').toLowerCase() === 'equipment') {
             return text.toUpperCase().replace(/-/g, '');
         }
-        return text;
+        return text.toLowerCase();
     }
 
     async findCreateCollisionRecord(record, execContext) {
@@ -510,7 +510,7 @@ export class ConversationalTskillController {
         const sanitized = sanitizeRecordsForUser(records || []);
         const paging = paginateRecords(sanitized, page, pageSize);
         const table = formatRecordsTable(paging.items, this.fields, this.entityName, {
-            resolveLabel: (fieldName) => this.getFieldLabel(fieldName, 'full'),
+            resolveLabel: (fieldName) => this.getFieldLabel(fieldName, 'short'),
         });
         const from = paging.total === 0 ? 0 : paging.start + 1;
         const pageInfo = paging.totalPages > 1
