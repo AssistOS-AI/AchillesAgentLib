@@ -134,13 +134,13 @@ test('create/update field tables use short field names and descriptive guidance'
 
     const { template } = createTemplate({ parsedSkill });
     const createTable = template.formatCreateRequiredFieldsTable(['equipment_id', 'name'], {});
-    assert.ok(createTable.includes('| equipment_id | **Mandatory**: Unique identifier for the equipment item. String type, primary key. |'));
-    assert.ok(createTable.includes('| name | **Mandatory**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+    assert.ok(createTable.includes('| equipment_id | **Required**: Unique identifier for the equipment item. String type, primary key. |'));
+    assert.ok(createTable.includes('| name | **Required**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
     assert.ok(!createTable.includes('| Unique identifier for the equipment item. String type, primary key. | Unique identifier for the equipment item. String type, primary key. |'));
 
     const updateTable = template.buildEditableUpdateFieldsTable();
-    assert.ok(updateTable.includes('| name | **Mandatory**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
-    assert.ok(updateTable.includes('| status | **Mandatory**: Current operational status of the equipment |'));
+    assert.ok(updateTable.includes('| name | **Required**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+    assert.ok(updateTable.includes('| status | **Required**: Current operational status of the equipment |'));
 });
 
 
@@ -167,8 +167,8 @@ test('create/update field tables prefer tskill display labels when provided', ()
 
     const { template } = createTemplate({ parsedSkill });
     const createTable = template.formatCreateRequiredFieldsTable(['equipment_id', 'name'], {});
-    assert.ok(createTable.includes('| Equipment ID | **Mandatory**: Unique identifier for the equipment item. String type, primary key. |'));
-    assert.ok(createTable.includes('| Equipment Name | **Mandatory**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+    assert.ok(createTable.includes('| Equipment ID | **Required**: Unique identifier for the equipment item. String type, primary key. |'));
+    assert.ok(createTable.includes('| Equipment Name | **Required**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
 
     const prompt = template.buildPrimaryKeyPrompt('delete', [{ equipment_id: 'EQ-1', name: 'Drill' }]);
     assert.ok(prompt.includes('Please provide the Equipment ID'));
@@ -196,6 +196,37 @@ test('update guidance marks non-required fields as optional', () => {
     const { template } = createTemplate({ parsedSkill });
     const updateTable = template.buildEditableUpdateFieldsTable();
     assert.ok(updateTable.includes('| status | Optional: Current operational status of the equipment |'));
+});
+
+test('create capture message shows all fields and omits required-fields heading', () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                isRequired: true,
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                isRequired: true,
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+                isRequired: false,
+            },
+        },
+    };
+
+    const { template } = createTemplate({ parsedSkill });
+    const message = template.buildCreateCaptureMessage({
+        requiredFields: ['equipment_id', 'name'],
+        record: {},
+    });
+
+    assert.ok(message.includes('To create this equipment, provide values for all required fields.'));
+    assert.ok(!message.includes('Required fields status:'));
+    assert.ok(message.includes('| equipment_id | **Required**: Unique identifier for the equipment item. String type, primary key. | Missing | — |'));
+    assert.ok(message.includes('| status | Optional: Current operational status of the equipment | Optional | — |'));
 });
 
 // ============= execute: SELECT flow =============

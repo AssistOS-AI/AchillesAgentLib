@@ -165,7 +165,7 @@ export class ConversationalTskillController {
     getFieldGuidance(fieldName) {
         const description = this.getFieldFullLabel(fieldName);
         if (this.isFieldMandatory(fieldName)) {
-            return `**Mandatory**: ${description}`;
+            return `**Required**: ${description}`;
         }
         return `Optional: ${description}`;
     }
@@ -242,6 +242,10 @@ export class ConversationalTskillController {
         return Object.entries(this.fields || {})
             .filter(([, fieldDef]) => Boolean(fieldDef?.isRequired))
             .map(([fieldName]) => fieldName);
+    }
+
+    getCreateCaptureFields() {
+        return Object.keys(this.fields || {});
     }
 
     getMissingRequiredFields(record, requiredFields) {
@@ -399,7 +403,9 @@ export class ConversationalTskillController {
             const guidance = this.getFieldGuidance(fieldName);
             const value = record?.[fieldName];
             const hasValue = this.hasValue(value);
-            const status = hasValue ? 'Completed' : 'Missing';
+            const status = hasValue
+                ? 'Completed'
+                : (this.isFieldMandatory(fieldName) ? 'Missing' : 'Optional');
             const displayValue = this.formatDisplayValue(value);
             rows.push(`| ${shortLabel} | ${guidance} | ${status} | ${displayValue} |`);
         }
@@ -409,9 +415,10 @@ export class ConversationalTskillController {
 
     buildCreateCaptureMessage(pending, intro = '') {
         const requiredFields = pending?.requiredFields || [];
+        const captureFields = this.getCreateCaptureFields();
         const record = pending?.record || {};
         const missingFields = this.getMissingRequiredFields(record, requiredFields);
-        const requiredTable = this.formatCreateRequiredFieldsTable(requiredFields, record);
+        const requiredTable = this.formatCreateRequiredFieldsTable(captureFields, record);
         const missingLabels = this.formatFieldLabelList(missingFields, 'short');
         const missingText = missingFields.length > 0
             ? `Missing required fields: **${missingLabels}**.`
@@ -427,7 +434,7 @@ export class ConversationalTskillController {
             ? examplePairs.join(', ')
             : 'provide the missing values';
 
-        return `${introSection}To create this ${this.entityName}, provide values for all required fields.\n\nRequired fields status:\n\n${requiredTable}\n\n${missingText}\n\nYou can provide one or more fields in a single message. Example: "${exampleText}".\nType **cancel** to abort.`;
+        return `${introSection}To create this ${this.entityName}, provide values for all required fields.\n\n${requiredTable}\n\n${missingText}\n\nYou can provide one or more fields in a single message. Example: "${exampleText}".\nType **cancel** to abort.`;
     }
 
     clearCreatePendingStates(sessionMemory) {
