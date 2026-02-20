@@ -2,3 +2,4 @@ tests/.tmp/
 **/node_modules
 .history
 package-lock.json
+/.idea/
