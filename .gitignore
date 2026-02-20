@@ -3,3 +3,4 @@ tests/.tmp/
 .history
 package-lock.json
 /.idea/
+.DS_Store
