@@ -20,6 +20,8 @@
                 The mirror code generator is the shared, internal utility that transforms <code>specs/</code> markdown
                 files into executable modules for code skills. It performs regeneration only when specs are newer than
                 their target outputs and validates outputs through test generation, execution, and targeted repairs.
+                When code is already up-to-date but tests are missing, it generates tests only and stops without
+                updating backups.
             </p>
         </section>
 
@@ -44,6 +46,11 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
                 <code>#Validation</code> or <code>#Testing</code> section, the generator uses that text to derive test cases;
                 otherwise it uses a default prompt focused on core functionality.
             </p>
+            <p>
+                If no files need regeneration but <code>tests/</code> is missing, the generator skips code generation and
+                produces tests for the existing code. In that path, backup specs are not used for test prompts and
+                no <code>specs/.backup</code> update is performed.
+            </p>
 
             <h3>LLM Inputs for Code Generation</h3>
             <p>The code generation prompt is built from three sources:</p>
@@ -63,7 +70,8 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
                 it logs the error and skips testing (files remain written). Syntax check failures trigger a targeted repair
                 pass; a second failure reverts to the previous on-disk version and skips tests for that file. Test failures
                 trigger a targeted repair pass. The repaired code is re-tested once; remaining failures only emit warnings
-                and do not block writing outputs.
+                and do not block writing outputs. For test-only generation (no regeneration), failures are logged and
+                the existing code is not modified.
             </p>
             <ol>
                 <li>Generate code with the LLM (inputs listed above).</li>
@@ -102,6 +110,7 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
                         <li>Failure details (name, input, expectedOutput, actual).</li>
                         <li>Test cases and the generated runner (specs remain authoritative).</li>
                     </ul>
+                    If tests were generated without regeneration, no repair occurs; failures are logged.
                 </li>
             </ol>
         </section>
@@ -111,7 +120,7 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
             <p>
                 Generated output files are written under <code>src/</code> in the skill directory, mirroring the <code>specs/</code> tree.
                 After all files are processed, the generator replaces <code>specs/.backup</code> with the current
-                <code>specs/</code> directory contents.
+                <code>specs/</code> directory contents. When only tests are generated (no regeneration), backups are not updated.
             </p>
         </section>
 
@@ -125,7 +134,9 @@ Specs folder exists?
   |
   v
 Specs newer than outputs?
-  |-- No --> Stop
+  |-- No --> Tests missing?
+  |           |-- Yes --> Generate tests only (no backup spec, no backup update) --> Done
+  |           |-- No  --> Stop
   |
   v
 For each stale spec

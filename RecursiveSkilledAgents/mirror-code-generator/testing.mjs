@@ -70,11 +70,8 @@ Runner should adapt to the generated module's public API (not necessarily an act
 Runner should read the tests array and call the appropriate exported function(s) using test.input.
 Each result entry MUST include: name, input, expectedOutput, actual, pass.
 
-External dependency policy (critical):
-- The runner MUST mock external dependencies used by the generated module.
-- External dependencies are any imports outside the generated code (e.g. npm packages, SDKs, third-party APIs).
-- Node.js native libraries are exempt from mocking.
-- The runner MUST NOT perform real network calls or talk to real external services.
+Network dependency policy (critical):
+- The runner MUST mock modules/functions that make network calls.
 
 Example runner template (adapt as needed to match the module's API):
 

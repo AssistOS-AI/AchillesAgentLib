@@ -88,17 +88,23 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
         }
 
         const backupSpecsExists = await fs.stat(backupSpecsDir).then(stat => stat.isDirectory()).catch(() => false);
+        const testsDir = path.join(sourcePath, 'tests');
+        const testsDirExists = await fs.stat(testsDir).then(stat => stat.isDirectory()).catch(() => false);
         const specEntries = [];
         let anyNeedsRegeneration = false;
 
         for (const specFile of specFiles) {
             const targetPath = specPathToTarget(specFile.relativePath);
             let needsRegeneration = false;
+            let needsTestGeneration = false;
             try {
                 const specStats = await fs.stat(specFile.absolutePath);
                 const outputStats = await fs.stat(path.join(sourcePath, targetPath));
                 if (specStats.mtimeMs > outputStats.mtimeMs) {
                     needsRegeneration = true;
+                }
+                if (!testsDirExists) {
+                    needsTestGeneration = true;
                 }
             } catch (error) {
                 needsRegeneration = true;
@@ -106,11 +112,13 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
             if (needsRegeneration) {
                 anyNeedsRegeneration = true;
             }
-            specEntries.push({ specFile, targetPath, needsRegeneration });
+            specEntries.push({ specFile, targetPath, needsRegeneration, needsTestGeneration });
         }
 
-        if (!anyNeedsRegeneration) {
-            debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'Source code is up-to-date.' });
+        const hasTestOnlyWork = !anyNeedsRegeneration && specEntries.some(e => e.needsTestGeneration);
+
+        if (!anyNeedsRegeneration && !specEntries.some(e => e.needsTestGeneration)) {
+            debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'Source code is up-to-date and tests exist.' });
             return [];
         }
 
@@ -297,14 +305,31 @@ Provide the code for the file derived from the specification.
             }
         }
 
-        // Pass 2: test + repair for regenerated files
+        // Pass 2: test + repair for regenerated files OR generate tests for existing code
         for (const entry of specEntries) {
-            const { targetPath, needsRegeneration } = entry;
-            if (!needsRegeneration) {
+            const { targetPath, needsRegeneration, needsTestGeneration } = entry;
+            
+            // Skip if neither code regeneration nor test generation is needed
+            if (!needsRegeneration && !needsTestGeneration) {
                 continue;
             }
 
             let generatedCode = generatedFiles.get(targetPath);
+            
+            // If we only need test generation (code exists but tests don't), read existing code
+            if (!generatedCode && needsTestGeneration) {
+                const outputPath = path.join(sourcePath, targetPath);
+                try {
+                    generatedCode = await fs.readFile(outputPath, 'utf-8');
+                    const specContent = await fs.readFile(entry.specFile.absolutePath, 'utf-8');
+                    entry.testingSection = extractTestingSection(specContent);
+                    entry.specForPrompt = `\n\n---\n# Spec for: ${targetPath}\n\n${specContent}`;
+                } catch (error) {
+                    logger.warn(`[generateMirrorCode] Could not read existing code for test generation: ${targetPath}`);
+                    continue;
+                }
+            }
+            
             if (!generatedCode) {
                 continue;
             }
@@ -348,7 +373,8 @@ Provide the code for the file derived from the specification.
             });
             const failures = testResults.results.filter(result => !result.pass);
 
-            if (failures.length > 0) {
+            // Only repair if we regenerated the code (don't modify existing code when only generating tests)
+            if (failures.length > 0 && needsRegeneration) {
                 debugLogger?.log('generateMirrorCode:repair:start', { source: sourceName, path: targetPath, failures: failures.length });
                 const repairFailures = failures.map(failure => ({
                     name: failure.name,
@@ -396,8 +422,25 @@ Provide the code for the file derived from the specification.
                         `Actual: ${JSON.stringify(failure.actual)}`
                     );
                 }
+            } else if (failures.length > 0 && needsTestGeneration) {
+                // Log test failures for existing code without attempting repair
+                for (const failure of failures) {
+                    logger.warn(
+                        `[generateMirrorCode] Test failed for existing code "${targetPath}". ` +
+                        `Name: ${JSON.stringify(failure.name)} ` +
+                        `Input: ${JSON.stringify(failure.input)} ` +
+                        `ExpectedOutput: ${JSON.stringify(failure.expectedOutput)} ` +
+                        `Actual: ${JSON.stringify(failure.actual)}`
+                    );
+                }
             }
 
+        }
+
+        if (hasTestOnlyWork) {
+            debugLogger?.log('generateMirrorCode:testsOnly', { source: sourceName, reason: 'Generated tests without code regeneration.' });
+            logger.log(`[generateMirrorCode] Generated tests for "${sourceName}" without code regeneration.`);
+            return [];
         }
 
         await backupSpecsDirectory(specsDir);

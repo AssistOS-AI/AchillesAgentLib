@@ -3,7 +3,8 @@
 ## High-Level Rules
 
 - If the `specs/` folder exists, the process continues; otherwise it stops immediately.
-- For each file in `specs/`, if the spec file is newer than its corresponding code file (or the code file is missing), generation runs; otherwise nothing happens.
+- For each file in `specs/`, if the spec file is newer than its corresponding code file (or the code file is missing), generation runs.
+- If no files need regeneration but the `tests/` folder is missing, test generation runs against existing code and then stops.
 - Iteration is per spec file (excluding files inside `specs/.backup`).
 
 ## Per-File Flow Details
@@ -37,9 +38,18 @@ Generation steps:
    - Re-write the file and re-run the same runner/tests (no regeneration).
    - If failures remain, log warnings and keep the code as-is.
 
+### Tests-Only Flow (No Regeneration)
+
+If all spec files are up-to-date but `tests/` is missing:
+- Read the spec file and extract `#Validation/#Testing` section (if present).
+- Generate positive tests and a runner for the existing code.
+- Do not use `specs/.backup` when building the test prompt.
+- Run tests and log failures without repairing the code.
+- Stop after tests are generated; do not update `specs/.backup`.
+
 ### Common Final Step
 
-- Overwrite `specs/.backup` with the new specs.
+- Overwrite `specs/.backup` with the new specs (skipped when only tests were generated).
 
 ## Diagram (ASCII)
 
@@ -51,7 +61,9 @@ Check specs/ exists?
   |
   v
 Check if any spec is newer than its code?
-  |-- No --> Stop
+  |-- No --> Tests missing?
+  |           |-- Yes --> Generate tests only (no backup spec, no backup update) --> Done
+  |           |-- No  --> Stop
   |
   v
 For each spec in specs/ (excluding .backup)
