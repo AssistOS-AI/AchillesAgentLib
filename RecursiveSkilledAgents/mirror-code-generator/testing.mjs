@@ -72,6 +72,8 @@ Each result entry MUST include: name, input, expectedOutput, actual, pass.
 
 Network dependency policy (critical):
 - The runner MUST mock modules/functions that make network calls.
+- Do NOT mock Node.js core modules.
+- Do NOT mock modules/libraries that appear installed in the environment.
 
 Example runner template (adapt as needed to match the module's API):
 
