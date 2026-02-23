@@ -113,6 +113,122 @@ test('ConversationalTskillController uses tableName_id as default primary key', 
     assert.strictEqual(template.primaryKey, 'equipment_id');
 });
 
+test('create/update field tables use short field names and descriptive guidance', () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                isRequired: true,
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                isRequired: true,
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+                isRequired: true,
+            },
+        },
+    };
+
+    const { template } = createTemplate({ parsedSkill });
+    const createTable = template.formatCreateRequiredFieldsTable(['equipment_id', 'name'], {});
+    assert.ok(createTable.includes('| equipment_id | **Required**: Unique identifier for the equipment item. String type, primary key. |'));
+    assert.ok(createTable.includes('| name | **Required**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+    assert.ok(!createTable.includes('| Unique identifier for the equipment item. String type, primary key. | Unique identifier for the equipment item. String type, primary key. |'));
+
+    const updateTable = template.buildEditableUpdateFieldsTable();
+    assert.ok(updateTable.includes('| name | **Required**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+    assert.ok(updateTable.includes('| status | **Required**: Current operational status of the equipment |'));
+});
+
+
+test('create/update field tables prefer tskill display labels when provided', () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                label: 'Equipment ID',
+                isRequired: true,
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                shortLabel: 'Equipment Name',
+                isRequired: true,
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+                isRequired: true,
+            },
+        },
+    };
+
+    const { template } = createTemplate({ parsedSkill });
+    const createTable = template.formatCreateRequiredFieldsTable(['equipment_id', 'name'], {});
+    assert.ok(createTable.includes('| Equipment ID | **Required**: Unique identifier for the equipment item. String type, primary key. |'));
+    assert.ok(createTable.includes('| Equipment Name | **Required**: Display name for the equipment (e.g., "Makita SDS Drill") |'));
+
+    const prompt = template.buildPrimaryKeyPrompt('delete', [{ equipment_id: 'EQ-1', name: 'Drill' }]);
+    assert.ok(prompt.includes('Please provide the Equipment ID'));
+});
+
+test('update guidance marks non-required fields as optional', () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                isRequired: true,
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                isRequired: true,
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+                isRequired: false,
+            },
+        },
+    };
+
+    const { template } = createTemplate({ parsedSkill });
+    const updateTable = template.buildEditableUpdateFieldsTable();
+    assert.ok(updateTable.includes('| status | Optional: Current operational status of the equipment |'));
+});
+
+test('create capture message shows all fields and omits required-fields heading', () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                isRequired: true,
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                isRequired: true,
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+                isRequired: false,
+            },
+        },
+    };
+
+    const { template } = createTemplate({ parsedSkill });
+    const message = template.buildCreateCaptureMessage({
+        requiredFields: ['equipment_id', 'name'],
+        record: {},
+    });
+
+    assert.ok(message.includes('To create this equipment, provide values for all required fields.'));
+    assert.ok(!message.includes('Required fields status:'));
+    assert.ok(message.includes('| equipment_id | **Required**: Unique identifier for the equipment item. String type, primary key. | Missing | — |'));
+    assert.ok(message.includes('| status | Optional: Current operational status of the equipment | Optional | — |'));
+});
+
 // ============= execute: SELECT flow =============
 
 test('execute routes SELECT and returns records', async () => {
@@ -216,6 +332,74 @@ test('execute SELECT supports explicit show all command', async () => {
     assert.strictEqual(all.pagination?.hasNext, false);
     assert.ok(all.message.includes('Showing all 45 equipment(s).'));
     assert.strictEqual(memory.has('pending_equipment_select_pagination'), false);
+});
+
+test('execute SELECT supports first N window', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 10 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(2, '0')}`,
+            name: `Tool ${idx + 1}`,
+            status: 'Active',
+        })),
+    );
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('list first 4 equipment', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'SELECT');
+    assert.strictEqual(result.count, 4);
+    assert.strictEqual(result.totalCount, 10);
+    assert.strictEqual(result.records[0].equipment_id, 'E01');
+    assert.strictEqual(result.records[3].equipment_id, 'E04');
+    assert.ok(result.message.includes('Showing first 4 equipment(s).'));
+});
+
+test('execute SELECT supports last N window', async () => {
+    const store = new RecordStore(
+        Array.from({ length: 10 }, (_, idx) => ({
+            equipment_id: `E${String(idx + 1).padStart(2, '0')}`,
+            name: `Tool ${idx + 1}`,
+            status: 'Active',
+        })),
+    );
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('list last 3 equipment', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'SELECT');
+    assert.strictEqual(result.count, 3);
+    assert.strictEqual(result.totalCount, 10);
+    assert.strictEqual(result.records[0].equipment_id, 'E08');
+    assert.strictEqual(result.records[2].equipment_id, 'E10');
+    assert.ok(result.message.includes('Showing last 3 equipment(s).'));
+});
+
+test('execute SELECT supports text filters with contains syntax', async () => {
+    const store = new RecordStore([
+        { equipment_id: 'E1', name: 'Drill Alpha', status: 'Active' },
+        { equipment_id: 'E2', name: 'Saw', status: 'Active' },
+        { equipment_id: 'E3', name: 'DRILL Beta', status: 'Active' },
+    ]);
+    const llm = buildMockLLM({ operation: 'SELECT', filter: {}, data: {} });
+    const { template } = createTemplate({ store, llmAgent: llm });
+    const memory = new Map();
+
+    const result = await template.execute('list equipment where name contains drill', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'SELECT');
+    assert.strictEqual(result.count, 2);
+    assert.strictEqual(result.totalCount, 2);
+    assert.deepStrictEqual(
+        result.records.map(r => r.equipment_id),
+        ['E1', 'E3'],
+    );
 });
 
 // ============= execute: CREATE flow =============
@@ -366,7 +550,7 @@ test('execute DELETE without primary key requests ID capture', async () => {
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.operation, 'DELETE');
     assert.strictEqual(result.requiresInput, true);
-    assert.ok(result.message.includes('Please provide the Unique ID'));
+    assert.ok(result.message.includes('Please provide the equipment_id'));
     assert.ok(result.message.includes('E1'));
     assert.ok(memory.has('pending_equipment_delete_capture'));
 });
@@ -511,7 +695,7 @@ test('execute UPDATE without primary key requests ID capture', async () => {
     assert.strictEqual(result.success, true);
     assert.strictEqual(result.operation, 'UPDATE');
     assert.strictEqual(result.requiresInput, true);
-    assert.ok(result.message.includes('Please provide the Unique ID'));
+    assert.ok(result.message.includes('Please provide the equipment_id'));
     assert.ok(memory.has('pending_equipment_update_target_capture'));
 });
 
@@ -602,6 +786,44 @@ test('execute UPDATE without data asks what to change', async () => {
     assert.strictEqual(result.operation, 'UPDATE');
     assert.ok(result.message.includes('What would you like to change'));
     assert.ok(memory.has('pending_equipment_update_capture'));
+});
+
+test('UPDATE without data uses short field labels in current-record table', async () => {
+    const parsedSkill = {
+        ...TEST_SKILL,
+        fields: {
+            equipment_id: {
+                description: 'Unique identifier for the equipment item. String type, primary key.',
+                label: 'Equipment ID',
+            },
+            name: {
+                description: 'Display name for the equipment (e.g., "Makita SDS Drill")',
+                shortLabel: 'Name',
+            },
+            status: {
+                description: 'Current operational status of the equipment',
+            },
+        },
+    };
+    const store = new RecordStore([
+        { equipment_id: 'E1', name: 'Drill', status: 'Active' },
+    ]);
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: { equipment_id: 'E1' },
+        data: {},
+    });
+    const { template } = createTemplate({ store, llmAgent: llm, parsedSkill });
+    const memory = new Map();
+
+    const result = await template.execute('update E1', { sessionMemory: memory });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.operation, 'UPDATE');
+    assert.ok(result.message.includes('| Field | Current Value | Description |'));
+    assert.ok(result.message.includes('| Name | Drill |'));
+    assert.ok(!result.message.includes('| Field | Value |'));
+    assert.ok(!result.message.includes('Unique identifier for the equipment item. String type, primary key.'));
 });
 
 test('UPDATE confirmation: yes executes update', async () => {

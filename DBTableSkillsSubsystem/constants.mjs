@@ -18,6 +18,7 @@ export const CRUD_OPERATIONS = {
  */
 export const PENDING_STATE_SUFFIXES = {
     CREATE: 'create',
+    CREATE_CONFLICT_UPDATE: 'create_conflict_update',
     CREATE_CAPTURE: 'create_capture',
     UPDATE: 'update',
     UPDATE_TARGET_CAPTURE: 'update_target_capture',

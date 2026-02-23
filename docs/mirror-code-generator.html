@@ -27,21 +27,22 @@
             <h2>Regeneration Preconditions</h2>
             <p>
                 The generator runs only when a skill directory contains a <code>specs/</code> folder with at least one
-                <code>.md</code> or <code>.mds</code> file. Each spec file maps directly to a target output path by
-                removing the <code>specs/</code> prefix and the <code>.md</code> / <code>.mds</code> extension. A file is
+                <code>.md</code> or <code>.mds</code> file. Each spec file maps to a target output path under <code>src/</code>
+                by removing the <code>specs/</code> prefix and the <code>.md</code> / <code>.mds</code> extension. A file is
                 regenerated when the spec modification time is newer than the corresponding output file, or the output
                 is missing.
             </p>
-            <pre><code>specs/index.mjs.mds  ->  index.mjs
-specs/utils/foo.mjs.md  ->  utils/foo.mjs</code></pre>
+            <pre><code>specs/index.mjs.mds  ->  src/index.mjs
+specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
         </section>
 
         <section>
             <h2>Per-File Generation Workflow</h2>
             <p>
                 For each spec file that requires regeneration, the generator performs a single-file LLM generation step,
-                then validates the resulting code. Validation behavior depends on whether the spec includes a
-                <code>#Validation</code> or <code>#Testing</code> section.
+                then validates the resulting code with a single test-generation prompt. If the spec includes a
+                <code>#Validation</code> or <code>#Testing</code> section, the generator uses that text to derive test cases;
+                otherwise it uses a default prompt focused on core functionality.
             </p>
 
             <h3>LLM Inputs for Code Generation</h3>
@@ -52,63 +53,54 @@ specs/utils/foo.mjs.md  ->  utils/foo.mjs</code></pre>
                 <li>Existing code file content, when present (for incremental changes).</li>
             </ul>
 
-            <h3>Case A: Spec contains <code>#Validation</code> or <code>#Testing</code></h3>
+            <h3>Testing and Repair Flow</h3>
             <p>
-                The generator derives positive test cases strictly from the testing section, then executes the
-                generated code in a temporary runtime. Failures trigger a targeted repair pass. The repaired
-                code is re-tested once; remaining failures only emit warnings and do not block writing outputs.
+                The generator writes the generated code to the skill directory, runs a syntax check with
+                <code>node --check</code>, then generates both positive test cases and a matching test runner for the
+                module's public API (not necessarily an <code>action</code> export). The runner must always emit
+                <code>process.stdout.write(JSON.stringify({ results }));</code>. The generator validates the runner with
+                <code>node --check</code> and validates the test cases JSON via a Node parse. If either validation fails,
+                it logs the error and skips testing (files remain written). Syntax check failures trigger a targeted repair
+                pass; a second failure reverts to the previous on-disk version and skips tests for that file. Test failures
+                trigger a targeted repair pass. The repaired code is re-tested once; remaining failures only emit warnings
+                and do not block writing outputs.
             </p>
             <ol>
                 <li>Generate code with the LLM (inputs listed above).</li>
+                <li>Write generated code to <code>src/</code> in the skill directory.</li>
                 <li>
-                    Generate positive tests using:
+                    Run <code>node --check</code> on the written file.
                     <ul>
-                        <li>Testing section content.</li>
-                        <li>The newly generated code.</li>
+                        <li>If it fails, repair using spec + backup + generated code + syntax error details.</li>
+                        <li>If it fails again, revert to the previous on-disk version (or remove the file if none) and skip tests.</li>
                     </ul>
                 </li>
-                <li>Execute tests in <code>/tmp</code> with the generated code.</li>
+                <li>
+                    Generate positive tests and a runner that matches the module's API.
+                    <ul>
+                        <li>Uses Testing/Validation section content if present; otherwise a default core-functionality prompt.</li>
+                    </ul>
+                </li>
+                <li>Write <code>tests/test-cases.json</code> and <code>tests/run-tests.mjs</code> without validation.</li>
+                <li>
+                    Validate the runner and test cases:
+                    <ul>
+                        <li><code>node --check</code> on <code>tests/run-tests.mjs</code></li>
+                        <li><code>node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))"</code> on <code>tests/test-cases.json</code></li>
+                    </ul>
+                    If either fails, log and skip testing (files remain written).
+                </li>
+                <li>
+                    If validations pass, execute tests from <code>tests/</code>.
+                </li>
                 <li>
                     If tests fail, repair using:
                     <ul>
                         <li>Current spec content.</li>
                         <li>Backup spec content (when present).</li>
                         <li>Generated code (not the on-disk code).</li>
-                        <li>Failure details (promptText, expectedOutput, actual).</li>
-                    </ul>
-                </li>
-                <li>Re-run tests once. Log warnings if failures remain.</li>
-            </ol>
-
-            <h3>Case B: Spec does not contain <code>#Validation</code> or <code>#Testing</code></h3>
-            <p>
-                The generator asks the LLM to review whether the generated code would pass positive tests derived from
-                the spec and the generated code. A failing review triggers a repair, after which the code is written to disk.
-            </p>
-            <ol>
-                <li>Generate code with the LLM (inputs listed above).</li>
-                <li>
-                    Generate positive tests using:
-                    <ul>
-                        <li>The full spec content.</li>
-                        <li>The newly generated code.</li>
-                    </ul>
-                </li>
-                <li>
-                    Ask the LLM to review pass/fail using:
-                    <ul>
-                        <li>Generated code.</li>
-                        <li>Generated tests.</li>
-                        <li>Target file path.</li>
-                    </ul>
-                </li>
-                <li>
-                    If the review fails, repair using:
-                    <ul>
-                        <li>Current spec content.</li>
-                        <li>Backup spec content (when present).</li>
-                        <li>Generated code (not the on-disk code).</li>
-                        <li>Failure details (promptText, expectedOutput, reason).</li>
+                        <li>Failure details (name, input, expectedOutput, actual).</li>
+                        <li>Test cases and the generated runner (specs remain authoritative).</li>
                     </ul>
                 </li>
             </ol>
@@ -117,7 +109,7 @@ specs/utils/foo.mjs.md  ->  utils/foo.mjs</code></pre>
         <section>
             <h2>Output and Backup Behavior</h2>
             <p>
-                Generated output files are written into the skill directory, mirroring the <code>specs/</code> tree.
+                Generated output files are written under <code>src/</code> in the skill directory, mirroring the <code>specs/</code> tree.
                 After all files are processed, the generator replaces <code>specs/.backup</code> with the current
                 <code>specs/</code> directory contents.
             </p>
@@ -142,18 +134,27 @@ For each stale spec
 Generate code (spec + backup spec + existing code)
   |
   v
-Has #Validation/#Testing?
-  |-- Yes --> Generate positive tests (section + generated code)
-  |           Run tests in /tmp
-  |           Failures? -> Repair (spec + backup + generated code + failures)
-  |                     -> Rerun -> Warn if still failing
-  |
-  |-- No --> Generate positive tests (spec + generated code)
-              Review with LLM (tests + generated code + path)
-              Fail? -> Repair (spec + backup + generated code + failures)
+Write generated code to src/
   |
   v
-Write generated code to skill directory
+Has #Validation/#Testing?
+  |-- Yes --> Use testing section for test generation
+  |-- No  --> Use default core-functionality prompt
+  |
+  v
+Syntax check (node --check)
+  |-- Fail --> Repair (spec + backup + generated code + syntax error)
+  |           -> Rewrite src/ output
+  |           -> Recheck -> Fail? Revert to previous version + skip tests
+  |-- Pass --> Continue
+Generate tests + runner (match module API)
+Write tests/test-cases.json + tests/run-tests.mjs (no validation)
+Validate runner (node --check) and cases JSON (node -e JSON.parse...)
+  |-- Fail --> Log error + skip tests
+  |-- Pass --> Run tests from tests/
+Failures? -> Repair (spec + backup + generated code + failures)
+          -> Rewrite src/ output
+          -> Rerun -> Warn if still failing
   |
   v
 Replace specs/.backup

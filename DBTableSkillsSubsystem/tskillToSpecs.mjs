@@ -103,6 +103,7 @@ function generateSpecContent(skill) {
     sections.push(generatePKValuesSpec(skill));
     sections.push(generatePrepareRecordSpec(skill));
     sections.push(generateValidateRecordSpec(skill));
+    sections.push(generateValidateDeleteSpec(skill));
     sections.push(generatePresentRecordSpec(skill));
 
     // Export structure
@@ -139,6 +140,7 @@ This module provides:
 - Field presenters (presenter_<fieldName>) for display formatting
 - Field resolvers (resolver_<fieldName>) for input parsing
 - Field enumerators (enumerator_<fieldName>) for allowed values
+- Delete validator (validateDelete) for pre-delete guard checks
 - Record-level functions for CRUD operations
 
 **Business Rules:**
@@ -435,6 +437,81 @@ ${validatorFields.map(f => `        ['${f}', validator_${f}],`).join('\n')}
 }
 
 /**
+ * Generate validateDelete function spec.
+ */
+function generateValidateDeleteSpec(skill) {
+    const guardMode = String(skill?.deleteGuard?.mode || '').toLowerCase();
+    const relationshipHints = [];
+
+    for (const relation of skill.relationships || []) {
+        if (relation?.referencedBy) {
+            relationshipHints.push(relation.referencedBy);
+            continue;
+        }
+        if (relation?.field) {
+            relationshipHints.push(relation.field);
+            continue;
+        }
+        if (relation?.sourceTable && relation?.sourceField && relation?.targetTable && relation?.targetField) {
+            relationshipHints.push(`${relation.sourceTable}.${relation.sourceField} -> ${relation.targetTable}.${relation.targetField}`);
+        }
+    }
+
+    return `## Function: validateDelete(recordId, record, context)
+
+### Description
+Validates whether a record can be deleted before executing \`deleteRecord\`.
+
+### Input
+- \`recordId\` (string): Primary key value for the record being deleted
+- \`record\` (object): Selected record from database (optional)
+- \`context\` (object): Runtime context for delete validation
+
+### Processing Logic
+1. Initialize errors array
+2. Read delete guard mode from \`context.deleteGuard.mode\`
+3. If mode is \`block_if_referenced\`, call \`context.checkDeleteReferences(recordId, record)\` when available
+4. If helper returns a message, push a structured error object
+5. Return \`{ isValid, errors }\`
+
+### Delete Guard
+- Parsed mode: \`${guardMode || 'none'}\`
+- Relationship hints:
+${relationshipHints.length > 0 ? relationshipHints.map(ref => `  - ${ref}`).join('\n') : '  - none'}
+
+### Output
+\`\`\`javascript
+{
+    isValid: boolean,
+    errors: [
+        { field: 'id', error: 'Cannot delete ... referenced by ...', value: recordId }
+    ]
+}
+\`\`\`
+
+### Implementation Pattern
+\`\`\`javascript
+async function validateDelete(recordId, record, context = {}) {
+    const errors = [];
+    const guardMode = String(context?.deleteGuard?.mode || '').toLowerCase();
+
+    if (guardMode === 'block_if_referenced' && typeof context.checkDeleteReferences === 'function') {
+        const message = await context.checkDeleteReferences(recordId, record);
+        if (message) {
+            errors.push({
+                field: context.primaryKey || 'id',
+                error: String(message),
+                value: recordId,
+            });
+        }
+    }
+
+    return { isValid: errors.length === 0, errors };
+}
+\`\`\``;
+}
+
+/**
  * Generate presentRecord function spec.
  */
 function generatePresentRecordSpec(skill) {
@@ -514,7 +591,7 @@ function generateExportsSpec(skill) {
     }
 
     // Global functions
-    allFunctions.push('generatePKValues', 'prepareRecord', 'validateRecord', 'presentRecord');
+    allFunctions.push('generatePKValues', 'prepareRecord', 'validateRecord', 'validateDelete', 'presentRecord');
 
     return `## Exports Structure
 
@@ -540,7 +617,7 @@ ${allFunctions.map(f => `        ${f},`).join('\n')}
 | Resolvers | ${allFunctions.filter(f => f.startsWith('resolver_')).join(', ') || 'None'} |
 | Enumerators | ${allFunctions.filter(f => f.startsWith('enumerator_')).join(', ') || 'None'} |
 | Derivators | ${allFunctions.filter(f => f.startsWith('derivator_')).join(', ') || 'None'} |
-| Global | generatePKValues, prepareRecord, validateRecord, presentRecord |`;
+| Global | generatePKValues, prepareRecord, validateRecord, validateDelete, presentRecord |`;
 }
 
 export default tskillToSpecs;

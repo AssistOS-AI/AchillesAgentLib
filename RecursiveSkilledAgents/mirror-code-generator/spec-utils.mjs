@@ -28,32 +28,6 @@ export async function findSpecFiles(baseDir, currentDir = '') {
     return files;
 }
 
-/**
- * Recursively finds all files in a directory, excluding specs/ and .md files.
- * @param {string} baseDir - The base directory to start searching from.
- * @param {string} [currentDir=''] - The current subdirectory, used for recursion.
- * @returns {Promise<Array<{relativePath: string, absolutePath: string}>>} A list of files with their paths.
- */
-export async function findExistingCodeFiles(baseDir, currentDir = '') {
-    const entries = await fs.readdir(path.join(baseDir, currentDir), { withFileTypes: true });
-    let files = [];
-    for (const entry of entries) {
-        const relativePath = path.join(currentDir, entry.name);
-        const normalizedRelPath = relativePath.replace(/\\/g, '/');
-        if (entry.isDirectory()) {
-            if (normalizedRelPath === 'specs' || normalizedRelPath.startsWith('specs/')) {
-                continue;
-            }
-            files = files.concat(await findExistingCodeFiles(baseDir, relativePath));
-        } else if (!entry.name.endsWith('.md') && !entry.name.endsWith('.mds')) {
-            files.push({
-                relativePath,
-                absolutePath: path.join(baseDir, relativePath),
-            });
-        }
-    }
-    return files;
-}
 
 /**
  * Copy specs directory to specs/.backup, excluding the backup itself.
@@ -124,37 +98,10 @@ export function extractTestingSection(content) {
  * @returns {string}
  */
 export function specPathToTarget(relativePath) {
-    return relativePath
+    const cleaned = relativePath
         .replace(/\\/g, '/')
         .replace(/^specs\//, '')
         .replace(/\.mds?$/, '');
+    const trimmed = cleaned.replace(/^src\//, '');
+    return `src/${trimmed}`.replace(/\/+/, '/');
 }
-
-/**
- * Normalize generated file paths to keep them within sourcePath and avoid redundant prefixes.
- * - Removes leading './'
- * - Removes leading `${sourceName}/`
- * - Converts backslashes to '/'
- * - Rejects paths that escape the sourcePath (contain '..' after normalize)
- * @param {string} relativePath
- * @param {string} sourceName
- * @returns {string|null} normalized path or null if invalid
- */
-export function normalizeGeneratedPath(relativePath, sourceName) {
-    let cleaned = relativePath.replace(/\\/g, '/');
-    if (cleaned.startsWith('./')) {
-        cleaned = cleaned.slice(2);
-    }
-    if (cleaned.startsWith(`${sourceName}/`)) {
-        cleaned = cleaned.slice(sourceName.length + 1);
-    }
-    if (cleaned.startsWith('/')) {
-        cleaned = cleaned.slice(1);
-    }
-    const normalized = path.normalize(cleaned);
-    if (normalized.startsWith('..')) {
-        return null;
-    }
-    return normalized.replace(/\\/g, '/');
-}
-

@@ -1,31 +1,88 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { buildGeneratedFilesBlock, parseJsonResponse, parseMultiFileMarkdown } from './llm-utils.mjs';
+import { parseJsonResponse, parseMultiFileMarkdown } from './llm-utils.mjs';
 
-/**
- * Ask LLM to generate behavioral tests for the action(promptText) API.
- * @param {string} specsForPrompt
- * @param {string} generatedCodeForPrompt
- * @param {object} llmAgent
- * @returns {Promise<Array<{name: string, promptText: string, expectedOutput: any}>>}
- */
-export async function generateBehaviorTests(specsForPrompt, generatedCodeForPrompt, llmAgent) {
-    const prompt = `
+const DEFAULT_TESTING_INSTRUCTIONS_RAW = `
+Focus on the core/primary functionality of the code. Only include tests that reflect the most important functions or
+behaviors; skip minor helpers, formatting-only cases, and edge cases.
+`;
+
+function buildBehaviorTestPrompt({
+    testingInstructions,
+    specsForPrompt,
+    generatedCodeForPrompt,
+    casesFileName,
+    importPath,
+}) {
+    const runnerTemplateExample = `import fs from 'node:fs/promises';
+import path from 'node:path';
+
+const testsRaw = await fs.readFile(path.join(process.cwd(), ${JSON.stringify(casesFileName)}), 'utf-8');
+const { tests } = JSON.parse(testsRaw);
+const modulePath = ${JSON.stringify(importPath)};
+const { action } = await import(modulePath);
+
+if (typeof action !== 'function') {
+  throw new Error('Generated module does not export an action function.');
+}
+
+const results = [];
+for (const test of tests) {
+  let actual;
+  try {
+    actual = await action({ promptText: test.promptText });
+  } catch (error) {
+    actual = error?.message || String(error);
+  }
+  const pass = JSON.stringify(actual) === JSON.stringify(test.expectedOutput);
+  results.push({
+    promptText: test.promptText,
+    expectedOutput: test.expectedOutput,
+    actual,
+    pass,
+  });
+}
+
+process.stdout.write(JSON.stringify({ results }));`;
+    return `
 # Behavior Test Generation
 
-You are an expert test designer. Generate positive behavior tests for a skill's public API: action({ promptText }).
+You are an expert test designer. Generate positive behavior tests for the module's public API and a matching test runner.
 Each test must include:
 - name (short string)
-- promptText (string; may be natural language or structured, no restrictions)
+- input (any JSON value; can be object, array, string, number, boolean, or null)
 - expectedOutput (exact JSON value the action should return; can be object, array, string, number, boolean, or null)
 
 The tests MUST be based on the specifications and MUST be valid inputs that should not throw.
 Generate only positive tests (no negative/invalid tests) and do not generate edge cases.
 Expected outputs must be computed exactly according to the spec.
 The tests are NOT about file names or module structure; only runtime behavior.
+
+You must ALSO generate a Node.js ESM test runner (run-tests.mjs) that imports the generated module and executes the tests.
+The runner MUST build a "results" array and MUST end with:
+process.stdout.write(JSON.stringify({ results }));
+This requirement is absolute.
+
+Runner must read test cases from ${JSON.stringify(casesFileName)} and import the module from ${JSON.stringify(importPath)}.
+Runner should adapt to the generated module's public API (not necessarily an action export).
+Runner should read the tests array and call the appropriate exported function(s) using test.input.
+Each result entry MUST include: name, input, expectedOutput, actual, pass.
+
+External dependency policy (critical):
+- The runner MUST mock external dependencies used by the generated module.
+- External dependencies are any imports outside the generated code (e.g. npm packages, SDKs, third-party APIs).
+- Node.js native libraries are exempt from mocking.
+- The runner MUST NOT perform real network calls or talk to real external services.
+
+Example runner template (adapt as needed to match the module's API):
+
+
+${runnerTemplateExample}
+
+## Testing Instructions
+${testingInstructions}
 
 ## Specifications
 ${specsForPrompt}
@@ -39,78 +96,61 @@ Return STRICT JSON with the following shape and no extra keys:
   "tests": [
     {
       "name": "...",
-      "promptText": "...",
+      "input": null,
       "expectedOutput": null
     }
-  ]
+  ],
+  "runnerCode": "..."
 }
 Keep the test list small (4-8 tests).
 `;
-
-    const response = await llmAgent.executePrompt(prompt, {
-        mode: 'deep',
-        responseShape: 'json',
-        context: { intent: 'generate-behavior-tests' },
-    });
-
-    const parsed = parseJsonResponse(response, 'Behavior test generation');
-    if (!parsed || !Array.isArray(parsed.tests) || parsed.tests.length === 0) {
-        throw new Error('Behavior test generation returned no tests.');
-    }
-    return parsed.tests;
 }
 
 /**
- * Ask LLM to generate test cases based on explicit testing instructions.
- * @param {string} testingSection
+ * Ask LLM to generate behavioral tests and a matching runner for the module API.
+ * @param {string} specsForPrompt
  * @param {string} generatedCodeForPrompt
  * @param {object} llmAgent
- * @returns {Promise<Array<{promptText: string, expectedOutput: any}>>}
+ * @param {object} [options]
+ * @param {string} [options.testingInstructions]
+ * @param {string} [options.intent='generate-behavior-tests']
+ * @param {string} [options.errorLabel='Behavior test generation']
+ * @returns {Promise<{tests: Array<{name: string, input: any, expectedOutput: any}>, runnerCode: string}>}
  */
-export async function generateBehaviorTestsFromSection(testingSection, generatedCodeForPrompt, llmAgent) {
-    const prompt = `
-# Test Case Generation
+export async function generateBehaviorTests(specsForPrompt, generatedCodeForPrompt, llmAgent, options = {}) {
+    const {
+        testingInstructions = 'Use the full specification to derive valid positive tests.',
+        intent = 'generate-behavior-tests',
+        errorLabel = 'Behavior test generation',
+        casesFileName = 'test-cases.json',
+        importPath,
+    } = options || {};
 
-You are an expert test designer. Generate positive test cases for a skill's public API: action({ promptText }).
-Each test must include:
-- promptText (string)
-- expectedOutput (exact JSON value the action should return; can be object, array, string, number, boolean, or null)
-
-The tests MUST be based strictly on the testing/validation instructions below.
-Generate only positive tests (no negative/invalid tests) and do not generate edge cases.
-Expected outputs must be computed exactly according to the instructions.
-
-## Testing Instructions
-${testingSection}
-
-## Generated Code Context
-${generatedCodeForPrompt || 'No generated code context provided.'}
-
-## Output Requirements
-Return STRICT JSON with the following shape and no extra keys:
-{
-  "tests": [
-    {
-      "promptText": "...",
-      "expectedOutput": null
-    }
-  ]
-}
-Keep the test list small (4-8 tests).
-`;
+    const prompt = buildBehaviorTestPrompt({
+        testingInstructions,
+        specsForPrompt,
+        generatedCodeForPrompt,
+        casesFileName,
+        importPath,
+    });
 
     const response = await llmAgent.executePrompt(prompt, {
         mode: 'deep',
         responseShape: 'json',
-        context: { intent: 'generate-behavior-tests-from-section' },
+        context: { intent },
     });
 
-    const parsed = parseJsonResponse(response, 'Behavior test generation (section)');
+    const parsed = parseJsonResponse(response, errorLabel);
     if (!parsed || !Array.isArray(parsed.tests) || parsed.tests.length === 0) {
-        throw new Error('Behavior test generation (section) returned no tests.');
+        throw new Error(`${errorLabel} returned no tests.`);
     }
-    return parsed.tests;
+    if (!parsed.runnerCode || typeof parsed.runnerCode !== 'string') {
+        throw new Error(`${errorLabel} returned no runnerCode.`);
+    }
+    return { tests: parsed.tests, runnerCode: parsed.runnerCode };
 }
+
+export const DEFAULT_TESTING_INSTRUCTIONS = DEFAULT_TESTING_INSTRUCTIONS_RAW.trim();
 
 /**
  * Validate generated code against behavior tests, optionally returning corrected code.
@@ -119,106 +159,6 @@ Keep the test list small (4-8 tests).
  * @param {object} llmAgent
  * @returns {Promise<{status: 'pass'} | {status: 'fail', files: Array<{path: string, code: string}>}>}
  */
-export async function validateOrRepairGeneratedCode(generatedFiles, tests, llmAgent) {
-    const filesBlock = buildGeneratedFilesBlock(generatedFiles);
-    const prompt = `
-# Behavior Validation / Repair
-
-You are a senior engineer. Given the code and the behavior tests, decide if the code is correct.
-If you consider the test input would result in the expected output, you may treat it as pass.
-If the code produces nondeterministic results, you may accept minor differences between expectedOutput and the likely actual output.
-
-If all tests pass, return:
-{ "status": "pass" }
-
-If any test would fail, return:
-{
-  "status": "fail",
-  "files": [
-    { "path": "relative/path.ext", "code": "..." }
-  ]
-}
-
-Do NOT include explanations. Only strict JSON.
-
-## Behavior Tests
-${JSON.stringify({ tests }, null, 2)}
-
-## Generated Code
-${filesBlock}
-`;
-
-    const response = await llmAgent.executePrompt(prompt, {
-        mode: 'deep',
-        responseShape: 'json',
-        context: { intent: 'validate-or-repair-generated-code' },
-    });
-
-    const parsed = parseJsonResponse(response, 'Behavior validation');
-    if (!parsed || (parsed.status !== 'pass' && parsed.status !== 'fail')) {
-        throw new Error('Behavior validation returned invalid status.');
-    }
-    if (parsed.status === 'fail') {
-        if (!Array.isArray(parsed.files) || parsed.files.length === 0) {
-            throw new Error('Behavior validation returned fail without files.');
-        }
-    }
-    return parsed;
-}
-
-/**
- * Ask LLM to review if code passes tests and list failures.
- * @param {string} filePath
- * @param {string} code
- * @param {Array<{promptText: string, expectedOutput: any}>} tests
- * @param {object} llmAgent
- * @returns {Promise<{status: 'pass'} | {status: 'fail', failures: Array<{promptText: string, expectedOutput: any, reason: string}>}>}
- */
-export async function reviewGeneratedCodeWithTests(filePath, code, tests, llmAgent) {
-    const prompt = `
-# Behavior Review
-
-You are a senior engineer. Decide whether the code would return the expected outputs for each test input.
-Return JSON only. If any test would fail, list them with a short reason.
-
-If all tests pass, return:
-{ "status": "pass" }
-
-If any test would fail, return:
-{
-  "status": "fail",
-  "failures": [
-    { "promptText": "...", "expectedOutput": null, "reason": "..." }
-  ]
-}
-
-## File Path
-${filePath}
-
-## Tests
-${JSON.stringify({ tests }, null, 2)}
-
-## Code
-${code}
-`;
-
-    const response = await llmAgent.executePrompt(prompt, {
-        mode: 'deep',
-        responseShape: 'json',
-        context: { intent: 'review-generated-code-with-tests' },
-    });
-
-    const parsed = parseJsonResponse(response, 'Behavior review');
-    if (!parsed || (parsed.status !== 'pass' && parsed.status !== 'fail')) {
-        throw new Error('Behavior review returned invalid status.');
-    }
-    if (parsed.status === 'fail') {
-        if (!Array.isArray(parsed.failures) || parsed.failures.length === 0) {
-            throw new Error('Behavior review returned fail without failures.');
-        }
-    }
-    return parsed;
-}
 
 /**
  * Ask LLM to repair a single file based on failures.
@@ -226,12 +166,24 @@ ${code}
  * @param {string} specForPrompt
  * @param {string} backupSpecForPrompt
  * @param {string} generatedCodeForFile
- * @param {Array<{promptText: string, expectedOutput: any, actual?: any, reason?: string}>} failures
+ * @param {Array<{input?: any, expectedOutput: any, actual?: any, reason?: string, name?: string}>} failures
  * @param {object} llmAgent
  * @param {string} intent
+ * @param {object} [options]
+ * @param {string} [options.runnerCode]
+ * @param {Array<{name?: string, input?: any, expectedOutput: any}>} [options.tests]
  * @returns {Promise<string>}
  */
-export async function repairGeneratedFile(targetPath, specForPrompt, backupSpecForPrompt, generatedCodeForFile, failures, llmAgent, intent) {
+export async function repairGeneratedFile(
+    targetPath,
+    specForPrompt,
+    backupSpecForPrompt,
+    generatedCodeForFile,
+    failures,
+    llmAgent,
+    intent,
+    { runnerCode, tests } = {}
+) {
     const prompt = `
 # Single-File Code Repair
 
@@ -247,6 +199,12 @@ ${backupSpecForPrompt || 'No previous spec was available.'}
 ## Generated Code Context
 ${generatedCodeForFile || 'No generated code was available for this file.'}
 
+## Test Cases
+${tests && tests.length > 0 ? JSON.stringify({ tests }, null, 2) : 'No tests were provided.'}
+
+## Test Runner
+${runnerCode || 'No test runner was provided.'}
+
 ## Failed Cases
 ${JSON.stringify({ failures }, null, 2)}
 
@@ -254,6 +212,8 @@ ${JSON.stringify({ failures }, null, 2)}
 - Use the exact relative file path implied by the spec (no extra prefixes like the source directory name).
 - Compare current spec with previous spec when available, and focus changes on the parts that differ.
 - Preserve existing behavior and structure where the spec is unchanged and the current code already works.
+- Specifications are authoritative. If the runner conflicts with the specifications, follow the specifications.
+- When possible, keep the implementation compatible with the provided runner and test inputs.
 - If the spec contains hardcoded values or exact literals, use them verbatim without modification.
 - Do not generate JSDoc-style comment blocks (e.g. /** ... */ with @param/@throws tags) unless explicitly required by the spec.
 - Your response **MUST** be a single markdown block for the file.
@@ -293,68 +253,55 @@ export const myVar = '...';
 }
 
 /**
- * Run behavior tests in a temporary directory using Node.
+ * Run behavior tests in the skill's tests/ directory using Node.
+ * Writes test-cases.json and run-tests.mjs in tests/.
+ * @param {string} skillDir
  * @param {string} targetPath
- * @param {string} code
- * @param {Array<{promptText: string, expectedOutput: any}>} tests
- * @returns {Promise<{results: Array<{promptText: string, expectedOutput: any, actual: any, pass: boolean}>}>}
+ * @param {Array<{name: string, input: any, expectedOutput: any}>} tests
+ * @param {string} runnerCode
+ * @param {object} [options]
+ * @param {string} [options.casesFileName='test-cases.json']
+ * @param {string} [options.runnerFileName='run-tests.mjs']
+ * @returns {Promise<{results: Array<{name?: string, input?: any, expectedOutput: any, actual: any, pass: boolean}>, skipped?: boolean}>}
  */
-export async function runBehaviorTestsInTemp(targetPath, code, tests) {
+export async function runBehaviorTestsOnDisk(
+    skillDir,
+    targetPath,
+    tests,
+    runnerCode,
+    { casesFileName = 'test-cases.json', runnerFileName = 'run-tests.mjs', logger = console } = {}
+) {
     const execFileAsync = promisify(execFile);
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'achilles-mirror-'));
-    const normalizedTargetPath = targetPath.replace(/\\/g, '/');
-    const outputPath = path.join(tempDir, normalizedTargetPath);
-    const testsPath = path.join(tempDir, 'tests.json');
-    const runnerPath = path.join(tempDir, 'run-tests.mjs');
+    const testsDir = path.join(skillDir, 'tests');
+    const testsPath = path.join(testsDir, casesFileName);
+    const runnerPath = path.join(testsDir, runnerFileName);
+
+    await fs.mkdir(testsDir, { recursive: true });
+    await fs.rm(path.join(testsDir, '.mirror'), { recursive: true, force: true }).catch(() => {});
+    await fs.writeFile(testsPath, JSON.stringify({ tests }, null, 2), 'utf-8');
+
+    await fs.writeFile(runnerPath, runnerCode, 'utf-8');
 
     try {
-        await fs.mkdir(path.dirname(outputPath), { recursive: true });
-        await fs.writeFile(outputPath, code, 'utf-8');
-        await fs.writeFile(testsPath, JSON.stringify({ tests }, null, 2), 'utf-8');
-
-        const importPath = `./${normalizedTargetPath}`;
-        const runnerCode = `
-import fs from 'node:fs/promises';
-import path from 'node:path';
-
-const testsRaw = await fs.readFile(path.join(process.cwd(), 'tests.json'), 'utf-8');
-const { tests } = JSON.parse(testsRaw);
-const modulePath = ${JSON.stringify(importPath)};
-const { action } = await import(modulePath);
-
-if (typeof action !== 'function') {
-  throw new Error('Generated module does not export an action function.');
-}
-
-const results = [];
-for (const test of tests) {
-  let actual;
-  try {
-    actual = await action({ promptText: test.promptText });
-  } catch (error) {
-    actual = error?.message || String(error);
-  }
-  const pass = JSON.stringify(actual) === JSON.stringify(test.expectedOutput);
-  results.push({
-    promptText: test.promptText,
-    expectedOutput: test.expectedOutput,
-    actual,
-    pass,
-  });
-}
-
-process.stdout.write(JSON.stringify({ results }));
-`;
-
-        await fs.writeFile(runnerPath, runnerCode.trimStart(), 'utf-8');
-
-        const { stdout } = await execFileAsync('node', [runnerPath], { cwd: tempDir, maxBuffer: 10 * 1024 * 1024 });
-        const parsed = JSON.parse(stdout);
-        if (!parsed || !Array.isArray(parsed.results)) {
-            throw new Error('Test runner returned invalid results.');
-        }
-        return parsed;
-    } finally {
-        await fs.rm(tempDir, { recursive: true, force: true });
+        await execFileAsync('node', ['--check', runnerPath], { cwd: testsDir, maxBuffer: 10 * 1024 * 1024 });
+        await execFileAsync(
+            'node',
+            ['-e', "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))", testsPath],
+            { cwd: testsDir, maxBuffer: 10 * 1024 * 1024 }
+        );
+    } catch (error) {
+        const stderr = error?.stderr ? String(error.stderr) : '';
+        const stdout = error?.stdout ? String(error.stdout) : '';
+        const message = error?.message ? String(error.message) : '';
+        const details = [message, stderr, stdout].filter(Boolean).join('\n');
+        logger.warn(`[generateMirrorCode] Test runner or cases validation failed for "${targetPath}". Skipping tests.\n${details}`);
+        return { results: [], skipped: true };
     }
+
+    const { stdout } = await execFileAsync('node', [runnerPath], { cwd: testsDir, maxBuffer: 10 * 1024 * 1024 });
+    const parsed = JSON.parse(stdout);
+    if (!parsed || !Array.isArray(parsed.results)) {
+        throw new Error('Test runner returned invalid results.');
+    }
+    return parsed;
 }

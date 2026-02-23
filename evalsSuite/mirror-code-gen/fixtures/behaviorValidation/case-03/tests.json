@@ -1,7 +1,0 @@
-[
-  {
-    "name": "sum",
-    "promptText": "[1,2,3]",
-    "expectedOutput": 6
-  }
-]

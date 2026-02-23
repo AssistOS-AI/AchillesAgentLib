@@ -43,8 +43,12 @@ async function evalCodeGenerationPerformance() {
   async function cleanupGeneratedFiles(skillName) {
     const specsDir = path.resolve(__dirname, '.AchillesSkills', skillName, 'specs');
     const skillDir = path.resolve(__dirname, '.AchillesSkills', skillName);
+    const srcDir = path.join(skillDir, 'src');
+    const testsDir = path.join(skillDir, 'tests');
 
     try {
+      await rm(srcDir, { recursive: true, force: true }).catch(() => {});
+      await rm(testsDir, { recursive: true, force: true }).catch(() => {});
       const entries = await fs.readdir(specsDir, { withFileTypes: true });
       for (const entry of entries) {
         const specPath = path.join('specs', entry.name);
@@ -80,10 +84,12 @@ async function evalCodeGenerationPerformance() {
   }
 
   function specPathToTarget(relativePath) {
-    return relativePath
+    const cleaned = relativePath
       .replace(/\\/g, '/')
       .replace(/^specs\//, '')
       .replace(/\.mds?$/, '');
+    const trimmed = cleaned.replace(/^src\//, '');
+    return `src/${trimmed}`.replace(/\/+/, '/');
   }
 
   // --- Test Case 1: CSV Parser and Transformer ---

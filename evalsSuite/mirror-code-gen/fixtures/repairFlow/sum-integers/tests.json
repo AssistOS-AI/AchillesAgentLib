@@ -1,15 +1,18 @@
 {
   "tests": [
     {
-      "promptText": "1,2,3",
+      "name": "sum-three",
+      "input": "1,2,3",
       "expectedOutput": 6
     },
     {
-      "promptText": "10, -2, 5",
+      "name": "sum-with-negative",
+      "input": "10, -2, 5",
       "expectedOutput": 13
     },
     {
-      "promptText": "",
+      "name": "empty",
+      "input": "",
       "expectedOutput": 0
     }
   ]

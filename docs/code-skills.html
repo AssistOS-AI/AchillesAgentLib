@@ -72,24 +72,28 @@ Formats a user's data into a readable string based on external functional specif
          <section>
              <h2>Repository Layout</h2>
              <p>
-                 Code skills mirror the <code>specs/</code> tree directly into runnable code under the skill root:
+                 Code skills mirror the <code>specs/</code> tree into runnable code under <code>src/</code>:
              </p>
              <pre><code>my-cskill/
  ├── cskill.md           # Main skill definition
  ├── specs/              # Specification files
  │   ├── index.mjs.md     # Spec for index.mjs (main entrypoint)
- │   ├── core.js.md       # Spec for core.js (core logic)
- │   └── utils.js.md      # Spec for utils.js (utility functions)
- ├── index.mjs           # Generated entrypoint (from specs/index.mjs.md)
- ├── core.js             # Generated core module (from specs/core.js.md)
- └── utils.js            # Generated utility module (from specs/utils.js.md)</code></pre>
+  │   ├── core.js.md       # Spec for core.js (core logic)
+  │   └── utils.js.md      # Spec for utils.js (utility functions)
+  ├── tests/
+  │   ├── test-cases.json  # Generated test cases
+  │   └── run-tests.mjs    # Generated test runner
+  └── src/
+      ├── index.mjs       # Generated entrypoint (from specs/index.mjs.md)
+      ├── core.js         # Generated core module (from specs/core.js.md)
+      └── utils.js        # Generated utility module (from specs/utils.js.md)</code></pre>
              <p>
                  <strong>Key conventions:</strong>
              </p>
              <ul>
                  <li><code>specs/</code> folder contains specification files named after the JavaScript files they describe</li>
                  <li>Spec files use <code>.md</code> extension (e.g., <code>index.mjs.md</code> → generates <code>index.mjs</code>)</li>
-                 <li>Generated files live alongside the descriptor at the skill root;
+                 <li>Generated files live under <code>src/</code> in the skill directory</li>
                  <li>Do not manually edit generated files; update <code>specs/</code> and regenerate</li>
              </ul>
          </section>
@@ -146,13 +150,13 @@ Formats a user object into a standardized string.
              <p>
                  When <code>RecursiveSkilledAgent</code> discovers a code skill (<code>cskill.md</code>), it automatically generates
                  the executable code from your specifications using the <a href="mirror-code-generator.html">mirror code generator</a>
-                 and writes it directly under the skill directory.
+                 and writes it under <code>src/</code> in the skill directory.
              </p>
              <ul>
                  <li>All <code>.md</code> files from the <code>specs/</code> folder are read recursively</li>
                  <li>The generator focuses on specs and no longer depends on <code>cskill.md</code> sections</li>
                  <li>Everything is combined in a single LLM prompt for code generation</li>
-                 <li>Generated files mirror the <code>specs/</code> paths (e.g., <code>specs/utils/foo.mjs.md</code> → <code>utils/foo.mjs</code>)</li>
+                 <li>Generated files mirror the <code>specs/</code> paths under <code>src/</code> (e.g., <code>specs/utils/foo.mjs.md</code> → <code>src/utils/foo.mjs</code>)</li>
                  <li>Code regenerates automatically when specs are newer than the oldest expected target or any target is missing</li>
              </ul>
              <p>
@@ -166,7 +170,7 @@ Formats a user object into a standardized string.
             </p>
             <ol>
                 <li>Passes the raw prompt text directly to the skill action</li>
-                <li>Dynamically imports and executes <code>index.mjs</code> at the skill root</li>
+                <li>Dynamically imports and executes <code>src/index.mjs</code> by default</li>
                 <li>Wraps primitive results in <code>{ result: value }</code> format</li>
                 <li>Returns the execution result</li>
             </ol>
@@ -196,7 +200,7 @@ Formats a user object into a standardized string.
              <ul>
                  <li><strong>Parameters</strong>: <code>skillRecord</code> - Skill record object with descriptor and paths</li>
                  <li><strong>Returns</strong>: Promise that resolves when preparation is complete</li>
-                 <li><strong>Side effects</strong>: Generates code files alongside the descriptor</li>
+                 <li><strong>Side effects</strong>: Generates code files under <code>src/</code></li>
              </ul>
 
 

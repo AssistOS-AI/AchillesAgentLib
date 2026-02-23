@@ -2,7 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
-import { repairGeneratedFile, runBehaviorTestsInTemp } from '../../RecursiveSkilledAgents/mirror-code-generator/testing.mjs';
+import {
+    generateBehaviorTests,
+    repairGeneratedFile,
+    runBehaviorTestsOnDisk,
+} from '../../RecursiveSkilledAgents/mirror-code-generator/testing.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.join(__dirname, 'fixtures', 'repairFlow');
@@ -30,26 +34,39 @@ async function runFixture(fixtureName, llmAgent) {
         throw new Error(`Fixture ${fixtureName} has no tests.`);
     }
 
-    const specForPrompt = `\n\n---\n# Spec for: index.mjs\n\n${specContent}`;
+    const specForPrompt = `\n\n---\n# Spec for: src/index.mjs\n\n${specContent}`;
+    const importPath = '../src/index.mjs';
+    const { runnerCode } = await generateBehaviorTests(specForPrompt, generatedCode, llmAgent, { importPath });
     const repairedCode = await repairGeneratedFile(
-        'index.mjs',
+        'src/index.mjs',
         specForPrompt,
         '',
         generatedCode,
         tests.map(test => ({
-            promptText: test.promptText,
+            input: test.input,
             expectedOutput: test.expectedOutput,
             actual: 'N/A',
         })),
         llmAgent,
-        'repair-eval-fixture'
+        'repair-eval-fixture',
+        { runnerCode, tests }
     );
 
-    const testResults = await runBehaviorTestsInTemp('index.mjs', repairedCode, tests);
+    const outputPath = path.join(fixtureDir, 'src', 'index.mjs');
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+    await fs.writeFile(outputPath, repairedCode, 'utf-8');
+
+    const testResults = await runBehaviorTestsOnDisk(
+        fixtureDir,
+        'src/index.mjs',
+        tests,
+        runnerCode,
+        { logger: console }
+    );
     const failures = testResults.results.filter(result => !result.pass);
     if (failures.length > 0) {
         const summary = failures
-            .map(failure => `Input: ${JSON.stringify(failure.promptText)} Expected: ${JSON.stringify(failure.expectedOutput)} Actual: ${JSON.stringify(failure.actual)}`)
+            .map(failure => `Input: ${JSON.stringify(failure.input)} Expected: ${JSON.stringify(failure.expectedOutput)} Actual: ${JSON.stringify(failure.actual)}`)
             .join(' | ');
         throw new Error(`Repair produced failing tests (${failures.length}/${tests.length}). ${summary}`);
     }
@@ -77,10 +94,12 @@ async function evalRepairFlow() {
             console.log(`🔴 ${fixture}: ${error.message}`);
             failed += 1;
         } finally {
-            const generatedPath = path.join(fixtureDir, 'index.mjs');
-            await fs.rm(generatedPath, { force: true }).catch(() => {});
+            const srcDir = path.join(fixtureDir, 'src');
+            await fs.rm(srcDir, { recursive: true, force: true }).catch(() => {});
             const backupDir = path.join(fixtureDir, 'specs', '.backup');
             await fs.rm(backupDir, { recursive: true, force: true }).catch(() => {});
+            const testsDir = path.join(fixtureDir, 'tests');
+            await fs.rm(testsDir, { recursive: true, force: true }).catch(() => {});
         }
     }
 

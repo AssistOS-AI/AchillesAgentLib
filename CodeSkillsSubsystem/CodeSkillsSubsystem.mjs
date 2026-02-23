@@ -101,7 +101,7 @@ export class CodeSkillsSubsystem {
 
   async executeCodeFromDisk(outputPath, args) {
     // Try both index.mjs and index.js, preferring index.mjs
-    const possibleMainFiles = ['index.mjs', 'index.js'];
+    const possibleMainFiles = ['src/index.mjs', 'src/index.js'];
     let mainFilePath = null;
     let modulePath = null;
     

@@ -1,15 +1,18 @@
 {
   "tests": [
     {
-      "promptText": "ha|3",
+      "name": "repeat-three",
+      "input": "ha|3",
       "expectedOutput": "hahaha"
     },
     {
-      "promptText": "x|1",
+      "name": "repeat-once",
+      "input": "x|1",
       "expectedOutput": "x"
     },
     {
-      "promptText": "yo|0",
+      "name": "repeat-zero",
+      "input": "yo|0",
       "expectedOutput": ""
     }
   ]

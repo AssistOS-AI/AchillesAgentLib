@@ -107,6 +107,49 @@ function extractSectionContent(sections = {}, ...aliases) {
     return '';
 }
 
+function normalizeIdentifier(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function parseTableFieldRef(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const match = text.match(/^([a-zA-Z_][\w]*)\s*\.\s*([a-zA-Z_][\w]*)$/);
+    if (!match) return null;
+    return {
+        table: match[1],
+        field: match[2],
+    };
+}
+
+function parseFieldReferenceExpression(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const match = text.match(
+        /([a-zA-Z_][\w]*\.[a-zA-Z_][\w]*)\s*(?:references|->|=>)\s*([a-zA-Z_][\w]*\.[a-zA-Z_][\w]*)/i,
+    );
+    if (!match) return null;
+    const source = parseTableFieldRef(match[1]);
+    const target = parseTableFieldRef(match[2]);
+    if (!source || !target) return null;
+    return { source, target };
+}
+
+function dedupeDependencies(dependencies = []) {
+    const deduped = [];
+    const seen = new Set();
+    for (const dependency of dependencies) {
+        const tableName = String(dependency?.tableName || '').trim();
+        const foreignKey = String(dependency?.foreignKey || '').trim();
+        if (!tableName || !foreignKey) continue;
+        const key = `${normalizeIdentifier(tableName)}:${normalizeIdentifier(foreignKey)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push({ tableName, foreignKey });
+    }
+    return deduped;
+}
+
 
 /**
  * Main DBTableSkillsSubsystem class
@@ -120,6 +163,304 @@ export class DBTableSkillsSubsystem {
         this.cache = new Map();
         this.functionCache = new Map();
         this.executors = new Map();
+    }
+
+    isDeleteGuardEnabled(parsedSkill) {
+        const mode = String(parsedSkill?.deleteGuard?.mode || '').trim().toLowerCase();
+        return mode === 'block_if_referenced';
+    }
+
+    extractDependencyTableFromRelationType(typeValue) {
+        const typeText = String(typeValue || '').trim();
+        if (!typeText) return null;
+        const match = typeText.match(/\bwith\s+([a-zA-Z_][\w]*)\b/i);
+        return match ? match[1] : null;
+    }
+
+    extractDependentReferencesFromRelationships(parsedSkill) {
+        const currentTable = normalizeIdentifier(parsedSkill?.tableName);
+        if (!currentTable) return [];
+
+        const primaryKey = normalizeIdentifier(
+            parsedSkill?.primaryKey || `${parsedSkill?.tableName || ''}_id`,
+        );
+        const dependencies = [];
+        const relationships = Array.isArray(parsedSkill?.relationships)
+            ? parsedSkill.relationships
+            : [];
+
+        for (const relation of relationships) {
+            if (!relation || typeof relation !== 'object') continue;
+
+            const sourceTable = String(relation.sourceTable || '').trim();
+            const sourceField = String(relation.sourceField || '').trim();
+            const targetTable = normalizeIdentifier(relation.targetTable);
+            const targetField = normalizeIdentifier(relation.targetField);
+
+            if (
+                sourceTable
+                && sourceField
+                && targetTable === currentTable
+                && (!primaryKey || !targetField || targetField === primaryKey)
+            ) {
+                dependencies.push({ tableName: sourceTable, foreignKey: sourceField });
+                continue;
+            }
+
+            if (relation.referencedBy) {
+                const pair = parseTableFieldRef(relation.referencedBy);
+                if (pair) {
+                    dependencies.push({ tableName: pair.table, foreignKey: pair.field });
+                    continue;
+                }
+            }
+
+            if (relation.field) {
+                const refs = parseFieldReferenceExpression(relation.field);
+                if (
+                    refs
+                    && normalizeIdentifier(refs.target.table) === currentTable
+                    && (!primaryKey || normalizeIdentifier(refs.target.field) === primaryKey)
+                ) {
+                    dependencies.push({
+                        tableName: refs.source.table,
+                        foreignKey: refs.source.field,
+                    });
+                    continue;
+                }
+            }
+
+            if (relation.reference) {
+                const referencePair = parseTableFieldRef(relation.reference);
+                if (
+                    referencePair
+                    && normalizeIdentifier(referencePair.table) === currentTable
+                    && (!primaryKey || normalizeIdentifier(referencePair.field) === primaryKey)
+                ) {
+                    let dependentTable = String(relation.sourceTable || '').trim();
+                    let foreignKey = String(relation.sourceField || '').trim();
+
+                    if (!dependentTable || !foreignKey) {
+                        const foreignPair = parseTableFieldRef(relation.foreign);
+                        if (foreignPair) {
+                            dependentTable = foreignPair.table;
+                            foreignKey = foreignPair.field;
+                        } else {
+                            foreignKey = String(relation.foreign || '').trim();
+                            dependentTable = dependentTable || this.extractDependencyTableFromRelationType(relation.type);
+                        }
+                    }
+
+                    if (dependentTable && foreignKey) {
+                        dependencies.push({
+                            tableName: dependentTable,
+                            foreignKey,
+                        });
+                    }
+                }
+            }
+        }
+
+        return dedupeDependencies(dependencies);
+    }
+
+    async resolveDeleteDependencies(parsedSkill) {
+        return this.extractDependentReferencesFromRelationships(parsedSkill);
+    }
+
+    async countReferenceRecords(tableName, foreignKey, recordId) {
+        if (!this.dbAdapter || typeof this.dbAdapter.query !== 'function') {
+            return 0;
+        }
+        try {
+            const records = await this.dbAdapter.query(
+                tableName,
+                { [foreignKey]: recordId },
+                { limit: 1000 },
+            );
+            return Array.isArray(records) ? records.length : 0;
+        } catch (error) {
+            debugWarn(
+                `[DBTableSkills] Failed dependency lookup for ${tableName}.${foreignKey}:`,
+                error?.message || String(error),
+            );
+            return 0;
+        }
+    }
+
+    async assertDeleteAllowed(parsedSkill, recordId) {
+        if (!this.isDeleteGuardEnabled(parsedSkill)) return;
+        if (!this.dbAdapter || typeof this.dbAdapter.query !== 'function') return;
+
+        const tableName = String(parsedSkill?.tableName || '').trim();
+        const normalizedId = recordId === null || recordId === undefined
+            ? ''
+            : String(recordId).trim();
+        if (!tableName || !normalizedId) return;
+
+        const dependencies = await this.resolveDeleteDependencies(parsedSkill);
+        if (!dependencies.length) return;
+        const blockers = [];
+
+        for (const dependency of dependencies) {
+            const count = await this.countReferenceRecords(
+                dependency.tableName,
+                dependency.foreignKey,
+                normalizedId,
+            );
+            if (count > 0) {
+                blockers.push(`${dependency.tableName}.${dependency.foreignKey} (${count})`);
+            }
+        }
+
+        if (blockers.length > 0) {
+            throw new Error(
+                `Cannot delete ${tableName} '${normalizedId}' because it is referenced by dependent records: ${blockers.join(', ')}`,
+            );
+        }
+    }
+
+    normalizeDeleteValidationResult(result, recordId, primaryKey = 'id') {
+        const fallbackField = String(primaryKey || 'id');
+        const fallbackValue = recordId;
+
+        if (result === null || result === undefined) {
+            return { isValid: true, errors: [] };
+        }
+
+        if (typeof result === 'boolean') {
+            return result
+                ? { isValid: true, errors: [] }
+                : {
+                    isValid: false,
+                    errors: [{ field: fallbackField, error: 'Delete validation failed.', value: fallbackValue }],
+                };
+        }
+
+        if (Array.isArray(result)) {
+            const errors = result.map((errorEntry) => {
+                if (errorEntry && typeof errorEntry === 'object') return errorEntry;
+                return { field: fallbackField, error: String(errorEntry), value: fallbackValue };
+            });
+            return { isValid: errors.length === 0, errors };
+        }
+
+        if (typeof result === 'object') {
+            const maybeErrors = Array.isArray(result.errors) ? result.errors : [];
+            const normalizedErrors = maybeErrors.map((errorEntry) => {
+                if (errorEntry && typeof errorEntry === 'object') return errorEntry;
+                return { field: fallbackField, error: String(errorEntry), value: fallbackValue };
+            });
+            const isValid = typeof result.isValid === 'boolean'
+                ? result.isValid
+                : normalizedErrors.length === 0;
+            return { isValid, errors: normalizedErrors };
+        }
+
+        return {
+            isValid: false,
+            errors: [{ field: fallbackField, error: String(result), value: fallbackValue }],
+        };
+    }
+
+    attachDeleteValidator(execContext) {
+        if (!execContext || typeof execContext !== 'object') return execContext;
+        if (execContext.__deleteValidatorWrapped) return execContext;
+
+        const rawValidateDelete = typeof execContext.validateDelete === 'function'
+            ? execContext.validateDelete
+            : null;
+
+        execContext.validateDelete = async (recordId, record, context = {}) => {
+            const primaryKey = context?.primaryKey || 'id';
+            const mergedContext = {
+                ...(context || {}),
+                selectRecords: typeof context?.selectRecords === 'function'
+                    ? context.selectRecords
+                    : execContext.selectRecords,
+            };
+
+            if (rawValidateDelete) {
+                try {
+                    const result = await rawValidateDelete.call(execContext, recordId, record, mergedContext);
+                    return this.normalizeDeleteValidationResult(result, recordId, primaryKey);
+                } catch (error) {
+                    return this.normalizeDeleteValidationResult({
+                        isValid: false,
+                        errors: [{
+                            field: primaryKey,
+                            error: error?.message || String(error),
+                            value: recordId,
+                        }],
+                    }, recordId, primaryKey);
+                }
+            }
+
+            const guardMode = String(mergedContext?.deleteGuard?.mode || '').toLowerCase();
+            if (guardMode === 'block_if_referenced' && typeof mergedContext.checkDeleteReferences === 'function') {
+                const message = await mergedContext.checkDeleteReferences(recordId, record);
+                if (message) {
+                    return {
+                        isValid: false,
+                        errors: [{
+                            field: primaryKey,
+                            error: String(message),
+                            value: recordId,
+                        }],
+                    };
+                }
+            }
+
+            return { isValid: true, errors: [] };
+        };
+
+        execContext.__deleteValidatorWrapped = true;
+        return execContext;
+    }
+
+    buildDeleteValidationContext(parsedSkill, primaryKey, execContext) {
+        return {
+            primaryKey,
+            tableName: parsedSkill?.tableName || '',
+            deleteGuard: parsedSkill?.deleteGuard || null,
+            relationships: parsedSkill?.relationships || [],
+            checkDeleteReferences: async (recordId, _record) => {
+                try {
+                    await this.assertDeleteAllowed(parsedSkill, recordId);
+                    return '';
+                } catch (error) {
+                    return error?.message || String(error);
+                }
+            },
+            selectRecords: typeof execContext?.selectRecords === 'function'
+                ? execContext.selectRecords.bind(execContext)
+                : null,
+        };
+    }
+
+    async runDeleteValidation(execContext, parsedSkill, recordId, record) {
+        const primaryKey = parsedSkill?.primaryKey || `${parsedSkill?.tableName || 'record'}_id`;
+        const validationContext = this.buildDeleteValidationContext(parsedSkill, primaryKey, execContext);
+
+        const validator = typeof execContext?.validateDelete === 'function'
+            ? execContext.validateDelete
+            : null;
+
+        if (!validator) {
+            await this.assertDeleteAllowed(parsedSkill, recordId);
+            return;
+        }
+
+        const validation = await validator.call(execContext, recordId, record, validationContext);
+        const normalized = this.normalizeDeleteValidationResult(validation, recordId, primaryKey);
+
+        if (!normalized.isValid) {
+            const firstError = normalized.errors[0];
+            if (firstError && typeof firstError.error === 'string' && firstError.error.trim()) {
+                throw new Error(firstError.error);
+            }
+            throw new Error(`Delete validation failed for ${parsedSkill?.tableName || 'record'} ${recordId}`);
+        }
     }
 
     /**
@@ -387,7 +728,7 @@ export class DBTableSkillsSubsystem {
                 };
             }
 
-            return enhanced;
+            return this.attachDeleteValidator(enhanced);
         }
 
         // Build a code string that defines all field functions and returns an object with global functions
@@ -444,6 +785,8 @@ ${functions.global.prepareRecord || ''}
 
 ${functions.global.validateRecord || ''}
 
+${functions.global.validateDelete || ''}
+
 ${functions.global.presentRecord || ''}
 
 ${functions.global.generatePKValues || ''}
@@ -453,6 +796,7 @@ return {
     generatePKValues: typeof generatePKValues !== 'undefined' ? generatePKValues : null,
     prepareRecord: typeof prepareRecord !== 'undefined' ? prepareRecord : null,
     validateRecord: typeof validateRecord !== 'undefined' ? validateRecord : null,
+    validateDelete: typeof validateDelete !== 'undefined' ? validateDelete : null,
     presentRecord: typeof presentRecord !== 'undefined' ? presentRecord : null,
     selectRecords: selectRecords,
     insertRecord: insertRecord,
@@ -464,7 +808,7 @@ return {
         // Debug generated code
         // console.log('Generated Context Code:', contextCode);
         try {
-            return eval(contextCode);
+            return this.attachDeleteValidator(eval(contextCode));
         } catch (e) {
             console.error('Error evaluating context code:', e);
             console.error('Code was:', contextCode);
@@ -671,6 +1015,7 @@ return {
                     throw new Error(`Primary key ${primaryKey} not found in record`);
                 }
 
+                await this.runDeleteValidation(execContext, parsedSkill, recordId, record);
                 await execContext.deleteRecord(recordId);
                 const presented = await execContext.presentRecord(record);
                 deletedRecords.push(presented);

@@ -1,21 +1,24 @@
 {
   "tests": [
     {
-      "promptText": "{\"a\":1}||{\"b\":2}",
+      "name": "merge-basic",
+      "input": "{\"a\":1}||{\"b\":2}",
       "expectedOutput": {
         "a": 1,
         "b": 2
       }
     },
     {
-      "promptText": "{\"a\":1,\"b\":2}||{\"b\":5}",
+      "name": "override",
+      "input": "{\"a\":1,\"b\":2}||{\"b\":5}",
       "expectedOutput": {
         "a": 1,
         "b": 5
       }
     },
     {
-      "promptText": "{}||{\"x\":9}",
+      "name": "empty-left",
+      "input": "{}||{\"x\":9}",
       "expectedOutput": {
         "x": 9
       }
