@@ -17,8 +17,6 @@
         "axiologic_proxy/gpt-5.2-codex",
         "axiologic_proxy/gpt-5.2",
         "axiologic_proxy/gpt-5.1-codex",
-        "openrouter/anthropic/claude-opus-4.6",
-        "openrouter/anthropic/claude-sonnet-4.5",
         "openrouter/google/gemini-2.5-pro",
         "openrouter/deepseek/deepseek-r1-0528",
         "openrouter/deepseek/deepseek-v3.2",
@@ -179,22 +177,6 @@
             "inputPrice": 3,
             "outputPrice": 15,
             "context": "200k"
-        },
-        {
-            "name": "anthropic/claude-opus-4.6",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 5,
-            "outputPrice": 25,
-            "context": "1mill"
-        },
-        {
-            "name": "anthropic/claude-sonnet-4.5",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 3,
-            "outputPrice": 15,
-            "context": "1mill"
         },
         {
             "name": "google/gemini-2.5-pro",
