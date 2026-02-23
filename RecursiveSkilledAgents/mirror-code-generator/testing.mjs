@@ -74,6 +74,7 @@ Network dependency policy (critical):
 - The runner MUST mock modules/functions that make network calls.
 - Do NOT mock Node.js core modules.
 - Do NOT mock modules/libraries that appear installed in the environment.
+- Do NOT use any external testing libraries; use only Node.js native APIs.
 
 Example runner template (adapt as needed to match the module's API):
 
