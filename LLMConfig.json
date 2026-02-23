@@ -10,6 +10,9 @@
     ],
     "deepModelPriority": [
         "axiologic_proxy/gemini-2.5-pro",
+        "openrouter/deepseek/deepseek-r1-0528",
+        "openrouter/deepseek/deepseek-v3.2",
+        "openrouter/deepseek/deepseek-v3.1-terminus",
         "opencode/qwen3-coder",
         "soul_gateway/axiologic-deep",
         "soul_gateway/axiologic-ultra",
@@ -17,17 +20,15 @@
         "axiologic_proxy/gpt-5.2-codex",
         "axiologic_proxy/gpt-5.2",
         "axiologic_proxy/gpt-5.1-codex",
-        "openrouter/openai/gpt-5.2-codex",
-        "openrouter/openai/gpt-5.2",
-        "openrouter/anthropic/claude-opus-4.6",
-        "openrouter/anthropic/claude-sonnet-4.5",
         "openrouter/google/gemini-2.5-pro",
-        "openrouter/openai/gpt-5.1-codex",
-        "openrouter/openai/o3",
-        "openrouter/deepseek/deepseek-r1-0528",
         "openrouter/qwen/qwen3-coder-plus",
+        "openrouter/qwen/qwen3-max-thinking",
+        "openrouter/qwen/qwq-32b",
+        "openrouter/moonshotai/kimi-k2-thinking",
         "openrouter/x-ai/grok-4",
         "openrouter/mistralai/codestral-2508",
+        "openrouter/meta-llama/llama-4-maverick",
+        "openrouter/cohere/command-a",
         "opencode_anthropic/claude-opus-4-6",
         "opencode/gemini-3-pro",
         "opencode/kimi-k2.5",
@@ -178,54 +179,6 @@
             "context": "200k"
         },
         {
-            "name": "openai/gpt-5.2-codex",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 1.75,
-            "outputPrice": 14,
-            "context": "400k"
-        },
-        {
-            "name": "openai/gpt-5.2",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 1.75,
-            "outputPrice": 14,
-            "context": "400k"
-        },
-        {
-            "name": "openai/gpt-5.1-codex",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 1.25,
-            "outputPrice": 10,
-            "context": "400k"
-        },
-        {
-            "name": "openai/gpt-5.1",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 1.25,
-            "outputPrice": 10,
-            "context": "400k"
-        },
-        {
-            "name": "anthropic/claude-opus-4.6",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 5,
-            "outputPrice": 25,
-            "context": "1mill"
-        },
-        {
-            "name": "anthropic/claude-sonnet-4.5",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 3,
-            "outputPrice": 15,
-            "context": "1mill"
-        },
-        {
             "name": "google/gemini-2.5-pro",
             "provider": "openrouter",
             "mode": "deep",
@@ -240,14 +193,6 @@
             "inputPrice": 2,
             "outputPrice": 12,
             "context": "1mill"
-        },
-        {
-            "name": "openai/o3",
-            "provider": "openrouter",
-            "mode": "deep",
-            "inputPrice": 2,
-            "outputPrice": 8,
-            "context": "200k"
         },
         {
             "name": "deepseek/deepseek-r1-0528",
@@ -296,6 +241,78 @@
             "inputPrice": 0.45,
             "outputPrice": 2.25,
             "context": "262k"
+        },
+        {
+            "name": "deepseek/deepseek-r1",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 0.70,
+            "outputPrice": 2.50,
+            "context": "64k"
+        },
+        {
+            "name": "deepseek/deepseek-v3.2-speciale",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 0.40,
+            "outputPrice": 1.20,
+            "context": "163k"
+        },
+        {
+            "name": "deepseek/deepseek-v3.1-terminus",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 0.21,
+            "outputPrice": 0.79,
+            "context": "163k"
+        },
+        {
+            "name": "deepseek/deepseek-chat",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 0.32,
+            "outputPrice": 0.89,
+            "context": "163k"
+        },
+        {
+            "name": "qwen/qwen3-max-thinking",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 1.20,
+            "outputPrice": 6.00,
+            "context": "262k"
+        },
+        {
+            "name": "qwen/qwq-32b",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 0.15,
+            "outputPrice": 0.40,
+            "context": "32k"
+        },
+        {
+            "name": "moonshotai/kimi-k2-thinking",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 0.47,
+            "outputPrice": 2.00,
+            "context": "131k"
+        },
+        {
+            "name": "meta-llama/llama-4-maverick",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 0.15,
+            "outputPrice": 0.60,
+            "context": "1mill"
+        },
+        {
+            "name": "cohere/command-a",
+            "provider": "openrouter",
+            "mode": "deep",
+            "inputPrice": 2.50,
+            "outputPrice": 10.00,
+            "context": "256k"
         },
         {
             "name": "claude-opus-4-6",
