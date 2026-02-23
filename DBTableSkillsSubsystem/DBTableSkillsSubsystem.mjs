@@ -150,6 +150,139 @@ function dedupeDependencies(dependencies = []) {
     return deduped;
 }
 
+const YES_CONFIRM_ACTIONS = new Set([
+    'execute', 'confirm', 'confirmed', 'approve', 'approved', 'proceed', 'run', 'apply',
+]);
+const NO_CONFIRM_ACTIONS = new Set([
+    'cancel', 'abort', 'reject', 'decline', 'stop', 'deny',
+]);
+
+function parseJsonPromptIfPossible(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (!(trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('"'))) return null;
+    try {
+        return JSON.parse(trimmed);
+    } catch {
+        return null;
+    }
+}
+
+function normalizeActionPrompt(value) {
+    const action = String(value ?? '').trim();
+    if (!action) return '';
+    const lower = action.toLowerCase();
+    if (YES_CONFIRM_ACTIONS.has(lower)) return 'yes';
+    if (NO_CONFIRM_ACTIONS.has(lower)) return 'no';
+    return action;
+}
+
+function extractPromptInput(input, depth = 0) {
+    if (depth > 5 || input == null) return '';
+
+    if (typeof input === 'boolean') {
+        return input ? 'yes' : 'no';
+    }
+
+    if (typeof input === 'string') {
+        const trimmed = input.trim();
+        if (!trimmed) return '';
+
+        const parsed = parseJsonPromptIfPossible(trimmed);
+        if (parsed !== null) {
+            const parsedPrompt = extractPromptInput(parsed, depth + 1);
+            if (parsedPrompt) return parsedPrompt;
+        }
+
+        return normalizeActionPrompt(trimmed);
+    }
+
+    if (Array.isArray(input)) {
+        for (const item of input) {
+            const prompt = extractPromptInput(item, depth + 1);
+            if (prompt) return prompt;
+        }
+        return '';
+    }
+
+    if (typeof input === 'object') {
+        const confirmKeys = ['confirmation', 'decision', 'answer', 'response', 'value'];
+        for (const key of confirmKeys) {
+            if (Object.prototype.hasOwnProperty.call(input, key)) {
+                const prompt = extractPromptInput(input[key], depth + 1);
+                if (prompt) return prompt;
+            }
+        }
+
+        const actionPrompt = normalizeActionPrompt(
+            input.action ?? input.operation ?? input.intent ?? input.command,
+        );
+        if (actionPrompt) return actionPrompt;
+
+        const textKeys = ['promptText', 'prompt', 'input', 'message', 'text', 'rawInput'];
+        for (const key of textKeys) {
+            if (Object.prototype.hasOwnProperty.call(input, key)) {
+                const prompt = extractPromptInput(input[key], depth + 1);
+                if (prompt) return prompt;
+            }
+        }
+    }
+
+    return '';
+}
+
+function getCrudOperationVerb(operation = '') {
+    const normalized = String(operation || '').trim().toUpperCase();
+    switch (normalized) {
+        case 'CREATE':
+            return 'create';
+        case 'UPDATE':
+            return 'update';
+        case 'DELETE':
+            return 'delete';
+        case 'SELECT':
+            return 'retrieve';
+        default:
+            return 'complete';
+    }
+}
+
+function buildCrudFailureMessage(operation, entityName, error) {
+    const verb = getCrudOperationVerb(operation);
+    const target = String(entityName || 'record');
+    const details = String(error?.message || error || '')
+        .replace(/^error:\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!details) {
+        return `Cannot ${verb} ${target} right now due to an unexpected error.`;
+    }
+
+    if (/(timed out|timeout)/i.test(details)) {
+        return `Cannot ${verb} ${target} right now because the request timed out. Please try again.`;
+    }
+
+    if (/(dbadapter not available|database service is not available|service unavailable|cannot access database|failed to read .* records|failed to query|cannot retrieve)/i.test(details)) {
+        return `Cannot ${verb} ${target} right now because the database service is unavailable. Details: ${details}`;
+    }
+
+    if (/(already exists|duplicate|unique constraint|must be unique|uniqueness|duplicate key|conflict)/i.test(details)) {
+        return `Cannot ${verb} ${target} because a record with the same unique value already exists. Details: ${details}`;
+    }
+
+    if (/(foreign key|constraint|referenc|dependent|violat)/i.test(details)) {
+        return `Cannot ${verb} ${target} because related records depend on it. Details: ${details}`;
+    }
+
+    if (/^(cannot|failed to|unable to)\b/i.test(details)) {
+        return details;
+    }
+
+    return `Cannot ${verb} ${target}. Details: ${details}`;
+}
+
 
 /**
  * Main DBTableSkillsSubsystem class
@@ -513,7 +646,7 @@ export class DBTableSkillsSubsystem {
 
         // Generate functions if needed
         let functions;
-        const generatedPath = tskillPath ? path.join(path.dirname(tskillPath), 'tskill.generated.mjs') : null;
+        const generatedPath = tskillPath ? path.join(path.dirname(tskillPath), 'src', 'tskill.generated.mjs') : null;
 
         if (generatedPath && fs.existsSync(generatedPath)) {
             try {
@@ -663,15 +796,14 @@ export class DBTableSkillsSubsystem {
             // Override selectRecords to use dbAdapter
             enhanced.selectRecords = async function selectRecords(filter) {
                 if (!dbAdapter || typeof dbAdapter.query !== 'function') {
-                    debugWarn('DBAdapter not available, returning empty array');
-                    return [];
+                    throw new Error(`Cannot retrieve ${tableName} records because the database service is unavailable.`);
                 }
                 try {
                     const records = await dbAdapter.query(tableName, filter);
                     return Array.isArray(records) ? records : [];
                 } catch (error) {
-                    console.error('Error querying ' + tableName + ':', error);
-                    return [];
+                    const details = error?.message || String(error);
+                    throw new Error(`Failed to read ${tableName} records: ${details}`);
                 }
             };
 
@@ -745,15 +877,14 @@ function debugWarn(...args) { if (DEBUG_ENABLED) console.warn(...args); }
 // Override selectRecords to use dbAdapter
 async function selectRecords(filter) {
     if (!dbAdapter || typeof dbAdapter.query !== 'function') {
-        debugWarn('DBAdapter not available, returning empty array');
-        return [];
+        throw new Error('Cannot retrieve ' + tableName + ' records because the database service is unavailable.');
     }
     try {
         const records = await dbAdapter.query(tableName, filter);
         return Array.isArray(records) ? records : [];
     } catch (error) {
-        console.error('Error querying ' + tableName + ':', error);
-        return [];
+        const details = error && error.message ? error.message : String(error);
+        throw new Error('Failed to read ' + tableName + ' records: ' + details);
     }
 }
 
@@ -881,10 +1012,12 @@ return {
                 message: `Successfully created ${parsedSkill.tableName || 'record'}`
             };
         } catch (error) {
+            const message = buildCrudFailureMessage('CREATE', parsedSkill.tableName || 'record', error);
             return {
                 success: false,
                 operation: 'CREATE',
-                error: error.message || 'Failed to insert record'
+                message,
+                error: message,
             };
         }
     }
@@ -952,10 +1085,12 @@ return {
                 message: `Successfully updated ${parsedSkill.tableName || 'record'}`
             };
         } catch (error) {
+            const message = buildCrudFailureMessage('UPDATE', parsedSkill.tableName || 'record', error);
             return {
                 success: false,
                 operation: 'UPDATE',
-                error: error.message || 'Failed to update record'
+                message,
+                error: message,
             };
         }
     }
@@ -1030,10 +1165,12 @@ return {
                 message: `Successfully deleted ${deletedRecords.length} ${parsedSkill.tableName || 'record'}(s)`
             };
         } catch (error) {
+            const message = buildCrudFailureMessage('DELETE', parsedSkill.tableName || 'record', error);
             return {
                 success: false,
                 operation: 'DELETE',
-                error: error.message || 'Failed to delete records'
+                message,
+                error: message,
             };
         }
     }
@@ -1042,11 +1179,6 @@ return {
      * Execute a skill prompt
      */
     async executeSkillPrompt({ skillRecord, promptText, options = {} }) {
-        const executor = this.executors.get(skillRecord.name);
-        if (!executor) {
-            throw new Error(`Executor not prepared for DBTable skill "${skillRecord.name}"`);
-        }
-
         const {
             args = {},
         } = options;
@@ -1054,15 +1186,69 @@ return {
             || options.context?.sessionMemory
             || null;
 
-        const prompt = typeof args[DB_TABLE_ARGUMENT_NAME] === 'string' && args[DB_TABLE_ARGUMENT_NAME].trim()
-            ? args[DB_TABLE_ARGUMENT_NAME]
-            : String(promptText ?? '').trim();
-
-        if (!prompt) {
-            throw new Error(`DBTable skill "${skillRecord.name}" requires a prompt`);
+        let executor = this.executors.get(skillRecord.name);
+        if (!executor) {
+            try {
+                // Lazy self-heal: if executor cache was lost/reset, prepare on demand.
+                await this.prepareSkill(skillRecord);
+                executor = this.executors.get(skillRecord.name);
+            } catch (error) {
+                const details = error?.message || String(error);
+                return {
+                    skill: skillRecord.name,
+                    metadata: skillRecord.metadata || null,
+                    result: {
+                        success: false,
+                        operation: 'SYSTEM',
+                        message: `Cannot run ${skillRecord.name} because skill initialization failed. Details: ${details}`,
+                    },
+                    sessionMemory,
+                };
+            }
         }
 
-        const result = await executor({ prompt }, { sessionMemory });
+        if (!executor) {
+            return {
+                skill: skillRecord.name,
+                metadata: skillRecord.metadata || null,
+                result: {
+                    success: false,
+                    operation: 'SYSTEM',
+                    message: `Cannot run ${skillRecord.name} because its executor is unavailable.`,
+                },
+                sessionMemory,
+            };
+        }
+
+        const promptSource = typeof args[DB_TABLE_ARGUMENT_NAME] === 'string' && args[DB_TABLE_ARGUMENT_NAME].trim()
+            ? args[DB_TABLE_ARGUMENT_NAME]
+            : (args[DB_TABLE_ARGUMENT_NAME] ?? promptText);
+        const prompt = extractPromptInput(promptSource);
+
+        if (!prompt) {
+            return {
+                skill: skillRecord.name,
+                metadata: skillRecord.metadata || null,
+                result: {
+                    success: false,
+                    operation: 'SYSTEM',
+                    message: `Cannot run ${skillRecord.name} because the prompt is empty.`,
+                },
+                sessionMemory,
+            };
+        }
+
+        let result;
+        try {
+            result = await executor({ prompt }, { sessionMemory });
+        } catch (error) {
+            const details = error?.message || String(error);
+            result = {
+                success: false,
+                operation: 'SYSTEM',
+                message: `Cannot execute ${skillRecord.name}. Details: ${details}`,
+            };
+        }
 
         return {
             skill: skillRecord.name,

@@ -91,7 +91,7 @@ export async function handleDeleteIdCapture(controller, prompt, pending, session
         ? await execContext.presentRecord(selectedRecord)
         : selectedRecord;
     const safeRecord = sanitizeRecordForUser(presented);
-    const table = formatRecordsTable([safeRecord], controller.fields, controller.entityName, {
+    const table = formatRecordsTable([safeRecord], controller.getListTableFields({ includePrimaryKey: true }), controller.entityName, {
         resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
     });
 
@@ -133,16 +133,7 @@ export async function handleDeleteConfirmation(controller, prompt, pending, sess
                 count: deleted.length,
             };
         } catch (error) {
-            const details = error?.message || String(error);
-            const dependencyConflict = /(foreign key|constraint|referenc|dependent|violat)/i.test(details);
-            return {
-                success: false,
-                operation: 'DELETE',
-                blockedByDependencies: dependencyConflict,
-                message: dependencyConflict
-                    ? `Delete blocked because this ${controller.entityName} is referenced by related records in other tables. Details: ${details}`
-                    : `Failed to delete ${controller.entityName}: ${details}`,
-            };
+            return controller.buildCrudFailureResult(CRUD_OPERATIONS.DELETE, error);
         }
     }
 
@@ -216,7 +207,7 @@ export async function deleteFlow(controller, operation, execContext, sessionMemo
     );
 
     const safePresented = sanitizeRecordsForUser(presented);
-    const table = formatRecordsTable(safePresented, controller.fields, controller.entityName, {
+    const table = formatRecordsTable(safePresented, controller.getListTableFields({ includePrimaryKey: true }), controller.entityName, {
         resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
     });
 

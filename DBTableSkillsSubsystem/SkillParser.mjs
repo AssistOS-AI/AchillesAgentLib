@@ -13,6 +13,7 @@ export function parseSkillMarkdown(content) {
         tablePurpose: '',
         instructions: '',  // LLM instructions for query interpretation
         deleteGuard: null,
+        listDisplayFields: [],
         fields: {},
         derivedFields: {},
         indexes: [],
@@ -106,6 +107,17 @@ export function parseSkillMarkdown(content) {
             continue;
         }
 
+        // Handle list display fields section (## List Display Fields)
+        if (trimmedLine.match(/^##\s+List Display Fields$/i)) {
+            saveCurrentContent();
+            currentSection = 'listDisplayFields';
+            currentField = null;
+            currentSubSection = null;
+            currentContent = [];
+            sectionDepth = 2;
+            continue;
+        }
+
         // Handle field definition (### FieldName)
         const fieldMatch = trimmedLine.match(/^###\s+(.+)$/);
         if (fieldMatch && currentSection === 'fields') {
@@ -155,6 +167,8 @@ export function parseSkillMarkdown(content) {
             skill.instructions = content;
         } else if (currentSection === 'deleteGuard' && !currentField) {
             parseDeleteGuard(content, skill);
+        } else if (currentSection === 'listDisplayFields' && !currentField) {
+            skill.listDisplayFields = parseFieldNameList(content);
         } else if (currentSection === 'relationships' && !currentField) {
             parseRelationships(content, skill);
         } else if (currentSection === 'businessRules' && !currentField) {
@@ -371,6 +385,46 @@ function parseAliases(content) {
         .split('\n')
         .map(a => a.replace(/^[-*]\s*/, '').trim())
         .filter(a => a.length > 0);
+}
+
+function parseFieldNameList(content) {
+    const lines = String(content || '').split('\n');
+    const orderedFields = [];
+    const seen = new Set();
+
+    const addField = (rawValue) => {
+        const cleanValue = String(rawValue || '')
+            .trim()
+            .replace(/^`+|`+$/g, '')
+            .replace(/^["']+|["']+$/g, '')
+            .replace(/:$/, '')
+            .trim();
+        if (!cleanValue) return;
+        if (!/^[a-zA-Z_][\w-]*$/.test(cleanValue)) return;
+        if (seen.has(cleanValue)) return;
+        seen.add(cleanValue);
+        orderedFields.push(cleanValue);
+    };
+
+    for (const line of lines) {
+        const trimmed = String(line || '').trim();
+        if (!trimmed) continue;
+        if (trimmed.startsWith('|')) continue;
+
+        const withoutPrefix = trimmed
+            .replace(/^[-*+]\s+/, '')
+            .replace(/^\d+\.\s+/, '')
+            .trim();
+
+        if (!withoutPrefix) continue;
+        if (withoutPrefix.includes(',')) {
+            withoutPrefix.split(',').forEach(part => addField(part));
+        } else {
+            addField(withoutPrefix);
+        }
+    }
+
+    return orderedFields;
 }
 
 /**
@@ -719,6 +773,18 @@ export function validateSkill(skill) {
         const allowedModes = new Set(['block_if_referenced']);
         if (!allowedModes.has(String(skill.deleteGuard.mode).toLowerCase())) {
             warnings.push(`Unknown delete guard mode "${skill.deleteGuard.mode}"`);
+        }
+    }
+
+    if (Array.isArray(skill.listDisplayFields) && skill.listDisplayFields.length > 0) {
+        const missingListDisplayFields = skill.listDisplayFields.filter(fieldName =>
+            !Object.prototype.hasOwnProperty.call(skill.fields, fieldName)
+            && !Object.prototype.hasOwnProperty.call(skill.derivedFields, fieldName),
+        );
+        if (missingListDisplayFields.length > 0) {
+            warnings.push(
+                `List display fields reference undefined fields: ${missingListDisplayFields.join(', ')}`,
+            );
         }
     }
 

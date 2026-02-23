@@ -43,16 +43,7 @@ export async function handleUpdateConfirmation(controller, prompt, pending, sess
                 message: `${controller.entityName} updated successfully.`,
             };
         } catch (error) {
-            const details = error?.message || String(error);
-            const dependencyConflict = /(foreign key|constraint|referenc|dependent|violat)/i.test(details);
-            return {
-                success: false,
-                operation: 'UPDATE',
-                blockedByDependencies: dependencyConflict,
-                message: dependencyConflict
-                    ? `Update blocked because this ${controller.entityName} is referenced or constrained by related records. Details: ${details}`
-                    : `Failed to update ${controller.entityName}: ${details}`,
-            };
+            return controller.buildCrudFailureResult(CRUD_OPERATIONS.UPDATE, error);
         }
     }
 
@@ -348,11 +339,12 @@ export async function handleUpdateFieldCapture(controller, prompt, pending, sess
         if (sessionMemory) {
             sessionMemory.set(key, pending);
         }
+        const errorMessage = controller.extractErrorMessage(error);
         return {
             success: false,
             operation: 'UPDATE',
             requiresInput: true,
-            message: `I could not process that update request.\n\n${controller.buildUpdateCaptureInstructions('', pending.record)}\n\nDetails: ${error.message}`,
+            message: `I could not process that update request due to a system error.\n\n${controller.buildUpdateCaptureInstructions('', pending.record)}\n\nDetails: ${errorMessage}`,
         };
     }
 }

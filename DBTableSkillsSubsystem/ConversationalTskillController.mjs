@@ -225,6 +225,95 @@ export class ConversationalTskillController {
         return parts.join('\n- ');
     }
 
+    getOperationVerb(operation = '') {
+        const normalized = String(operation || '').trim().toUpperCase();
+        switch (normalized) {
+            case CRUD_OPERATIONS.CREATE:
+                return 'create';
+            case CRUD_OPERATIONS.UPDATE:
+                return 'update';
+            case CRUD_OPERATIONS.DELETE:
+                return 'delete';
+            case CRUD_OPERATIONS.SELECT:
+                return 'retrieve';
+            default:
+                return 'complete';
+        }
+    }
+
+    extractErrorMessage(error) {
+        if (error === null || error === undefined) return '';
+        if (typeof error === 'string') return error;
+        if (typeof error?.message === 'string') return error.message;
+        try {
+            return JSON.stringify(error);
+        } catch {
+            return String(error);
+        }
+    }
+
+    isDependencyErrorMessage(message) {
+        return /(foreign key|constraint|referenc|dependent|violat)/i.test(String(message || ''));
+    }
+
+    isDuplicateErrorMessage(message) {
+        return /(already exists|duplicate|unique constraint|must be unique|uniqueness|duplicate key|conflict)/i.test(String(message || ''));
+    }
+
+    isServiceUnavailableMessage(message) {
+        return /(dbadapter not available|database service is not available|service unavailable|cannot access database|failed to read .* records|failed to query)/i.test(String(message || ''));
+    }
+
+    isTimeoutMessage(message) {
+        return /(timed out|timeout)/i.test(String(message || ''));
+    }
+
+    buildCrudFailureMessage(operation, error) {
+        const verb = this.getOperationVerb(operation);
+        const entity = String(this.entityName || 'record');
+
+        let details = this.extractErrorMessage(error);
+        details = this.sanitizeErrorTextForUser(details, 'short');
+        details = String(details || '')
+            .replace(/^error:\s*/i, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!details) {
+            return `Cannot ${verb} ${entity} right now due to an unexpected error.`;
+        }
+
+        if (/^(cannot|failed to|unable to)\b/i.test(details)) {
+            return details;
+        }
+
+        if (this.isTimeoutMessage(details)) {
+            return `Cannot ${verb} ${entity} right now because the request timed out. Please try again.`;
+        }
+
+        if (this.isServiceUnavailableMessage(details)) {
+            return `Cannot ${verb} ${entity} right now because the database service is unavailable. Details: ${details}`;
+        }
+
+        if (this.isDuplicateErrorMessage(details)) {
+            return `Cannot ${verb} ${entity} because a record with the same unique value already exists. Details: ${details}`;
+        }
+
+        if (this.isDependencyErrorMessage(details)) {
+            return `Cannot ${verb} ${entity} because related records depend on it. Details: ${details}`;
+        }
+
+        return `Cannot ${verb} ${entity}. Details: ${details}`;
+    }
+
+    buildCrudFailureResult(operation, error) {
+        return {
+            success: false,
+            operation: String(operation || 'UNKNOWN').toUpperCase(),
+            message: this.buildCrudFailureMessage(operation, error),
+        };
+    }
+
     isAbortCommand(prompt) {
         const text = String(prompt || '').trim().toLowerCase();
         if (!text) return false;
@@ -289,6 +378,42 @@ export class ConversationalTskillController {
             mutable[fieldName] = fieldDef;
         }
         return mutable;
+    }
+
+    getListTableFields(options = {}) {
+        const includePrimaryKey = Boolean(options?.includePrimaryKey);
+        const configured = Array.isArray(this.parsedSkill?.listDisplayFields)
+            ? this.parsedSkill.listDisplayFields
+            : [];
+        const orderedFields = configured.length > 0
+            ? [...configured]
+            : Object.keys(this.fields || {});
+
+        if (
+            includePrimaryKey
+            && this.hasValue(this.primaryKey)
+            && !orderedFields.includes(this.primaryKey)
+        ) {
+            orderedFields.unshift(this.primaryKey);
+        }
+
+        const uniqueFields = [];
+        const seen = new Set();
+        for (const rawField of orderedFields) {
+            const fieldName = String(rawField || '').trim();
+            if (!fieldName || seen.has(fieldName)) continue;
+            seen.add(fieldName);
+            uniqueFields.push(fieldName);
+        }
+
+        const tableFields = {};
+        for (const fieldName of uniqueFields) {
+            tableFields[fieldName] = this.fields?.[fieldName] || { name: fieldName };
+        }
+
+        return Object.keys(tableFields).length > 0
+            ? tableFields
+            : (this.fields || {});
     }
 
     sanitizeUpdateChanges(data, options = {}) {
@@ -522,7 +647,7 @@ export class ConversationalTskillController {
 
         const sanitized = sanitizeRecordsForUser(records || []);
         const paging = paginateRecords(sanitized, page, pageSize);
-        const table = formatRecordsTable(paging.items, this.fields, this.entityName, {
+        const table = formatRecordsTable(paging.items, this.getListTableFields({ includePrimaryKey: true }), this.entityName, {
             resolveLabel: (fieldName) => this.getFieldLabel(fieldName, 'short'),
         });
         const from = paging.total === 0 ? 0 : paging.start + 1;
@@ -611,7 +736,7 @@ export class ConversationalTskillController {
     }
 
     buildSelectPageMessage(paging) {
-        const table = formatRecordsTable(paging.items, this.fields, this.entityName, {
+        const table = formatRecordsTable(paging.items, this.getListTableFields(), this.entityName, {
             resolveLabel: (fieldName) => this.getFieldLabel(fieldName, 'short'),
         });
         const hasMultiplePages = paging.totalPages > 1;
@@ -629,7 +754,7 @@ export class ConversationalTskillController {
     buildSelectAllResult(records) {
         const allRecords = Array.isArray(records) ? records : [];
         const total = allRecords.length;
-        const table = formatRecordsTable(allRecords, this.fields, this.entityName, {
+        const table = formatRecordsTable(allRecords, this.getListTableFields(), this.entityName, {
             resolveLabel: (fieldName) => this.getFieldLabel(fieldName, 'short'),
         });
         return {
@@ -729,40 +854,46 @@ export class ConversationalTskillController {
         this._currentContext = context;
         
         const { sessionMemory } = context || {};
+        let parsedOperation = null;
 
-        // 1. Check for pending state first
-        if (sessionMemory) {
-            const pendingResult = await this.handlePendingState(prompt, sessionMemory);
-            if (pendingResult) return pendingResult;
-        }
+        try {
+            // 1. Check for pending state first
+            if (sessionMemory) {
+                const pendingResult = await this.handlePendingState(prompt, sessionMemory);
+                if (pendingResult) return pendingResult;
+            }
 
-        // 2. Parse the operation from the user's prompt
-        await this.writeProgress(`Analyzing request for ${this.entityName}...`);
-        const operation = await this.parseOperation(prompt);
+            // 2. Parse the operation from the user's prompt
+            await this.writeProgress(`Analyzing request for ${this.entityName}...`);
+            parsedOperation = await this.parseOperation(prompt);
 
-        // 3. Create execution context with DB operations
-        const execContext = this.subsystem.createExecutionContext(
-            this.functions,
-            this.entityName,
-        );
+            // 3. Create execution context with DB operations
+            const execContext = this.subsystem.createExecutionContext(
+                this.functions,
+                this.entityName,
+            );
 
-        // 4. Route to the appropriate flow
-        await this.writeProgress(`Executing ${operation.operation} operation...`);
-        switch (operation.operation) {
-            case CRUD_OPERATIONS.CREATE:
-                return this.createFlow(operation, execContext, sessionMemory);
-            case CRUD_OPERATIONS.UPDATE:
-                return this.updateFlow(operation, execContext, sessionMemory);
-            case CRUD_OPERATIONS.DELETE:
-                return this.deleteFlow(operation, execContext, sessionMemory);
-            case CRUD_OPERATIONS.SELECT:
-                return this.selectFlow(operation, execContext, sessionMemory, prompt);
-            default:
-                return {
-                    success: false,
-                    operation: operation.operation || 'UNKNOWN',
-                    message: `Unknown operation: ${operation.operation}`,
-                };
+            // 4. Route to the appropriate flow
+            await this.writeProgress(`Executing ${parsedOperation.operation} operation...`);
+            switch (parsedOperation.operation) {
+                case CRUD_OPERATIONS.CREATE:
+                    return this.createFlow(parsedOperation, execContext, sessionMemory);
+                case CRUD_OPERATIONS.UPDATE:
+                    return this.updateFlow(parsedOperation, execContext, sessionMemory);
+                case CRUD_OPERATIONS.DELETE:
+                    return this.deleteFlow(parsedOperation, execContext, sessionMemory);
+                case CRUD_OPERATIONS.SELECT:
+                    return this.selectFlow(parsedOperation, execContext, sessionMemory, prompt);
+                default:
+                    return {
+                        success: false,
+                        operation: parsedOperation.operation || 'UNKNOWN',
+                        message: `Unknown operation: ${parsedOperation.operation}`,
+                    };
+            }
+        } catch (error) {
+            const operation = parsedOperation?.operation || 'UNKNOWN';
+            return this.buildCrudFailureResult(operation, error);
         }
     }
 

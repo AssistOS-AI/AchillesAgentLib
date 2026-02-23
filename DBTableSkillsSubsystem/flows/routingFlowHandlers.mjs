@@ -318,6 +318,72 @@ export async function handlePendingState(controller, prompt, sessionMemory) {
     return null;
 }
 
+/**
+ * Fallback operation parsing when LLM is unavailable.
+ * Uses simple pattern matching to determine operation type.
+ */
+function fallbackOperationParsing(prompt, controller, sessionMemory) {
+    const lowerPrompt = prompt.toLowerCase().trim();
+    
+    // First check if there's an ongoing session that should be continued
+    if (sessionMemory) {
+        // Check for ongoing UPDATE session
+        const updateKey = pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.UPDATE);
+        const pendingUpdate = sessionMemory.get(updateKey);
+        if (pendingUpdate) {
+            return {
+                operation: 'UPDATE',
+                filter: { [controller.primaryKey]: pendingUpdate.id }
+            };
+        }
+        
+        // Check for ongoing CREATE session
+        const createKey = pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.CREATE);
+        const pendingCreate = sessionMemory.get(createKey);
+        if (pendingCreate) {
+            return { operation: 'CREATE' };
+        }
+        
+        // Check for ongoing DELETE session
+        const deleteKey = pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.DELETE);
+        const pendingDelete = sessionMemory.get(deleteKey);
+        if (pendingDelete) {
+            return { operation: 'DELETE' };
+        }
+    }
+    
+    // No ongoing session - use keyword matching
+    if (lowerPrompt.includes('create') || lowerPrompt.includes('add') || lowerPrompt.includes('new')) {
+        return { operation: 'CREATE' };
+    }
+    
+    if (lowerPrompt.includes('delete') || lowerPrompt.includes('remove')) {
+        return { operation: 'DELETE' };
+    }
+    
+    if (lowerPrompt.includes('change') || lowerPrompt.includes('update') || lowerPrompt.includes('modify')) {
+        // For change/update operations, try to extract the ID
+        let idMatch = lowerPrompt.match(/(?:change|update|modify)\s+(\w+)\s+([a-zA-Z0-9]+)/);
+        
+        // If no match, try just finding an ID in the prompt
+        if (!idMatch) {
+            idMatch = lowerPrompt.match(/([a-zA-Z][a-zA-Z0-9]+)/);
+        }
+        
+        if (idMatch) {
+            return {
+                operation: 'UPDATE',
+                filter: { [controller.primaryKey]: idMatch[2] || idMatch[1] }
+            };
+        }
+        
+        return { operation: 'UPDATE' };
+    }
+    
+    // Default to SELECT for listing queries
+    return { operation: 'SELECT' };
+}
+
 export async function parseOperation(controller, prompt) {
     const fieldInfo = formatFieldInfo(controller.fields);
     const operationPrompt = buildParseOperationPrompt(
@@ -328,10 +394,17 @@ export async function parseOperation(controller, prompt) {
         controller.parsedSkill.instructions || '',
     );
 
-    const parsed = await controller.llmAgent.executePrompt(operationPrompt, {
-        mode: 'fast',
-        responseShape: 'json',
-    });
+    let parsed;
+    try {
+        parsed = await controller.llmAgent.executePrompt(operationPrompt, {
+            mode: 'fast',
+            responseShape: 'json',
+        });
+    } catch (error) {
+        // LLM failed - use fallback heuristics
+        console.warn(`LLM operation parsing failed: ${controller.extractErrorMessage(error)}`);
+        parsed = fallbackOperationParsing(prompt, controller, controller.sessionMemory);
+    }
 
     let normalizedParsed = parsed && typeof parsed === 'object' ? { ...parsed } : {};
     const parsedOperation = String(normalizedParsed?.operation || '').toUpperCase();
@@ -456,7 +529,7 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
             ? safePresented.slice(Math.max(totalCount - selectWindow.limit, 0))
             : safePresented.slice(0, selectWindow.limit);
 
-        const table = formatRecordsTable(limited, controller.fields, controller.entityName, {
+        const table = formatRecordsTable(limited, controller.getListTableFields(), controller.entityName, {
             resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
         });
 
