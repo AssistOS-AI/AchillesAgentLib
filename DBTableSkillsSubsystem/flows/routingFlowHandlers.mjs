@@ -42,6 +42,18 @@ function normalizeEntity(entityName) {
     return String(entityName || '').trim().toLowerCase();
 }
 
+function getEntityVariants(entityName) {
+    const entity = normalizeEntity(entityName);
+    if (!entity) return [];
+    const variants = new Set([entity, `${entity}s`]);
+    // Common misspelling seen in prompts: "aria" instead of "area".
+    if (entity === 'area') {
+        variants.add('aria');
+        variants.add('arias');
+    }
+    return Array.from(variants);
+}
+
 function canonicalizePrimaryKeyToken(entityName, token) {
     const clean = stripWrappingQuotes(token);
     if (!clean) return null;
@@ -59,10 +71,10 @@ function isLikelyIdToken(token) {
 
 function extractEntityIdMention(prompt, entityName) {
     const text = String(prompt || '').trim();
-    const entity = normalizeEntity(entityName);
-    if (!text || !entity) return null;
+    if (!text) return null;
 
-    const variants = [entity, `${entity}s`];
+    const variants = getEntityVariants(entityName);
+    if (variants.length === 0) return null;
     for (const variant of variants) {
         const safeEntity = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const patterns = [

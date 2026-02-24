@@ -1108,6 +1108,27 @@ test('parseOperation: area DELETE honors explicit delete intent and area ID ment
     assert.deepStrictEqual(parsed.filter, { area_id: 'A6' });
 });
 
+test('parseOperation: area UPDATE tolerates common typo "aria" for "area"', async () => {
+    const parsedSkill = {
+        tableName: 'area',
+        tablePurpose: 'Area tracking',
+        primaryKey: 'area_id',
+        fields: {
+            area_id: { description: 'Area ID' },
+            name: { description: 'Area name' },
+        },
+    };
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: { name: 'a1' },
+    });
+    const { template } = createTemplate({ parsedSkill, llmAgent: llm });
+
+    const parsed = await template.parseOperation('change name for aria a1 to Shelf Area New');
+    assert.strictEqual(parsed.operation, 'UPDATE');
+    assert.deepStrictEqual(parsed.filter, { area_id: 'A1' });
+});
+
 test('parseOperation: material UPDATE maps "for material <id>" to primary key', async () => {
     const parsedSkill = {
         tableName: 'material',
