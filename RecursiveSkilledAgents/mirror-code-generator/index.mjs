@@ -5,16 +5,14 @@ import { promisify } from 'node:util';
 import { getDebugLogger } from '../../utils/DebugLogger.mjs';
 import {
     backupSpecsDirectory,
-    extractTestingSection,
     findSpecFiles,
     specPathToTarget,
 } from './spec-utils.mjs';
 import { parseMultiFileMarkdown } from './llm-utils.mjs';
+import { buildSingleFileCodePrompt } from './templates/codeGeneration.prompts.mjs';
 import {
-    DEFAULT_TESTING_INSTRUCTIONS,
-    generateBehaviorTests,
+    generatePlannedTestsOnDisk,
     repairGeneratedFile,
-    runBehaviorTestsOnDisk,
 } from './testing.mjs';
 
 /**
@@ -137,7 +135,6 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
             }
 
             const specContent = await fs.readFile(specFile.absolutePath, 'utf-8');
-            const testingSection = extractTestingSection(specContent);
             const specForPrompt = `\n\n---\n# Spec for: ${targetPath}\n\n${specContent}`;
 
             let backupSpecForPrompt = '';
@@ -157,42 +154,12 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
                 existingCodeForFile = `\n\n---\n# Existing code: ${targetPath}\n\n${existingFileContent}`;
             }
 
-            const prompt = `
-# Single-File Code Generation Request
-
-You are an expert JavaScript programmer. Generate the full source code for a single ECMAScript module (ESM) based on the provided specification.
-
-## Module Specification
-${specForPrompt}
-
-## Previous Specification (from specs/.backup)
-${backupSpecForPrompt || 'No previous spec was available.'}
-
-## Existing Code Context
-${existingCodeForFile || 'No existing code was available for this file.'}
-
-## INSTRUCTIONS
-- Use the exact relative file path implied by the spec (no extra prefixes like the source directory name).
-- Compare current spec with previous spec when available, and focus changes on the parts that differ.
-- Preserve existing behavior and structure where the spec is unchanged and the current code already works.
-- If the current spec and existing code already implement the same behavior, return the existing code without changes.
-- If the spec contains hardcoded values or exact literals, use them verbatim without modification.
-- Do not generate JSDoc-style comment blocks (e.g. /** ... */ with @param/@throws tags) unless explicitly required by the spec.
-- Your response **MUST** be a single markdown block for the file.
-- You **MUST** use a header to specify the relative file path.
-- Do not add any other text, explanations, or apologies.
-
-### Example Response Format:
-
-## file-path: path/to/file.mjs
-
-\`\`\`javascript
-// code for path/to/file.mjs goes here...
-export const myVar = '...';
-\`\`\`
-
-Provide the code for the file derived from the specification.
-`;
+            const prompt = buildSingleFileCodePrompt({
+                targetPath,
+                specForPrompt,
+                backupSpecForPrompt,
+                existingCodeForFile,
+            });
 
             const response = await llmAgent.executePrompt(prompt, {
                 mode: 'deep',
@@ -218,7 +185,6 @@ Provide the code for the file derived from the specification.
             }
 
             entry.generatedCode = generatedCode;
-            entry.testingSection = testingSection;
             entry.specForPrompt = specForPrompt;
             entry.backupSpecForPrompt = backupSpecForPrompt;
             generatedFiles.set(targetPath, generatedCode);
@@ -305,136 +271,42 @@ Provide the code for the file derived from the specification.
             }
         }
 
-        // Pass 2: test + repair for regenerated files OR generate tests for existing code
-        for (const entry of specEntries) {
-            const { targetPath, needsRegeneration, needsTestGeneration } = entry;
-            
-            // Skip if neither code regeneration nor test generation is needed
-            if (!needsRegeneration && !needsTestGeneration) {
-                continue;
-            }
-
-            let generatedCode = generatedFiles.get(targetPath);
-            
-            // If we only need test generation (code exists but tests don't), read existing code
-            if (!generatedCode && needsTestGeneration) {
-                const outputPath = path.join(sourcePath, targetPath);
-                try {
-                    generatedCode = await fs.readFile(outputPath, 'utf-8');
-                    const specContent = await fs.readFile(entry.specFile.absolutePath, 'utf-8');
-                    entry.testingSection = extractTestingSection(specContent);
-                    entry.specForPrompt = `\n\n---\n# Spec for: ${targetPath}\n\n${specContent}`;
-                } catch (error) {
-                    logger.warn(`[generateMirrorCode] Could not read existing code for test generation: ${targetPath}`);
+        // Pass 2: generate test plans + tests for current codebase
+        const shouldGenerateTests = specEntries.some(entry => (entry.needsRegeneration || entry.needsTestGeneration) && !entry.skipTests);
+        if (shouldGenerateTests) {
+            const codeFiles = new Map();
+            for (const entry of specEntries) {
+                if (entry.skipTests) {
                     continue;
                 }
+                const outputPath = path.join(sourcePath, entry.targetPath);
+                const exists = await fs.stat(outputPath).then(stat => stat.isFile()).catch(() => false);
+                if (!exists) {
+                    logger.warn(`[generateMirrorCode] Could not read code for test planning: ${entry.targetPath}`);
+                    continue;
+                }
+                const content = await fs.readFile(outputPath, 'utf-8');
+                const normalizedPath = entry.targetPath.replace(/\\/g, '/');
+                codeFiles.set(normalizedPath, content);
             }
-            
-            if (!generatedCode) {
-                continue;
-            }
 
-            if (entry.skipTests) {
-                continue;
-            }
-
-            const testingSection = entry.testingSection;
-            const specForPrompt = entry.specForPrompt;
-            const backupSpecForPrompt = entry.backupSpecForPrompt;
-
-            const normalizedTargetPath = targetPath.replace(/\\/g, '/');
-            const importPath = `../${normalizedTargetPath}`;
-            const { tests, runnerCode } = testingSection
-                ? await generateBehaviorTests(specForPrompt, generatedCode, llmAgent, {
-                    testingInstructions: testingSection,
-                    intent: 'generate-behavior-tests-from-section',
-                    errorLabel: 'Behavior test generation (section)',
-                    importPath,
-                })
-                : await generateBehaviorTests(specForPrompt, generatedCode, llmAgent, {
-                    testingInstructions: DEFAULT_TESTING_INSTRUCTIONS,
-                    intent: 'generate-core-behavior-tests',
-                    errorLabel: 'Core behavior test generation',
-                    importPath,
-                });
-            debugLogger?.log('generateMirrorCode:testsGenerated', { source: sourceName, path: targetPath, count: tests.length });
-
-            debugLogger?.log('generateMirrorCode:testsRun:start', { source: sourceName, path: targetPath, phase: 'initial' });
-            let testResults = await runBehaviorTestsOnDisk(sourcePath, targetPath, tests, runnerCode, { logger });
+            const allowRepair = specEntries.some(entry => entry.needsRegeneration && !entry.skipTests);
+            const testResults = await generatePlannedTestsOnDisk(sourcePath, codeFiles, llmAgent, { logger, allowRepair });
             if (testResults?.skipped) {
-                debugLogger?.log('generateMirrorCode:testsRun:skipped', { source: sourceName, path: targetPath, phase: 'initial' });
-                continue;
-            }
-            debugLogger?.log('generateMirrorCode:testsRun:complete', {
-                source: sourceName,
-                path: targetPath,
-                phase: 'initial',
-                failures: testResults.results.filter(result => !result.pass).length,
-            });
-            const failures = testResults.results.filter(result => !result.pass);
-
-            // Only repair if we regenerated the code (don't modify existing code when only generating tests)
-            if (failures.length > 0 && needsRegeneration) {
-                debugLogger?.log('generateMirrorCode:repair:start', { source: sourceName, path: targetPath, failures: failures.length });
-                const repairFailures = failures.map(failure => ({
-                    name: failure.name,
-                    input: failure.input,
-                    expectedOutput: failure.expectedOutput,
-                    actual: failure.actual,
-                }));
-                generatedCode = await repairGeneratedFile(
-                    targetPath,
-                    specForPrompt,
-                    backupSpecForPrompt,
-                    generatedCode,
-                    repairFailures,
-                    llmAgent,
-                    'repair-single-file-from-test-failures',
-                    { runnerCode, tests }
-                );
-
-                generatedFiles.set(targetPath, generatedCode);
-                const outputPath = path.join(sourcePath, targetPath);
-                await fs.mkdir(path.dirname(outputPath), { recursive: true });
-                await fs.writeFile(outputPath, generatedCode, 'utf-8');
-                debugLogger?.log('generateMirrorCode:wroteFile', { source: sourceName, path: outputPath });
-
-                debugLogger?.log('generateMirrorCode:repair:complete', { source: sourceName, path: targetPath });
-                debugLogger?.log('generateMirrorCode:testsRun:start', { source: sourceName, path: targetPath, phase: 'rerun' });
-                testResults = await runBehaviorTestsOnDisk(sourcePath, targetPath, tests, runnerCode, { logger });
-                if (testResults?.skipped) {
-                    debugLogger?.log('generateMirrorCode:testsRun:skipped', { source: sourceName, path: targetPath, phase: 'rerun' });
-                    continue;
-                }
+                debugLogger?.log('generateMirrorCode:testsRun:skipped', { source: sourceName });
+            } else if (testResults?.failedTests) {
+                const failures = testResults.failedTests.filter(result => !result.pass);
                 debugLogger?.log('generateMirrorCode:testsRun:complete', {
                     source: sourceName,
-                    path: targetPath,
-                    phase: 'rerun',
-                    failures: testResults.results.filter(result => !result.pass).length,
+                    failures: failures.length,
                 });
-                const retryFailures = testResults.results.filter(result => !result.pass);
-                for (const failure of retryFailures) {
-                    logger.warn(
-                        `[generateMirrorCode] Test failed after repair for "${targetPath}". ` +
-                        `Name: ${JSON.stringify(failure.name)} ` +
-                        `Input: ${JSON.stringify(failure.input)} ` +
-                        `ExpectedOutput: ${JSON.stringify(failure.expectedOutput)} ` +
-                        `Actual: ${JSON.stringify(failure.actual)}`
-                    );
-                }
-            } else if (failures.length > 0 && needsTestGeneration) {
-                // Log test failures for existing code without attempting repair
                 for (const failure of failures) {
                     logger.warn(
-                        `[generateMirrorCode] Test failed for existing code "${targetPath}". ` +
-                        `Name: ${JSON.stringify(failure.name)} ` +
-                        `Input: ${JSON.stringify(failure.input)} ` +
-                        `ExpectedOutput: ${JSON.stringify(failure.expectedOutput)} ` +
-                        `Actual: ${JSON.stringify(failure.actual)}`
+                        `[generateMirrorCode] Test failed for "${failure.file}". ` +
+                        `${failure.error ? `Error: ${failure.error}` : ''}`
                     );
                 }
             }
-
         }
 
         if (hasTestOnlyWork) {
@@ -455,5 +327,3 @@ Provide the code for the file derived from the specification.
         throw error;
     }
 }
-
-export { generateBehaviorTests };
