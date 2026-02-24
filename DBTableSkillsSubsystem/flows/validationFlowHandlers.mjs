@@ -75,7 +75,8 @@ export async function handleValidationCorrections(controller, prompt, pending, s
             mode: 'fast',
             responseShape: 'json',
         });
-        let corrected = result?.correctedData || {};
+        const extractedCorrections = controller.filterKnownFields(result?.correctedData || {});
+        let corrected = extractedCorrections;
         let blockedFields = Array.isArray(pending.blockedFields)
             ? [...pending.blockedFields]
             : [];
@@ -96,6 +97,26 @@ export async function handleValidationCorrections(controller, prompt, pending, s
                 ...blockedFields,
                 ...(sanitized.blockedFields || []),
             ]));
+
+            // If no effective correction was extracted, do not mislead the user with
+            // "Updated data is valid". Either break to a fresh command or ask for corrections.
+            if (Object.keys(extractedCorrections).length === 0 || Object.keys(sanitized.changes || {}).length === 0) {
+                if (isLikelyNewCommand(trimmedPrompt)) {
+                    sessionMemory.delete(key);
+                    return null;
+                }
+
+                sessionMemory.set(key, {
+                    ...pending,
+                    blockedFields,
+                });
+                return {
+                    success: false,
+                    operation: pending.operation,
+                    requiresInput: true,
+                    message: `${controller.buildImmutableUpdateNotice(blockedFields) ? `${controller.buildImmutableUpdateNotice(blockedFields)}\n\n` : ''}I could not extract any valid correction from your last message.\n\nPlease provide the field and value explicitly (example: "Location Type is Tool room"), or type **cancel** to abort.`,
+                };
+            }
         }
 
         const immutableNotice = controller.buildImmutableUpdateNotice(blockedFields);
