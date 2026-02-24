@@ -9,11 +9,11 @@
         "axiologic_kiro/claude-haiku-4.5"
     ],
     "deepModelPriority": [
-        "axiologic_proxy/gemini-2.5-pro",
-        "openrouter/deepseek/deepseek-r1-0528",
         "openrouter/deepseek/deepseek-v3.2",
+        "openrouter/deepseek/deepseek-r1-0528",
         "openrouter/deepseek/deepseek-v3.1-terminus",
         "opencode/qwen3-coder",
+        "axiologic_proxy/gemini-2.5-pro",
         "soul_gateway/axiologic-deep",
         "soul_gateway/axiologic-ultra",
         "axiologic_proxy/gpt-5.3-codex",
