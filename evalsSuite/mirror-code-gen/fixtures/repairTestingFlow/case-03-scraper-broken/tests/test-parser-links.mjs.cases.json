@@ -1,0 +1,73 @@
+[
+  {
+    "description": "HTML with multiple anchor tags extracts all href values",
+    "input": "<html><a href=\"/home\">Home</a><a href=\"/about\">About</a><p>Text</p><a href=\"/contact\">Contact</a></html>",
+    "expected": [
+      "/home",
+      "/about",
+      "/contact"
+    ]
+  },
+  {
+    "description": "Anchor tags without href are ignored",
+    "input": "<a>No href</a><a href=\"/valid\">Valid</a><a>Another no href</a>",
+    "expected": [
+      "/valid"
+    ]
+  },
+  {
+    "description": "Tags with malformed quotes or no href attribute are ignored",
+    "input": "<a href=/nosinglequote>No quote</a><a href=\"/valid\">Valid</a><a href=\"/double\"invalid>Broken</a><a href='/single'>Single</a>",
+    "expected": [
+      "/valid",
+      "/single"
+    ]
+  },
+  {
+    "description": "Empty string input returns empty array",
+    "input": "",
+    "expected": []
+  },
+  {
+    "description": "Non-HTML string returns empty array",
+    "input": "This is just plain text with no HTML tags at all",
+    "expected": []
+  },
+  {
+    "description": "Case-insensitive href attribute matching",
+    "input": "<a HREF=\"/uppercase\">Upper</a><a hReF=\"/mixed\">Mixed</a><a href=\"/lower\">Lower</a>",
+    "expected": [
+      "/uppercase",
+      "/mixed",
+      "/lower"
+    ]
+  },
+  {
+    "description": "Tags with other attributes and href",
+    "input": "<a class=\"btn\" href=\"/page\" target=\"_blank\">Link</a><a data-test=\"value\" href=\"/another\">Another</a>",
+    "expected": [
+      "/page",
+      "/another"
+    ]
+  },
+  {
+    "description": "Tags with href containing query parameters",
+    "input": "<a href=\"/search?q=test&sort=desc\">Search</a><a href=\"/page#section\">Section</a>",
+    "expected": [
+      "/search?q=test&sort=desc",
+      "/page#section"
+    ]
+  },
+  {
+    "description": "Self-closing anchor tag (should not match)",
+    "input": "<a href=\"/valid\" />",
+    "expected": []
+  },
+  {
+    "description": "Nested tags should still extract href",
+    "input": "<div><a href=\"/nested\"><span>Nested</span></a></div>",
+    "expected": [
+      "/nested"
+    ]
+  }
+]

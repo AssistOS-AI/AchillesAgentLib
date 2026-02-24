@@ -1,0 +1,42 @@
+[
+  {
+    "input": [
+      "about",
+      "contact",
+      "/home"
+    ],
+    "expected": [
+      "/about",
+      "/contact",
+      "/home"
+    ]
+  },
+  {
+    "input": [
+      "http://example.com",
+      "https://example.org/path"
+    ],
+    "expected": [
+      "http://example.com",
+      "https://example.org/path"
+    ]
+  },
+  {
+    "input": [
+      "about",
+      "http://example.com",
+      "/home",
+      "https://example.org"
+    ],
+    "expected": [
+      "/about",
+      "http://example.com",
+      "/home",
+      "https://example.org"
+    ]
+  },
+  {
+    "input": [],
+    "expected": []
+  }
+]
