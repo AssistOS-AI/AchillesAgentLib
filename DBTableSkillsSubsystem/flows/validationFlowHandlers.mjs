@@ -128,10 +128,6 @@ export async function handleValidationCorrections(controller, prompt, pending, s
             };
         }
     } catch (error) {
-        return {
-            success: false,
-            operation: pending.operation,
-            message: `Failed to process corrections: ${error.message}`,
-        };
+        return controller.buildCrudFailureResult(pending.operation, error);
     }
 }

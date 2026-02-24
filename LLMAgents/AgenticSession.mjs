@@ -401,7 +401,15 @@ class LoopAgentSession {
                     // When a tool returns requiresConfirmation or requiresInput, stop and return to user
                     if (toolResult && typeof toolResult === 'object' && 
                         (toolResult.requiresConfirmation || toolResult.requiresInput)) {
-                        const message = toolResult.message || JSON.stringify(toolResult);
+                        let message = toolResult.message;
+                        if (!message) {
+                            try {
+                                message = JSON.stringify(toolResult, null, 2);
+                            } catch (stringifyError) {
+                                // Fallback if JSON.stringify fails (circular references, etc.)
+                                message = `Tool returned an object that cannot be displayed. Keys: ${Object.keys(toolResult).join(', ')}`;
+                            }
+                        }
                         debugLog(`[${getTimestamp()}] [LoopSession] Detected requiresConfirmation/Input, returning message (first 100 chars): "${String(message).substring(0, 100)}..."`);
                         this._debug('[LoopSession]', 'Tool requires input/confirmation', { tool: toolName, message });
                         await logLoopEvent('Awaiting input', message, SESSION_LOG_TRIM_LIMIT);
@@ -424,7 +432,13 @@ class LoopAgentSession {
                         toolResult.success === true && 
                         (toolResult.records || toolResult.message || toolResult.operation)) {
                         // This is a successful skill result - return it as final answer
-                        const resultStr = JSON.stringify(toolResult);
+                        let resultStr;
+                        try {
+                            resultStr = JSON.stringify(toolResult, null, 2);
+                        } catch (stringifyError) {
+                            // Fallback if JSON.stringify fails (circular references, etc.)
+                            resultStr = `Tool returned a successful result that cannot be displayed. Keys: ${Object.keys(toolResult).join(', ')}`;
+                        }
                         debugLog(`[${getTimestamp()}] [LoopSession] Detected successful skill result, returning as final answer`);
                         this._debug('[LoopSession]', 'Tool success result returned as final answer', { tool: toolName });
                         turn.finalAnswer = resultStr;

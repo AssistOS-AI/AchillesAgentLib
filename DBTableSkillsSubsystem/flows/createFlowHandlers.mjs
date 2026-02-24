@@ -1,5 +1,5 @@
 import { resolveConfirmation } from '../../utils/ConfirmationUtils.mjs';
-import { PENDING_STATE_SUFFIXES, pendingKey } from '../constants.mjs';
+import { CRUD_OPERATIONS, PENDING_STATE_SUFFIXES, pendingKey } from '../constants.mjs';
 import {
     buildExtractCreateDataPrompt,
     formatFieldInfo,
@@ -105,11 +105,12 @@ export async function handleCreateFieldCapture(controller, prompt, pending, sess
         extractedData = await extractCreateDataFromInput(controller, prompt, pending);
     } catch (error) {
         sessionMemory.set(key, pending);
+        const errorMessage = controller.extractErrorMessage(error);
         return {
             success: false,
             operation: 'CREATE',
             requiresInput: true,
-            message: `${controller.buildCreateCaptureMessage(pending, 'I could not process that input.')}\n\nDetails: ${error.message}`,
+            message: `${controller.buildCreateCaptureMessage(pending, 'I could not process that input due to a system error.')}\n\nDetails: ${errorMessage}`,
         };
     }
 
@@ -212,11 +213,7 @@ export async function handleCreateConfirmation(controller, prompt, pending, sess
                 message: `${controller.entityName} created successfully.`,
             };
         } catch (error) {
-            return {
-                success: false,
-                operation: 'CREATE',
-                message: `Failed to create ${controller.entityName}: ${error.message}`,
-            };
+            return controller.buildCrudFailureResult(CRUD_OPERATIONS.CREATE, error);
         }
     }
 
@@ -332,11 +329,7 @@ export async function handleCreateConflictUpdateConfirmation(
                 message: `${controller.entityName} ${recordId} already existed. Updated successfully using the provided values.`,
             };
         } catch (error) {
-            return {
-                success: false,
-                operation: 'UPDATE',
-                message: `Failed to update existing ${controller.entityName}: ${error.message}`,
-            };
+            return controller.buildCrudFailureResult(CRUD_OPERATIONS.UPDATE, error);
         }
     }
 
