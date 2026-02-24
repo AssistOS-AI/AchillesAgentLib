@@ -10,7 +10,6 @@
 ## Per-File Flow Details
 
 1) Read the spec file.
-2) Detect `#Validation` or `#Testing` section (used to guide test generation).
 
 Inputs gathered for code generation:
 - Current spec content.
@@ -24,27 +23,23 @@ Generation steps:
    - If it fails, run a repair pass using spec + backup + generated code + syntax error.
    - Re-write the file and re-run `node --check`.
    - If it fails again, revert to the previous on-disk version (or remove the file if none) and skip tests for this file.
-4) Generate positive tests and a matching runner (module API is inferred; no fixed contract).
-   - If `#Validation/#Testing` exists, that section guides test generation; otherwise a default core prompt is used.
-5) Write `tests/test-cases.json` and `tests/run-tests.mjs` to disk (no validation at write time).
-6) Validate test artifacts:
-   - `node --check` on `tests/run-tests.mjs`
-   - `node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" tests/test-cases.json`
-   - If either fails, log and skip testing (files remain written).
-7) Execute the runner to get `results`.
-8) If tests fail, repair using:
-   - Spec (authoritative), backup spec, generated code, failure details (name/input/expected/actual), tests, and runner.
-   - Priority rule: follow specs first; if possible, keep compatibility with runner/tests.
-   - Re-write the file and re-run the same runner/tests (no regeneration).
+4) Build a test plan from the current on-disk codebase (no specs provided).
+   - Plans can cover multiple source files when behavior spans modules.
+5) Generate one or more executable test files plus optional test-case JSON artifacts.
+6) Write the tests under `tests/` (create folders as needed), then syntax-check each test file.
+7) Ensure `tests/runAll.mjs` exists (copied from a template when missing).
+8) Execute `tests/runAll.mjs` to run all `.mjs`/`.js` files under `tests/` recursively.
+9) If tests fail, repair iteratively across referenced source files, then re-run once.
+   - If a file is not responsible, the repair step should return it unchanged.
    - If failures remain, log warnings and keep the code as-is.
 
 ### Tests-Only Flow (No Regeneration)
 
 If all spec files are up-to-date but `tests/` is missing:
-- Read the spec file and extract `#Validation/#Testing` section (if present).
-- Generate positive tests and a runner for the existing code.
-- Do not use `specs/.backup` when building the test prompt.
-- Run tests and log failures without repairing the code.
+- Build a test plan from the current on-disk codebase (no specs provided).
+- Generate executable test files and optional test-case JSON artifacts.
+- Ensure `tests/runAll.mjs` exists, then run it.
+- Log failures without repairing the code.
 - Stop after tests are generated; do not update `specs/.backup`.
 
 ### Common Final Step
@@ -82,15 +77,14 @@ Syntax check (node --check)
   |-- Pass --> Continue
   |
   v
-Generate tests + runner (use #Validation/#Testing if present)
-Write tests/test-cases.json + tests/run-tests.mjs
-Validate runner + cases JSON
-  |-- Fail --> Log + skip tests
-  |-- Pass --> Run tests
-  |
-  v
-Failures? -> Repair (specs first, then runner/tests)
-          -> Rewrite -> Rerun same runner/tests
+Build test plan from current codebase
+Generate test files + optional test-cases JSON
+Write tests/ (create folders as needed)
+Syntax-check each test file
+Ensure tests/runAll.mjs (copy template if missing)
+Run tests/runAll.mjs (executes all .mjs/.js under tests/)
+Failures? -> Repair iteratively across referenced source files
+          -> Rerun once
           -> Warn if still failing
   |
   v

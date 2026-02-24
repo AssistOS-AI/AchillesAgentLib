@@ -2,12 +2,23 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { parseJsonResponse, parseMultiFileMarkdown } from './llm-utils.mjs';
 
 const DEFAULT_TESTING_INSTRUCTIONS_RAW = `
 Focus on the core/primary functionality of the code. Only include tests that reflect the most important functions or
 behaviors; skip minor helpers, formatting-only cases, and edge cases.
 `;
+
+const DEFAULT_TEST_PLAN_INSTRUCTIONS_RAW = `
+Analyze the current codebase and propose a clear, minimal set of test plans.
+Each plan should describe what functionality to test, how to test it, and what kinds of cases are needed.
+Use cross-file plans when the behavior spans multiple modules.
+Do not reference specs or requirements outside the code shown.
+Return only JSON in the requested format.
+`;
+
+const DEFAULT_TEST_PLAN_INSTRUCTIONS = DEFAULT_TEST_PLAN_INSTRUCTIONS_RAW.trim();
 
 function buildBehaviorTestPrompt({
     testingInstructions,
@@ -105,6 +116,334 @@ Return STRICT JSON with the following shape and no extra keys:
 }
 Keep the test list small (4-8 tests).
 `;
+}
+
+function buildSourceFilesListing(sourceFiles) {
+    if (!sourceFiles || sourceFiles.size === 0) {
+        return 'No source files were provided.';
+    }
+    const sections = [];
+    for (const [filePath, content] of sourceFiles.entries()) {
+        sections.push(`${filePath}:\n${content}`);
+    }
+    return sections.join('\n\n');
+}
+
+function buildTestPlanPrompt({
+    testingInstructions,
+    sourceFiles,
+}) {
+    return `
+# Test Plan Generation
+
+You are an expert test strategist. Read the current codebase and propose a structured test plan.
+Your plan must describe which behaviors to test, how to test them, and what test case types are needed.
+
+## Output Format (STRICT JSON ONLY)
+{
+  "testPlans": [
+    {
+      "description": "Detailed natural language description of the tests and case types.",
+      "sourceFiles": ["relative/path/to/file.mjs", "..."]
+    }
+  ]
+}
+
+## testing
+${testingInstructions}
+
+## Source Files
+${buildSourceFilesListing(sourceFiles)}
+
+Return ONLY a single JSON object. Do not include markdown fences, commentary, or any extra text.
+If you cannot produce a plan, still return {"testPlans": []}.
+`;
+}
+
+function buildTestFilePrompt({
+    description,
+    sourceFiles,
+}) {
+    return `
+# Test File Generation
+
+You are an expert JavaScript test author. Generate one executable test file based on the described plan.
+The test file must be runnable with Node.js (ESM) and must write JSON results to stdout.
+
+## Plan Description
+${description}
+
+## Source Files
+${buildSourceFilesListing(sourceFiles)}
+
+## Output Format (STRICT JSON ONLY)
+{
+  "fileName": "path/to/test-file.mjs",
+  "content": "full test file content",
+  "testCases": { "any": "json" }
+}
+
+Rules:
+- Return ONLY a single JSON object, no markdown fences or extra text.
+- The test file will be written under the tests/ directory using the provided fileName.
+- The test file MUST produce a results array and MUST write it to stdout exactly as JSON:
+  process.stdout.write(JSON.stringify({ results }));
+- Each results entry MUST include:
+  - expected: any JSON value
+  - actual: any JSON value
+  - pass: boolean
+- Do not include an "error" field in results entries. Use pass=false with expected/actual for mismatches.
+- Do not write any other stdout output.
+- If you return a non-empty testCases JSON object, it will be written under tests/ at "<fileName>.cases.json".
+- The test file must read from that cases file path when applicable (relative to the tests/ directory).
+- If no testCases are needed, return an empty object {}.
+- If you cannot produce tests, still return a JSON object with "fileName", "content", and an empty "testCases" object.
+`;
+}
+
+function isEmptyTestCases(value) {
+    if (!value) {
+        return true;
+    }
+    if (Array.isArray(value)) {
+        return value.length === 0;
+    }
+    if (typeof value === 'object') {
+        return Object.keys(value).length === 0;
+    }
+    return false;
+}
+
+export async function generateTestPlans(sourceFiles, llmAgent, options = {}) {
+    const {
+        testingInstructions = DEFAULT_TEST_PLAN_INSTRUCTIONS,
+        intent = 'generate-test-plans',
+        errorLabel = 'Test plan generation',
+    } = options || {};
+
+    const prompt = buildTestPlanPrompt({
+        testingInstructions,
+        sourceFiles,
+    });
+
+    const response = await llmAgent.executePrompt(prompt, {
+        mode: 'deep',
+        responseShape: 'json',
+        context: { intent },
+    });
+
+    const parsed = parseJsonResponse(response, errorLabel);
+    if (!parsed || !Array.isArray(parsed.testPlans) || parsed.testPlans.length === 0) {
+        throw new Error(`${errorLabel} returned no test plans.`);
+    }
+
+    return parsed.testPlans.filter((plan) => plan
+        && typeof plan.description === 'string'
+        && Array.isArray(plan.sourceFiles)
+        && plan.sourceFiles.length > 0);
+}
+
+export async function generateTestFileForPlan(plan, sourceFiles, llmAgent, options = {}) {
+    const {
+        intent = 'generate-test-file',
+        errorLabel = 'Test file generation',
+    } = options || {};
+
+    const prompt = buildTestFilePrompt({
+        description: plan.description,
+        sourceFiles,
+    });
+
+    const response = await llmAgent.executePrompt(prompt, {
+        mode: 'deep',
+        responseShape: 'json',
+        context: { intent },
+    });
+
+    const parsed = parseJsonResponse(response, errorLabel);
+    if (!parsed || typeof parsed.fileName !== 'string' || typeof parsed.content !== 'string') {
+        throw new Error(`${errorLabel} returned invalid fileName/content.`);
+    }
+
+    return {
+        fileName: parsed.fileName.trim(),
+        content: parsed.content,
+        testCases: parsed.testCases,
+    };
+}
+
+export async function ensureRunAllTemplate(skillDir, logger = console) {
+    const templatePath = path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        'templates',
+        'runAll.mjs'
+    );
+    const testsDir = path.join(skillDir, 'tests');
+    const targetPath = path.join(testsDir, 'runAll.mjs');
+    const exists = await fs.stat(targetPath).then(stat => stat.isFile()).catch(() => false);
+    if (exists) {
+        return targetPath;
+    }
+    await fs.mkdir(testsDir, { recursive: true });
+    await fs.copyFile(templatePath, targetPath);
+    logger.log(`[generateMirrorCode] Wrote test runner template to ${targetPath}`);
+    return targetPath;
+}
+
+export async function runAllTestsOnDisk(skillDir, logger = console) {
+    const execFileAsync = promisify(execFile);
+    const testsDir = path.join(skillDir, 'tests');
+    const runnerPath = path.join(testsDir, 'runAll.mjs');
+    const exists = await fs.stat(runnerPath).then(stat => stat.isFile()).catch(() => false);
+    if (!exists) {
+        logger.warn(`[generateMirrorCode] runAll.mjs not found in ${testsDir}. Skipping tests.`);
+        return { failedTests: [], skipped: true };
+    }
+
+    try {
+        const { stdout } = await execFileAsync('node', [runnerPath], { cwd: testsDir, maxBuffer: 10 * 1024 * 1024 });
+        const parsed = JSON.parse(stdout);
+        if (!parsed || !Array.isArray(parsed.failedTests)) {
+            throw new Error('runAll.mjs returned invalid results.');
+        }
+        return parsed;
+    } catch (error) {
+        const stderr = error?.stderr ? String(error.stderr) : '';
+        const stdout = error?.stdout ? String(error.stdout) : '';
+        const message = error?.message ? String(error.message) : '';
+        const details = [message, stderr, stdout].filter(Boolean).join('\n');
+        logger.warn(`[generateMirrorCode] runAll.mjs execution failed.\n${details}`);
+        return { failedTests: [], skipped: false, error: details };
+    }
+}
+
+export async function generatePlannedTestsOnDisk(
+    skillDir,
+    sourceFiles,
+    llmAgent,
+    { logger = console, testingInstructions = DEFAULT_TEST_PLAN_INSTRUCTIONS, allowRepair = false } = {}
+) {
+    const execFileAsync = promisify(execFile);
+    if (!sourceFiles || sourceFiles.size === 0) {
+        logger.warn('[generateMirrorCode] No source files available for test planning. Skipping tests.');
+        return { failedTests: [], skipped: true };
+    }
+
+    const plans = await generateTestPlans(sourceFiles, llmAgent, {
+        testingInstructions,
+        intent: 'generate-test-plans',
+        errorLabel: 'Test plan generation',
+    });
+
+    const testsDir = path.join(skillDir, 'tests');
+    await fs.mkdir(testsDir, { recursive: true });
+
+    const testFileSources = new Map();
+
+    for (const plan of plans) {
+        const planFiles = new Map();
+        for (const filePath of plan.sourceFiles) {
+            if (sourceFiles.has(filePath)) {
+                planFiles.set(filePath, sourceFiles.get(filePath));
+            }
+        }
+        if (planFiles.size === 0) {
+            logger.warn('[generateMirrorCode] Test plan referenced missing source files. Skipping plan.');
+            continue;
+        }
+
+        const testFile = await generateTestFileForPlan(plan, planFiles, llmAgent, {
+            intent: 'generate-test-file',
+            errorLabel: 'Test file generation',
+        });
+
+        const normalizedFileName = testFile.fileName
+            .replace(/^\/+/, '')
+            .replace(/^tests\//, '');
+        const testFilePath = path.join(skillDir, 'tests', normalizedFileName);
+        await fs.mkdir(path.dirname(testFilePath), { recursive: true });
+        await fs.writeFile(testFilePath, testFile.content, 'utf-8');
+
+        const hasTestCases = !isEmptyTestCases(testFile.testCases);
+        if (hasTestCases) {
+            const casesPath = `${testFilePath}.cases.json`;
+            await fs.writeFile(casesPath, JSON.stringify(testFile.testCases, null, 2), 'utf-8');
+        }
+
+        testFileSources.set(normalizedFileName, {
+            sourceFiles: [...planFiles.keys()],
+            description: plan.description,
+        });
+
+        try {
+            await execFileAsync('node', ['--check', testFilePath], { cwd: skillDir, maxBuffer: 10 * 1024 * 1024 });
+        } catch (error) {
+            logger.warn(`[generateMirrorCode] test file tests/${normalizedFileName} has syntax errors.`);
+        }
+    }
+
+    await ensureRunAllTemplate(skillDir, logger);
+    const initialResults = await runAllTestsOnDisk(skillDir, logger);
+
+    if (!allowRepair || initialResults?.skipped) {
+        return initialResults;
+    }
+
+    const failedTestFiles = (initialResults.failedTests || []).filter(entry => entry && entry.pass === false);
+    if (failedTestFiles.length === 0) {
+        return initialResults;
+    }
+
+    let repairedAny = false;
+    for (const failedEntry of failedTestFiles) {
+        const mapping = testFileSources.get(failedEntry.file);
+        if (!mapping || !Array.isArray(mapping.sourceFiles) || mapping.sourceFiles.length === 0) {
+            logger.warn(`[generateMirrorCode] No source files mapped for failed test file: ${failedEntry.file}`);
+            continue;
+        }
+
+        const failures = Array.isArray(failedEntry.failedTests)
+            ? failedEntry.failedTests.map(test => ({
+                expectedOutput: test.expected,
+                actual: test.actual,
+                testFile: test.fileName || failedEntry.file,
+                reason: `Test failure in ${test.fileName || failedEntry.file}`,
+            }))
+            : [];
+
+        for (const sourceFile of mapping.sourceFiles) {
+            if (!sourceFiles.has(sourceFile)) {
+                logger.warn(`[generateMirrorCode] Missing source file for repair: ${sourceFile}`);
+                continue;
+            }
+            const targetPath = sourceFile.replace(/\\/g, '/');
+            const outputPath = path.join(skillDir, targetPath);
+            const existingCode = await fs.readFile(outputPath, 'utf-8');
+
+            const specForPrompt = `\n\n---\n# Spec for: ${targetPath}\n\nNo spec available. If this file is not responsible for the failures, return the code unchanged.`;
+            const repairedCode = await repairGeneratedFile(
+                targetPath,
+                specForPrompt,
+                '',
+                existingCode,
+                failures,
+                llmAgent,
+                'repair-single-file-from-test-failures',
+                { tests: failures }
+            );
+
+            if (repairedCode && repairedCode !== existingCode) {
+                await fs.writeFile(outputPath, repairedCode, 'utf-8');
+                repairedAny = true;
+            }
+        }
+    }
+
+    if (!repairedAny) {
+        return initialResults;
+    }
+
+    return runAllTestsOnDisk(skillDir, logger);
 }
 
 /**
@@ -296,7 +635,7 @@ export async function runBehaviorTestsOnDisk(
         const message = error?.message ? String(error.message) : '';
         const details = [message, stderr, stdout].filter(Boolean).join('\n');
         logger.warn(`[generateMirrorCode] Test runner or cases validation failed for "${targetPath}". Skipping tests.\n${details}`);
-        return { results: [], skipped: true };
+        return { failedTests: [], skipped: true };
     }
 
     const { stdout } = await execFileAsync('node', [runnerPath], { cwd: testsDir, maxBuffer: 10 * 1024 * 1024 });

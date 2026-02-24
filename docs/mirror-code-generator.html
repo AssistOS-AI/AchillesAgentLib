@@ -42,9 +42,10 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
             <h2>Per-File Generation Workflow</h2>
             <p>
                 For each spec file that requires regeneration, the generator performs a single-file LLM generation step,
-                then validates the resulting code with a single test-generation prompt. If the spec includes a
-                <code>#Validation</code> or <code>#Testing</code> section, the generator uses that text to derive test cases;
-                otherwise it uses a default prompt focused on core functionality.
+                then validates the resulting code through a two-step testing workflow. The testing flow now analyzes the
+                generated codebase to produce a structured test plan, then generates concrete test files and optional
+                test-case JSON artifacts based on that plan. Test plans can span multiple source files when behavior
+                crosses module boundaries.
             </p>
             <p>
                 If no files need regeneration but <code>tests/</code> is missing, the generator skips code generation and
@@ -63,15 +64,17 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
             <h3>Testing and Repair Flow</h3>
             <p>
                 The generator writes the generated code to the skill directory, runs a syntax check with
-                <code>node --check</code>, then generates both positive test cases and a matching test runner for the
-                module's public API (not necessarily an <code>action</code> export). The runner must always emit
-                <code>process.stdout.write(JSON.stringify({ results }));</code>. The generator validates the runner with
-                <code>node --check</code> and validates the test cases JSON via a Node parse. If either validation fails,
-                it logs the error and skips testing (files remain written). Syntax check failures trigger a targeted repair
-                pass; a second failure reverts to the previous on-disk version and skips tests for that file. Test failures
-                trigger a targeted repair pass. The repaired code is re-tested once; remaining failures only emit warnings
-                and do not block writing outputs. For test-only generation (no regeneration), failures are logged and
-                the existing code is not modified.
+                <code>node --check</code>, then generates test plans and test files using the current on-disk code.
+                Each test file is responsible for emitting <code>process.stdout.write(JSON.stringify({ results }));</code>
+                where <code>results</code> contains objects with <code>expected</code>, <code>actual</code>, and
+                <code>pass</code>. A shared <code>tests/runAll.mjs</code> runner discovers and runs every
+                <code>.mjs</code>/<code>.js</code> test file under <code>tests/</code> recursively, aggregates failures,
+                adds the originating test file name, and returns a unified JSON summary under
+                <code>failedTests</code>.
+                Test files are syntax-checked individually; failures emit warnings but do not block the run. When tests
+                fail after regeneration, the generator attempts a single repair pass across all source files referenced
+                by the failing test plan, then re-runs the tests once. For test-only generation (no regeneration),
+                failures are logged and the existing code is not modified.
             </p>
             <ol>
                 <li>Generate code with the LLM (inputs listed above).</li>
@@ -83,35 +86,13 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
                         <li>If it fails again, revert to the previous on-disk version (or remove the file if none) and skip tests.</li>
                     </ul>
                 </li>
-                <li>
-                    Generate positive tests and a runner that matches the module's API.
-                    <ul>
-                        <li>Uses Testing/Validation section content if present; otherwise a default core-functionality prompt.</li>
-                    </ul>
-                </li>
-                <li>Write <code>tests/test-cases.json</code> and <code>tests/run-tests.mjs</code> without validation.</li>
-                <li>
-                    Validate the runner and test cases:
-                    <ul>
-                        <li><code>node --check</code> on <code>tests/run-tests.mjs</code></li>
-                        <li><code>node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))"</code> on <code>tests/test-cases.json</code></li>
-                    </ul>
-                    If either fails, log and skip testing (files remain written).
-                </li>
-                <li>
-                    If validations pass, execute tests from <code>tests/</code>.
-                </li>
-                <li>
-                    If tests fail, repair using:
-                    <ul>
-                        <li>Current spec content.</li>
-                        <li>Backup spec content (when present).</li>
-                        <li>Generated code (not the on-disk code).</li>
-                        <li>Failure details (name, input, expectedOutput, actual).</li>
-                        <li>Test cases and the generated runner (specs remain authoritative).</li>
-                    </ul>
-                    If tests were generated without regeneration, no repair occurs; failures are logged.
-                </li>
+                <li>Generate a structured test plan from the current codebase (no specs provided).</li>
+                <li>Generate one or more executable test files plus optional JSON test-cases.</li>
+                <li>Write test files under <code>tests/</code> (create folders as needed) and syntax-check each test file.</li>
+                <li>Ensure <code>tests/runAll.mjs</code> exists (copied from the template when missing).</li>
+                <li>Execute <code>tests/runAll.mjs</code> to run all tests and collect <code>failedTests</code>.</li>
+                <li>If tests fail after regeneration, repair iteratively across all referenced source files, then re-run once.</li>
+                <li>Log remaining failures without additional repair.</li>
             </ol>
         </section>
 
@@ -148,24 +129,22 @@ Generate code (spec + backup spec + existing code)
 Write generated code to src/
   |
   v
-Has #Validation/#Testing?
-  |-- Yes --> Use testing section for test generation
-  |-- No  --> Use default core-functionality prompt
-  |
-  v
 Syntax check (node --check)
   |-- Fail --> Repair (spec + backup + generated code + syntax error)
   |           -> Rewrite src/ output
   |           -> Recheck -> Fail? Revert to previous version + skip tests
   |-- Pass --> Continue
-Generate tests + runner (match module API)
-Write tests/test-cases.json + tests/run-tests.mjs (no validation)
-Validate runner (node --check) and cases JSON (node -e JSON.parse...)
-  |-- Fail --> Log error + skip tests
-  |-- Pass --> Run tests from tests/
-Failures? -> Repair (spec + backup + generated code + failures)
-          -> Rewrite src/ output
-          -> Rerun -> Warn if still failing
+  |
+  v
+Build test plan from current codebase
+Generate test files + optional test-cases JSON
+Write tests/ (create folders as needed)
+Syntax-check each test file
+Ensure tests/runAll.mjs (copy template if missing)
+Run tests/runAll.mjs (executes all .mjs/.js under tests/)
+Failures? -> Repair iteratively across referenced source files
+          -> Rerun once
+          -> Warn if still failing
   |
   v
 Replace specs/.backup
