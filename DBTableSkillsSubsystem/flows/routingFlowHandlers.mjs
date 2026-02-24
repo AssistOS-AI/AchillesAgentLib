@@ -17,6 +17,7 @@ import {
 const SELECT_PREFIX_RE = /^\s*(list|show|display|view|get|find|search)\b/i;
 const MUTATION_PREFIX_RE = /^\s*(add|create|new|insert|update|edit|change|delete|remove|drop)\b/i;
 const PK_SHORTCUT_RE = /^\s*(update|edit|change|delete|remove|drop)\s+([a-zA-Z_][\w-]*)\s+([^\s,]+)\s*$/i;
+const SELECT_PK_SHORTCUT_RE = /^\s*(list|show|display|view|get|find|search)\s+([a-zA-Z_][\w-]*)\s+([^\s,]+)\s*$/i;
 const SELECT_FIRST_RE = /\b(?:first|top)\s+(\d+)\b/i;
 const SELECT_LAST_RE = /\blast\s+(\d+)\b/i;
 const SELECT_LIMIT_RE = /\blimit\s+(\d+)\b/i;
@@ -43,6 +44,31 @@ function extractPrimaryKeyShortcut(prompt, entityName) {
     if (!entityMatches) return null;
 
     return String(match[3] || '').trim() || null;
+}
+
+function extractSelectPrimaryKeyShortcut(prompt, entityName) {
+    const text = String(prompt || '').trim();
+    const targetEntity = String(entityName || '').trim().toLowerCase();
+    if (!text || !targetEntity) return null;
+    if (/\b(?:with|where)\b/i.test(text)) return null;
+
+    const match = text.match(SELECT_PK_SHORTCUT_RE);
+    if (!match) return null;
+
+    const mentionedEntity = String(match[2] || '').trim().toLowerCase();
+    const entityMatches = mentionedEntity === targetEntity || mentionedEntity === `${targetEntity}s`;
+    if (!entityMatches) return null;
+
+    const candidate = stripWrappingQuotes(match[3]);
+    if (!candidate) return null;
+    if (candidate.includes('=')) return null;
+    if (/^\d+$/.test(candidate)) return null;
+
+    if (String(entityName || '').trim().toLowerCase() === 'area') {
+        return candidate.toUpperCase();
+    }
+
+    return candidate;
 }
 
 function normalizePositiveLimit(value) {
@@ -442,10 +468,25 @@ export async function parseOperation(controller, prompt) {
 
     const finalizedOperation = String(normalizedParsed?.operation || '').toUpperCase();
     if (finalizedOperation === 'SELECT') {
-        const currentFilter = normalizedParsed && typeof normalizedParsed.filter === 'object' && normalizedParsed.filter !== null
+        let currentFilter = normalizedParsed && typeof normalizedParsed.filter === 'object' && normalizedParsed.filter !== null
             ? { ...normalizedParsed.filter }
             : {};
+        const hasPrimaryKey = Object.prototype.hasOwnProperty.call(currentFilter, controller.primaryKey)
+            && String(currentFilter[controller.primaryKey] || '').trim() !== '';
+        if (!hasPrimaryKey) {
+            const selectPkShortcut = extractSelectPrimaryKeyShortcut(prompt, controller.entityName);
+            if (selectPkShortcut) {
+                // Prefer explicit "<verb> <entity> <id>" over ambiguous LLM filters.
+                currentFilter = {
+                    [controller.primaryKey]: selectPkShortcut,
+                };
+            }
+        }
         const hasFilter = Object.keys(currentFilter).length > 0;
+        normalizedParsed = {
+            ...normalizedParsed,
+            filter: currentFilter,
+        };
 
         const selectCondition = parseSelectConditionFromPrompt(controller, prompt);
         const existingPostFilters = normalizePostFilters(normalizedParsed?.postFilters);
