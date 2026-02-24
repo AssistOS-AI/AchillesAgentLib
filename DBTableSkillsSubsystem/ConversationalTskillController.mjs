@@ -93,7 +93,28 @@ export class ConversationalTskillController {
         if (left === right) return true;
         if (!this.hasValue(left) && !this.hasValue(right)) return true;
         if (!this.hasValue(left) || !this.hasValue(right)) return false;
+        if (typeof left === 'string' || typeof right === 'string') {
+            return this.normalizeTextForComparison(left) === this.normalizeTextForComparison(right);
+        }
         return String(left).trim() === String(right).trim();
+    }
+
+    normalizeTextForComparison(value) {
+        if (!this.hasValue(value)) return '';
+        return String(value)
+            .normalize('NFKC')
+            .trim()
+            .replace(/\s+/g, ' ')
+            .toLowerCase();
+    }
+
+    normalizeValueForStorage(value) {
+        if (typeof value !== 'string') return value;
+        const normalized = value
+            .normalize('NFKC')
+            .trim()
+            .replace(/\s+/g, ' ');
+        return normalized === '' ? null : normalized;
     }
 
     normalizePrimaryKeyForComparison(value) {
@@ -351,7 +372,7 @@ export class ConversationalTskillController {
         const filtered = {};
         for (const [key, value] of Object.entries(data)) {
             if (knownFields.has(key)) {
-                filtered[key] = value;
+                filtered[key] = this.normalizeValueForStorage(value);
             }
         }
         return filtered;
