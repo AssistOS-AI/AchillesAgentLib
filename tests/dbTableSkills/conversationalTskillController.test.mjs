@@ -1063,4 +1063,92 @@ test('UPDATE confirmation: update failure returns error', async () => {
     assert.ok(result.message.includes('Optimistic lock failed'));
 });
 
+// ============= Natural Language CRUD parsing across tables =============
+
+test('parseOperation: area UPDATE maps natural language ID to area_id', async () => {
+    const parsedSkill = {
+        tableName: 'area',
+        tablePurpose: 'Area tracking',
+        primaryKey: 'area_id',
+        fields: {
+            area_id: { description: 'Area ID' },
+            name: { description: 'Area name' },
+            location_type: { description: 'Location type' },
+        },
+    };
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: { name: 'a3' },
+    });
+    const { template } = createTemplate({ parsedSkill, llmAgent: llm });
+
+    const parsed = await template.parseOperation('Update area a3. Change location type from main stores in Tool room');
+    assert.strictEqual(parsed.operation, 'UPDATE');
+    assert.deepStrictEqual(parsed.filter, { area_id: 'A3' });
+});
+
+test('parseOperation: area DELETE honors explicit delete intent and area ID mention', async () => {
+    const parsedSkill = {
+        tableName: 'area',
+        tablePurpose: 'Area tracking',
+        primaryKey: 'area_id',
+        fields: {
+            area_id: { description: 'Area ID' },
+            name: { description: 'Area name' },
+        },
+    };
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: { name: 'a6' },
+    });
+    const { template } = createTemplate({ parsedSkill, llmAgent: llm });
+
+    const parsed = await template.parseOperation('Delete area a6');
+    assert.strictEqual(parsed.operation, 'DELETE');
+    assert.deepStrictEqual(parsed.filter, { area_id: 'A6' });
+});
+
+test('parseOperation: material UPDATE maps "for material <id>" to primary key', async () => {
+    const parsedSkill = {
+        tableName: 'material',
+        tablePurpose: 'Material tracking',
+        primaryKey: 'material_id',
+        fields: {
+            material_id: { description: 'Material ID' },
+            quantity: { description: 'Quantity' },
+            name: { description: 'Name' },
+        },
+    };
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: { name: 'mat-0001' },
+    });
+    const { template } = createTemplate({ parsedSkill, llmAgent: llm });
+
+    const parsed = await template.parseOperation('Set quantity to 50 for material MAT-0001');
+    assert.strictEqual(parsed.operation, 'UPDATE');
+    assert.deepStrictEqual(parsed.filter, { material_id: 'MAT-0001' });
+});
+
+test('parseOperation: equipment DELETE maps natural language ID to equipment_id', async () => {
+    const parsedSkill = {
+        tableName: 'equipment',
+        tablePurpose: 'Equipment tracking',
+        primaryKey: 'equipment_id',
+        fields: {
+            equipment_id: { description: 'Equipment ID' },
+            name: { description: 'Name' },
+        },
+    };
+    const llm = buildMockLLM({
+        operation: 'UPDATE',
+        filter: { name: 'crl0192' },
+    });
+    const { template } = createTemplate({ parsedSkill, llmAgent: llm });
+
+    const parsed = await template.parseOperation('Remove equipment CRL0192 from inventory');
+    assert.strictEqual(parsed.operation, 'DELETE');
+    assert.deepStrictEqual(parsed.filter, { equipment_id: 'CRL0192' });
+});
+
 console.log('ConversationalTskillController tests completed');
