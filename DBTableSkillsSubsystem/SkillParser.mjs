@@ -13,7 +13,8 @@ export function parseSkillMarkdown(content) {
         tablePurpose: '',
         instructions: '',  // LLM instructions for query interpretation
         deleteGuard: null,
-        listDisplayFields: [],
+        interactiveFields: [],
+        listExtraFields: [],
         fields: {},
         derivedFields: {},
         indexes: [],
@@ -107,10 +108,21 @@ export function parseSkillMarkdown(content) {
             continue;
         }
 
-        // Handle list display fields section (## List Display Fields)
-        if (trimmedLine.match(/^##\s+List Display Fields$/i)) {
+        // Handle interactive fields section (## Interactive Fields)
+        if (trimmedLine.match(/^##\s+Interactive Fields$/i)) {
             saveCurrentContent();
-            currentSection = 'listDisplayFields';
+            currentSection = 'interactiveFields';
+            currentField = null;
+            currentSubSection = null;
+            currentContent = [];
+            sectionDepth = 2;
+            continue;
+        }
+
+        // Handle list extra fields section (## List Extra Fields)
+        if (trimmedLine.match(/^##\s+List Extra Fields$/i)) {
+            saveCurrentContent();
+            currentSection = 'listExtraFields';
             currentField = null;
             currentSubSection = null;
             currentContent = [];
@@ -167,8 +179,10 @@ export function parseSkillMarkdown(content) {
             skill.instructions = content;
         } else if (currentSection === 'deleteGuard' && !currentField) {
             parseDeleteGuard(content, skill);
-        } else if (currentSection === 'listDisplayFields' && !currentField) {
-            skill.listDisplayFields = parseFieldNameList(content);
+        } else if (currentSection === 'interactiveFields' && !currentField) {
+            skill.interactiveFields = parseFieldNameList(content);
+        } else if (currentSection === 'listExtraFields' && !currentField) {
+            skill.listExtraFields = parseFieldNameList(content);
         } else if (currentSection === 'relationships' && !currentField) {
             parseRelationships(content, skill);
         } else if (currentSection === 'businessRules' && !currentField) {
@@ -776,14 +790,24 @@ export function validateSkill(skill) {
         }
     }
 
-    if (Array.isArray(skill.listDisplayFields) && skill.listDisplayFields.length > 0) {
-        const missingListDisplayFields = skill.listDisplayFields.filter(fieldName =>
+    if (Array.isArray(skill.interactiveFields) && skill.interactiveFields.length > 0) {
+        const missingInteractiveFields = skill.interactiveFields.filter(fieldName =>
             !Object.prototype.hasOwnProperty.call(skill.fields, fieldName)
-            && !Object.prototype.hasOwnProperty.call(skill.derivedFields, fieldName),
         );
-        if (missingListDisplayFields.length > 0) {
+        if (missingInteractiveFields.length > 0) {
             warnings.push(
-                `List display fields reference undefined fields: ${missingListDisplayFields.join(', ')}`,
+                `Interactive fields reference undefined/non-editable fields: ${missingInteractiveFields.join(', ')}`,
+            );
+        }
+    }
+
+    if (Array.isArray(skill.listExtraFields) && skill.listExtraFields.length > 0) {
+        const missingListExtraFields = skill.listExtraFields.filter(fieldName =>
+            !Object.prototype.hasOwnProperty.call(skill.fields, fieldName),
+        );
+        if (missingListExtraFields.length > 0) {
+            warnings.push(
+                `List extra fields reference undefined/non-editable fields: ${missingListExtraFields.join(', ')}`,
             );
         }
     }

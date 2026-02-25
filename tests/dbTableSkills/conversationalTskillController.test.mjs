@@ -71,6 +71,8 @@ const TEST_SKILL = {
     tableName: 'equipment',
     tablePurpose: 'Equipment tracking',
     primaryKey: 'equipment_id',
+    interactiveFields: ['equipment_id', 'name', 'status'],
+    listExtraFields: [],
     fields: {
         equipment_id: { description: 'Unique ID' },
         name: { description: 'Equipment name' },
