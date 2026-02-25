@@ -448,6 +448,25 @@ class LoopAgentSession {
                         this.history.push({ type: 'final_answer', answer: resultStr });
                         return resultStr;
                     }
+                    // Handle explicit failed skill results immediately (avoid re-calling the same tool).
+                    if (toolResult && typeof toolResult === 'object' &&
+                        toolResult.success === false &&
+                        (toolResult.message || toolResult.error || toolResult.operation)) {
+                        let resultStr;
+                        try {
+                            resultStr = JSON.stringify(toolResult, null, 2);
+                        } catch (stringifyError) {
+                            resultStr = `Tool returned a failed result that cannot be displayed. Keys: ${Object.keys(toolResult).join(', ')}`;
+                        }
+                        debugLog(`[${getTimestamp()}] [LoopSession] Detected failed skill result, returning as final answer`);
+                        this._debug('[LoopSession]', 'Tool failed result returned as final answer', { tool: toolName });
+                        turn.finalAnswer = resultStr;
+                        turn.status = SESSION_STATUS_FAILED;
+                        this.status = SESSION_STATUS_ACTIVE;
+                        this.lastAnswer = resultStr;
+                        this.history.push({ type: 'final_answer', answer: resultStr, success: false });
+                        return resultStr;
+                    }
 
                     // Detect true loops: same tool + same prompt + same result
                     // Different prompts with same results are NOT loops (e.g., createDirectory for different paths)
@@ -523,7 +542,16 @@ class LoopAgentSession {
                     }
 
                     if (turn._sameToolRepeatCount >= 3) {
-                        const final = String(displayResult);
+                        let final;
+                        if (typeof displayResult === 'string') {
+                            final = displayResult;
+                        } else {
+                            try {
+                                final = JSON.stringify(displayResult, null, 2);
+                            } catch {
+                                final = String(displayResult);
+                            }
+                        }
                         this._debug('[LoopSession]', 'Repeat tool result threshold reached', {
                             tool: toolName,
                             prompt: toolPrompt,

@@ -16,12 +16,19 @@ import {
 
 const SELECT_PREFIX_RE = /^\s*(list|show|display|view|get|find|search)\b/i;
 const MUTATION_PREFIX_RE = /^\s*(add|create|new|insert|update|edit|change|delete|remove|drop)\b/i;
-const PK_SHORTCUT_RE = /^\s*(update|edit|change|delete|remove|drop)\s+([a-zA-Z_][\w-]*)\s+([^\s,]+)\s*$/i;
+const PK_SHORTCUT_RE = /^\s*(update|edit|change|delete|remove|drop)\s+([a-zA-Z_][\w-]*)\s+([^\s,.;:!?]+)\b/i;
 const SELECT_PK_SHORTCUT_RE = /^\s*(list|show|display|view|get|find|search)\s+([a-zA-Z_][\w-]*)\s+([^\s,]+)\s*$/i;
 const SELECT_FIRST_RE = /\b(?:first|top)\s+(\d+)\b/i;
 const SELECT_LAST_RE = /\blast\s+(\d+)\b/i;
 const SELECT_LIMIT_RE = /\blimit\s+(\d+)\b/i;
 const SELECT_MAX_WINDOW_LIMIT = 1000;
+const CREATE_KEYWORDS = ['create', 'add', 'new', 'insert', 'make', 'register'];
+const UPDATE_KEYWORDS = ['change', 'update', 'modify', 'edit', 'set', 'assign', 'mark'];
+const DELETE_KEYWORDS = ['delete', 'remove', 'drop', 'erase'];
+const CREATE_PREFIX_RE = /^\s*(create|add|new|insert|make|register)\b/i;
+const UPDATE_PREFIX_RE = /^\s*(update|edit|change|modify|set|assign|mark)\b/i;
+const DELETE_PREFIX_RE = /^\s*(delete|remove|drop|erase)\b/i;
+const ID_STOPWORDS = new Set(['id', 'in', 'with', 'where', 'from', 'to', 'for', 'of', 'the', 'a', 'an']);
 
 function looksLikeSelectCommand(prompt) {
     const text = String(prompt || '').trim().toLowerCase();
@@ -29,6 +36,67 @@ function looksLikeSelectCommand(prompt) {
     if (!SELECT_PREFIX_RE.test(text)) return false;
     if (MUTATION_PREFIX_RE.test(text)) return false;
     return true;
+}
+
+function normalizeEntity(entityName) {
+    return String(entityName || '').trim().toLowerCase();
+}
+
+function getEntityVariants(entityName) {
+    const entity = normalizeEntity(entityName);
+    if (!entity) return [];
+    const variants = new Set([entity, `${entity}s`]);
+    // Common misspelling seen in prompts: "aria" instead of "area".
+    if (entity === 'area') {
+        variants.add('aria');
+        variants.add('arias');
+    }
+    return Array.from(variants);
+}
+
+function canonicalizePrimaryKeyToken(entityName, token) {
+    const clean = stripWrappingQuotes(token);
+    if (!clean) return null;
+    if (normalizeEntity(entityName) === 'area') return clean.toUpperCase();
+    return clean;
+}
+
+function isLikelyIdToken(token) {
+    const clean = String(token || '').trim();
+    if (!clean) return false;
+    if (clean.includes('=')) return false;
+    // Favor strict identifiers (A3, MAT-0001, CRL0192, JOB-12, etc.)
+    return /[0-9]/.test(clean);
+}
+
+function extractEntityIdMention(prompt, entityName) {
+    const text = String(prompt || '').trim();
+    if (!text) return null;
+
+    const variants = getEntityVariants(entityName);
+    if (variants.length === 0) return null;
+    for (const variant of variants) {
+        const safeEntity = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const patterns = [
+            new RegExp(`\\b(?:for|of|in)\\s+${safeEntity}\\s+id\\s+([A-Za-z0-9_-]+)\\b`, 'i'),
+            new RegExp(`\\b${safeEntity}\\s+id\\s+([A-Za-z0-9_-]+)\\b`, 'i'),
+            new RegExp(`\\b(?:for|of|in)\\s+${safeEntity}\\s+([A-Za-z0-9_-]+)\\b`, 'i'),
+            new RegExp(`\\b${safeEntity}\\s+([A-Za-z0-9_-]+)\\b`, 'i'),
+            new RegExp(`\\b${safeEntity}#\\s*([A-Za-z0-9_-]+)\\b`, 'i'),
+        ];
+
+        for (const re of patterns) {
+            const match = text.match(re);
+            if (!match) continue;
+            const candidate = canonicalizePrimaryKeyToken(entityName, match[1]);
+            if (!candidate || ID_STOPWORDS.has(String(candidate).toLowerCase())) continue;
+            if (candidate && isLikelyIdToken(candidate)) {
+                return candidate;
+            }
+        }
+    }
+
+    return null;
 }
 
 function extractPrimaryKeyShortcut(prompt, entityName) {
@@ -43,7 +111,16 @@ function extractPrimaryKeyShortcut(prompt, entityName) {
     const entityMatches = mentionedEntity === targetEntity || mentionedEntity === `${targetEntity}s`;
     if (!entityMatches) return null;
 
-    return String(match[3] || '').trim() || null;
+    const candidate = stripWrappingQuotes(match[3]);
+    if (!candidate) return null;
+    if (ID_STOPWORDS.has(String(candidate).toLowerCase())) return null;
+    if (!isLikelyIdToken(candidate)) return null;
+
+    if (String(entityName || '').trim().toLowerCase() === 'area') {
+        return candidate.toUpperCase();
+    }
+
+    return candidate;
 }
 
 function extractSelectPrimaryKeyShortcut(prompt, entityName) {
@@ -350,6 +427,7 @@ export async function handlePendingState(controller, prompt, sessionMemory) {
  */
 function fallbackOperationParsing(prompt, controller, sessionMemory) {
     const lowerPrompt = prompt.toLowerCase().trim();
+    const extractedEntityId = extractEntityIdMention(prompt, controller.entityName);
     
     // First check if there's an ongoing session that should be continued
     if (sessionMemory) {
@@ -379,31 +457,20 @@ function fallbackOperationParsing(prompt, controller, sessionMemory) {
     }
     
     // No ongoing session - use keyword matching
-    if (lowerPrompt.includes('create') || lowerPrompt.includes('add') || lowerPrompt.includes('new')) {
+    if (CREATE_KEYWORDS.some((keyword) => lowerPrompt.includes(keyword))) {
         return { operation: 'CREATE' };
     }
     
-    if (lowerPrompt.includes('delete') || lowerPrompt.includes('remove')) {
-        return { operation: 'DELETE' };
+    if (DELETE_KEYWORDS.some((keyword) => lowerPrompt.includes(keyword))) {
+        return extractedEntityId
+            ? { operation: 'DELETE', filter: { [controller.primaryKey]: extractedEntityId } }
+            : { operation: 'DELETE' };
     }
     
-    if (lowerPrompt.includes('change') || lowerPrompt.includes('update') || lowerPrompt.includes('modify')) {
-        // For change/update operations, try to extract the ID
-        let idMatch = lowerPrompt.match(/(?:change|update|modify)\s+(\w+)\s+([a-zA-Z0-9]+)/);
-        
-        // If no match, try just finding an ID in the prompt
-        if (!idMatch) {
-            idMatch = lowerPrompt.match(/([a-zA-Z][a-zA-Z0-9]+)/);
-        }
-        
-        if (idMatch) {
-            return {
-                operation: 'UPDATE',
-                filter: { [controller.primaryKey]: idMatch[2] || idMatch[1] }
-            };
-        }
-        
-        return { operation: 'UPDATE' };
+    if (UPDATE_KEYWORDS.some((keyword) => lowerPrompt.includes(keyword))) {
+        return extractedEntityId
+            ? { operation: 'UPDATE', filter: { [controller.primaryKey]: extractedEntityId } }
+            : { operation: 'UPDATE' };
     }
     
     // Default to SELECT for listing queries
@@ -434,6 +501,7 @@ export async function parseOperation(controller, prompt) {
 
     let normalizedParsed = parsed && typeof parsed === 'object' ? { ...parsed } : {};
     const parsedOperation = String(normalizedParsed?.operation || '').toUpperCase();
+    const promptText = String(prompt || '');
 
     // Guard against LLM misclassifying explicit listing intents as CREATE/UPDATE.
     if (looksLikeSelectCommand(prompt) && parsedOperation !== 'SELECT') {
@@ -446,9 +514,26 @@ export async function parseOperation(controller, prompt) {
             filter: safeFilter,
         };
     }
+    if (DELETE_PREFIX_RE.test(promptText) && parsedOperation !== 'DELETE') {
+        normalizedParsed = {
+            ...normalizedParsed,
+            operation: 'DELETE',
+        };
+    } else if (UPDATE_PREFIX_RE.test(promptText) && parsedOperation !== 'UPDATE' && parsedOperation !== 'DELETE') {
+        normalizedParsed = {
+            ...normalizedParsed,
+            operation: 'UPDATE',
+        };
+    } else if (CREATE_PREFIX_RE.test(promptText) && parsedOperation !== 'CREATE') {
+        normalizedParsed = {
+            ...normalizedParsed,
+            operation: 'CREATE',
+        };
+    }
 
     // Guard against LLM mapping shorthand "change <entity> <id>" to non-PK filters.
     const pkShortcut = extractPrimaryKeyShortcut(prompt, controller.entityName);
+    const idMention = extractEntityIdMention(prompt, controller.entityName);
     const normalizedOperation = String(normalizedParsed?.operation || '').toUpperCase();
     if (pkShortcut && (normalizedOperation === 'UPDATE' || normalizedOperation === 'DELETE')) {
         const currentFilter = normalizedParsed && typeof normalizedParsed.filter === 'object' && normalizedParsed.filter !== null
@@ -465,6 +550,21 @@ export async function parseOperation(controller, prompt) {
             };
         }
     }
+    if (idMention && (normalizedOperation === 'UPDATE' || normalizedOperation === 'DELETE')) {
+        const currentFilter = normalizedParsed && typeof normalizedParsed.filter === 'object' && normalizedParsed.filter !== null
+            ? normalizedParsed.filter
+            : {};
+        const hasPrimaryKey = Object.prototype.hasOwnProperty.call(currentFilter, controller.primaryKey)
+            && String(currentFilter[controller.primaryKey] || '').trim() !== '';
+        if (!hasPrimaryKey) {
+            normalizedParsed = {
+                ...normalizedParsed,
+                filter: {
+                    [controller.primaryKey]: idMention,
+                },
+            };
+        }
+    }
 
     const finalizedOperation = String(normalizedParsed?.operation || '').toUpperCase();
     if (finalizedOperation === 'SELECT') {
@@ -475,10 +575,11 @@ export async function parseOperation(controller, prompt) {
             && String(currentFilter[controller.primaryKey] || '').trim() !== '';
         if (!hasPrimaryKey) {
             const selectPkShortcut = extractSelectPrimaryKeyShortcut(prompt, controller.entityName);
-            if (selectPkShortcut) {
+            const selectPkMention = selectPkShortcut || extractEntityIdMention(prompt, controller.entityName);
+            if (selectPkMention) {
                 // Prefer explicit "<verb> <entity> <id>" over ambiguous LLM filters.
                 currentFilter = {
-                    [controller.primaryKey]: selectPkShortcut,
+                    [controller.primaryKey]: selectPkMention,
                 };
             }
         }

@@ -36,11 +36,32 @@ export async function handleUpdateConfirmation(controller, prompt, pending, sess
                 ? await execContext.presentRecord(updated)
                 : updated;
             const safeRecord = sanitizeRecordForUser(presented);
+
+            // Build a compact change summary so the final UPDATE response is explicit.
+            const changedFields = Object.keys(pending.changes || {}).filter((field) => {
+                if (field === controller.primaryKey || field === 'id') return false;
+                return !controller.valuesAreEquivalent(
+                    pending.original?.[field],
+                    pending.changes?.[field],
+                );
+            });
+
+            const changeTable = changedFields.length > 0
+                ? changedFields.map((field) => {
+                    const label = controller.getFieldLabel(field, 'short');
+                    return `| ${label} | ${controller.formatDisplayValue(pending.original?.[field])} | ${controller.formatDisplayValue(pending.changes?.[field])} |`;
+                }).join('\n')
+                : '| — | — | — |';
+
+            const message = changedFields.length > 0
+                ? `${controller.entityName} updated successfully.\n\n| Field | Current | New |\n|-------|---------|-----|\n${changeTable}`
+                : `${controller.entityName} updated successfully. No effective field changes were detected.`;
+
             return {
                 success: true,
                 operation: 'UPDATE',
                 record: safeRecord,
-                message: `${controller.entityName} updated successfully.`,
+                message,
             };
         } catch (error) {
             return controller.buildCrudFailureResult(CRUD_OPERATIONS.UPDATE, error);

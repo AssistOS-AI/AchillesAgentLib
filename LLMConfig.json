@@ -9,12 +9,13 @@
         "axiologic_kiro/claude-haiku-4.5"
     ],
     "deepModelPriority": [
+        "axiologic_proxy/gpt-5.2-codex",
+        "soul_gateway/axiologic-deep",
         "openrouter/deepseek/deepseek-v3.2",
         "openrouter/deepseek/deepseek-r1-0528",
         "openrouter/deepseek/deepseek-v3.1-terminus",
         "opencode/qwen3-coder",
         "axiologic_proxy/gemini-2.5-pro",
-        "soul_gateway/axiologic-deep",
         "soul_gateway/axiologic-ultra",
         "axiologic_proxy/gpt-5.3-codex",
         "axiologic_proxy/gpt-5.2-codex",
@@ -28,13 +29,7 @@
         "openrouter/x-ai/grok-4",
         "openrouter/mistralai/codestral-2508",
         "openrouter/meta-llama/llama-4-maverick",
-        "openrouter/cohere/command-a",
-        "opencode_anthropic/claude-opus-4-6",
-        "opencode/gemini-3-pro",
-        "opencode/kimi-k2.5",
-        "opencode/kimi-k2-thinking",
-        "opencode/glm-4.7",
-        "opencode_anthropic/claude-sonnet-4-5"
+        "openrouter/cohere/command-a"
     ],
     "providers": {
         "openai": {

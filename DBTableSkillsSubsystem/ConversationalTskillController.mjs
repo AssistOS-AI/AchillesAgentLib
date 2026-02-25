@@ -93,7 +93,28 @@ export class ConversationalTskillController {
         if (left === right) return true;
         if (!this.hasValue(left) && !this.hasValue(right)) return true;
         if (!this.hasValue(left) || !this.hasValue(right)) return false;
+        if (typeof left === 'string' || typeof right === 'string') {
+            return this.normalizeTextForComparison(left) === this.normalizeTextForComparison(right);
+        }
         return String(left).trim() === String(right).trim();
+    }
+
+    normalizeTextForComparison(value) {
+        if (!this.hasValue(value)) return '';
+        return String(value)
+            .normalize('NFKC')
+            .trim()
+            .replace(/\s+/g, ' ')
+            .toLowerCase();
+    }
+
+    normalizeValueForStorage(value) {
+        if (typeof value !== 'string') return value;
+        const normalized = value
+            .normalize('NFKC')
+            .trim()
+            .replace(/\s+/g, ' ');
+        return normalized === '' ? null : normalized;
     }
 
     normalizePrimaryKeyForComparison(value) {
@@ -328,13 +349,21 @@ export class ConversationalTskillController {
     }
 
     getRequiredCreateFields() {
-        return Object.entries(this.fields || {})
+        const required = Object.entries(this.fields || {})
             .filter(([, fieldDef]) => Boolean(fieldDef?.isRequired))
             .map(([fieldName]) => fieldName);
+        const captureFields = this.getCreateCaptureFields();
+        return required.filter(fieldName => captureFields.includes(fieldName));
     }
 
     getCreateCaptureFields() {
-        return Object.keys(this.fields || {});
+        const configured = Array.isArray(this.parsedSkill?.interactiveFields)
+            ? this.parsedSkill.interactiveFields
+            : [];
+        const validConfigured = configured.filter(fieldName =>
+            Object.prototype.hasOwnProperty.call(this.fields || {}, fieldName),
+        );
+        return Array.from(new Set(validConfigured));
     }
 
     getMissingRequiredFields(record, requiredFields) {
@@ -351,7 +380,7 @@ export class ConversationalTskillController {
         const filtered = {};
         for (const [key, value] of Object.entries(data)) {
             if (knownFields.has(key)) {
-                filtered[key] = value;
+                filtered[key] = this.normalizeValueForStorage(value);
             }
         }
         return filtered;
@@ -382,12 +411,16 @@ export class ConversationalTskillController {
 
     getListTableFields(options = {}) {
         const includePrimaryKey = Boolean(options?.includePrimaryKey);
-        const configured = Array.isArray(this.parsedSkill?.listDisplayFields)
-            ? this.parsedSkill.listDisplayFields
+        const interactiveFields = Array.isArray(this.parsedSkill?.interactiveFields)
+            ? this.parsedSkill.interactiveFields
             : [];
-        const orderedFields = configured.length > 0
-            ? [...configured]
-            : Object.keys(this.fields || {});
+        const listExtraFields = Array.isArray(this.parsedSkill?.listExtraFields)
+            ? this.parsedSkill.listExtraFields
+            : [];
+        const orderedFields = [
+            ...listExtraFields,
+            ...interactiveFields,
+        ];
 
         if (
             includePrimaryKey
@@ -411,9 +444,7 @@ export class ConversationalTskillController {
             tableFields[fieldName] = this.fields?.[fieldName] || { name: fieldName };
         }
 
-        return Object.keys(tableFields).length > 0
-            ? tableFields
-            : (this.fields || {});
+        return tableFields;
     }
 
     sanitizeUpdateChanges(data, options = {}) {

@@ -6,6 +6,25 @@ import {
 } from '../templates/prompts.mjs';
 import { formatRecordTable } from '../helpers/conversationDisplayUtils.mjs';
 
+const SELECT_CMD_RE = /^(list|show|display|view|get|find|search)\b/i;
+const CREATE_CMD_RE = /^(create|add|new|insert|make|register)\b/i;
+const DELETE_CMD_RE = /^(delete|remove|drop|erase)\b/i;
+const UPDATE_CMD_RE = /^(update|edit|change|modify)\b/i;
+const GLOBAL_CMD_RE = /^(help|import|wipe|exit|quit)\b/i;
+const ENTITY_HINT_RE = /\b(area|areas|equipment|equipments|material|materials|job|jobs)\b/i;
+
+function isLikelyNewCommand(prompt) {
+    const text = String(prompt || '').trim();
+    if (!text) return false;
+    if (SELECT_CMD_RE.test(text)) return true;
+    if (CREATE_CMD_RE.test(text)) return true;
+    if (DELETE_CMD_RE.test(text)) return true;
+    if (GLOBAL_CMD_RE.test(text)) return true;
+    // "set/assign/mark" are often valid correction phrases; do not auto-switch on those.
+    if (UPDATE_CMD_RE.test(text) && ENTITY_HINT_RE.test(text)) return true;
+    return false;
+}
+
 export async function handleValidationCorrections(controller, prompt, pending, sessionMemory, key) {
     // Check for cancel/abort
     const trimmedPrompt = String(prompt || '').trim();
@@ -22,6 +41,16 @@ export async function handleValidationCorrections(controller, prompt, pending, s
             message: 'Operation cancelled.',
             cancelled: true,
         };
+    }
+
+    // If user typed a new command, exit validation mode and let normal routing handle it.
+    if (isLikelyNewCommand(trimmedPrompt)) {
+        if (pending.operation === 'CREATE') {
+            controller.clearCreatePendingStates(sessionMemory);
+        } else {
+            sessionMemory.delete(key);
+        }
+        return null;
     }
 
     // Use LLM to apply corrections
@@ -46,7 +75,8 @@ export async function handleValidationCorrections(controller, prompt, pending, s
             mode: 'fast',
             responseShape: 'json',
         });
-        let corrected = result?.correctedData || {};
+        const extractedCorrections = controller.filterKnownFields(result?.correctedData || {});
+        let corrected = extractedCorrections;
         let blockedFields = Array.isArray(pending.blockedFields)
             ? [...pending.blockedFields]
             : [];
@@ -67,6 +97,26 @@ export async function handleValidationCorrections(controller, prompt, pending, s
                 ...blockedFields,
                 ...(sanitized.blockedFields || []),
             ]));
+
+            // If no effective correction was extracted, do not mislead the user with
+            // "Updated data is valid". Either break to a fresh command or ask for corrections.
+            if (Object.keys(extractedCorrections).length === 0 || Object.keys(sanitized.changes || {}).length === 0) {
+                if (isLikelyNewCommand(trimmedPrompt)) {
+                    sessionMemory.delete(key);
+                    return null;
+                }
+
+                sessionMemory.set(key, {
+                    ...pending,
+                    blockedFields,
+                });
+                return {
+                    success: false,
+                    operation: pending.operation,
+                    requiresInput: true,
+                    message: `${controller.buildImmutableUpdateNotice(blockedFields) ? `${controller.buildImmutableUpdateNotice(blockedFields)}\n\n` : ''}I could not extract any valid correction from your last message.\n\nPlease provide the field and value explicitly (example: "Location Type is Tool room"), or type **cancel** to abort.`,
+                };
+            }
         }
 
         const immutableNotice = controller.buildImmutableUpdateNotice(blockedFields);
