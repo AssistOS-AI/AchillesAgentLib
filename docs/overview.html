@@ -56,7 +56,7 @@
                 The flow aligns with the runtime architecture:
             </p>
             <pre><code>RecursiveSkilledAgent
-  ├─ Skill Discovery: scan .AchillesSkills/* for skill.md, dcgskill.md, cskill.md, mskill.md, oskill.md, tskill.md
+  ├─ Skill Discovery: scan skills/* for skill.md, dcgskill.md, cskill.md, mskill.md, oskill.md, tskill.md
   ├─ Subsystem Router: claude | code | mcp | orchestrator | dbtable
   ├─ LLMAgent: shared completion/review + session memory
    └─ Execution: agentic session (loop or sop) → run skill → record history</code></pre>
@@ -65,10 +65,10 @@
         <section>
             <h2>Skill Repository Conventions</h2>
             <p>
-                Achilles Agents skills are stored as Markdown descriptors inside a <code>.AchillesSkills/</code> directory. Each skill
+                Achilles Agents skills are stored as Markdown descriptors inside a <code>skills/</code> directory. Each skill
                 lives in its own folder and is identified by the folder name:
             </p>
-            <pre><code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/
+            <pre><code>skills/&lt;domain&gt;/&lt;skill_name&gt;/
     ├── skill.md | oskill.md | mskill.md | dcgskill.md | tskill.md | cskill.md   (descriptor)
     └── &lt;skill_name&gt;.mjs / .js                          (entrypoint when the family supports it)</code></pre>
             <p>

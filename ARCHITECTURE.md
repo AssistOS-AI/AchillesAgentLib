@@ -9,7 +9,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │                        RecursiveSkilledAgent                            │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                      Skill Discovery                             │   │
-│  │  - Scans .AchillesSkills directories                            │   │
+│  │  - Scans skills directories                            │   │
 │  │  - Registers skills by type (skill.md, dcgskill.md, etc.)         │   │
 │  │  - Creates aliases for flexible skill resolution                │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
@@ -40,7 +40,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 The main entry point and coordinator for skill-based execution.
 
 **Key Responsibilities:**
-- **Skill Discovery**: Recursively scans directories for `.AchillesSkills` folders
+- **Skill Discovery**: Recursively scans directories for `skills` folders
 - **Skill Registration**: Parses skill markdown files and registers them by type
 - **Subsystem Management**: Lazily instantiates subsystems on demand
 - **Execution Routing**: Routes prompts to appropriate skills/orchestrators
@@ -425,7 +425,7 @@ OrchestratorSubsystem.executeSkillPrompt()
 ## Directory Structure
 
 ```
-.AchillesSkills/
+skills/
 ├── my-orchestrator/
 │   └── oskill.md           # Orchestrator skill definition
 ├── my-dynamic-code-skill/

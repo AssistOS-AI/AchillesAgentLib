@@ -52,7 +52,7 @@ These tests verify the integration between:
 tests/dbTableSkills/
 ├── README.md                           # This file
 ├── dbTableSkills.test.mjs              # Main test suite
-└── .AchillesSkills/
+└── skills/
     └── customers/
         └── tskill.md                   # Sample skill definition
 ```
@@ -78,7 +78,7 @@ node --test tests/dbTableSkills/dbTableSkills.test.mjs --test-reporter spec
 
 The tests use a sample `tskill.md` file for the "Customers" table located at:
 ```
-tests/dbTableSkills/.AchillesSkills/customers/tskill.md
+tests/dbTableSkills/skills/customers/tskill.md
 ```
 
 This file demonstrates:

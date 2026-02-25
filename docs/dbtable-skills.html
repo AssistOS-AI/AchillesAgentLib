@@ -36,7 +36,7 @@
         <section>
             <h2>Skill Layout</h2>
             <p>
-                Each DBTable skill lives under <code>.AchillesSkills/&lt;domain&gt;/&lt;table&gt;/</code> with two important files:
+                Each DBTable skill lives under <code>skills/&lt;domain&gt;/&lt;table&gt;/</code> with two important files:
             </p>
             <ul>
                 <li><code>tskill.md</code> – the Markdown descriptor that defines the table, field metadata, and behavioural hints.</li>
@@ -139,7 +139,7 @@ Reject anything that is not one of planned/active/complete.</code></pre>
             <h2>Testing</h2>
             <p>
                 Run the integration suite with <code>node --test tests/dbTableSkills/dbTableSkills.test.mjs</code> to validate parsing, generation, and CRUD
-                flows against a mock adapter. The tests ship with sample skills under <code>tests/dbTableSkills/.AchillesSkills/</code> that you can use as
+                flows against a mock adapter. The tests ship with sample skills under <code>tests/dbTableSkills/skills/</code> that you can use as
                 references when authoring your own <code>tskill.md</code> files.
             </p>
         </section>

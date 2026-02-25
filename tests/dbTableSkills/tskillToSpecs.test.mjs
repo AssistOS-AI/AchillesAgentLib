@@ -795,7 +795,7 @@ test('E2E: real customers fixture produces valid spec', async () => {
     // Use the actual fixture from the test directory
     const fixtureDir = path.join(
         import.meta.dirname,
-        '.AchillesSkills/customers'
+        'skills/customers'
     );
 
     try {

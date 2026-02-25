@@ -580,7 +580,7 @@ export class RecursiveSkilledAgent {
     }
 
     /**
-     * Find .AchillesSkills roots from start directories.
+     * Find skills roots from start directories.
      * @param {string[]} startDirs - Directories to start from
      * @param {boolean} searchUpwards - Whether to search upwards
      * @returns {string[]} Array of root directories
@@ -669,11 +669,11 @@ export class RecursiveSkilledAgent {
     }
 
     /**
-     * Get the skills directory path (.AchillesSkills folder).
+     * Get the skills directory path (skills folder).
      * @returns {string} The skills directory path
      */
     getSkillsDir() {
-        return path.join(this.startDir, '.AchillesSkills');
+        return path.join(this.startDir, 'skills');
     }
 
     /**

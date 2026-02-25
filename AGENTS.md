@@ -9,7 +9,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │                        RecursiveSkilledAgent                            │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
 │  │                      Skill Discovery                            │    │
-│  │  - Scans .AchillesSkills directories                            │    │
+│  │  - Scans skills directories                            │    │
 │  │  - Registers skills by type (skill.md, dcgskill.md, etc.)        │    │
 │  │  - Creates aliases for flexible skill resolution                │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
@@ -40,7 +40,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 The main entry point and coordinator for skill-based execution.
 
 **Key Responsibilities:**
-- **Skill Discovery**: Recursively scans directories for `.AchillesSkills` folders
+- **Skill Discovery**: Recursively scans directories for `skills` folders
 - **Skill Registration**: Parses skill markdown files and registers them by type
 - **Subsystem Management**: Lazily instantiates subsystems on demand
 - **Execution Routing**: Routes prompts to appropriate skills/orchestrators
@@ -592,7 +592,7 @@ The skill will be automatically registered as an orchestrator skill when `expose
 ## Directory Structure
 
 ```
-.AchillesSkills/
+skills/
 ├── my-orchestrator/
 │   └── oskill.md           # Orchestrator skill definition
 ├── my-dynamic-code-skill/
@@ -640,7 +640,7 @@ try {
 
 ## SkillManagerAgent (`cli/skill-manager-cli/`)
 
-A specialized CLI agent for managing, generating, and testing skill definition files in `.AchillesSkills` directories.
+A specialized CLI agent for managing, generating, and testing skill definition files in `skills` directories.
 
 ### Architecture
 
@@ -654,7 +654,7 @@ A specialized CLI agent for managing, generating, and testing skill definition f
 │  └───────────────────────────────┬──────────────────────────────────────┘  │
 │                                  │                                          │
 │  ┌───────────────────────────────▼──────────────────────────────────────┐  │
-│  │                    Built-in Skills (.AchillesSkills/)                 │  │
+│  │                    Built-in Skills (skills/)                 │  │
 │  │  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐            │  │
 │  │  │ skill-manager  │ │  list-skills   │ │  read-skill    │            │  │
 │  │  │   (oskill)     │ │   (dcgskill)     │ │   (dcgskill)     │            │  │
@@ -687,7 +687,7 @@ cli/skill-manager-cli/
 │   ├── index.mjs                # Central export
 │   ├── codeGeneration.prompts.mjs  # Code generation prompts
 │   └── skillRefiner.prompts.mjs    # Skill refinement prompts
-└── .AchillesSkills/             # Built-in skills
+└── skills/             # Built-in skills
     ├── skill-manager/           # Main orchestrator (oskill)
     ├── list-skills/             # List discovered skills
     ├── read-skill/              # Read skill .md content

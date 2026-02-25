@@ -30,9 +30,9 @@
         <section>
             <h2>Repository Layout</h2>
             <p>
-                DBTable skills live under <code>.AchillesSkills/&lt;domain&gt;/&lt;table&gt;/</code> with a mandatory descriptor and auto-generated code:
+                DBTable skills live under <code>skills/&lt;domain&gt;/&lt;table&gt;/</code> with a mandatory descriptor and auto-generated code:
             </p>
-<pre><code>tests/dbTableSkills/.AchillesSkills/
+<pre><code>tests/dbTableSkills/skills/
 └── customers/
     ├── tskill.md
     └── tskill.generated.mjs   # created by DBTableSkillsSubsystem</code></pre>
@@ -100,7 +100,7 @@ Must be a valid email.</code></pre>
         <section>
             <h2>Testing</h2>
             <p>
-                Run <code>node --test tests/dbTableSkills/dbTableSkills.test.mjs</code> to exercise parsing, generation, and CRUD flows against a mock adapter. Sample descriptors in <code>tests/dbTableSkills/.AchillesSkills/</code> serve as templates.
+                Run <code>node --test tests/dbTableSkills/dbTableSkills.test.mjs</code> to exercise parsing, generation, and CRUD flows against a mock adapter. Sample descriptors in <code>tests/dbTableSkills/skills/</code> serve as templates.
             </p>
         </section>
     </main>

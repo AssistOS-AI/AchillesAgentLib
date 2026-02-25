@@ -88,7 +88,7 @@
     skillFilter,           // optional function to include/exclude skills
     dbAdapter,             // for DBTable skills
     onProcessingBegin, onProcessingProgress, onProcessingEnd,
-    additionalSkillRoots: [], // extra absolute/relative dirs to scan for .AchillesSkills alongside startDir
+    additionalSkillRoots: [], // extra absolute/relative dirs to scan for skills alongside startDir
     exposeInternalSkills: false, // when true, registers internal helper skills for direct invocation
 });</code></pre>
             <p>
@@ -105,7 +105,7 @@
 
             <h3>Execution Flow</h3>
             <ol>
-                <li>Discovers skills under <code>.AchillesSkills/</code> (and additional roots) at construction time.</li>
+                <li>Discovers skills under <code>skills/</code> (and additional roots) at construction time.</li>
                 <li>If no <code>skillName</code> is provided, tries a FlexSearch-based orchestrator match; otherwise falls back to LLM selection across skills.</li>
                 <li>Injects the task description into a skill's default argument (or <code>input</code>) when arguments are missing.</li>
                 <li>Routes execution to the appropriate subsystem (claude/code/mcp/orchestrator/dbtable) and forwards the prompt text.</li>

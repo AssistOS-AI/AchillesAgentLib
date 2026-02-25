@@ -909,7 +909,7 @@ export async function parseOperation(controller, prompt) {
 export async function selectFlow(controller, operation, execContext, sessionMemory, prompt = '') {
     const selectPaginationKey = pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.SELECT_PAGINATION);
     const parsedPostFilters = parseSelectConditionsFromPrompt(controller, prompt);
-    const rawFilter = operation && typeof operation.filter === 'object' && operation.filter !== null
+    const baseFilter = operation && typeof operation.filter === 'object' && operation.filter !== null
         ? operation.filter
         : {};
     const structuredPostFilters = extractPostFiltersFromStructuredFilter(rawFilter);
@@ -976,13 +976,7 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
     );
 
     const safePresented = sanitizeRecordsForUser(presented);
-    const selectWindow = parseSelectWindowDirective(prompt, {
-        ...(operation || {}),
-        query: {
-            ...(operation?.query && typeof operation.query === 'object' ? operation.query : {}),
-            ...(normalizedFilterInfo.query || {}),
-        },
-    });
+    const selectWindow = parseSelectWindowDirective(prompt, operation);
     if (sessionMemory) {
         sessionMemory.delete(selectPaginationKey);
     }

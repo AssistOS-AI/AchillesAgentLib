@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { LLMAgent } from '../../LLMAgents/index.mjs';
-import { action as mathEvalAction } from './.AchillesSkills/test1/mathEval/mathEval.js';
+import { action as mathEvalAction } from './skills/test1/mathEval/mathEval.js';
 
 function createAgent() {
     const codePayload = JSON.stringify({

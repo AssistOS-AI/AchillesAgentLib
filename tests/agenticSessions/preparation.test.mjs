@@ -204,8 +204,8 @@ test('SOPAgenticSession.runPreparation parses @context_ variables from SOP outpu
     });
 
     // The result depends on what the SOP session produces
-    assert.ok(result.contextEntries !== undefined, 'should have contextEntries');
-    assert.ok(result.contextLines !== undefined, 'should have contextLines');
+    assert.ok(result.contextText !== undefined, 'should have contextText');
+    assert.ok(result.rawText !== undefined, 'should have rawText');
 });
 
 test('SOPAgenticSession.runPreparation returns empty when preparationText is empty', async () => {
