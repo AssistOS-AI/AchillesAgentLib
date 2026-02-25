@@ -22,6 +22,28 @@ const SELECT_FIRST_RE = /\b(?:first|top)\s+(\d+)\b/i;
 const SELECT_LAST_RE = /\blast\s+(\d+)\b/i;
 const SELECT_LIMIT_RE = /\blimit\s+(\d+)\b/i;
 const SELECT_MAX_WINDOW_LIMIT = 1000;
+const SELECT_FILTER_QUERY_KEYS = new Set([
+    'limit',
+    'count',
+    'take',
+    'first',
+    'last',
+    'window',
+    'slice',
+    'position',
+    'page',
+    'pageSize',
+    'offset',
+    'order_by',
+    'orderBy',
+    'sort',
+    'sort_by',
+    'sortBy',
+    'order',
+    'direction',
+    'descending',
+    'ascending',
+]);
 const CREATE_KEYWORDS = ['create', 'add', 'new', 'insert', 'make', 'register'];
 const UPDATE_KEYWORDS = ['change', 'update', 'modify', 'edit', 'set', 'assign', 'mark'];
 const DELETE_KEYWORDS = ['delete', 'remove', 'drop', 'erase'];
@@ -253,6 +275,31 @@ function parseSelectWindowDirective(prompt, operation = {}) {
     }
 
     return null;
+}
+
+function normalizeSelectFilterAndQueryHints(rawFilter = {}) {
+    if (!rawFilter || typeof rawFilter !== 'object') {
+        return { filter: {}, query: {} };
+    }
+
+    const filter = {};
+    for (const [key, value] of Object.entries(rawFilter)) {
+        if (!SELECT_FILTER_QUERY_KEYS.has(String(key))) {
+            filter[key] = value;
+        }
+    }
+
+    const hintedWindowRaw = String(rawFilter.window || rawFilter.slice || rawFilter.position || '').trim().toLowerCase();
+    const hintedLimitRaw = rawFilter.limit ?? rawFilter.count ?? rawFilter.take ?? rawFilter.first ?? rawFilter.last;
+    const hintedLimit = normalizePositiveLimit(hintedLimitRaw);
+
+    const query = {};
+    if (hintedLimit) {
+        query.limit = hintedLimit;
+        query.window = hintedWindowRaw === 'last' ? 'last' : 'first';
+    }
+
+    return { filter, query };
 }
 
 function normalizePostFilters(postFilters = []) {
@@ -622,9 +669,11 @@ export async function parseOperation(controller, prompt) {
 
 export async function selectFlow(controller, operation, execContext, sessionMemory, prompt = '') {
     const selectPaginationKey = pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.SELECT_PAGINATION);
-    const baseFilter = operation && typeof operation.filter === 'object' && operation.filter !== null
+    const rawFilter = operation && typeof operation.filter === 'object' && operation.filter !== null
         ? operation.filter
         : {};
+    const normalizedFilterInfo = normalizeSelectFilterAndQueryHints(rawFilter);
+    const baseFilter = normalizedFilterInfo.filter;
     let records = await execContext.selectRecords(baseFilter);
     let filteredRecords = Array.isArray(records) ? records : [];
 
@@ -660,7 +709,13 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
     );
 
     const safePresented = sanitizeRecordsForUser(presented);
-    const selectWindow = parseSelectWindowDirective(prompt, operation);
+    const selectWindow = parseSelectWindowDirective(prompt, {
+        ...(operation || {}),
+        query: {
+            ...(operation?.query && typeof operation.query === 'object' ? operation.query : {}),
+            ...(normalizedFilterInfo.query || {}),
+        },
+    });
     if (sessionMemory) {
         sessionMemory.delete(selectPaginationKey);
     }
