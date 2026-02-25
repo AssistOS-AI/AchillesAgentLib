@@ -860,6 +860,44 @@ function parseSelectWindowDirective(prompt, operation = {}) {
     return null;
 }
 
+function normalizeEquipmentIdForSort(value) {
+    const raw = String(value ?? '').trim().toUpperCase();
+    const match = raw.match(/^CRL-?(\d+)$/i);
+    if (!match) {
+        return { numeric: Number.POSITIVE_INFINITY, normalized: raw };
+    }
+    return {
+        numeric: Number.parseInt(match[1], 10),
+        normalized: `CRL-${match[1]}`,
+    };
+}
+
+function sortEquipmentRecordsAscending(records, controller) {
+    if (!Array.isArray(records) || records.length <= 1) {
+        return records;
+    }
+
+    const entityName = String(controller?.entityName || '').toLowerCase();
+    const primaryKey = String(controller?.primaryKey || '').toLowerCase();
+    const isEquipmentContext = entityName === 'equipment' || primaryKey === 'equipment_id';
+    if (!isEquipmentContext) {
+        return records;
+    }
+
+    const idField = records.some((record) => Object.prototype.hasOwnProperty.call(record || {}, 'equipment_id'))
+        ? 'equipment_id'
+        : controller?.primaryKey || 'equipment_id';
+
+    return [...records].sort((left, right) => {
+        const leftKey = normalizeEquipmentIdForSort(left?.[idField]);
+        const rightKey = normalizeEquipmentIdForSort(right?.[idField]);
+        if (leftKey.numeric !== rightKey.numeric) {
+            return leftKey.numeric - rightKey.numeric;
+        }
+        return leftKey.normalized.localeCompare(rightKey.normalized);
+    });
+}
+
 function normalizeSelectFilterAndQueryHints(rawFilter = {}) {
     if (!rawFilter || typeof rawFilter !== 'object') {
         return { filter: {}, query: {} };
@@ -1534,6 +1572,7 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
     );
 
     const safePresented = sanitizeRecordsForUser(presented);
+    const orderedPresented = sortEquipmentRecordsAscending(safePresented, controller);
     const selectWindow = parseSelectWindowDirective(prompt, {
         ...(operation || {}),
         query: {
@@ -1546,10 +1585,10 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
     }
 
     if (selectWindow) {
-        const totalCount = safePresented.length;
+        const totalCount = orderedPresented.length;
         const limited = selectWindow.window === 'last'
-            ? safePresented.slice(Math.max(totalCount - selectWindow.limit, 0))
-            : safePresented.slice(0, selectWindow.limit);
+            ? orderedPresented.slice(Math.max(totalCount - selectWindow.limit, 0))
+            : orderedPresented.slice(0, selectWindow.limit);
 
         const table = formatRecordsTable(limited, controller.getListTableFields(), controller.entityName, {
             resolveLabel: (fieldName) => controller.getFieldLabel(fieldName, 'short'),
@@ -1567,5 +1606,5 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
         };
     }
 
-    return controller.buildSelectAllResult(safePresented);
+    return controller.buildSelectAllResult(orderedPresented);
 }

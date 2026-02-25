@@ -130,6 +130,19 @@ export function parseSkillMarkdown(content) {
             continue;
         }
 
+        // Any other level-2 section should close the current known section.
+        // This prevents accidental spillover (e.g., "List Extra Fields" capturing
+        // content from unrelated sections like "Validator Output Contract").
+        if (trimmedLine.match(/^##\s+.+$/)) {
+            saveCurrentContent();
+            currentSection = null;
+            currentField = null;
+            currentSubSection = null;
+            currentContent = [];
+            sectionDepth = 2;
+            continue;
+        }
+
         // Handle field definition (### FieldName)
         const fieldMatch = trimmedLine.match(/^###\s+(.+)$/);
         if (fieldMatch && currentSection === 'fields') {
@@ -431,10 +444,21 @@ function parseFieldNameList(content) {
             .trim();
 
         if (!withoutPrefix) continue;
-        if (withoutPrefix.includes(',')) {
+        // Accept only explicit field-name items, not prose.
+        // Supported forms:
+        // - field_name
+        // - field_one, field_two
+        // - `field_name`
+        const backtickedIdentifierMatches = [...withoutPrefix.matchAll(/`([a-zA-Z_][\w-]*)`/g)];
+        if (backtickedIdentifierMatches.length > 0) {
+            backtickedIdentifierMatches.forEach((match) => addField(match[1]));
+            continue;
+        }
+
+        const identifierListPattern = /^[a-zA-Z_][\w-]*(\s*,\s*[a-zA-Z_][\w-]*)*$/;
+        if (identifierListPattern.test(withoutPrefix)) {
             withoutPrefix.split(',').forEach(part => addField(part));
-        } else {
-            addField(withoutPrefix);
+            continue;
         }
     }
 
