@@ -897,6 +897,9 @@ export class ConversationalTskillController {
             // 2. Parse the operation from the user's prompt
             await this.writeProgress(`Analyzing request for ${this.entityName}...`);
             parsedOperation = await this.parseOperation(prompt);
+            if (parsedOperation && typeof parsedOperation === 'object') {
+                parsedOperation.__rawPrompt = String(prompt || '');
+            }
 
             // 3. Create execution context with DB operations
             const execContext = this.subsystem.createExecutionContext(

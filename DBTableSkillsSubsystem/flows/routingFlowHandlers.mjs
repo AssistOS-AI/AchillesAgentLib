@@ -321,6 +321,61 @@ function hasNumericPostFilter(parsed = {}) {
     });
 }
 
+function hasBulkUpdateCue(prompt = '') {
+    const text = String(prompt || '').toLowerCase();
+    if (!text.trim()) return false;
+    return /\b(move|transfer|reassign|relocate)\b/.test(text) && /\b(all|every|each|bulk)\b/.test(text);
+}
+
+function hasUpdateTargeting(parsed = {}) {
+    const filter = parsed && typeof parsed.filter === 'object' && parsed.filter !== null ? parsed.filter : {};
+    const postFilters = Array.isArray(parsed?.postFilters) ? parsed.postFilters : [];
+    return Object.keys(filter).length > 0 || postFilters.length > 0;
+}
+
+async function repairUpdateParsingIfNeeded(controller, prompt, parsed) {
+    if (!hasBulkUpdateCue(prompt) || hasUpdateTargeting(parsed)) return parsed;
+
+    const fieldInfo = formatFieldInfo(controller.fields);
+    const basePrompt = buildParseOperationPrompt(
+        prompt,
+        controller.entityName,
+        controller.parsedSkill.tablePurpose,
+        fieldInfo,
+        controller.parsedSkill.instructions || '',
+    );
+    const repairPrompt = `${basePrompt}
+
+Previous parsed JSON is invalid for bulk UPDATE targeting:
+${JSON.stringify(parsed || {}, null, 2)}
+
+Repair rules (must follow):
+- Operation must stay UPDATE.
+- For bulk update cues ("move/transfer/reassign ... all ..."), targeting cannot be empty.
+- At least one of these must be present:
+  - non-empty "filter" with exact predicates, or
+  - non-empty "postFilters" with targeting predicates.
+- Never output both empty filter {} and empty postFilters [] for bulk update cues.
+- Keep "data" only for fields that are changed by the request.
+- If prompt includes a descriptor phrase (example: "Electrical Conduit"), include it in targeting (filter or postFilters).
+- If prompt includes "from X to Y", use source in targeting and destination in data.`;
+
+    try {
+        let candidate = parsed;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const repaired = await controller.llmAgent.executePrompt(repairPrompt, {
+                mode: 'deep',
+                responseShape: 'json',
+            });
+            candidate = repaired && typeof repaired === 'object' ? repaired : candidate;
+            if (hasUpdateTargeting(candidate)) return candidate;
+        }
+        return candidate;
+    } catch (error) {
+        return parsed;
+    }
+}
+
 async function repairSelectParsingIfNeeded(controller, prompt, parsed) {
     const needsNumericComparator = hasNumericComparatorCue(prompt);
     const hasNumeric = hasNumericPostFilter(parsed);
@@ -1375,6 +1430,9 @@ export async function parseOperation(controller, prompt) {
                 postFilters: mergedPostFilters,
             };
         }
+    }
+    if (finalizedOperation === 'UPDATE') {
+        normalizedParsed = await repairUpdateParsingIfNeeded(controller, prompt, normalizedParsed);
     }
 
     normalizedParsed.__llmUnavailable = llmUnavailable;

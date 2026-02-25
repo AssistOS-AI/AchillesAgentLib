@@ -214,6 +214,11 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     }
     lines.push('');
     lines.push('Guidelines:');
+    lines.push('- First identify the PRIMARY target entity (what the user wants to act on) and any SECONDARY entities (destination, location, reference, filter context).');
+    lines.push('- Route to the tool owning the PRIMARY target entity, not to a secondary/destination entity.');
+    lines.push('- For movement intents (move/relocate/transfer/assign), if the prompt matches "<objects> ... to <destination>", choose the tool for "<objects>". Treat the destination as a parameter.');
+    lines.push('- Do NOT choose a destination tool unless the user explicitly asks to edit that destination record itself (for example rename/update/create/delete it).');
+    lines.push('- Before emitting JSON, validate tool choice against the target-entity rule and correct it if mismatched.');
     lines.push('- Use "call_tool" to obtain NEW information or perform calculations.');
     lines.push('- If you want to pass the result of a previous tool as a parameter, use the exact resultRef shown above, prefixed with $$ (example: $$shell-res-1).');
     lines.push('- Do NOT use the literal token $$resultRef; always substitute the real resultRef ID.');
