@@ -35,7 +35,7 @@
         <section>
             <h2>Descriptor Overview</h2>
             <p>
-                Each skill lives in <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/mskill.md</code>. The descriptor tells the agent:
+                Each skill lives in <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/mskill.md</code>. The descriptor tells the agent:
             </p>
             <ul>
                 <li><strong>Instructions:</strong> How to approach the task and what evidence to collect.</li>
@@ -75,7 +75,7 @@
             <h2>Telling the Story</h2>
             <p>
                 Descriptors work best when they read like coaching notes for a teammate. Describe what success means, when to skip a tool, and how to present the
-                findings. The tutorials and fixtures under <code>tests/recursiveAgent/recursiveAgentFixtures/.AchillesSkills</code> include working MCP skills
+                findings. The tutorials and fixtures under <code>tests/recursiveAgent/recursiveAgentFixtures/skills</code> include working MCP skills
                 that you can use as blueprints.
             </p>
         </section>
@@ -83,7 +83,7 @@
         <section>
             <h2>Authoring Checklist</h2>
             <ol>
-                <li>Create <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/mskill.md</code> with clear instructions and an explicit allowed-tool list.</li>
+                <li>Create <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/mskill.md</code> with clear instructions and an explicit allowed-tool list.</li>
                 <li>Add a LightSOPLang block when a deterministic sequence is required.</li>
                 <li>State how success is reported so downstream consumers know what to expect.</li>
                 <li>Register the repository or wire it into tests to exercise the workflow end-to-end.</li>

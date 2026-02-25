@@ -31,7 +31,7 @@
             <p>
                 Code skills use the same repository conventions. The code skills test suite ships with:
             </p>
-            <pre><code>tests/dcgSkills/.AchillesSkills/
+            <pre><code>tests/dcgSkills/skills/
 └── test1/
     └── mathEval/
         ├── dcgskill.md
@@ -62,7 +62,7 @@ deep</code></pre>
             <p>
                 The companion file supplies the execution harness. It calls the configured <code>LLMAgent</code> to synthesise code, unwraps fences, and evaluates the snippet inside a controlled environment.
             </p>
-            <pre><code>// tests/dcgSkills/.AchillesSkills/test1/mathEval/mathEval.js
+            <pre><code>// tests/dcgSkills/skills/test1/mathEval/mathEval.js
 export async function action(instruction, context = {}) {
     if (typeof instruction !== 'string' || !instruction.trim()) {
         throw new Error('mathEval skill requires a non-empty instruction string.');

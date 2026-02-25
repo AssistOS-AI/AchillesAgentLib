@@ -13,44 +13,76 @@ class MockLLMAgent extends LLMAgent {
   }
 
   async executePrompt(prompt, options = {}) {
-    if (prompt.includes("Multi-File Code Generation Request")) {
-      console.log("MOCK LLM: Responding to 'generateCode' with generated code (writes to disk)...");
-      
-      // Check if we should include the new module
-      const shouldIncludeNewModule = prompt.includes("new-module");
-      
-      let code = 'import { fileURLToPath } from "node:url";\n' +
-                 'import { dirname } from "node:path";\n\n' +
-                 'export async function action(args) {\n' +
-                 '  const input = args?.promptText || "";\n' +
-                 '  const match = input.match(/([A-Z][a-z]+)\\s+([A-Z][a-z]+).*?(\\d+)/);\n' +
-                 '  if (!match) { return "Error: Incomplete user data provided."; }\n' +
-                 '  const fullName = `${match[1]} ${match[2]}`;\n' +
-                 '  const age = Number(match[3]);\n' +
-                 '  const status = age >= 18 ? \'Adult\' : \'Minor\';\n' +
-                 '  const result = `Full Name: ${fullName}, Age: ${age} (${status})`;\n' +
-                 '  return result;\n' +
-                 '}\n\n' +
-                 '// Child process entry point\n' +
-                 'if (process.argv[1] === fileURLToPath(import.meta.url)) {\n' +
-                 '  const argsJson = process.argv[2];\n' +
-                 '  const args = JSON.parse(argsJson);\n' +
-                 '  action(args)\n' +
-                 '    .then(res => process.stdout.write(JSON.stringify(res)))\n' +
-                 '    .catch(err => {\n' +
-                 '      console.error("Error in generated code:", err);\n' +
-                 '      process.exit(1);\n' +
-                 '    });\n' +
-                 '}\n';
-      
-      if (shouldIncludeNewModule) {
-        code += '\n// NEW MODULE CODE\n' +
-                'export function newModuleFunction() {\n' +
-                '  return "New module is working!";\n' +
-                '}\n';
+    if (prompt.includes("Test Plan Generation")) {
+      const sourceMatch = prompt.match(/Source Files\s*\n([^\n:]+):/);
+      const sourceFile = sourceMatch ? sourceMatch[1].trim() : 'src/index.js';
+      return {
+        testPlans: [
+          {
+            description: 'Basic action behavior test plan.',
+            sourceFiles: [sourceFile],
+          },
+        ],
+      };
+    }
+
+    if (prompt.includes("Test File Generation")) {
+      return {
+        fileName: 'basic.test.mjs',
+        content: 'process.stdout.write(JSON.stringify({ results: [{ name: "basic", pass: true }] }));\n',
+        testCases: [],
+      };
+    }
+
+    if (prompt.includes("Single-File Code Generation Request")) {
+      console.log("MOCK LLM: Responding to single-file code generation...");
+      const targetMatch = prompt.match(/# Spec for:\s*([^\n]+)/);
+      const targetPath = targetMatch ? targetMatch[1].trim() : 'src/index.js';
+
+      if (targetPath.endsWith('new-module.js')) {
+        const newModuleCode = 'export function newModuleFunction() {\n' +
+          '  return "New module is working!";\n' +
+          '}\n';
+        return `## file-path: ${targetPath}\n\n` + '```javascript\n' + newModuleCode + '```';
       }
 
-      return '## file-path: index.mjs\n\n' + '```javascript\n' + code + '```';
+      if (targetPath.endsWith('index.mjs')) {
+        const generateTextCode = 'export async function action(args) {\n' +
+          '  if (!args || !args.llmAgent) {\n' +
+          '    throw new Error("Missing llmAgent");\n' +
+          '  }\n' +
+          '  if (!args.promptText) {\n' +
+          '    throw new Error("Missing promptText");\n' +
+          '  }\n' +
+          '  return "OK";\n' +
+          '}\n';
+        return `## file-path: ${targetPath}\n\n` + '```javascript\n' + generateTextCode + '```';
+      }
+
+      const code = 'import { fileURLToPath } from "node:url";\n' +
+        'import { dirname } from "node:path";\n\n' +
+        'export async function action(args) {\n' +
+        '  const input = args?.promptText || "";\n' +
+        '  const match = input.match(/([A-Z][a-z]+)\\s+([A-Z][a-z]+).*?(\\d+)/);\n' +
+        '  if (!match) { return "Error: Incomplete user data provided."; }\n' +
+        '  const fullName = `${match[1]} ${match[2]}`;\n' +
+        '  const age = Number(match[3]);\n' +
+        '  const status = age >= 18 ? \'Adult\' : \'Minor\';\n' +
+        '  const result = `Full Name: ${fullName}, Age: ${age} (${status})`;\n' +
+        '  return result;\n' +
+        '}\n\n' +
+        '// Child process entry point\n' +
+        'if (process.argv[1] === fileURLToPath(import.meta.url)) {\n' +
+        '  const argsJson = process.argv[2];\n' +
+        '  const args = JSON.parse(argsJson);\n' +
+        '  action(args)\n' +
+        '    .then(res => process.stdout.write(JSON.stringify(res)))\n' +
+        '    .catch(err => {\n' +
+        '      console.error("Error in generated code:", err);\n' +
+        '      process.exit(1);\n' +
+        '    });\n' +
+        '}\n';
+      return `## file-path: ${targetPath}\n\n` + '```javascript\n' + code + '```';
     }
 
     if (prompt.includes("extract structured arguments")) {
@@ -69,19 +101,22 @@ class MockLLMAgent extends LLMAgent {
 async function testCodeRegeneration() {
   console.log("=== Testing Code Regeneration Logic ===\n");
 
-  const skillDir = path.resolve(__dirname, '.AchillesSkills/format-user');
-  const indexFile1 = path.resolve(skillDir, 'index.mjs');
-  const newSpecFile = path.resolve(__dirname, '.AchillesSkills/format-user/specs/new-module.js.md');
+  const skillDir = path.resolve(__dirname, 'skills/format-user');
+  const indexFile1 = path.resolve(skillDir, 'src/index.js');
+  const newSpecFile = path.resolve(__dirname, 'skills/format-user/specs/new-module.js.md');
+  const newModuleFile = path.resolve(skillDir, 'src/new-module.js');
 
   // Clean up leftovers from previous runs
   await rm(newSpecFile, { force: true });
   await rm(indexFile1, { force: true });
+  await rm(newModuleFile, { force: true });
+  await rm(path.resolve(skillDir, 'tests'), { recursive: true, force: true });
 
   // Initialize the agent
   const mockLlm = new MockLLMAgent();
   const agent = new RecursiveSkilledAgent({
     llmAgent: mockLlm,
-    additionalSkillRoots: [path.resolve(__dirname, '.AchillesSkills')],
+    additionalSkillRoots: [path.resolve(__dirname, 'skills')],
     searchUpwards: false,
   });
 
@@ -99,7 +134,7 @@ async function testCodeRegeneration() {
   
   const initialCode = await readFile(indexFile1, 'utf-8');
   assert.ok(initialCode.includes('Full Name:'), "Generated code should contain expected logic");
-  assert.ok(!initialCode.includes('NEW MODULE CODE'), "Initial code should not contain new module");
+  assert.ok(!initialCode.includes('newModuleFunction'), "Initial code should not contain new module");
   console.log("✅ Initial code generation verified\n");
 
   // Test 2: Verify no regeneration when specs unchanged
@@ -108,7 +143,7 @@ async function testCodeRegeneration() {
   // Force re-preparation by creating new agent instance
   const agent2 = new RecursiveSkilledAgent({
     llmAgent: mockLlm,
-    additionalSkillRoots: [path.resolve(__dirname, '.AchillesSkills')],
+    additionalSkillRoots: [path.resolve(__dirname, 'skills')],
     searchUpwards: false,
   });
   
@@ -135,7 +170,7 @@ A new module function for testing regeneration.
   // Force re-preparation with new specs
   const agent3 = new RecursiveSkilledAgent({
     llmAgent: mockLlm,
-    additionalSkillRoots: [path.resolve(__dirname, '.AchillesSkills')],
+    additionalSkillRoots: [path.resolve(__dirname, 'skills')],
     searchUpwards: false,
   });
   
@@ -143,9 +178,10 @@ A new module function for testing regeneration.
   console.log("✅ Regeneration completed with new specifications\n");
 
   // Verify new code includes the new module
-  const regeneratedCode = await readFile(indexFile1, 'utf-8');
-  assert.ok(regeneratedCode.includes('NEW MODULE CODE'), "Regenerated code should contain new module");
-  assert.ok(regeneratedCode.includes('newModuleFunction'), "Regenerated code should contain new function");
+  const newModuleStat = await stat(newModuleFile);
+  assert.strictEqual(newModuleStat.isFile(), true, "new-module.js should exist");
+  const regeneratedModuleCode = await readFile(newModuleFile, 'utf-8');
+  assert.ok(regeneratedModuleCode.includes('newModuleFunction'), "Regenerated code should contain new function");
   console.log("✅ Regenerated code includes new module\n");
 
   // Test 4: Execute the skill with regenerated code
@@ -166,6 +202,7 @@ A new module function for testing regeneration.
   console.log("Test 5: Cleaning up test files...");
   await rm(newSpecFile, { force: true });
   await rm(indexFile1, { force: true });
+  await rm(newModuleFile, { force: true });
   console.log("✅ Cleanup completed\n");
 
   console.log("🎉 All code regeneration tests passed!");

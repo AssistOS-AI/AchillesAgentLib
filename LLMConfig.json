@@ -1,9 +1,6 @@
 {
     "fastModelPriority": [
         "soul_gateway/axiologic-fast",
-        "axiologic_proxy/gemini-2.5-flash-lite",
-        "axiologic_proxy/gemini-3-flash-preview",
-        "axiologic_proxy/gemini-2.5-flash",
         "openrouter/x-ai/grok-4.1-fast",
         "openai/o4-mini",
         "axiologic_kiro/claude-haiku-4.5"

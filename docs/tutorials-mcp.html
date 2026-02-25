@@ -17,7 +17,7 @@
     <main class="content">
         <section class="lead">
             <h1>MCP Skills Tutorial</h1>
-            <p>Building tool-centric plans with `.AchillesSkills` descriptors and carefully curated allow-lists.</p>
+            <p>Building tool-centric plans with `skills` descriptors and carefully curated allow-lists.</p>
             <nav class="page-links" aria-label="Tutorial navigation">
                 <a href="tutorials-claude.html">Claude</a>
                 <a href="tutorials-dbtable.html">DBTable</a>
@@ -29,10 +29,10 @@
         <section>
             <h2>Repository Layout</h2>
             <p>
-                MCP skills sit under the same <code>.AchillesSkills</code> root as other skill types. The recursive agent fixtures ship with:
+                MCP skills sit under the same <code>skills</code> root as other skill types. The recursive agent fixtures ship with:
             </p>
             <pre><code>tests/recursiveAgent/recursiveAgentFixtures/
-└── .AchillesSkills/
+└── skills/
     ├── orchestrationSuite/
     │   └── data/
     │       └── mskill.md
@@ -103,7 +103,7 @@ Plan MCP tool usage to gather inventory records for downstream tasks.
         <section>
             <h2>Creating New MCP Skills</h2>
             <ol>
-                <li>Create <code>.AchillesSkills/&lt;domain&gt;/&lt;skill_name&gt;/mskill.md</code>.</li>
+                <li>Create <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/mskill.md</code>.</li>
                 <li>Populate <strong>Instructions</strong> with precise guidance for the planner.</li>
                 <li>List all permitted tools under <strong>Allowed Tools</strong>.</li>
                 <li>Add an optional <strong>LightSOPLang</strong> block when deterministic sequencing is required.</li>

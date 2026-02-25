@@ -12,7 +12,7 @@ async function evalCodeGenerationPerformance() {
   const llmAgent = new LLMAgent({ name: 'evalCodeGen' });
   const agent = new RecursiveSkilledAgent({
     llmAgent,
-    additionalSkillRoots: [path.resolve(__dirname, '.AchillesSkills')],
+    additionalSkillRoots: [path.resolve(__dirname, 'skills')],
     searchUpwards: false,
   });
 
@@ -41,8 +41,8 @@ async function evalCodeGenerationPerformance() {
 
   // Helper to clean up generated files after testing (always removes targets)
   async function cleanupGeneratedFiles(skillName) {
-    const specsDir = path.resolve(__dirname, '.AchillesSkills', skillName, 'specs');
-    const skillDir = path.resolve(__dirname, '.AchillesSkills', skillName);
+    const specsDir = path.resolve(__dirname, 'skills', skillName, 'specs');
+    const skillDir = path.resolve(__dirname, 'skills', skillName);
     const srcDir = path.join(skillDir, 'src');
     const testsDir = path.join(skillDir, 'tests');
 

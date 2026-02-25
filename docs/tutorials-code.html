@@ -42,14 +42,14 @@
         <section>
             <h2>Step 1: Create Skill Structure</h2>
             <p>Start by creating the basic skill structure in your project repository:</p>
-            <pre><code>mkdir -p .AchillesSkills/user-formatter/specs
-cd .AchillesSkills/user-formatter</code></pre>
+            <pre><code>mkdir -p skills/user-formatter/specs
+cd skills/user-formatter</code></pre>
             <p>This creates the following structure:</p>
             <pre><code>user-formatter/
 ├── specs/              # Will contain our specification files
 └── cskill.md           # Main skill descriptor (to be created)</code></pre>
             <div class="note">
-                <strong>Important</strong>: The <code>.AchillesSkills</code> directory must be at your project root. 
+                <strong>Important</strong>: The <code>skills</code> directory must be at your project root. 
                 Each skill has its own folder with a descriptive name (using hyphens, not spaces).
             </div>
         </section>
@@ -172,7 +172,7 @@ const llmAgent = new LLMAgent({
 
 const agent = new RecursiveSkilledAgent({
   llmAgent,
-  additionalSkillRoots: ['./.AchillesSkills']
+  additionalSkillRoots: ['./skills']
 });
 
 // Execute the skill using natural language
@@ -187,7 +187,7 @@ console.log('Result:', result.result);
              <div class="note">
                  <strong>Automatic Preparation and Execution</strong>:
                  <ul>
-                     <li>The <code>RecursiveSkilledAgent</code> automatically discovers skills in <code>.AchillesSkills</code> directories</li>
+                     <li>The <code>RecursiveSkilledAgent</code> automatically discovers skills in <code>skills</code> directories</li>
                      <li>When it finds a <code>cskill.md</code>, it automatically invokes the shared <a href="mirror-code-generator.html"><strong>mirror-code-generator</strong></a> (<code>generateMirrorCode</code>)</li>
                      <li>The generator compares the newest spec file against the oldest expected target (mirroring <code>specs/</code> paths); missing targets always trigger regeneration</li>
                      <li>Code is generated via a <strong>single-step LLM call</strong> combining all specs; <code>cskill.md</code> sections are not required for the prompt</li>
@@ -204,9 +204,9 @@ console.log('Result:', result.result);
             <p>Common issues and solutions:</p>
              <h3>Issue: Code not regenerating when specs change</h3>
              <p><strong>Solution</strong>: Regeneration is automatic when specs are newer than generated files or any target is missing. If you need to force it, delete the generated targets that mirror <code>specs/</code> (no <code>src/</code> folder).</p>
-             <pre><code>rm -f .AchillesSkills/user-formatter/index.mjs \
-      .AchillesSkills/user-formatter/core.js \
-      .AchillesSkills/user-formatter/utils.js
+             <pre><code>rm -f skills/user-formatter/index.mjs \
+      skills/user-formatter/core.js \
+      skills/user-formatter/utils.js
 # Next prepareSkill will regenerate all code
 </code></pre>
 

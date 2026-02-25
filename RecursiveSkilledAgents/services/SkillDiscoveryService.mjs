@@ -17,7 +17,7 @@ function sanitiseName(value) {
 
 /**
  * Service for discovering skill definitions in the filesystem.
- * Scans directories for .AchillesSkills folders and parses skill files.
+ * Scans directories for skills folders and parses skill files.
  */
 export class SkillDiscoveryService {
     /**
@@ -34,10 +34,10 @@ export class SkillDiscoveryService {
     }
 
     /**
-     * Find all .AchillesSkills root directories from the given start directories.
+     * Find all skills root directories from the given start directories.
      * @param {string[]} startDirs - Directories to start searching from
      * @param {string[]} [additionalRoots=[]] - Additional root directories to include
-     * @returns {string[]} Array of discovered .AchillesSkills directories
+     * @returns {string[]} Array of discovered skills directories
      */
     findRoots(startDirs = [], additionalRoots = []) {
         const roots = [];
@@ -89,7 +89,7 @@ export class SkillDiscoveryService {
 
             while (!visitedAscending.has(current)) {
                 visitedAscending.add(current);
-                const candidate = path.join(current, '.AchillesSkills');
+                const candidate = path.join(current, 'skills');
                 if (isDirectory(candidate)) {
                     registerCandidate(candidate, 'ascend');
                 }
@@ -177,7 +177,7 @@ export class SkillDiscoveryService {
     }
 
     /**
-     * Collect .AchillesSkills directories by searching downward from a root.
+     * Collect skills directories by searching downward from a root.
      * @private
      */
     _collectSkillsDescending(startDir, registerCandidate) {
@@ -194,7 +194,7 @@ export class SkillDiscoveryService {
             }
             visited.add(current);
 
-            const candidate = path.join(current, '.AchillesSkills');
+            const candidate = path.join(current, 'skills');
             if (isDirectory(candidate)) {
                 registerCandidate(candidate, startDir);
             }
@@ -231,7 +231,7 @@ export class SkillDiscoveryService {
     /**
      * Discover skills from a root directory.
      * Scans immediate subdirectories for skill definition files.
-     * @param {string} rootDir - The .AchillesSkills root directory
+     * @param {string} rootDir - The skills root directory
      * @returns {Object[]} Array of discovered skill records
      */
     discoverFromRoot(rootDir) {

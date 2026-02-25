@@ -6,11 +6,30 @@ import { listModelsFromCache, loadModelsConfiguration } from '../../utils/LLMCli
 
 import { toAnthropicMessages } from '../../utils/LLMProviders/messageAdapters/anthropicMessages.mjs';
 import { toGeminiPayload } from '../../utils/LLMProviders/messageAdapters/googleGemini.mjs';
-import { toHuggingFacePrompt } from '../../utils/LLMProviders/messageAdapters/huggingFaceConversational.mjs';
 import { toOpenAIChatMessages } from '../../utils/LLMProviders/messageAdapters/openAIChat.mjs';
 
 // Ensure models are loaded before tests run
-loadModelsConfiguration();
+const modelsConfig = loadModelsConfiguration();
+
+function resolveAdapterKey(providerKey) {
+    const provider = modelsConfig.providers?.get(providerKey);
+    const moduleId = provider?.module || '';
+    const normalized = moduleId.toLowerCase();
+
+    if (normalized.includes('anthropic')) {
+        return 'anthropic';
+    }
+    if (normalized.includes('google') || normalized.includes('gemini')) {
+        return 'google';
+    }
+    if (normalized.includes('openai')) {
+        return 'openai';
+    }
+    if (normalized.includes('huggingface')) {
+        return 'openai';
+    }
+    return null;
+}
 
 const sampleHistory = [
     { role: 'system', message: 'You are a helpful assistant.' },
@@ -38,18 +57,16 @@ test('LLMAgent.complete uses correct message adapter for each configured model (
         }
 
         const providerKey = modelRecord.providerKey;
+        const adapterKey = resolveAdapterKey(providerKey);
         let convertedContext;
 
         // Use history directly, as it now contains the full conversation
-        switch (providerKey) {
+        switch (adapterKey) {
             case 'anthropic':
                 convertedContext = toAnthropicMessages(history);
                 break;
             case 'google':
                 convertedContext = toGeminiPayload(history);
-                break;
-            case 'huggingface':
-                convertedContext = toHuggingFacePrompt(history);
                 break;
             case 'openai':
                 convertedContext = toOpenAIChatMessages(history);
@@ -66,9 +83,10 @@ test('LLMAgent.complete uses correct message adapter for each configured model (
     for (const modelRecord of allModels) {
         const modelName = modelRecord.name;
         const providerKey = modelRecord.providerKey;
+        const adapterKey = resolveAdapterKey(providerKey);
 
         // Skip models that don't have a direct message adapter or are not relevant for this test
-        if (!['anthropic', 'google', 'huggingface', 'openai'].includes(providerKey)) {
+        if (!adapterKey) {
             continue;
         }
 
@@ -80,7 +98,7 @@ test('LLMAgent.complete uses correct message adapter for each configured model (
 
         const convertedContext = JSON.parse(response); // Parse the mocked response
 
-        switch (providerKey) {
+        switch (adapterKey) {
             case 'anthropic': {
                 const { system, messages } = convertedContext;
                 assert.equal(system, 'You are a helpful assistant.', `Anthropic: Should extract system message for ${modelName}`);
@@ -101,13 +119,6 @@ test('LLMAgent.complete uses correct message adapter for each configured model (
                 assert.equal(contents[1].role, 'model', `Gemini: Second content role should be model for ${modelName}`);
                 assert.ok(contents[1].parts, `Gemini: Second content should have parts for ${modelName}`);
                 assert.equal(contents[1].parts[0].text, 'I will help with that.', `Gemini: Second content text should match for ${modelName}`);
-                break;
-            }
-            case 'huggingface': {
-                const promptString = convertedContext;
-                assert.ok(promptString.includes('System: You are a helpful assistant.'), `HuggingFace: Should include system message for ${modelName}`);
-                assert.ok(promptString.includes('User: This is a test to see if the text is transformed to providers message format for their APIs'), `HuggingFace: Should include user message for ${modelName}`);
-                assert.ok(promptString.includes('Assistant: I will help with that.'), `HuggingFace: Should include assistant message for ${modelName}`);
                 break;
             }
             case 'openai': {

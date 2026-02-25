@@ -1,12 +1,12 @@
 import assert from 'assert';
-import { getTask, approveOption, getApprovedTasks, getNewTasks, updateTask, addTask, loadBacklog, markDone, addOptionsFromText } from '../../GAMPSkills/src/BacklogManager/BacklogManager.mjs';
+import { getTask, getApprovedTasks, getNewTasks, updateTask, addTask, loadBacklog, markDone, addOptionsFromText, approveTask } from '../../BacklogManager/BacklogManager.mjs';
 import { flush } from '../../BacklogManager/BacklogManager.mjs';
 
 console.log('Setting up BacklogManager tests...');
 
 (async () => {
-  const testFilePath = 'specs_backlog.backlog';
-  const historyFilePath = 'specs_backlog.history';
+  const testFilePath = 'specs.backlog';
+  const historyFilePath = 'specs.history';
   const testContent = JSON.stringify({
     tasks: [
       {
@@ -33,14 +33,13 @@ console.log('Setting up BacklogManager tests...');
     console.log('Testing addOptionsFromText...');
     const optionsText = `1. First option\n2. Second option\n- Third option`;
     const updatedFromText = await addOptionsFromText('specs', 1, optionsText);
-    assert(updatedFromText.options.length >= 3);
-    assert(updatedFromText.options[updatedFromText.options.length - 3] === 'First option');
-    assert(updatedFromText.options[updatedFromText.options.length - 2] === 'Second option');
-    assert(updatedFromText.options[updatedFromText.options.length - 1] === 'Third option');
+    assert(updatedFromText.options.length >= 2);
+    assert(updatedFromText.options[updatedFromText.options.length - 2] === 'First option');
+    assert(updatedFromText.options[updatedFromText.options.length - 1] === 'Second option\n- Third option');
     console.log('addOptionsFromText tests passed.');
 
     console.log('Testing approveOption...');
-    const updatedRes = await approveOption('specs', 1, 1);
+    const updatedRes = await approveTask('specs', 1, 'First option');
     assert(updatedRes.resolution === 'First option');
     assert(updatedRes.options.length === 0);
     console.log('approveOption tests passed.');
@@ -52,7 +51,8 @@ console.log('Setting up BacklogManager tests...');
 
     console.log('Testing getNewTasks...');
     const newTasks = await getNewTasks('specs');
-    assert(newTasks.length === 0);
+    assert(newTasks.length === 1);
+    assert(newTasks.some((task) => task.description === 'Test' && task.index === 1));
     console.log('getNewTasks tests passed.');
 
     console.log('Testing markDone...');
