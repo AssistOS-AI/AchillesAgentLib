@@ -22,7 +22,7 @@ const SELECT_FIRST_RE = /\b(?:first|top)\s+(\d+)\b/i;
 const SELECT_LAST_RE = /\blast\s+(\d+)\b/i;
 const SELECT_LIMIT_RE = /\blimit\s+(\d+)\b/i;
 const SELECT_MAX_WINDOW_LIMIT = 1000;
-const SELECT_FILTER_QUERY_KEYS = new Set([
+const SELECT_FILTER_QUERY_KEYS_NORMALIZED = new Set([
     'limit',
     'count',
     'take',
@@ -32,13 +32,11 @@ const SELECT_FILTER_QUERY_KEYS = new Set([
     'slice',
     'position',
     'page',
-    'pageSize',
+    'pagesize',
     'offset',
-    'order_by',
-    'orderBy',
+    'orderby',
     'sort',
-    'sort_by',
-    'sortBy',
+    'sortby',
     'order',
     'direction',
     'descending',
@@ -176,6 +174,19 @@ function normalizePositiveLimit(value) {
     return Math.min(parsed, SELECT_MAX_WINDOW_LIMIT);
 }
 
+function normalizeMetaKey(key) {
+    return String(key || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
+
+function isSelectQueryHintKey(key) {
+    const normalized = normalizeMetaKey(key);
+    if (!normalized) return false;
+    return SELECT_FILTER_QUERY_KEYS_NORMALIZED.has(normalized);
+}
+
 function stripWrappingQuotes(value) {
     const text = String(value || '').trim();
     if (!text) return '';
@@ -217,14 +228,23 @@ function parseSelectConditionFromPrompt(controller, prompt) {
     const text = String(prompt || '').trim();
     if (!text) return null;
 
-    let match = text.match(/\b(?:with|where)\s+([a-zA-Z_][\w\s-]{0,40}?)\s+(contains|is|=)\s+(.+)$/i);
+    let match = text.match(/\b(?:with|where)\s+([a-zA-Z_][\w\s-]{0,40}?)\s+(does not contain|contains|is not|is|!=|=)\s+(.+)$/i);
     let operator = 'equals';
     let fieldPhrase = '';
     let valuePhrase = '';
 
     if (match) {
         fieldPhrase = String(match[1] || '').trim();
-        operator = String(match[2] || '').trim().toLowerCase() === 'contains' ? 'contains' : 'equals';
+        const rawOperator = String(match[2] || '').trim().toLowerCase();
+        if (rawOperator === 'contains') {
+            operator = 'contains';
+        } else if (rawOperator === 'does not contain') {
+            operator = 'not_contains';
+        } else if (rawOperator === 'is not' || rawOperator === '!=') {
+            operator = 'not_equals';
+        } else {
+            operator = 'equals';
+        }
         valuePhrase = String(match[3] || '').trim();
     } else {
         match = text.match(/\b(?:with|where)\s+([a-zA-Z_][\w\s-]{0,40}?)\s+(.+)$/i);
@@ -244,7 +264,149 @@ function parseSelectConditionFromPrompt(controller, prompt) {
     };
 }
 
+function parseWhereClauseFromPrompt(prompt = '') {
+    const text = String(prompt || '').trim();
+    if (!text) return '';
+    const match = text.match(/\b(?:where|with)\s+(.+)$/i);
+    return match ? String(match[1] || '').trim() : '';
+}
+
+function parseSelectConditionsFromPrompt(controller, prompt) {
+    const clause = parseWhereClauseFromPrompt(prompt);
+    if (!clause) return [];
+
+    const conditions = [];
+    const conditionRegex = /\s*(?:(and|or)\s+)?([a-zA-Z_][\w\s-]{0,60}?)\s+(does not contain|not contains|contains|is not|is|not equal to|different from|!=|=|>=|<=|>|<|before|after|between|from|at least|at most|more than|less than|more then|less then|greater than|greater then|starts with|ends with|in|not in)\s+(.+?)(?=\s+\b(?:and|or)\b\s+[a-zA-Z_]|$)/gi;
+    let match;
+    while ((match = conditionRegex.exec(clause)) !== null) {
+        const joinWithPrevious = String(match[1] || 'and').trim().toLowerCase();
+        const fieldPhrase = String(match[2] || '').trim();
+        const rawOperator = String(match[3] || '').trim().toLowerCase();
+        const rawValue = String(match[4] || '').trim();
+        const fieldName = resolveFieldNameFromPhrase(controller, fieldPhrase);
+        if (!fieldName || !rawValue) continue;
+
+        let operator = 'equals';
+        if (rawOperator === 'contains') operator = 'contains';
+        if (rawOperator === 'does not contain' || rawOperator === 'not contains') operator = 'not_contains';
+        if (rawOperator === 'is not' || rawOperator === '!=' || rawOperator === 'not equal to' || rawOperator === 'different from') operator = 'not_equals';
+        if (rawOperator === '>' || rawOperator === 'after' || rawOperator === 'more than' || rawOperator === 'more then' || rawOperator === 'greater than' || rawOperator === 'greater then') operator = 'gt';
+        if (rawOperator === '>=' || rawOperator === 'at least') operator = 'gte';
+        if (rawOperator === '<' || rawOperator === 'before' || rawOperator === 'less than' || rawOperator === 'less then') operator = 'lt';
+        if (rawOperator === '<=' || rawOperator === 'at most') operator = 'lte';
+        if (rawOperator === 'between' || rawOperator === 'from') operator = 'between';
+        if (rawOperator === 'starts with') operator = 'starts_with';
+        if (rawOperator === 'ends with') operator = 'ends_with';
+        if (rawOperator === 'in') operator = 'in';
+        if (rawOperator === 'not in') operator = 'not_in';
+
+        if (operator === 'between') {
+            const betweenParts = rawValue
+                .split(/\s+\b(?:and|to)\b\s+/i)
+                .map(part => stripWrappingQuotes(part));
+            if (betweenParts.length !== 2 || !betweenParts[0] || !betweenParts[1]) continue;
+            conditions.push({
+                field: fieldName,
+                operator,
+                value: betweenParts[0],
+                valueTo: betweenParts[1],
+                joinWithPrevious,
+            });
+            continue;
+        }
+
+        const cleanedValue = stripWrappingQuotes(rawValue);
+        if (!cleanedValue) continue;
+        conditions.push({
+            field: fieldName,
+            operator,
+            value: cleanedValue,
+            joinWithPrevious,
+        });
+    }
+
+    return conditions;
+}
+
+function normalizeOperatorAlias(rawOperator = '') {
+    const normalized = String(rawOperator || '').trim().toLowerCase();
+    if (normalized === '$eq' || normalized === 'eq' || normalized === '=') return 'equals';
+    if (normalized === '$ne' || normalized === 'ne' || normalized === '!=' || normalized === 'is not' || normalized === 'not equal to' || normalized === 'different from') return 'not_equals';
+    if (normalized === '$gt' || normalized === 'gt' || normalized === '>' || normalized === 'after' || normalized === 'more than' || normalized === 'more then' || normalized === 'greater than' || normalized === 'greater then') return 'gt';
+    if (normalized === '$gte' || normalized === 'gte' || normalized === '>=' || normalized === 'at least' || normalized === 'min') return 'gte';
+    if (normalized === '$lt' || normalized === 'lt' || normalized === '<' || normalized === 'before' || normalized === 'less than' || normalized === 'less then') return 'lt';
+    if (normalized === '$lte' || normalized === 'lte' || normalized === '<=' || normalized === 'at most' || normalized === 'max') return 'lte';
+    if (normalized === '$contains' || normalized === 'contains') return 'contains';
+    if (normalized === '$not_contains' || normalized === 'not_contains' || normalized === 'does not contain' || normalized === 'not contains') return 'not_contains';
+    if (normalized === '$startswith' || normalized === 'startswith' || normalized === 'starts with') return 'starts_with';
+    if (normalized === '$endswith' || normalized === 'endswith' || normalized === 'ends with') return 'ends_with';
+    if (normalized === '$in' || normalized === 'in') return 'in';
+    if (normalized === '$nin' || normalized === 'nin' || normalized === 'not in') return 'not_in';
+    if (normalized === '$between' || normalized === 'between') return 'between';
+    return normalized;
+}
+
+function extractPostFiltersFromStructuredFilter(rawFilter = {}) {
+    if (!rawFilter || typeof rawFilter !== 'object') return [];
+    const result = [];
+    const collect = (node, joinWithPrevious = 'and') => {
+        if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+        for (const [field, value] of Object.entries(node)) {
+            const logicalOp = String(field || '').trim().toLowerCase();
+            if ((logicalOp === '$and' || logicalOp === 'and' || logicalOp === '$or' || logicalOp === 'or') && Array.isArray(value)) {
+                const nestedJoin = logicalOp.includes('or') ? 'or' : 'and';
+                value.forEach((entry, index) => collect(entry, index === 0 ? joinWithPrevious : nestedJoin));
+                continue;
+            }
+
+            if (!field || typeof value !== 'object' || value === null || Array.isArray(value)) continue;
+            for (const [opKey, opValue] of Object.entries(value)) {
+                const operator = normalizeOperatorAlias(opKey);
+                if (!opValue && opValue !== 0 && opValue !== false) continue;
+                if (operator === 'between') {
+                    if (Array.isArray(opValue) && opValue.length >= 2) {
+                        result.push({
+                            field,
+                            operator: 'between',
+                            value: stripWrappingQuotes(opValue[0]),
+                            valueTo: stripWrappingQuotes(opValue[1]),
+                            joinWithPrevious,
+                        });
+                    }
+                    continue;
+                }
+                if (['equals', 'not_equals', 'contains', 'not_contains', 'starts_with', 'ends_with', 'in', 'not_in', 'gt', 'gte', 'lt', 'lte'].includes(operator)) {
+                    result.push({
+                        field,
+                        operator,
+                        value: stripWrappingQuotes(opValue),
+                        joinWithPrevious,
+                    });
+                }
+            }
+        }
+    };
+    collect(rawFilter, 'and');
+    return result;
+}
+
 function parseSelectWindowDirective(prompt, operation = {}) {
+    const text = String(prompt || '');
+    if (text) {
+        // User wording takes precedence over LLM-provided query hints.
+        const lastMatch = text.match(SELECT_LAST_RE);
+        if (lastMatch) {
+            const limit = normalizePositiveLimit(lastMatch[1]);
+            if (limit) return { window: 'last', limit };
+        }
+
+        const firstMatch = text.match(SELECT_FIRST_RE) || text.match(SELECT_LIMIT_RE);
+        if (firstMatch) {
+            const limit = normalizePositiveLimit(firstMatch[1]);
+            if (limit) return { window: 'first', limit };
+        }
+    }
+
     const query = operation && typeof operation.query === 'object' && operation.query !== null
         ? operation.query
         : {};
@@ -259,21 +421,6 @@ function parseSelectWindowDirective(prompt, operation = {}) {
         return { window: 'first', limit: queryLimit };
     }
 
-    const text = String(prompt || '');
-    if (!text) return null;
-
-    const lastMatch = text.match(SELECT_LAST_RE);
-    if (lastMatch) {
-        const limit = normalizePositiveLimit(lastMatch[1]);
-        return limit ? { window: 'last', limit } : null;
-    }
-
-    const firstMatch = text.match(SELECT_FIRST_RE) || text.match(SELECT_LIMIT_RE);
-    if (firstMatch) {
-        const limit = normalizePositiveLimit(firstMatch[1]);
-        return limit ? { window: 'first', limit } : null;
-    }
-
     return null;
 }
 
@@ -284,7 +431,7 @@ function normalizeSelectFilterAndQueryHints(rawFilter = {}) {
 
     const filter = {};
     for (const [key, value] of Object.entries(rawFilter)) {
-        if (!SELECT_FILTER_QUERY_KEYS.has(String(key))) {
+        if (!isSelectQueryHintKey(key)) {
             filter[key] = value;
         }
     }
@@ -305,29 +452,121 @@ function normalizeSelectFilterAndQueryHints(rawFilter = {}) {
 function normalizePostFilters(postFilters = []) {
     if (!Array.isArray(postFilters)) return [];
     return postFilters
-        .map(entry => ({
-            field: String(entry?.field || '').trim(),
-            operator: String(entry?.operator || 'equals').trim().toLowerCase(),
-            value: stripWrappingQuotes(entry?.value),
-        }))
+        .map(entry => {
+            const rawOperator = String(entry?.operator || 'equals').trim().toLowerCase();
+            let operator = 'equals';
+            operator = normalizeOperatorAlias(rawOperator) || 'equals';
+            return {
+                field: String(entry?.field || '').trim(),
+                operator,
+                value: stripWrappingQuotes(entry?.value),
+                valueTo: stripWrappingQuotes(entry?.valueTo),
+                joinWithPrevious: String(entry?.joinWithPrevious || 'and').trim().toLowerCase(),
+            };
+        })
         .filter(entry => entry.field && entry.value);
 }
 
-function applyPostFilters(records, postFilters = []) {
+function parseComparable(value) {
+    if (value === null || value === undefined) return { kind: 'none', value: null };
+    if (typeof value === 'number' && Number.isFinite(value)) return { kind: 'number', value };
+    const text = String(value).trim();
+    if (!text) return { kind: 'none', value: null };
+    if (/^-?\d+(?:\.\d+)?$/.test(text)) return { kind: 'number', value: Number(text) };
+    const dateValue = new Date(text);
+    if (!Number.isNaN(dateValue.getTime())) return { kind: 'date', value: dateValue.getTime() };
+    return { kind: 'text', value: text.toLowerCase() };
+}
+
+function evaluatePostFilterCondition(record, filter, controller) {
+    const actualValue = record?.[filter.field];
+    const actualText = String(actualValue ?? '').trim().toLowerCase();
+    const expectedText = String(filter.value || '').trim().toLowerCase();
+    if (filter.operator === 'contains') return actualText.includes(expectedText);
+    if (filter.operator === 'not_contains') return !actualText.includes(expectedText);
+    if (filter.operator === 'starts_with') return actualText.startsWith(expectedText);
+    if (filter.operator === 'ends_with') return actualText.endsWith(expectedText);
+    if (filter.operator === 'equals') return controller.valuesAreEquivalent(actualValue, filter.value);
+    if (filter.operator === 'not_equals') return !controller.valuesAreEquivalent(actualValue, filter.value);
+    if (filter.operator === 'in' || filter.operator === 'not_in') {
+        const options = String(filter.value || '')
+            .split(/\s*,\s*|\s+\bor\b\s+/i)
+            .map(part => stripWrappingQuotes(part))
+            .filter(Boolean);
+        if (options.length === 0) return false;
+        const inSet = options.some(candidate => controller.valuesAreEquivalent(actualValue, candidate));
+        return filter.operator === 'in' ? inSet : !inSet;
+    }
+
+    const left = parseComparable(actualValue);
+    const right = parseComparable(filter.value);
+    if (left.kind === 'none' || right.kind === 'none') return false;
+    if ((left.kind === 'date' || right.kind === 'date') && !(left.kind === 'date' && right.kind === 'date')) return false;
+    if ((left.kind === 'number' || right.kind === 'number') && !(left.kind === 'number' && right.kind === 'number')) return false;
+
+    const leftValue = left.value;
+    const rightValue = right.value;
+    if (filter.operator === 'gt') return leftValue > rightValue;
+    if (filter.operator === 'gte') return leftValue >= rightValue;
+    if (filter.operator === 'lt') return leftValue < rightValue;
+    if (filter.operator === 'lte') return leftValue <= rightValue;
+    if (filter.operator === 'between') {
+        const upper = parseComparable(filter.valueTo);
+        if (upper.kind === 'none') return false;
+        if (left.kind !== upper.kind) return false;
+        const min = rightValue <= upper.value ? rightValue : upper.value;
+        const max = rightValue <= upper.value ? upper.value : rightValue;
+        return leftValue >= min && leftValue <= max;
+    }
+    return false;
+}
+
+function applyPostFilters(records, postFilters = [], controller) {
     if (!Array.isArray(records) || records.length === 0) return [];
     const normalized = normalizePostFilters(postFilters);
     if (normalized.length === 0) return records;
 
-    return records.filter(record =>
-        normalized.every(filter => {
-            const actualValue = record?.[filter.field];
-            const actual = String(actualValue ?? '').trim().toLowerCase();
-            const expected = String(filter.value || '').trim().toLowerCase();
-            if (filter.operator === 'contains') {
-                return actual.includes(expected);
+    return records.filter(record => {
+        const groups = [];
+        let currentGroup = [];
+        for (let index = 0; index < normalized.length; index++) {
+            const condition = normalized[index];
+            if (index > 0 && condition.joinWithPrevious === 'or') {
+                groups.push(currentGroup);
+                currentGroup = [];
             }
-            return actual === expected;
-        })
+            currentGroup.push(condition);
+        }
+        groups.push(currentGroup);
+
+        return groups.some(group =>
+            group.every(condition => evaluatePostFilterCondition(record, condition, controller)),
+        );
+    });
+}
+
+function applyExactFilterFallback(controller, records, filter = {}) {
+    if (!Array.isArray(records) || records.length === 0) return [];
+    if (!filter || typeof filter !== 'object') return records;
+    const filterEntries = Object.entries(filter)
+        .filter(([, expected]) => !(expected && typeof expected === 'object'));
+    if (filterEntries.length === 0) return records;
+
+    return records.filter(record =>
+        filterEntries.every(([field, expected]) => {
+            if (typeof expected === 'string') {
+                const normalizedExpected = expected.trim();
+                const notPrefixMatch = normalizedExpected.match(/^not\s+(.+)$/i);
+                if (notPrefixMatch) {
+                    return !controller.valuesAreEquivalent(record?.[field], notPrefixMatch[1]);
+                }
+                const notEqualsMatch = normalizedExpected.match(/^!=\s*(.+)$/);
+                if (notEqualsMatch) {
+                    return !controller.valuesAreEquivalent(record?.[field], notEqualsMatch[1]);
+                }
+            }
+            return controller.valuesAreEquivalent(record?.[field], expected);
+        }),
     );
 }
 
@@ -669,21 +908,49 @@ export async function parseOperation(controller, prompt) {
 
 export async function selectFlow(controller, operation, execContext, sessionMemory, prompt = '') {
     const selectPaginationKey = pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.SELECT_PAGINATION);
+    const parsedPostFilters = parseSelectConditionsFromPrompt(controller, prompt);
     const rawFilter = operation && typeof operation.filter === 'object' && operation.filter !== null
         ? operation.filter
         : {};
+    const structuredPostFilters = extractPostFiltersFromStructuredFilter(rawFilter);
     const normalizedFilterInfo = normalizeSelectFilterAndQueryHints(rawFilter);
-    const baseFilter = normalizedFilterInfo.filter;
+    let baseFilter = controller.filterKnownFields(normalizedFilterInfo.filter || {});
+    if (parsedPostFilters.length > 0) {
+        // If we already extracted deterministic conditions from prompt,
+        // avoid conflicting LLM-provided filter blobs (e.g. { quantity: { gte, lte } }).
+        const postFilterFields = new Set(parsedPostFilters.map(condition => condition.field));
+        baseFilter = Object.fromEntries(
+            Object.entries(baseFilter).filter(([field]) => !postFilterFields.has(field)),
+        );
+    }
+    if (structuredPostFilters.length > 0) {
+        const structuredFields = new Set(structuredPostFilters.map(condition => condition.field));
+        baseFilter = Object.fromEntries(
+            Object.entries(baseFilter).filter(([field, value]) =>
+                !structuredFields.has(field) || !(value && typeof value === 'object'),
+            ),
+        );
+    }
     let records = await execContext.selectRecords(baseFilter);
     let filteredRecords = Array.isArray(records) ? records : [];
+    const hasBaseFilter = Object.keys(baseFilter).length > 0;
+    if (filteredRecords.length === 0 && hasBaseFilter) {
+        const fallbackRecords = await execContext.selectRecords({});
+        filteredRecords = applyExactFilterFallback(
+            controller,
+            Array.isArray(fallbackRecords) ? fallbackRecords : [],
+            baseFilter,
+        );
+    }
 
-    const postFilters = normalizePostFilters(operation?.postFilters);
+    let postFilters = parsedPostFilters.length > 0
+        ? parsedPostFilters
+        : normalizePostFilters(operation?.postFilters);
+    if (postFilters.length === 0 && structuredPostFilters.length > 0) {
+        postFilters = structuredPostFilters;
+    }
     if (postFilters.length > 0) {
-        if (filteredRecords.length === 0 && Object.keys(baseFilter).length > 0) {
-            const fallbackRecords = await execContext.selectRecords({});
-            filteredRecords = Array.isArray(fallbackRecords) ? fallbackRecords : [];
-        }
-        filteredRecords = applyPostFilters(filteredRecords, postFilters);
+        filteredRecords = applyPostFilters(filteredRecords, postFilters, controller);
     }
 
     if (!filteredRecords || filteredRecords.length === 0) {
