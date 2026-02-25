@@ -28,12 +28,174 @@ ${instructionsSection}
 Available fields:
 ${fieldInfo}
 
-Respond with JSON:
+Respond with JSON ONLY (no markdown, no explanation):
 {
     "operation": "CREATE" | "UPDATE" | "SELECT" | "DELETE",
     "intent": "description of what the user wants",
     "filter": {},
-    "data": {}
+    "data": {},
+    "query": {
+        "window": "first" | "last",
+        "limit": 10
+    },
+    "postFilters": [
+        {
+            "field": "field_name",
+            "operator": "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with" | "in" | "not_in" | "gt" | "gte" | "lt" | "lte" | "between",
+            "value": "value",
+            "valueTo": "value_for_between_only",
+            "joinWithPrevious": "and" | "or"
+        }
+    ]
+}
+
+Rules:
+- Always return all top-level keys: operation, intent, filter, data, query, postFilters.
+- If a section is not needed, use an empty object {} or empty array [].
+- For SELECT:
+  - Put only exact DB-equality predicates in "filter" (flat field->value pairs).
+  - Put comparator/text operators (gt/gte/lt/lte/between/contains/not_contains/starts_with/ends_with/in/not_in) in "postFilters".
+  - Put pagination/window intent in "query": e.g. "first 3" => {"window":"first","limit":3}, "last two" => {"window":"last","limit":2}.
+  - "query.limit" MUST be an integer number (convert words like "two", "twenty one" to digits).
+  - Never place sort/pagination keys inside "filter".
+  - Never emit synthetic operator keys in filter (invalid examples: name_contains, quantity_gte, area_id_in).
+- For UPDATE/DELETE, when user specifies an entity id, map it to the primary key in "filter".
+- Never invent fields not listed in Available fields.
+- Never invent values not implied by user input.
+
+Ambiguity handling:
+- If user input is ambiguous and cannot be safely mapped to one exact field:
+  - prefer SELECT,
+  - keep "filter" minimal (or {}),
+  - use "postFilters" with explicit OR conditions across plausible fields,
+  - include "(ambiguous)" in intent.
+- For short noun-like queries, do not force a single field unless explicitly requested.
+- If unsure between exact equality and substring, prefer substring via postFilters "contains".
+
+Comparator priority rules (important):
+- When prompt contains a numeric comparator with a value (>, >=, <, <=, more than, less than, greater than, at least, at most, between, from..to), prioritize mapping it to a numeric field in postFilters.
+- Treat typo variants as the same comparator intent:
+  - "more then" => "more than"
+  - "less then" => "less than"
+  - "greater then" => "greater than"
+- Do NOT downgrade numeric comparator intent into a plain equality filter on unrelated text fields.
+- If both a product phrase and comparator are present (example: "Electrical Conduit less then 65 peaces"):
+  - keep product phrase as text match in postFilters (contains),
+  - map comparator to numeric field (typically quantity) in postFilters,
+  - combine with AND.
+- Use OR in postFilters only when user explicitly asks with keyword "or".
+- For prompts using "with"/"where" plus comparator and no explicit "or", default joinWithPrevious to "and".
+- If comparator appears without an explicit field name (example: "with at least 55 peaces"), infer numeric field from context:
+  - default to "quantity" for inventory-like prompts,
+  - if "quantity" does not exist, choose the closest numeric field from Available fields (do not leave comparator unmapped),
+  - never map it to unit equality.
+- If pattern is "<item phrase> with/where <numeric comparator> <number> <unit-like token>", produce BOTH:
+  - a text predicate for item phrase (contains),
+  - a numeric predicate for quantity (gt/gte/lt/lte/between).
+- Treat common typos as equivalent:
+  - "less then" -> "less than"
+  - "more then" -> "more than"
+  - "peaces"/"piece"/"pcs"/"pieces" indicate quantity context unless user explicitly says "unit is ...".
+- Only set unit equality when the prompt explicitly asks about unit (example: "where unit is pcs").
+- Never output only {"filter":{"unit":"pieces"}} when a numeric comparator is present.
+- For SELECT with numeric comparator intent, postFilters must include at least one numeric condition (gt/gte/lt/lte/between).
+- Hard reject:
+  - empty postFilters when numeric comparator cues are present,
+  - filter keys with operator suffixes (name_contains, quantity_gte, etc).
+  - dropping comparator intent when at least one numeric field exists in Available fields.
+- Mandatory constraint:
+  - If numeric comparator cue exists and at least one numeric field exists in Available fields, output must include at least one numeric postFilter (gt/gte/lt/lte/between) on one of those numeric fields.
+
+Examples (valid JSON shape):
+Prompt: "list last two areas"
+{
+  "operation":"SELECT",
+  "intent":"list areas with last window",
+  "filter":{},
+  "data":{},
+  "query":{"window":"last","limit":2},
+  "postFilters":[]
+}
+
+Prompt: "show all materials where quantity >= 50 and quantity <= 200"
+{
+  "operation":"SELECT",
+  "intent":"filter materials by quantity range",
+  "filter":{},
+  "data":{},
+  "query":{},
+  "postFilters":[
+    {"field":"quantity","operator":"gte","value":"50","joinWithPrevious":"and"},
+    {"field":"quantity","operator":"lte","value":"200","joinWithPrevious":"and"}
+  ]
+}
+
+Prompt: "show all Electrical Conduit less then 65 peaces"
+{
+  "operation":"SELECT",
+  "intent":"filter electrical conduit by quantity less than 65",
+  "filter":{},
+  "data":{},
+  "query":{},
+  "postFilters":[
+    {"field":"name","operator":"contains","value":"electrical conduit","joinWithPrevious":"and"},
+    {"field":"quantity","operator":"lt","value":"65","joinWithPrevious":"and"}
+  ]
+}
+
+Prompt: "show all Electrical Conduit with at least 55 peaces"
+{
+  "operation":"SELECT",
+  "intent":"filter electrical conduit by quantity at least 55",
+  "filter":{},
+  "data":{},
+  "query":{},
+  "postFilters":[
+    {"field":"name","operator":"contains","value":"electrical conduit","joinWithPrevious":"and"},
+    {"field":"quantity","operator":"gte","value":"55","joinWithPrevious":"and"}
+  ]
+}
+
+Prompt: "show all cms's"
+{
+  "operation":"SELECT",
+  "intent":"ambiguous short search term (ambiguous)",
+  "filter":{},
+  "data":{},
+  "query":{},
+  "postFilters":[
+    {"field":"category1","operator":"contains","value":"cms","joinWithPrevious":"and"},
+    {"field":"category2","operator":"contains","value":"cms","joinWithPrevious":"or"},
+    {"field":"category3","operator":"contains","value":"cms","joinWithPrevious":"or"},
+    {"field":"name","operator":"contains","value":"cms","joinWithPrevious":"or"}
+  ]
+}
+
+Prompt: "change area named shelf area"
+{
+  "operation":"UPDATE",
+  "intent":"update area records named shelf area",
+  "filter":{"name":"shelf area"},
+  "data":{},
+  "query":{},
+  "postFilters":[]
+}
+
+Negative example (invalid):
+Prompt: "show all Electrical Conduit with at least 55 peaces"
+{
+  "operation":"SELECT",
+  "filter":{"unit":"pieces"},
+  "postFilters":[]
+}
+Reason invalid: comparator cue present but no numeric postFilter; unit was inferred without explicit "unit is ...".
+
+Negative example (invalid):
+Prompt: "show all materials where quantity >= 50"
+{
+  "operation":"SELECT",
+  "filter":{"quantity_gte":"50"},
+  "postFilters":[]
 }`;
 }
 

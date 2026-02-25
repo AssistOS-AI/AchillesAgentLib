@@ -17,6 +17,35 @@ import {
     sanitizeRecordForUser,
 } from '../helpers/conversationDisplayUtils.mjs';
 
+function applyFilterFallbackEquivalent(controller, records, filter = {}) {
+    if (!Array.isArray(records) || records.length === 0) return [];
+    const entries = Object.entries(filter || {})
+        .filter(([, expected]) => !(expected && typeof expected === 'object'));
+    if (entries.length === 0) return records;
+
+    return records.filter((record) => entries.every(([field, expected]) => {
+        if (field === controller.primaryKey) {
+            return controller.normalizePrimaryKeyForComparison(record?.[field])
+                === controller.normalizePrimaryKeyForComparison(expected);
+        }
+        return controller.valuesAreEquivalent(record?.[field], expected);
+    }));
+}
+
+function buildEffectiveChanges(controller, originalRecord, requestedChanges = {}, preparedRecord = {}) {
+    const effective = {};
+    for (const field of Object.keys(requestedChanges || {})) {
+        if (field === controller.primaryKey || field === 'id') continue;
+        const nextValue = Object.prototype.hasOwnProperty.call(preparedRecord || {}, field)
+            ? preparedRecord[field]
+            : requestedChanges[field];
+        if (!controller.valuesAreEquivalent(originalRecord?.[field], nextValue)) {
+            effective[field] = nextValue;
+        }
+    }
+    return effective;
+}
+
 export async function handleUpdateConfirmation(controller, prompt, pending, sessionMemory, key) {
     const decision = await resolveConfirmation(prompt, controller.llmAgent, {
         actionContext: `confirming update of ${controller.entityName}`,
@@ -38,13 +67,7 @@ export async function handleUpdateConfirmation(controller, prompt, pending, sess
             const safeRecord = sanitizeRecordForUser(presented);
 
             // Build a compact change summary so the final UPDATE response is explicit.
-            const changedFields = Object.keys(pending.changes || {}).filter((field) => {
-                if (field === controller.primaryKey || field === 'id') return false;
-                return !controller.valuesAreEquivalent(
-                    pending.original?.[field],
-                    pending.changes?.[field],
-                );
-            });
+            const changedFields = Object.keys(pending.changes || {});
 
             const changeTable = changedFields.length > 0
                 ? changedFields.map((field) => {
@@ -146,16 +169,25 @@ export async function prepareUpdateForRecord(
         };
     }
 
+    const effectiveChanges = buildEffectiveChanges(controller, record, changes, prepared);
+    if (Object.keys(effectiveChanges).length === 0) {
+        return {
+            success: true,
+            operation: 'UPDATE',
+            message: 'No effective field changes were detected.',
+        };
+    }
+
     // Show changes and ask for confirmation
     if (sessionMemory) {
         sessionMemory.set(pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.UPDATE), {
             id: recordId,
             original: record,
-            changes: prepared,
+            changes: effectiveChanges,
         });
     }
 
-    const changeTable = Object.entries(changes)
+    const changeTable = Object.entries(effectiveChanges)
         .map(([field, value]) => {
             const label = controller.getFieldLabel(field, 'short');
             return `| ${label} | ${controller.formatDisplayValue(record[field])} | ${controller.formatDisplayValue(value)} |`;
@@ -335,8 +367,17 @@ export async function handleUpdateFieldCapture(controller, prompt, pending, sess
             };
         }
 
+        const effectiveChanges = buildEffectiveChanges(controller, pending.record, changes, prepared);
+        if (Object.keys(effectiveChanges).length === 0) {
+            return {
+                success: true,
+                operation: 'UPDATE',
+                message: 'No effective field changes were detected.',
+            };
+        }
+
         // Show confirmation
-        const changeTable = Object.entries(changes)
+        const changeTable = Object.entries(effectiveChanges)
             .map(([field, value]) => {
                 const label = controller.getFieldLabel(field, 'short');
                 return `| ${label} | ${controller.formatDisplayValue(pending.record[field])} | ${controller.formatDisplayValue(value)} |`;
@@ -347,7 +388,7 @@ export async function handleUpdateFieldCapture(controller, prompt, pending, sess
         sessionMemory.set(updateKey, {
             id: pending.id,
             original: pending.record,
-            changes: prepared,
+            changes: effectiveChanges,
         });
 
         return {
@@ -386,6 +427,11 @@ export async function updateFlow(controller, operation, execContext, sessionMemo
         existing = (allRecords || []).filter(record =>
             controller.normalizePrimaryKeyForComparison(record?.[controller.primaryKey]) === normalizedTargetPk,
         );
+    }
+    if ((!existing || existing.length === 0) && Object.keys(normalizedFilter || {}).length > 0) {
+        // General fallback when adapter filtering is strict/case-sensitive for non-PK fields.
+        const allRecords = await execContext.selectRecords({});
+        existing = applyFilterFallbackEquivalent(controller, allRecords || [], normalizedFilter);
     }
     if (!existing || existing.length === 0) {
         return {

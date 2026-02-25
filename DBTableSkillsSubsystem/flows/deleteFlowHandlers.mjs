@@ -15,6 +15,21 @@ import {
     sanitizeRecordsForUser,
 } from '../helpers/conversationDisplayUtils.mjs';
 
+function applyFilterFallbackEquivalent(controller, records, filter = {}) {
+    if (!Array.isArray(records) || records.length === 0) return [];
+    const entries = Object.entries(filter || {})
+        .filter(([, expected]) => !(expected && typeof expected === 'object'));
+    if (entries.length === 0) return records;
+
+    return records.filter((record) => entries.every(([field, expected]) => {
+        if (field === controller.primaryKey) {
+            return controller.normalizePrimaryKeyForComparison(record?.[field])
+                === controller.normalizePrimaryKeyForComparison(expected);
+        }
+        return controller.valuesAreEquivalent(record?.[field], expected);
+    }));
+}
+
 export async function handleDeleteIdCapture(controller, prompt, pending, sessionMemory, key) {
     if (isNoResponse(prompt) || /^cancel$/i.test(String(prompt || '').trim())) {
         sessionMemory.delete(key);
@@ -171,6 +186,11 @@ export async function deleteFlow(controller, operation, execContext, sessionMemo
         records = (allRecords || []).filter(record =>
             controller.normalizePrimaryKeyForComparison(record?.[controller.primaryKey]) === normalizedTargetPk,
         );
+    }
+    if ((!records || records.length === 0) && Object.keys(normalizedFilter || {}).length > 0) {
+        // General fallback when adapter filtering is strict/case-sensitive for non-PK fields.
+        const allRecords = await execContext.selectRecords({});
+        records = applyFilterFallbackEquivalent(controller, allRecords || [], normalizedFilter);
     }
 
     if (!records || records.length === 0) {

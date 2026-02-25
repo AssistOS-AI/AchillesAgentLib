@@ -18,10 +18,53 @@ const SELECT_PREFIX_RE = /^\s*(list|show|display|view|get|find|search)\b/i;
 const MUTATION_PREFIX_RE = /^\s*(add|create|new|insert|update|edit|change|delete|remove|drop)\b/i;
 const PK_SHORTCUT_RE = /^\s*(update|edit|change|delete|remove|drop)\s+([a-zA-Z_][\w-]*)\s+([^\s,.;:!?]+)\b/i;
 const SELECT_PK_SHORTCUT_RE = /^\s*(list|show|display|view|get|find|search)\s+([a-zA-Z_][\w-]*)\s+([^\s,]+)\s*$/i;
-const SELECT_FIRST_RE = /\b(?:first|top)\s+(\d+)\b/i;
-const SELECT_LAST_RE = /\blast\s+(\d+)\b/i;
-const SELECT_LIMIT_RE = /\blimit\s+(\d+)\b/i;
+const SELECT_FIRST_RE = /\b(?:first|top)\s+([a-z0-9-]+(?:\s+[a-z0-9-]+)*)\b/i;
+const SELECT_LAST_RE = /\blast\s+([a-z0-9-]+(?:\s+[a-z0-9-]+)*)\b/i;
+const SELECT_LIMIT_RE = /\blimit\s+([a-z0-9-]+(?:\s+[a-z0-9-]+)*)\b/i;
 const SELECT_MAX_WINDOW_LIMIT = 1000;
+const NUMBER_WORDS_UNITS = new Map([
+    ['zero', 0],
+    ['one', 1],
+    ['two', 2],
+    ['three', 3],
+    ['four', 4],
+    ['five', 5],
+    ['six', 6],
+    ['seven', 7],
+    ['eight', 8],
+    ['nine', 9],
+    ['ten', 10],
+    ['eleven', 11],
+    ['twelve', 12],
+    ['thirteen', 13],
+    ['fourteen', 14],
+    ['fifteen', 15],
+    ['sixteen', 16],
+    ['seventeen', 17],
+    ['eighteen', 18],
+    ['nineteen', 19],
+]);
+const NUMBER_WORDS_TENS = new Map([
+    ['twenty', 20],
+    ['thirty', 30],
+    ['forty', 40],
+    ['fifty', 50],
+    ['sixty', 60],
+    ['seventy', 70],
+    ['eighty', 80],
+    ['ninety', 90],
+]);
+const NUMBER_WORDS_SCALES = new Map([
+    ['hundred', 100],
+    ['thousand', 1000],
+    ['million', 1000000],
+    ['billion', 1000000000],
+]);
+const NUMBER_WORD_SHORTCUTS = new Map([
+    ['couple', 2],
+    ['few', 3],
+    ['dozen', 12],
+]);
 const SELECT_FILTER_QUERY_KEYS_NORMALIZED = new Set([
     'limit',
     'count',
@@ -169,9 +212,81 @@ function extractSelectPrimaryKeyShortcut(prompt, entityName) {
 }
 
 function normalizePositiveLimit(value) {
-    const parsed = Number.parseInt(String(value || '').trim(), 10);
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    const parsedNumeric = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsedNumeric) && parsedNumeric > 0) {
+        return Math.min(parsedNumeric, SELECT_MAX_WINDOW_LIMIT);
+    }
+
+    const parsedWords = parseEnglishNumber(raw);
+    const parsed = Number.isFinite(parsedWords) ? parsedWords : Number.NaN;
     if (!Number.isFinite(parsed) || parsed <= 0) return null;
     return Math.min(parsed, SELECT_MAX_WINDOW_LIMIT);
+}
+
+function parseEnglishNumber(value) {
+    const text = String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, ' ')
+        .replace(/-/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!text) return null;
+
+    if (NUMBER_WORD_SHORTCUTS.has(text)) {
+        return NUMBER_WORD_SHORTCUTS.get(text);
+    }
+
+    const tokens = text.split(' ').filter(Boolean);
+    if (tokens.length === 0) return null;
+
+    let total = 0;
+    let current = 0;
+    let sawToken = false;
+
+    for (const token of tokens) {
+        if (token === 'and') continue;
+
+        if (NUMBER_WORD_SHORTCUTS.has(token)) {
+            current += NUMBER_WORD_SHORTCUTS.get(token);
+            sawToken = true;
+            continue;
+        }
+
+        if (NUMBER_WORDS_UNITS.has(token)) {
+            current += NUMBER_WORDS_UNITS.get(token);
+            sawToken = true;
+            continue;
+        }
+
+        if (NUMBER_WORDS_TENS.has(token)) {
+            current += NUMBER_WORDS_TENS.get(token);
+            sawToken = true;
+            continue;
+        }
+
+        if (NUMBER_WORDS_SCALES.has(token)) {
+            const scale = NUMBER_WORDS_SCALES.get(token);
+            if (scale === 100) {
+                current = Math.max(current, 1) * scale;
+            } else {
+                total += Math.max(current, 1) * scale;
+                current = 0;
+            }
+            sawToken = true;
+            continue;
+        }
+
+        if (sawToken) {
+            break;
+        }
+        return null;
+    }
+
+    if (!sawToken) return null;
+    const result = total + current;
+    return Number.isFinite(result) ? result : null;
 }
 
 function normalizeMetaKey(key) {
@@ -179,6 +294,85 @@ function normalizeMetaKey(key) {
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '');
+}
+
+function hasNumericComparatorCue(prompt = '') {
+    const text = String(prompt || '').toLowerCase();
+    if (!text.trim()) return false;
+    return /\b(at least|at most|less than|less then|more than|more then|greater than|greater then|between|from)\b|>=|<=|(?<![a-z0-9])>(?![=])|(?<![a-z0-9])<(?![=])/i.test(text);
+}
+
+function hasInvalidSyntheticFilterKeys(filter = {}) {
+    if (!filter || typeof filter !== 'object') return false;
+    return Object.keys(filter).some((key) => /_(contains|not_contains|starts_with|ends_with|gt|gte|lt|lte|between|in|not_in)$/i.test(String(key || '')));
+}
+
+function hasNumericPostFilter(parsed = {}) {
+    const postFilters = Array.isArray(parsed?.postFilters) ? parsed.postFilters : [];
+    return postFilters.some((entry) => {
+        const op = String(entry?.operator || '').toLowerCase();
+        if (!['gt', 'gte', 'lt', 'lte', 'between'].includes(op)) return false;
+        const value = String(entry?.value ?? '').trim();
+        const valueTo = String(entry?.valueTo ?? '').trim();
+        if (op === 'between') {
+            return /^-?\d+(\.\d+)?$/.test(value) && /^-?\d+(\.\d+)?$/.test(valueTo);
+        }
+        return /^-?\d+(\.\d+)?$/.test(value);
+    });
+}
+
+async function repairSelectParsingIfNeeded(controller, prompt, parsed) {
+    const needsNumericComparator = hasNumericComparatorCue(prompt);
+    const hasNumeric = hasNumericPostFilter(parsed);
+    const hasSynthetic = hasInvalidSyntheticFilterKeys(parsed?.filter || {});
+    if (!needsNumericComparator && !hasSynthetic) return parsed;
+    if (needsNumericComparator && hasNumeric && !hasSynthetic) return parsed;
+
+    const fieldInfo = formatFieldInfo(controller.fields);
+    const numericCandidates = getNumericFieldCandidates(controller);
+    const basePrompt = buildParseOperationPrompt(
+        prompt,
+        controller.entityName,
+        controller.parsedSkill.tablePurpose,
+        fieldInfo,
+        controller.parsedSkill.instructions || '',
+    );
+    const repairPrompt = `${basePrompt}
+
+Previous parsed JSON was invalid for SELECT constraints:
+${JSON.stringify(parsed || {}, null, 2)}
+
+Repair rules (must follow):
+- Operation must stay SELECT.
+- If prompt has numeric comparator cues, include at least one numeric comparator in postFilters (gt/gte/lt/lte/between).
+- Do NOT use synthetic keys in filter (e.g. name_contains, quantity_gte).
+- Keep filter as exact equality only, and move comparator logic into postFilters.
+- Numeric comparator must target one of these numeric fields (when available): ${numericCandidates.length > 0 ? numericCandidates.join(', ') : '(none detected)'}.
+- If numeric fields are available, NEVER drop numeric comparator intent.
+- If prompt contains an item phrase + comparator, include BOTH:
+  - one text postFilter (contains) for item phrase, and
+  - one numeric comparator postFilter (typically quantity).
+- Never output only {"filter":{"unit":"pieces"}} when comparator cues exist.
+- If unsure, prioritize preserving numeric comparator intent in postFilters over unit equality inference.`;
+
+    try {
+        let candidate = parsed;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const repaired = await controller.llmAgent.executePrompt(repairPrompt, {
+                mode: 'deep',
+                responseShape: 'json',
+            });
+            candidate = repaired && typeof repaired === 'object' ? repaired : candidate;
+            const repairedHasSynthetic = hasInvalidSyntheticFilterKeys(candidate?.filter || {});
+            const repairedHasNumeric = hasNumericPostFilter(candidate);
+            if (!repairedHasSynthetic && (!needsNumericComparator || repairedHasNumeric)) {
+                return candidate;
+            }
+        }
+        return candidate;
+    } catch (error) {
+        return parsed;
+    }
 }
 
 function isSelectQueryHintKey(key) {
@@ -328,6 +522,193 @@ function parseSelectConditionsFromPrompt(controller, prompt) {
     return conditions;
 }
 
+function getFieldType(controller, fieldName) {
+    const fieldDef = controller?.fields?.[fieldName] || {};
+    return String(fieldDef?.type || '').trim().toLowerCase();
+}
+
+function getNumericFieldCandidates(controller) {
+    const fields = Object.keys(controller?.fields || {});
+    const byType = fields.filter(fieldName => {
+        const type = getFieldType(controller, fieldName);
+        return type === 'integer' || type === 'decimal' || type === 'bigint' || type === 'number';
+    });
+    if (byType.length > 0) return byType.filter(field => field !== controller.primaryKey);
+
+    return fields.filter(fieldName =>
+        fieldName !== controller.primaryKey && /(quantity|qty|count|amount|number|num|total|size|length|width|height|weight|price|cost|age|year|score|rank|volume|stock)/i.test(fieldName),
+    );
+}
+
+function scoreFieldAsNumeric(controller, fieldName, records = []) {
+    const sample = Array.isArray(records) ? records.slice(0, 100) : [];
+    if (sample.length === 0) return 0;
+    let numericHits = 0;
+    for (const row of sample) {
+        const comparable = parseComparable(row?.[fieldName]);
+        if (comparable.kind === 'number') numericHits += 1;
+    }
+    return numericHits / sample.length;
+}
+
+function rankNumericFieldCandidates(controller, fields = [], records = []) {
+    const weighted = fields.map(fieldName => {
+        const nameBonus = /(quantity|qty|count|amount|total|stock|num|number)/i.test(fieldName) ? 0.25 : 0;
+        const numericRatio = scoreFieldAsNumeric(controller, fieldName, records);
+        return {
+            fieldName,
+            score: numericRatio + nameBonus,
+        };
+    });
+    return weighted
+        .sort((a, b) => b.score - a.score)
+        .map(entry => entry.fieldName);
+}
+
+function getTextFieldCandidates(controller) {
+    const fields = Object.keys(controller?.fields || {});
+    const byType = fields.filter(fieldName => {
+        const type = getFieldType(controller, fieldName);
+        return !type || type === 'string' || type === 'text' || type === 'email' || type === 'url';
+    });
+    return byType.filter(field => field !== controller.primaryKey);
+}
+
+function parseNumericComparatorFromPrompt(prompt = '') {
+    const text = String(prompt || '').trim();
+    if (!text) return null;
+
+    const betweenMatch = text.match(/\b(?:between|from)\s*(-?\d+(?:\.\d+)?)\s*(?:and|to)\s*(-?\d+(?:\.\d+)?)/i);
+    if (betweenMatch) {
+        return {
+            operator: 'between',
+            value: betweenMatch[1],
+            valueTo: betweenMatch[2],
+        };
+    }
+
+    const rules = [
+        { regex: /\b(?:at least|minimum of|no less than)\s*(-?\d+(?:\.\d+)?)/i, operator: 'gte' },
+        { regex: /\b(?:at most|maximum of|no more than)\s*(-?\d+(?:\.\d+)?)/i, operator: 'lte' },
+        { regex: /\b(?:more than|more then|greater than|greater then|over)\s*(-?\d+(?:\.\d+)?)/i, operator: 'gt' },
+        { regex: /\b(?:less than|less then|under|below)\s*(-?\d+(?:\.\d+)?)/i, operator: 'lt' },
+        { regex: />=\s*(-?\d+(?:\.\d+)?)/, operator: 'gte' },
+        { regex: /<=\s*(-?\d+(?:\.\d+)?)/, operator: 'lte' },
+        { regex: /(?<![a-z0-9])>(?![=])\s*(-?\d+(?:\.\d+)?)/i, operator: 'gt' },
+        { regex: /(?<![a-z0-9])<(?![=])\s*(-?\d+(?:\.\d+)?)/i, operator: 'lt' },
+    ];
+
+    for (const rule of rules) {
+        const match = text.match(rule.regex);
+        if (match) {
+            return {
+                operator: rule.operator,
+                value: match[1],
+            };
+        }
+    }
+
+    return null;
+}
+
+function extractSubjectPhraseForSelect(controller, prompt = '') {
+    const text = String(prompt || '').trim();
+    if (!text) return '';
+
+    const segment = text.split(/\b(?:where|with)\b/i)[0] || '';
+    if (!segment.trim()) return '';
+
+    const entityName = String(controller?.entityName || '').trim();
+    let normalized = segment
+        .replace(/^[\s"'`]+|[\s"'`]+$/g, '')
+        .replace(/\b(?:show|list|find|get|display|fetch|give|return)\b/gi, ' ')
+        .replace(/\b(?:all|the|any|every)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (entityName) {
+        const singular = entityName.replace(/s$/i, '');
+        const plural = singular.endsWith('s') ? singular : `${singular}s`;
+        const entityRe = new RegExp(`\\b(?:${singular}|${plural})\\b`, 'ig');
+        normalized = normalized.replace(entityRe, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    return normalized;
+}
+
+function inferSubjectContainsCondition(controller, prompt, records = []) {
+    const subjectPhrase = extractSubjectPhraseForSelect(controller, prompt);
+    if (!subjectPhrase) return null;
+
+    const normalizedPhrase = controller.normalizeTextForComparison(subjectPhrase);
+    if (!normalizedPhrase || normalizedPhrase.length < 2) return null;
+    const tokens = normalizedPhrase.split(/\s+/).filter(token => token.length >= 2);
+    if (tokens.length === 0) return null;
+
+    const textFields = getTextFieldCandidates(controller);
+    if (textFields.length === 0) return null;
+
+    const sample = Array.isArray(records) ? records : [];
+    let bestField = null;
+    let bestScore = 0;
+
+    for (const field of textFields) {
+        let score = 0;
+        for (const row of sample) {
+            const hay = controller.normalizeTextForComparison(row?.[field]);
+            if (!hay) continue;
+            if (hay.includes(normalizedPhrase)) {
+                score += 3;
+                continue;
+            }
+            const matchedTokens = tokens.filter(token => hay.includes(token)).length;
+            score += matchedTokens;
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestField = field;
+        }
+    }
+
+    if (!bestField) return null;
+    return {
+        field: bestField,
+        operator: 'contains',
+        value: subjectPhrase,
+        joinWithPrevious: 'and',
+    };
+}
+
+function inferGenericSelectFallbackPostFilters(controller, prompt, records = []) {
+    if (!hasNumericComparatorCue(prompt)) return [];
+
+    const comparator = parseNumericComparatorFromPrompt(prompt);
+    if (!comparator) return [];
+
+    const numericFields = rankNumericFieldCandidates(
+        controller,
+        getNumericFieldCandidates(controller),
+        records,
+    );
+    if (numericFields.length === 0) return [];
+
+    const numericCondition = {
+        field: numericFields[0],
+        operator: comparator.operator,
+        value: comparator.value,
+        ...(comparator.valueTo ? { valueTo: comparator.valueTo } : {}),
+        joinWithPrevious: 'and',
+    };
+
+    const subjectCondition = inferSubjectContainsCondition(controller, prompt, records);
+    if (!subjectCondition) return [numericCondition];
+
+    return [
+        { ...subjectCondition, joinWithPrevious: 'and' },
+        { ...numericCondition, joinWithPrevious: 'and' },
+    ];
+}
+
 function normalizeOperatorAlias(rawOperator = '') {
     const normalized = String(rawOperator || '').trim().toLowerCase();
     if (normalized === '$eq' || normalized === 'eq' || normalized === '=') return 'equals';
@@ -456,15 +837,105 @@ function normalizePostFilters(postFilters = []) {
             const rawOperator = String(entry?.operator || 'equals').trim().toLowerCase();
             let operator = 'equals';
             operator = normalizeOperatorAlias(rawOperator) || 'equals';
+            let value = stripWrappingQuotes(entry?.value);
+            let valueTo = stripWrappingQuotes(entry?.valueTo);
+
+            if (['gt', 'gte', 'lt', 'lte', 'between'].includes(operator)) {
+                const leftMatch = String(value || '').match(/-?\d+(?:\.\d+)?/);
+                if (leftMatch) value = leftMatch[0];
+                if (operator === 'between') {
+                    const rightMatch = String(valueTo || '').match(/-?\d+(?:\.\d+)?/);
+                    if (rightMatch) valueTo = rightMatch[0];
+                }
+            }
             return {
                 field: String(entry?.field || '').trim(),
                 operator,
-                value: stripWrappingQuotes(entry?.value),
-                valueTo: stripWrappingQuotes(entry?.valueTo),
+                value,
+                valueTo,
                 joinWithPrevious: String(entry?.joinWithPrevious || 'and').trim().toLowerCase(),
             };
         })
         .filter(entry => entry.field && entry.value);
+}
+
+function hasNumericComparatorPostFilter(postFilters = []) {
+    const normalized = normalizePostFilters(postFilters);
+    return normalized.some((entry) => {
+        const op = String(entry?.operator || '').toLowerCase();
+        if (!['gt', 'gte', 'lt', 'lte', 'between'].includes(op)) return false;
+        const left = String(entry?.value || '').trim();
+        const right = String(entry?.valueTo || '').trim();
+        if (op === 'between') return /^-?\d+(\.\d+)?$/.test(left) && /^-?\d+(\.\d+)?$/.test(right);
+        return /^-?\d+(\.\d+)?$/.test(left);
+    });
+}
+
+function hasExplicitOrCue(prompt = '') {
+    const text = String(prompt || '').toLowerCase();
+    if (!text.trim()) return false;
+    return /\bor\b/.test(text);
+}
+
+function enforceConjunctiveNumericIntent(postFilters = [], prompt = '') {
+    const normalized = normalizePostFilters(postFilters);
+    if (normalized.length < 2) return normalized;
+    if (!hasNumericComparatorCue(prompt)) return normalized;
+    if (hasExplicitOrCue(prompt)) return normalized;
+
+    const hasNumeric = normalized.some(entry => ['gt', 'gte', 'lt', 'lte', 'between'].includes(String(entry?.operator || '').toLowerCase()));
+    const hasText = normalized.some(entry => ['contains', 'not_contains', 'starts_with', 'ends_with', 'equals', 'not_equals', 'in', 'not_in'].includes(String(entry?.operator || '').toLowerCase()));
+    if (!hasNumeric || !hasText) return normalized;
+
+    return normalized.map((entry, index) => ({
+        ...entry,
+        joinWithPrevious: index === 0 ? 'and' : 'and',
+    }));
+}
+
+function isNumericComparatorOperator(operator = '') {
+    return ['gt', 'gte', 'lt', 'lte', 'between'].includes(String(operator || '').toLowerCase());
+}
+
+function isPositiveTextOperator(operator = '') {
+    return ['contains', 'starts_with', 'ends_with', 'equals', 'in'].includes(String(operator || '').toLowerCase());
+}
+
+function evaluateConditionOnField(record, condition, controller, fieldName) {
+    return evaluatePostFilterCondition(record, { ...condition, field: fieldName }, controller);
+}
+
+function applySemanticTextExpansionWithNumeric(records, postFilters = [], controller) {
+    if (!Array.isArray(records) || records.length === 0) return [];
+    const normalized = normalizePostFilters(postFilters);
+    if (normalized.length === 0) return [];
+
+    const numericConditions = normalized.filter(condition => isNumericComparatorOperator(condition.operator));
+    const textConditions = normalized.filter(condition => isPositiveTextOperator(condition.operator));
+    if (numericConditions.length === 0 || textConditions.length === 0) return [];
+
+    const textFields = getTextFieldCandidates(controller);
+    if (textFields.length === 0) return [];
+
+    const conditionToFields = textConditions.map(condition => {
+        const matchingFields = textFields.filter(fieldName =>
+            records.some(record => evaluateConditionOnField(record, condition, controller, fieldName)),
+        );
+        if (matchingFields.length === 0) return [condition.field].filter(Boolean);
+        return matchingFields;
+    });
+
+    return records.filter(record => {
+        const numericOk = numericConditions.every(condition => evaluatePostFilterCondition(record, condition, controller));
+        if (!numericOk) return false;
+
+        const textOk = textConditions.every((condition, index) => {
+            const candidateFields = conditionToFields[index] || [];
+            if (candidateFields.length === 0) return false;
+            return candidateFields.some(fieldName => evaluateConditionOnField(record, condition, controller, fieldName));
+        });
+        return textOk;
+    });
 }
 
 function parseComparable(value) {
@@ -774,14 +1245,16 @@ export async function parseOperation(controller, prompt) {
     );
 
     let parsed;
+    let llmUnavailable = false;
     try {
         parsed = await controller.llmAgent.executePrompt(operationPrompt, {
-            mode: 'fast',
+            mode: hasNumericComparatorCue(prompt) ? 'deep' : 'fast',
             responseShape: 'json',
         });
     } catch (error) {
         // LLM failed - use fallback heuristics
         console.warn(`LLM operation parsing failed: ${controller.extractErrorMessage(error)}`);
+        llmUnavailable = true;
         parsed = fallbackOperationParsing(prompt, controller, controller.sessionMemory);
     }
 
@@ -854,6 +1327,7 @@ export async function parseOperation(controller, prompt) {
 
     const finalizedOperation = String(normalizedParsed?.operation || '').toUpperCase();
     if (finalizedOperation === 'SELECT') {
+        normalizedParsed = await repairSelectParsingIfNeeded(controller, prompt, normalizedParsed);
         let currentFilter = normalizedParsed && typeof normalizedParsed.filter === 'object' && normalizedParsed.filter !== null
             ? { ...normalizedParsed.filter }
             : {};
@@ -875,7 +1349,7 @@ export async function parseOperation(controller, prompt) {
             filter: currentFilter,
         };
 
-        const selectCondition = parseSelectConditionFromPrompt(controller, prompt);
+        const selectCondition = llmUnavailable ? parseSelectConditionFromPrompt(controller, prompt) : null;
         const existingPostFilters = normalizePostFilters(normalizedParsed?.postFilters);
 
         const mergedPostFilters = [...existingPostFilters];
@@ -903,12 +1377,15 @@ export async function parseOperation(controller, prompt) {
         }
     }
 
+    normalizedParsed.__llmUnavailable = llmUnavailable;
+
     return normalizedParsed;
 }
 
 export async function selectFlow(controller, operation, execContext, sessionMemory, prompt = '') {
     const selectPaginationKey = pendingKey(controller.entityName, PENDING_STATE_SUFFIXES.SELECT_PAGINATION);
-    const parsedPostFilters = parseSelectConditionsFromPrompt(controller, prompt);
+    const llmUnavailable = Boolean(operation?.__llmUnavailable);
+    const parsedPostFilters = llmUnavailable ? parseSelectConditionsFromPrompt(controller, prompt) : [];
     const rawFilter = operation && typeof operation.filter === 'object' && operation.filter !== null
         ? operation.filter
         : {};
@@ -949,8 +1426,31 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
     if (postFilters.length === 0 && structuredPostFilters.length > 0) {
         postFilters = structuredPostFilters;
     }
+    if (llmUnavailable && postFilters.length === 0) {
+        const inferredFallbackPostFilters = inferGenericSelectFallbackPostFilters(controller, prompt, filteredRecords);
+        if (inferredFallbackPostFilters.length > 0) {
+            postFilters = inferredFallbackPostFilters;
+        }
+    }
+    postFilters = enforceConjunctiveNumericIntent(postFilters, prompt);
+    if (hasNumericComparatorCue(prompt) && !hasNumericComparatorPostFilter(postFilters)) {
+        if (sessionMemory) {
+            sessionMemory.delete(selectPaginationKey);
+        }
+        return {
+            success: false,
+            operation: 'SELECT',
+            message: `Could not safely apply numeric comparator from prompt. Please specify explicit numeric field (e.g. "quantity > 50").`,
+        };
+    }
     if (postFilters.length > 0) {
         filteredRecords = applyPostFilters(filteredRecords, postFilters, controller);
+        if (filteredRecords.length === 0 && hasNumericComparatorCue(prompt)) {
+            const expanded = applySemanticTextExpansionWithNumeric(records, postFilters, controller);
+            if (expanded.length > 0) {
+                filteredRecords = expanded;
+            }
+        }
     }
 
     if (!filteredRecords || filteredRecords.length === 0) {
