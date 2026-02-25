@@ -1,6 +1,6 @@
 import { loadModelsConfiguration } from './providers/modelsConfigLoader.mjs';
 
-const modelsConfiguration = loadModelsConfiguration();
+const modelsConfiguration = await loadModelsConfiguration();
 let configurationDiagnosticsEmitted = false;
 
 function emitConfigurationDiagnostics() {

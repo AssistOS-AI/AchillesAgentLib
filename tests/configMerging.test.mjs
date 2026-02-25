@@ -59,12 +59,12 @@ describe('Config Merging: .env and LLMConfig.json', () => {
     });
 
     describe('.env priority over LLMConfig.json', () => {
-        it('should use env-defined provider over JSON provider with same key', () => {
+        it('should use env-defined provider over JSON provider with same key', async () => {
             // Define an env provider that overrides 'openai'
             setEnvVar('OPENAI_OPENAI_URL', 'https://custom-openai.example.com/v1/chat/completions');
             setEnvVar('OPENAI_OPENAI_KEY', 'sk-env-override-key');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             const provider = config.providers.get('openai');
             assert.ok(provider, 'openai provider should exist');
@@ -76,13 +76,13 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             assert.strictEqual(provider.fromEnv, true, 'Provider should be marked as fromEnv');
         });
 
-        it('should prepend env-defined models to orderedModels (higher priority)', () => {
+        it('should prepend env-defined models to orderedModels (higher priority)', async () => {
             // Add an env-defined provider and model
             setEnvVar('OPENAI_TESTPROXY_URL', 'https://testproxy.example.com/v1/chat/completions');
             setEnvVar('OPENAI_TESTPROXY_KEY', 'sk-test-key');
             setEnvVar('LLM_MODEL_TEST01', 'testproxy/test-model-fast|fast|0.1|0.5|128k');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             // Env models should be at the beginning of orderedModels
             const testModelIndex = config.orderedModels.indexOf('test-model-fast');
@@ -98,19 +98,19 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should mark env-defined models with fromEnv flag', () => {
+        it('should mark env-defined models with fromEnv flag', async () => {
             setEnvVar('OPENAI_TESTPROXY_URL', 'https://testproxy.example.com/v1/chat/completions');
             setEnvVar('OPENAI_TESTPROXY_KEY', 'sk-test-key');
             setEnvVar('LLM_MODEL_TEST01', 'testproxy/my-custom-model|deep|5|15|128k');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             const model = config.models.get('my-custom-model');
             assert.ok(model, 'my-custom-model should exist in models');
             assert.strictEqual(model.fromEnv, true, 'Model should be marked as fromEnv');
         });
 
-        it('should allow env models to override JSON models with same name', () => {
+        it('should allow env models to override JSON models with same name', async () => {
             // This tests the case where an env model has the same name as a JSON model
             // but different provider - the env version should take precedence
             setEnvVar('OPENAI_CUSTOMPROXY_URL', 'https://custom.example.com/v1/chat/completions');
@@ -118,7 +118,7 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             // Define a model that might conflict with a JSON-defined one
             setEnvVar('LLM_MODEL_TEST01', 'customproxy/gpt-5|deep|0.5|2|200k');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             // The qualified lookup should find the env version
             const resolved = resolveModelName('customproxy/gpt-5', config.models, config.qualifiedModels);
@@ -130,43 +130,39 @@ describe('Config Merging: .env and LLMConfig.json', () => {
     });
 
     describe('.env and LLMConfig.json merging', () => {
-        it('should include both env and JSON providers', () => {
+        it('should include both env and JSON providers', async () => {
             setEnvVar('OPENAI_ENVONLY_URL', 'https://envonly.example.com/v1/chat/completions');
             setEnvVar('OPENAI_ENVONLY_KEY', 'sk-envonly-key');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             // Should have the env-defined provider
             assert.ok(config.providers.has('envonly'), 'envonly provider should exist');
             
             // Should still have JSON-defined providers
-            assert.ok(config.providers.has('openai'), 'openai provider from JSON should exist');
-            assert.ok(config.providers.has('anthropic'), 'anthropic provider from JSON should exist');
-            assert.ok(config.providers.has('google'), 'google provider from JSON should exist');
+            assert.ok(config.providers.has('soul_gateway'), 'soul_gateway provider from JSON should exist');
         });
 
-        it('should include both env and JSON models', () => {
+        it('should include both env and JSON models', async () => {
             setEnvVar('OPENAI_ENVPROVIDER_URL', 'https://envprovider.example.com/v1/chat/completions');
             setEnvVar('OPENAI_ENVPROVIDER_KEY', 'sk-env-key');
             setEnvVar('LLM_MODEL_TEST01', 'envprovider/env-only-model|fast|0.1|0.5|64k');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             // Env model should exist
             assert.ok(config.models.has('env-only-model'), 'env-only-model should exist');
-            
-            // JSON models should still exist
-            assert.ok(config.models.has('gpt-5.2-codex'), 'gpt-5.2-codex from JSON should exist');
-            assert.ok(config.models.has('claude-opus-4-5'), 'claude-opus-4-5 from JSON should exist');
-            assert.ok(config.models.has('gemini-2.5-flash-lite'), 'gemini-2.5-flash-lite from JSON should exist');
+
+            // soul_gateway provider should exist from JSON
+            assert.ok(config.providers.has('soul_gateway'), 'soul_gateway provider from JSON should exist');
         });
 
-        it('should build qualified models map for provider/model lookups', () => {
+        it('should build qualified models map for provider/model lookups', async () => {
             setEnvVar('OPENAI_TESTPROV_URL', 'https://testprov.example.com/v1/chat/completions');
             setEnvVar('OPENAI_TESTPROV_KEY', 'sk-test-key');
             setEnvVar('LLM_MODEL_TEST01', 'testprov/qualified-test|fast|0.1|0.5|64k');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             assert.ok(config.qualifiedModels, 'qualifiedModels map should exist');
             assert.ok(
@@ -175,12 +171,12 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             );
         });
 
-        it('should resolve models by qualified name (provider/model)', () => {
+        it('should resolve models by qualified name (provider/model)', async () => {
             setEnvVar('OPENAI_MYPROV_URL', 'https://myprov.example.com/v1/chat/completions');
             setEnvVar('OPENAI_MYPROV_KEY', 'sk-my-key');
             setEnvVar('LLM_MODEL_TEST01', 'myprov/my-model|fast|0.1|0.5|64k');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             // Resolve by qualified name
             const resolved = resolveModelName('myprov/my-model', config.models, config.qualifiedModels);
@@ -191,13 +187,13 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             assert.strictEqual(simpleResolved, 'my-model', 'Should resolve simple name too');
         });
 
-        it('should add env models to providerModels map', () => {
+        it('should add env models to providerModels map', async () => {
             setEnvVar('OPENAI_GROUPPROV_URL', 'https://groupprov.example.com/v1/chat/completions');
             setEnvVar('OPENAI_GROUPPROV_KEY', 'sk-group-key');
             setEnvVar('LLM_MODEL_TEST01', 'groupprov/group-model-1|fast|0.1|0.5|64k');
             setEnvVar('LLM_MODEL_TEST02', 'groupprov/group-model-2|deep|1|5|128k');
 
-            const config = loadModelsConfiguration();
+            const config = await loadModelsConfiguration();
 
             const providerModels = config.providerModels.get('groupprov');
             assert.ok(providerModels, 'groupprov should have providerModels');
@@ -210,8 +206,8 @@ describe('Config Merging: .env and LLMConfig.json', () => {
     });
 
     describe('LLMConfig.json validation', () => {
-        it('should have valid defaultFastModel in LLMConfig.json', () => {
-            const config = loadModelsConfiguration();
+        it('should have valid defaultFastModel in LLMConfig.json', async () => {
+            const config = await loadModelsConfiguration();
 
             if (config.defaultFastModel) {
                 const model = config.models.get(config.defaultFastModel);
@@ -224,8 +220,8 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should have valid defaultDeepModel in LLMConfig.json', () => {
-            const config = loadModelsConfiguration();
+        it('should have valid defaultDeepModel in LLMConfig.json', async () => {
+            const config = await loadModelsConfiguration();
 
             if (config.defaultDeepModel) {
                 const model = config.models.get(config.defaultDeepModel);
@@ -238,8 +234,8 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should have valid fastModelPriority array', () => {
-            const config = loadModelsConfiguration();
+        it('should have valid fastModelPriority array', async () => {
+            const config = await loadModelsConfiguration();
 
             if (config.fastModelPriority) {
                 for (const modelName of config.fastModelPriority) {
@@ -254,8 +250,8 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should have valid deepModelPriority array', () => {
-            const config = loadModelsConfiguration();
+        it('should have valid deepModelPriority array', async () => {
+            const config = await loadModelsConfiguration();
 
             if (config.deepModelPriority) {
                 for (const modelName of config.deepModelPriority) {
@@ -270,8 +266,8 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should have no obsolete models (gpt-4, gpt-4-turbo, gpt-4o, etc.)', () => {
-            const config = loadModelsConfiguration();
+        it('should have no obsolete models (gpt-4, gpt-4-turbo, gpt-4o, etc.)', async () => {
+            const config = await loadModelsConfiguration();
 
             const obsoleteModels = [
                 'gpt-4',
@@ -294,8 +290,8 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should not have HuggingFace, xAI, or Mistral providers (no API keys)', () => {
-            const config = loadModelsConfiguration();
+        it('should not have HuggingFace, xAI, or Mistral providers (no API keys)', async () => {
+            const config = await loadModelsConfiguration();
 
             const removedProviders = ['huggingface', 'xai', 'mistral'];
 

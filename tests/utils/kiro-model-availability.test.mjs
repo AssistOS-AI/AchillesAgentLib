@@ -5,7 +5,7 @@ import { callLLM } from '../../utils/LLMProviders/providers/openai.mjs';
 const PROMPT = 'Hello';
 
 async function main() {
-    const config = loadModelsConfiguration();
+    const config = await loadModelsConfiguration();
     
     // Look for axiologic_kiro provider (from .env)
     const kiroConfig = config.providers.get('axiologic_kiro');
