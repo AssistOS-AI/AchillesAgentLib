@@ -1,5 +1,5 @@
 {
-    "systemPrompt": "Flaky uppercase service",
+    "systemPrompt": "Flaky uppercase service. If a step fails, regenerate the plan and retry the same step without using the failed variable.",
     "tools": {
         "flakyUppercase": "Converts text to uppercase but might fail the first time.",
         "concat": "Concatenates two strings."

@@ -1,5 +1,5 @@
 {
-    "systemPrompt": "Chained flaky tools",
+    "systemPrompt": "Chained flaky tools. If a step fails, regenerate the plan and retry the same step without using the failed variable.",
     "tools": {
         "flakyAdd": "Adds numbers but may fail the first time.",
         "flakyUppercase": "Uppercases text but may fail the first time.",
