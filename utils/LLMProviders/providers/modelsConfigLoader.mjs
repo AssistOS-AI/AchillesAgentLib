@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnvConfig, parseModelReference } from './envConfigLoader.mjs';
+import { discoverModels } from './gatewayDiscovery.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -446,7 +447,82 @@ export function resolveModelName(modelRef, models, qualifiedModels) {
     return null;
 }
 
-export function loadModelsConfiguration(options = {}) {
+/**
+ * Discover models from gateway providers (those with `autoDiscover: true`)
+ * and merge them into the normalized config. Gateway models do NOT override
+ * existing static or env-defined models.
+ */
+async function discoverGatewayModels(normalized) {
+    const { providers, models, providerModels, orderedModels, issues, qualifiedModels, raw } = normalized;
+
+    // Find providers with autoDiscover flag from the raw config
+    const rawProviders = raw?.providers || {};
+    const discoveryProviders = [];
+    for (const [key, entry] of Object.entries(rawProviders)) {
+        if (entry?.autoDiscover && providers.has(key)) {
+            discoveryProviders.push(providers.get(key));
+        }
+    }
+
+    if (!discoveryProviders.length) return;
+
+    // Run discovery for all auto-discover providers in parallel
+    const results = await Promise.all(discoveryProviders.map(p => discoverModels(p)));
+
+    const gatewayModelNames = [];
+
+    for (const { models: discovered, issues: discoveryIssues } of results) {
+        issues.warnings.push(...discoveryIssues.warnings);
+        issues.errors.push(...discoveryIssues.errors);
+
+        for (const dm of discovered) {
+            const qualifiedName = `${dm.providerKey}/${dm.name}`;
+
+            // Skip if model already exists from static config or env
+            if (models.has(dm.name) || qualifiedModels.has(qualifiedName)) {
+                continue;
+            }
+
+            const modelDescriptor = {
+                name: dm.name,
+                providerKey: dm.providerKey,
+                mode: dm.mode,
+                fromGateway: true,
+            };
+
+            models.set(dm.name, modelDescriptor);
+            gatewayModelNames.push(dm.name);
+            qualifiedModels.set(qualifiedName, dm.name);
+
+            if (!providerModels.has(dm.providerKey)) {
+                providerModels.set(dm.providerKey, []);
+            }
+            providerModels.get(dm.providerKey).push(modelDescriptor);
+        }
+    }
+
+    // Append gateway models at the end of the ordered list
+    normalized.orderedModels = [...orderedModels, ...gatewayModelNames];
+
+    // Build priority arrays from sort_order when not already set by config/env
+    if (!normalized.fastModelPriority && !normalized.deepModelPriority) {
+        // Collect all gateway models with their sort order
+        const allDiscovered = results.flatMap(r => r.models);
+        const fastPriority = allDiscovered
+            .filter(m => m.mode === 'fast' && models.has(m.name))
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map(m => m.name);
+        const deepPriority = allDiscovered
+            .filter(m => m.mode === 'deep' && models.has(m.name))
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map(m => m.name);
+
+        if (fastPriority.length) normalized.fastModelPriority = fastPriority;
+        if (deepPriority.length) normalized.deepModelPriority = deepPriority;
+    }
+}
+
+export async function loadModelsConfiguration(options = {}) {
     const configPath = options.configPath
         || process.env.LLM_MODELS_CONFIG_PATH
         || DEFAULT_CONFIG_PATH;
@@ -456,10 +532,13 @@ export function loadModelsConfiguration(options = {}) {
     normalized.issues.errors.push(...loadIssues.errors);
     normalized.issues.warnings.push(...loadIssues.warnings);
     normalized.path = configPath;
-    
+
     // Load and merge environment-defined providers and models
     const envConfig = loadEnvConfig();
     mergeEnvConfig(normalized, envConfig);
-    
+
+    // Discover models from gateway providers
+    await discoverGatewayModels(normalized);
+
     return normalized;
 }

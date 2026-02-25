@@ -6,7 +6,7 @@ import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
 const debugFlag = (process.env.ACHILLES_DEBUG ?? '').toLowerCase();
 const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
 
-const modelsConfiguration = loadModelsConfiguration();
+const modelsConfiguration = await loadModelsConfiguration();
 
 /**
  * Parse enabled model list from environment variable.

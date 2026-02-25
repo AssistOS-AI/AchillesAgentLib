@@ -627,7 +627,7 @@ async function main() {
     console.log(`${COLORS.BOLD}${COLORS.CYAN}Deep Models Benchmark Evaluation Suite${COLORS.RESET}\n`);
 
     // Load configurations
-    const modelsConfig = loadModelsConfiguration();
+    const modelsConfig = await loadModelsConfiguration();
     const skillsDescription = await loadSkillsDescription();
     const testCases = await loadTestCases(config.caseRange, config.difficulties);
     const availableModels = getAvailableModels(modelsConfig, config.models);

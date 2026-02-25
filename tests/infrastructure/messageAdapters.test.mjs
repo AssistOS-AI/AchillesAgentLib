@@ -9,7 +9,7 @@ import { toGeminiPayload } from '../../utils/LLMProviders/messageAdapters/google
 import { toOpenAIChatMessages } from '../../utils/LLMProviders/messageAdapters/openAIChat.mjs';
 
 // Ensure models are loaded before tests run
-const modelsConfig = loadModelsConfiguration();
+const modelsConfig = await loadModelsConfiguration();
 
 function resolveAdapterKey(providerKey) {
     const provider = modelsConfig.providers?.get(providerKey);

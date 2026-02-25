@@ -48,11 +48,11 @@ function printSection(title, models, defaultModel) {
     }
 }
 
-function main() {
+async function main() {
     console.log(`${COLORS.BOLD}${COLORS.CYAN}Active LLM Models Configuration${COLORS.RESET}`);
     console.log(`${COLORS.GRAY}Models are listed in priority order (first = highest priority)${COLORS.RESET}`);
-    
-    const config = loadModelsConfiguration();
+
+    const config = await loadModelsConfiguration();
     const models = listModelsFromCache();
     
     // Show env overrides
@@ -92,4 +92,4 @@ function main() {
     }
 }
 
-main();
+await main();
