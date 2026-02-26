@@ -17,19 +17,6 @@ Return only JSON in the requested format.
 
 const DEFAULT_TEST_PLAN_INSTRUCTIONS = DEFAULT_TEST_PLAN_INSTRUCTIONS_RAW.trim();
 
-function isEmptyTestCases(value) {
-    if (!value) {
-        return true;
-    }
-    if (Array.isArray(value)) {
-        return value.length === 0;
-    }
-    if (typeof value === 'object') {
-        return Object.keys(value).length === 0;
-    }
-    return false;
-}
-
 function normalizeRepoPath(rawPath) {
     if (typeof rawPath !== 'string') {
         return '';
@@ -94,7 +81,6 @@ export async function generateTestFileForPlan(plan, sourceFiles, llmAgent, optio
     return {
         fileName: parsed.fileName.trim(),
         content: parsed.content,
-        testCases: parsed.testCases,
         fixtures: parsed.fixtures,
     };
 }
@@ -190,12 +176,6 @@ export async function generatePlannedTestsOnDisk(
         const testFilePath = path.join(skillDir, 'tests', normalizedFileName);
         await fs.mkdir(path.dirname(testFilePath), { recursive: true });
         await fs.writeFile(testFilePath, testFile.content, 'utf-8');
-
-        const hasTestCases = !isEmptyTestCases(testFile.testCases);
-        if (hasTestCases) {
-            const casesPath = `${testFilePath}.cases.json`;
-            await fs.writeFile(casesPath, JSON.stringify(testFile.testCases, null, 2), 'utf-8');
-        }
 
         if (Array.isArray(testFile.fixtures) && testFile.fixtures.length > 0) {
             for (const fixture of testFile.fixtures) {

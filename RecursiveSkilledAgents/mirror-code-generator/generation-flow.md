@@ -25,7 +25,7 @@ Generation steps:
    - If it fails again, revert to the previous on-disk version (or remove the file if none) and skip tests for this file.
 4) Build a test plan from the current on-disk codebase (no specs provided).
    - Plans can cover multiple source files when behavior spans modules.
-5) Generate one or more executable test files plus optional test-case JSON artifacts and optional fixtures.
+5) Generate one or more executable test files plus optional fixtures (UTF-8 text).
 6) Write the tests and fixtures under `tests/` (create folders as needed), then syntax-check each test file.
 7) Ensure `tests/runAll.mjs` exists (copied from a template when missing).
 8) Execute `tests/runAll.mjs` to run all `.mjs`/`.js` files under `tests/` recursively.
@@ -37,7 +37,7 @@ Generation steps:
 
 If all spec files are up-to-date but `tests/` is missing:
 - Build a test plan from the current on-disk codebase (no specs provided).
-- Generate executable test files, optional test-case JSON artifacts, and optional fixtures.
+- Generate executable test files and optional fixtures.
 - Ensure `tests/runAll.mjs` exists, then run it.
 - Log failures without repairing the code.
 - Stop after tests are generated; do not update `specs/.backup`.
@@ -78,7 +78,7 @@ Syntax check (node --check)
   |
   v
 Build test plan from current codebase
-Generate test files + optional test-cases JSON + optional fixtures
+Generate test files + optional fixtures
 Write tests/ (create folders as needed) and fixtures
 Syntax-check each test file
 Ensure tests/runAll.mjs (copy template if missing)

@@ -43,8 +43,8 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
             <p>
                 For each spec file that requires regeneration, the generator performs a single-file LLM generation step,
                 then validates the resulting code through a two-step testing workflow. The testing flow now analyzes the
-                generated codebase to produce a structured test plan, then generates concrete test files, optional
-                test-case JSON artifacts, and optional persistent fixtures under <code>tests/</code> based on that plan.
+                generated codebase to produce a structured test plan, then generates concrete test files and optional
+                persistent fixtures under <code>tests/</code> based on that plan.
                 Test plans can span multiple source files when behavior crosses module boundaries. When code reads from
                 disk, the plan should describe the fixture layout.
             </p>
@@ -68,8 +68,8 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
                 <code>node --check</code>, then generates test plans and test files using the current on-disk code.
                 Each test file is responsible for emitting <code>process.stdout.write(JSON.stringify({ results }));</code>
                 where <code>results</code> contains objects with <code>expected</code>, <code>actual</code>, and
-                <code>pass</code>. Test generation can also return a <code>fixtures</code> array of files to write
-                under <code>tests/</code> (or a nested fixture directory). A shared <code>tests/runAll.mjs</code>
+                <code>pass</code>. Test generation can also return a <code>fixtures</code> array of UTF-8 text files
+                to write under <code>tests/</code> (or a nested fixture directory). A shared <code>tests/runAll.mjs</code>
                 runner discovers and runs every
                 <code>.mjs</code>/<code>.js</code> test file under <code>tests/</code> recursively, aggregates failures,
                 adds the originating test file name, and returns a unified JSON summary under
@@ -90,7 +90,7 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
                     </ul>
                 </li>
                 <li>Generate a structured test plan from the current codebase (no specs provided).</li>
-                <li>Generate one or more executable test files plus optional JSON test-cases and fixtures.</li>
+                <li>Generate one or more executable test files plus optional fixtures.</li>
                 <li>Write test files and fixtures under <code>tests/</code> (create folders as needed) and syntax-check each test file.</li>
                 <li>Ensure <code>tests/runAll.mjs</code> exists (copied from the template when missing).</li>
                 <li>Execute <code>tests/runAll.mjs</code> to run all tests and collect <code>failedTests</code>.</li>
@@ -140,7 +140,7 @@ Syntax check (node --check)
   |
   v
 Build test plan from current codebase
-Generate test files + optional test-cases JSON + optional fixtures
+Generate test files + optional fixtures
 Write tests/ (create folders as needed) and fixtures
 Syntax-check each test file
 Ensure tests/runAll.mjs (copy template if missing)
