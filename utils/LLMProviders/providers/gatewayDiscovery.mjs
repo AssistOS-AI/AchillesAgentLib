@@ -1,8 +1,9 @@
 /**
- * Gateway Auto-Discovery
+ * Provider Auto-Discovery
  *
- * Fetches available models from a Soul Gateway `/v1/models` endpoint
+ * Fetches available models from an OpenAI-compatible `/v1/models` endpoint
  * and converts them into achillesAgentLib model descriptors.
+ * Works with any provider that exposes a standard models listing endpoint.
  */
 
 /**
@@ -18,7 +19,7 @@ function deriveModelsURL(baseURL) {
 }
 
 /**
- * Fetch models from a Soul Gateway endpoint and return them as model descriptors.
+ * Fetch models from a provider's /v1/models endpoint and return them as model descriptors.
  *
  * @param {object} providerConfig - Normalized provider config { providerKey, baseURL, apiKeyEnv, ... }
  * @returns {Promise<{ models: Array, issues: { errors: string[], warnings: string[] } }>}
@@ -28,7 +29,7 @@ export async function discoverModels(providerConfig) {
     const { providerKey, baseURL, apiKeyEnv } = providerConfig;
 
     if (!baseURL) {
-        issues.warnings.push(`Gateway discovery: provider "${providerKey}" has no baseURL.`);
+        issues.warnings.push(`Auto-discovery: provider "${providerKey}" has no baseURL.`);
         return { models: [], issues };
     }
 
@@ -36,7 +37,7 @@ export async function discoverModels(providerConfig) {
     const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : null;
 
     if (!apiKey) {
-        issues.warnings.push(`Gateway discovery: no API key for provider "${providerKey}" (env: ${apiKeyEnv}).`);
+        issues.warnings.push(`Auto-discovery: no API key for provider "${providerKey}" (env: ${apiKeyEnv}).`);
         return { models: [], issues };
     }
 
@@ -47,7 +48,7 @@ export async function discoverModels(providerConfig) {
         });
 
         if (!resp.ok) {
-            issues.warnings.push(`Gateway discovery: ${modelsURL} returned ${resp.status}.`);
+            issues.warnings.push(`Auto-discovery: ${modelsURL} returned ${resp.status}.`);
             return { models: [], issues };
         }
 
@@ -70,7 +71,7 @@ export async function discoverModels(providerConfig) {
 
         return { models, issues };
     } catch (err) {
-        issues.warnings.push(`Gateway discovery: failed to fetch from ${modelsURL}: ${err.message}`);
+        issues.warnings.push(`Auto-discovery: failed to fetch from ${modelsURL}: ${err.message}`);
         return { models: [], issues };
     }
 }

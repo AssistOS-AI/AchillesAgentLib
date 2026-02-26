@@ -140,7 +140,9 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             assert.ok(config.providers.has('envonly'), 'envonly provider should exist');
             
             // Should still have JSON-defined providers
-            assert.ok(config.providers.has('soul_gateway'), 'soul_gateway provider from JSON should exist');
+            assert.ok(config.providers.has('openai'), 'openai provider from JSON should exist');
+            assert.ok(config.providers.has('anthropic'), 'anthropic provider from JSON should exist');
+            assert.ok(config.providers.has('google'), 'google provider from JSON should exist');
         });
 
         it('should include both env and JSON models', async () => {
@@ -153,8 +155,10 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             // Env model should exist
             assert.ok(config.models.has('env-only-model'), 'env-only-model should exist');
 
-            // soul_gateway provider should exist from JSON
-            assert.ok(config.providers.has('soul_gateway'), 'soul_gateway provider from JSON should exist');
+            // JSON models should still exist
+            assert.ok(config.models.has('gpt-5.2-codex') || config.qualifiedModels.has('opencode_responses/gpt-5.2-codex'), 'gpt-5.2-codex from JSON should exist');
+            assert.ok(config.models.has('claude-opus-4-5') || config.qualifiedModels.has('opencode_anthropic/claude-opus-4-5'), 'claude-opus-4-5 from JSON should exist');
+            assert.ok(config.models.has('axiologic-fast') || config.qualifiedModels.has('soul_gateway/axiologic-fast'), 'axiologic-fast from JSON should exist');
         });
 
         it('should build qualified models map for provider/model lookups', async () => {
@@ -290,16 +294,13 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should not have HuggingFace, xAI, or Mistral providers (no API keys)', async () => {
+        it('should have all declared providers from LLMConfig.json', async () => {
             const config = await loadModelsConfiguration();
 
-            const removedProviders = ['huggingface', 'xai', 'mistral'];
+            const expectedProviders = ['openai', 'anthropic', 'google', 'openrouter', 'soul_gateway'];
 
-            for (const removed of removedProviders) {
-                const provider = config.providers.get(removed);
-                if (provider && !provider.fromEnv) {
-                    assert.fail(`Provider "${removed}" should not be in LLMConfig.json (no API key configured)`);
-                }
+            for (const expected of expectedProviders) {
+                assert.ok(config.providers.has(expected), `Provider "${expected}" should exist in config`);
             }
         });
     });

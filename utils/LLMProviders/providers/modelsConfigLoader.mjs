@@ -448,19 +448,27 @@ export function resolveModelName(modelRef, models, qualifiedModels) {
 }
 
 /**
- * Discover models from gateway providers (those with `autoDiscover: true`)
- * and merge them into the normalized config. Gateway models do NOT override
- * existing static or env-defined models.
+ * Discover models from providers that have their API key set in process.env.
+ * Calls each provider's `/v1/models` endpoint and merges discovered models
+ * into the normalized config. Discovered models do NOT override existing
+ * static or env-defined models.
  */
 async function discoverGatewayModels(normalized) {
-    const { providers, models, providerModels, orderedModels, issues, qualifiedModels, raw } = normalized;
+    const { providers, models, providerModels, orderedModels, issues, qualifiedModels } = normalized;
 
-    // Find providers with autoDiscover flag from the raw config
-    const rawProviders = raw?.providers || {};
+    // If soul_gateway API key is set, discover only from soul_gateway
+    // (it proxies all upstream providers, so no need to call them individually)
+    const soulGateway = providers.get('soul_gateway');
+    const soulGatewayKeySet = soulGateway?.apiKeyEnv && process.env[soulGateway.apiKeyEnv];
+
     const discoveryProviders = [];
-    for (const [key, entry] of Object.entries(rawProviders)) {
-        if (entry?.autoDiscover && providers.has(key)) {
-            discoveryProviders.push(providers.get(key));
+    if (soulGatewayKeySet) {
+        discoveryProviders.push(soulGateway);
+    } else {
+        for (const [, provider] of providers) {
+            if (provider.apiKeyEnv && process.env[provider.apiKeyEnv]) {
+                discoveryProviders.push(provider);
+            }
         }
     }
 
