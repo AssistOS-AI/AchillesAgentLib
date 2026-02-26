@@ -465,6 +465,11 @@ async function callLLMWithModelInternal(modelName, historyArray, prompt, invocat
         // Use the resolved model name (without provider prefix) for the API call
         const actualModelName = metadata?.model?.name || modelName;
         
+        const agentHeaders = invocationOptions.headers || {};
+        if (process.env.AGENT_NAME && !agentHeaders['X-Soul-Agent']) {
+            agentHeaders['X-Soul-Agent'] = process.env.AGENT_NAME;
+        }
+
         return await provider.callLLM(history, {
             model: actualModelName,
             providerKey,
@@ -472,7 +477,7 @@ async function callLLMWithModelInternal(modelName, historyArray, prompt, invocat
             baseURL,
             signal: controller.signal,
             params: invocationOptions.params || {},
-            headers: invocationOptions.headers || {},
+            headers: agentHeaders,
         });
     } catch (error) {
         throw error;
@@ -554,10 +559,15 @@ export function createDefaultLLMInvokerStrategy() {
             throw new Error(`No models available for mode "${selectionRequest.mode}". Update ${modelsConfiguration.path || 'the LLM configuration file'} to include at least one model.`);
         }
 
+        const mergedHeaders = { ...(invocationOptions.headers || {}), ...headers };
+        if (process.env.AGENT_NAME && !mergedHeaders['X-Soul-Agent']) {
+            mergedHeaders['X-Soul-Agent'] = process.env.AGENT_NAME;
+        }
+
         const baseOptions = {
             ...invocationOptions,
             params: { ...(invocationOptions.params || {}), ...params },
-            headers: { ...(invocationOptions.headers || {}), ...headers },
+            headers: mergedHeaders,
             mode: selectionRequest.mode,
         };
 
