@@ -30,6 +30,16 @@ function isEmptyTestCases(value) {
     return false;
 }
 
+function normalizeRepoPath(rawPath) {
+    if (typeof rawPath !== 'string') {
+        return '';
+    }
+    const normalized = rawPath.replace(/\\/g, '/').trim();
+    const stripped = normalized.replace(/^\/+/, '');
+    const safeParts = stripped.split('/').filter(part => part && part !== '.' && part !== '..');
+    return safeParts.join('/');
+}
+
 export async function generateTestPlans(sourceFiles, llmAgent, options = {}) {
     const {
         testingInstructions = DEFAULT_TEST_PLAN_INSTRUCTIONS,
@@ -85,6 +95,7 @@ export async function generateTestFileForPlan(plan, sourceFiles, llmAgent, optio
         fileName: parsed.fileName.trim(),
         content: parsed.content,
         testCases: parsed.testCases,
+        fixtures: parsed.fixtures,
     };
 }
 
@@ -184,6 +195,21 @@ export async function generatePlannedTestsOnDisk(
         if (hasTestCases) {
             const casesPath = `${testFilePath}.cases.json`;
             await fs.writeFile(casesPath, JSON.stringify(testFile.testCases, null, 2), 'utf-8');
+        }
+
+        if (Array.isArray(testFile.fixtures) && testFile.fixtures.length > 0) {
+            for (const fixture of testFile.fixtures) {
+                const fixturePath = normalizeRepoPath(fixture?.path);
+                if (!fixturePath) {
+                    continue;
+                }
+                const targetPath = path.join(skillDir, fixturePath);
+                await fs.mkdir(path.dirname(targetPath), { recursive: true });
+                const encoding = fixture?.encoding === 'base64' ? 'base64' : 'utf-8';
+                const content = typeof fixture?.content === 'string' ? fixture.content : '';
+                const data = encoding === 'base64' ? Buffer.from(content, 'base64') : content;
+                await fs.writeFile(targetPath, data);
+            }
         }
 
         testFileSources.set(normalizedFileName, {

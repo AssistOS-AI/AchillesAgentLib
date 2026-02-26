@@ -61,11 +61,13 @@ for (const filePath of testFiles) {
         ...entry,
         fileName: relativePath,
       }));
-    results.push({
-      file: relativePath,
-      pass,
-      failedTests: failures,
-    });
+    if (!pass) {
+      results.push({
+        file: relativePath,
+        pass,
+        failedTests: failures,
+      });
+    }
   } catch (error) {
     const stderr = error?.stderr ? String(error.stderr) : '';
     const stdout = error?.stdout ? String(error.stdout) : '';
