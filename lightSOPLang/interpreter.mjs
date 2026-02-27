@@ -952,7 +952,7 @@ export class LightSOPLangInterpreter {
         const prompt = this._buildLlmaPrompt(request);
         this.executionMonitor.beforeRegenerateScript({ prompt, request });
 
-        const llmMode = this.llmMode ? this.llmMode : "deep";
+        const llmMode = this.llmMode ? this.llmMode : "code";
         const generated = await this.llmAgent.executePrompt(prompt, { mode: llmMode });
         if (typeof generated !== 'string' || !generated.trim()) {
             throw new Error('LLMAgent returned empty code');

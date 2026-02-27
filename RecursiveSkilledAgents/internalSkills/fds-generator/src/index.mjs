@@ -123,7 +123,7 @@ async function generateFdsFile({
     });
 
     const response = await llmAgent.executePrompt(prompt, {
-        mode: 'deep',
+        mode: 'code',
         responseShape: 'text',
         context: { intent: 'generate-fds-from-ds' },
     });

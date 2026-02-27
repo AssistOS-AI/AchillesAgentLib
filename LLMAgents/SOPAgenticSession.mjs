@@ -182,7 +182,7 @@ class SOPAgenticSession {
         const planOnlyFlag = options.planOnly ?? options.generatePlanOnly ?? false;
         this.options = {
             ...options,
-            mode: options.mode || 'deep',
+            mode: options.mode || 'plan',
             model: options.model || null,
             planOnly: planOnlyFlag,
         };

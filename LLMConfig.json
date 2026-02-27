@@ -1,18 +1,20 @@
 {
     "tiers": {
-        "fast": { "models": ["openrouter/x-ai/grok-4.1-fast", "openai/o4-mini", "axiologic_kiro/claude-haiku-4.5"], "fallback": null },
-        "plan": { "models": ["openrouter/x-ai/grok-4.1-fast"], "fallback": "fast" },
-        "write": { "models": [], "fallback": "fast" },
-        "code": { "models": ["openrouter/deepseek/deepseek-v3.2", "opencode/qwen3-coder"], "fallback": "deep" },
-        "deep": { "models": ["openrouter/deepseek/deepseek-v3.2", "openrouter/deepseek/deepseek-r1-0528", "opencode/qwen3-coder"], "fallback": null },
-        "ultra": { "models": ["openrouter/google/gemini-2.5-pro", "openrouter/x-ai/grok-4"], "fallback": "deep" }
+        "fast": { "models": ["soul_gateway/fast"], "fallback": null },
+        "plan": { "models": ["soul_gateway/plan"], "fallback": "fast" },
+        "write": { "models": ["soul_gateway/write"], "fallback": "fast" },
+        "code": { "models": ["soul_gateway/code"], "fallback": "deep" },
+        "deep": { "models": ["soul_gateway/deep"], "fallback": null },
+        "ultra": { "models": ["soul_gateway/ultra"], "fallback": "deep" }
     },
     "fastModelPriority": [
+        "soul_gateway/fast",
         "openrouter/x-ai/grok-4.1-fast",
         "openai/o4-mini",
         "axiologic_kiro/claude-haiku-4.5"
     ],
     "deepModelPriority": [
+        "soul_gateway/deep",
         "openrouter/deepseek/deepseek-v3.2",
         "openrouter/deepseek/deepseek-r1-0528",
         "openrouter/deepseek/deepseek-v3.1-terminus",

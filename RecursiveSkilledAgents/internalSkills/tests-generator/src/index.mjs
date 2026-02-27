@@ -109,7 +109,7 @@ export async function generateTestPlans(sourceFiles, llmAgent, options = {}) {
     });
 
     const response = await llmAgent.executePrompt(prompt, {
-        mode: 'deep',
+        mode: 'code',
         responseShape: 'json',
         context: { intent },
     });
@@ -137,7 +137,7 @@ export async function generateTestFileForPlan(plan, sourceFiles, llmAgent, optio
     });
 
     const response = await llmAgent.executePrompt(prompt, {
-        mode: 'deep',
+        mode: 'code',
         responseShape: 'json',
         context: { intent },
     });
