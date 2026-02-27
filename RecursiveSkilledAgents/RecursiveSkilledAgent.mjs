@@ -13,7 +13,7 @@ import { SkillRegistry } from './services/SkillRegistry.mjs';
 import { SkillDiscoveryService } from './services/SkillDiscoveryService.mjs';
 import { SkillSelector } from './services/SkillSelector.mjs';
 import { SkillExecutor } from './services/SkillExecutor.mjs';
-import { generateMirrorCode } from './mirror-code-generator/src/index.mjs';
+import { generateMirrorCode } from './internalSkills/mirror-code-generator/src/index.mjs';
 
 // Re-export for backward compatibility
 export { SKILL_FILE_TYPES, SKILL_FILE_NAMES };
