@@ -6,8 +6,8 @@ import {
     ensureRunAllTemplate,
     generatePlannedTestsOnDisk,
     generateTestPlans,
-    runAllTestsOnDisk,
-} from '../../RecursiveSkilledAgents/mirror-code-generator/testing.mjs';
+} from '../../RecursiveSkilledAgents/tests-generator/src/index.mjs';
+import { runAllTestsOnDisk } from '../../RecursiveSkilledAgents/mirror-code-generator/src/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.join(__dirname, 'fixtures', 'testingFlow');
@@ -134,7 +134,8 @@ async function case02_emptyTestCases() {
 
     const stubAgent = new StubAgent();
     const sourceFiles = await readSourceFiles(baseDir);
-    const results = await generatePlannedTestsOnDisk(baseDir, sourceFiles, stubAgent, { logger: console });
+    await generatePlannedTestsOnDisk(baseDir, sourceFiles, stubAgent, { logger: console });
+    const results = await runAllTestsOnDisk(baseDir, console);
 
     const testsDir = path.join(baseDir, 'tests');
     const testFilePath = path.join(testsDir, 'nested', 'empty.test.mjs');
@@ -194,7 +195,8 @@ async function case05_fullFlow(llmAgent) {
     await cleanupTests(baseDir);
 
     const sourceFiles = await readSourceFiles(baseDir);
-    const results = await generatePlannedTestsOnDisk(baseDir, sourceFiles, llmAgent, { logger: console });
+    await generatePlannedTestsOnDisk(baseDir, sourceFiles, llmAgent, { logger: console });
+    const results = await runAllTestsOnDisk(baseDir, console);
 
     const testsDir = path.join(baseDir, 'tests');
     const testFiles = (await listTestFiles(testsDir)).filter(file => !file.endsWith('runAll.mjs'));
@@ -210,7 +212,8 @@ async function case06_fullFlow(llmAgent) {
     await cleanupTests(baseDir);
 
     const sourceFiles = await readSourceFiles(baseDir);
-    const results = await generatePlannedTestsOnDisk(baseDir, sourceFiles, llmAgent, { logger: console });
+    await generatePlannedTestsOnDisk(baseDir, sourceFiles, llmAgent, { logger: console });
+    const results = await runAllTestsOnDisk(baseDir, console);
 
     const testsDir = path.join(baseDir, 'tests');
     const testFiles = (await listTestFiles(testsDir)).filter(file => !file.endsWith('runAll.mjs'));

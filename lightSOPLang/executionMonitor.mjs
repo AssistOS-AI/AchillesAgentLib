@@ -1,11 +1,11 @@
 export class DefaultExecutionMonitor {
     constructor({
         commandLimit = 100,
-        promptCharLimit = 100_000,
+        promptCharLimit = 1000000,
         failureLimit = 10,
     } = {}) {
         this.commandLimit = Number.isFinite(commandLimit) ? commandLimit : 100;
-        this.promptCharLimit = Number.isFinite(promptCharLimit) ? promptCharLimit : 100_000;
+        this.promptCharLimit = Number.isFinite(promptCharLimit) ? promptCharLimit : 1000000;
         this.failureLimit = Number.isFinite(failureLimit) ? failureLimit : 10;
 
         this.commandsExecuted = 0;

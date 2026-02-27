@@ -2,7 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
-import { generatePlannedTestsOnDisk } from '../../RecursiveSkilledAgents/mirror-code-generator/testing.mjs';
+import { generatePlannedTestsOnDisk } from '../../RecursiveSkilledAgents/tests-generator/src/index.mjs';
+import {
+    repairGeneratedFile,
+    runAllTestsOnDisk,
+} from '../../RecursiveSkilledAgents/mirror-code-generator/src/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.join(__dirname, 'fixtures', 'repairTestingFlow');
@@ -79,20 +83,68 @@ async function runFixture(fixtureName, llmAgent) {
     await cleanupTests(baseDir);
 
     try {
-        const initialResults = await generatePlannedTestsOnDisk(baseDir, sourceFiles, llmAgent, {
+        const generationResults = await generatePlannedTestsOnDisk(baseDir, sourceFiles, llmAgent, {
             logger: console,
-            allowRepair: false,
         });
 
-        const initialFailures = countFailures(initialResults);
+        const testFileSources = generationResults?.testFileSources || new Map();
+        let results = await runAllTestsOnDisk(baseDir, console);
+
+        const initialFailures = countFailures(results);
         assert(initialFailures > 0, `${fixtureName} did not produce initial failures.`);
 
-        const repairedResults = await generatePlannedTestsOnDisk(baseDir, sourceFiles, llmAgent, {
-            logger: console,
-            allowRepair: true,
-        });
+        const failures = (results.failedTests || []).filter(entry => entry && entry.pass === false);
+        let repairedAny = false;
 
-        const finalFailures = countFailures(repairedResults);
+        for (const failedEntry of failures) {
+            const mapping = testFileSources.get?.(failedEntry.file);
+            if (!mapping || !Array.isArray(mapping.sourceFiles) || mapping.sourceFiles.length === 0) {
+                console.warn(`[evalRepairTestingFlow] No source files mapped for failed test file: ${failedEntry.file}`);
+                continue;
+            }
+
+            const failureDetails = Array.isArray(failedEntry.failedTests)
+                ? failedEntry.failedTests.map(test => ({
+                    expectedOutput: test.expected,
+                    actual: test.actual,
+                    testFile: test.fileName || failedEntry.file,
+                    reason: `Test failure in ${test.fileName || failedEntry.file}`,
+                }))
+                : [];
+
+            for (const sourceFile of mapping.sourceFiles) {
+                const targetPath = sourceFile.replace(/\\/g, '/');
+                const outputPath = path.join(baseDir, targetPath);
+                const exists = await fs.stat(outputPath).then(stat => stat.isFile()).catch(() => false);
+                if (!exists) {
+                    console.warn(`[evalRepairTestingFlow] Missing source file for repair: ${sourceFile}`);
+                    continue;
+                }
+                const existingCode = await fs.readFile(outputPath, 'utf-8');
+                const specForPrompt = `\n\n---\n# Spec for: ${targetPath}\n\nNo spec available. If this file is not responsible for the failures, return the code unchanged.`;
+                const repairedCode = await repairGeneratedFile(
+                    targetPath,
+                    specForPrompt,
+                    '',
+                    existingCode,
+                    failureDetails,
+                    llmAgent,
+                    'repair-single-file-from-test-failures',
+                    { tests: failureDetails }
+                );
+
+                if (repairedCode && repairedCode !== existingCode) {
+                    await fs.writeFile(outputPath, repairedCode, 'utf-8');
+                    repairedAny = true;
+                }
+            }
+        }
+
+        if (repairedAny) {
+            results = await runAllTestsOnDisk(baseDir, console);
+        }
+
+        const finalFailures = countFailures(results);
         assert(finalFailures === 0, `${fixtureName} still has failing tests after repair.`);
     } finally {
         await cleanupTests(baseDir);

@@ -4,7 +4,8 @@
  * Modules must export: shortName, descriptor, action(promptText, recursiveAgent, logger)
  */
 const INTERNAL_SKILLS = {
-    'mirror-code-generator': '../mirror-code-generator/index.mjs',
+    'mirror-code-generator': '../mirror-code-generator/src/index.mjs',
+    'tests-generator': '../tests-generator/src/index.mjs',
     // Future internal skills: just add the module path here
 };
 

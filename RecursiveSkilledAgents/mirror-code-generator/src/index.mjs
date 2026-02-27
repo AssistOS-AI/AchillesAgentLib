@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { getDebugLogger } from '../../utils/DebugLogger.mjs';
+import { getDebugLogger } from '../../../utils/DebugLogger.mjs';
 import {
     backupSpecsDirectory,
     findSpecFiles,
@@ -10,24 +10,9 @@ import {
 } from './spec-utils.mjs';
 import { parseMultiFileMarkdown } from './llm-utils.mjs';
 import { buildSingleFileCodePrompt } from './templates/codeGeneration.prompts.mjs';
-import {
-    generatePlannedTestsOnDisk,
-    repairGeneratedFile,
-} from './testing.mjs';
+import { buildRepairPrompt } from './templates/repair.prompts.mjs';
+import { action as runTestsAction } from '../../tests-generator/src/index.mjs';
 
-/**
- * Short name identifier for this internal skill.
- */
-export const shortName = 'mirror-code-generator';
-
-/**
- * Descriptor metadata for this internal skill.
- */
-export const descriptor = {
-    title: 'Mirror Code Generator',
-    summary: 'Generates JavaScript/ESM code from specs/ directory markdown files.',
-    sections: {},
-};
 
 /**
  * Orchestrator skill action entry point.
@@ -56,6 +41,89 @@ export async function action(context) {
         message: `Code generation completed for ${targetDir}`,
         generatedFiles: generatedFiles || [],
     };
+}
+
+export async function runAllTestsOnDisk(skillDir, logger = console) {
+    const execFileAsync = promisify(execFile);
+    const testsDir = path.join(skillDir, 'tests');
+    const runnerPath = path.join(testsDir, 'runAll.mjs');
+    const exists = await fs.stat(runnerPath).then(stat => stat.isFile()).catch(() => false);
+    if (!exists) {
+        logger.warn(`[generateMirrorCode] runAll.mjs not found in ${testsDir}. Skipping tests.`);
+        return { failedTests: [], skipped: true };
+    }
+
+    try {
+        const { stdout } = await execFileAsync('node', [runnerPath], { cwd: testsDir, maxBuffer: 10 * 1024 * 1024 });
+        const parsed = JSON.parse(stdout);
+        if (!parsed || !Array.isArray(parsed.failedTests)) {
+            throw new Error('runAll.mjs returned invalid results.');
+        }
+        return parsed;
+    } catch (error) {
+        const stderr = error?.stderr ? String(error.stderr) : '';
+        const stdout = error?.stdout ? String(error.stdout) : '';
+        const message = error?.message ? String(error.message) : '';
+        const details = [message, stderr, stdout].filter(Boolean).join('\n');
+        logger.warn(`[generateMirrorCode] runAll.mjs execution failed.\n${details}`);
+        return { failedTests: [], skipped: false, error: details };
+    }
+}
+
+/**
+ * Ask LLM to repair a single file based on failures.
+ * @param {string} targetPath
+ * @param {string} specForPrompt
+ * @param {string} backupSpecForPrompt
+ * @param {string} generatedCodeForFile
+ * @param {Array<{input?: any, expectedOutput: any, actual?: any, reason?: string, name?: string}>} failures
+ * @param {object} llmAgent
+ * @param {string} intent
+ * @param {object} [options]
+ * @param {string} [options.runnerCode]
+ * @param {Array<{name?: string, input?: any, expectedOutput: any}>} [options.tests]
+ * @returns {Promise<string>}
+ */
+export async function repairGeneratedFile(
+    targetPath,
+    specForPrompt,
+    backupSpecForPrompt,
+    generatedCodeForFile,
+    failures,
+    llmAgent,
+    intent,
+    { runnerCode, tests } = {}
+) {
+    const prompt = buildRepairPrompt({
+        targetPath,
+        specForPrompt,
+        backupSpecForPrompt,
+        generatedCodeForFile,
+        failures,
+        tests,
+        runnerCode,
+    });
+
+    const response = await llmAgent.executePrompt(prompt, {
+        mode: 'deep',
+        responseShape: 'text',
+        context: { intent },
+    });
+
+    const parsedFiles = parseMultiFileMarkdown(response);
+    if (parsedFiles.size === 0) {
+        throw new Error(`LLM did not return any parsable files while repairing "${targetPath}".`);
+    }
+
+    if (parsedFiles.has(targetPath)) {
+        return parsedFiles.get(targetPath);
+    }
+
+    if (parsedFiles.size === 1) {
+        return [...parsedFiles.values()][0];
+    }
+
+    throw new Error(`LLM repair response did not include a usable file for "${targetPath}".`);
 }
 
 /**
@@ -291,10 +359,25 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
             }
 
             const allowRepair = specEntries.some(entry => entry.needsRegeneration && !entry.skipTests);
-            const testResults = await generatePlannedTestsOnDisk(sourcePath, codeFiles, llmAgent, { logger, allowRepair });
-            if (testResults?.skipped) {
+            const actionResult = await runTestsAction({
+                prompt: sourcePath,
+                llmAgent,
+                sourceFiles: codeFiles,
+                logger,
+            });
+            const generationResults = actionResult?.testResults || actionResult;
+            const testFileSources = generationResults?.testFileSources || new Map();
+            let testResults = null;
+
+            if (generationResults?.skipped) {
+                testResults = { failedTests: [], skipped: true, testFileSources };
                 debugLogger?.log('generateMirrorCode:testsRun:skipped', { source: sourceName });
-            } else if (testResults?.failedTests) {
+            } else {
+                const runResults = await runAllTestsOnDisk(sourcePath, logger);
+                testResults = { ...runResults, testFileSources };
+            }
+
+            if (testResults?.failedTests) {
                 const failures = testResults.failedTests.filter(result => !result.pass);
                 debugLogger?.log('generateMirrorCode:testsRun:complete', {
                     source: sourceName,
@@ -305,6 +388,59 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
                         `[generateMirrorCode] Test failed for "${failure.file}". ` +
                         `${failure.error ? `Error: ${failure.error}` : ''}`
                     );
+                }
+
+                if (allowRepair && failures.length > 0 && testFileSources) {
+                    let repairedAny = false;
+                    for (const failedEntry of failures) {
+                        const mapping = testFileSources.get?.(failedEntry.file);
+                        if (!mapping || !Array.isArray(mapping.sourceFiles) || mapping.sourceFiles.length === 0) {
+                            logger.warn(`[generateMirrorCode] No source files mapped for failed test file: ${failedEntry.file}`);
+                            continue;
+                        }
+
+                        const failureDetails = Array.isArray(failedEntry.failedTests)
+                            ? failedEntry.failedTests.map(test => ({
+                                expectedOutput: test.expected,
+                                actual: test.actual,
+                                testFile: test.fileName || failedEntry.file,
+                                reason: `Test failure in ${test.fileName || failedEntry.file}`,
+                            }))
+                            : [];
+
+                        for (const sourceFile of mapping.sourceFiles) {
+                            const targetPath = sourceFile.replace(/\\/g, '/');
+                            const outputPath = path.join(sourcePath, targetPath);
+                            const exists = await fs.stat(outputPath).then(stat => stat.isFile()).catch(() => false);
+                            if (!exists) {
+                                logger.warn(`[generateMirrorCode] Missing source file for repair: ${sourceFile}`);
+                                continue;
+                            }
+                            const existingCode = await fs.readFile(outputPath, 'utf-8');
+
+                            const specForPrompt = `\n\n---\n# Spec for: ${targetPath}\n\nNo spec available. If this file is not responsible for the failures, return the code unchanged.`;
+                            const repairedCode = await repairGeneratedFile(
+                                targetPath,
+                                specForPrompt,
+                                '',
+                                existingCode,
+                                failureDetails,
+                                llmAgent,
+                                'repair-single-file-from-test-failures',
+                                { tests: failureDetails }
+                            );
+
+                            if (repairedCode && repairedCode !== existingCode) {
+                                await fs.writeFile(outputPath, repairedCode, 'utf-8');
+                                repairedAny = true;
+                            }
+                        }
+                    }
+
+                    if (repairedAny) {
+                        const rerunResult = await runAllTestsOnDisk(sourcePath, logger);
+                        testResults = { ...rerunResult, testFileSources };
+                    }
                 }
             }
         }
