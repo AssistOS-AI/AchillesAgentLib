@@ -20,7 +20,8 @@ export function parseSkillMarkdown(content) {
         indexes: [],
         primaryKey: null,
         businessRules: [],
-        relationships: []
+        relationships: [],
+        roleAccessPolicy: null,
     };
 
     const lines = content.split('\n');
@@ -57,6 +58,17 @@ export function parseSkillMarkdown(content) {
         if (trimmedLine.match(/^##\s+Fields$/i)) {
             saveCurrentContent();
             currentSection = 'fields';
+            currentField = null;
+            currentSubSection = null;
+            currentContent = [];
+            sectionDepth = 2;
+            continue;
+        }
+
+        // Handle role access policy section (## Role Access Policy)
+        if (trimmedLine.match(/^##\s+Role Access Policy$/i)) {
+            saveCurrentContent();
+            currentSection = 'roleAccessPolicy';
             currentField = null;
             currentSubSection = null;
             currentContent = [];
@@ -192,6 +204,8 @@ export function parseSkillMarkdown(content) {
             skill.instructions = content;
         } else if (currentSection === 'deleteGuard' && !currentField) {
             parseDeleteGuard(content, skill);
+        } else if (currentSection === 'roleAccessPolicy' && !currentField) {
+            parseRoleAccessPolicy(content, skill);
         } else if (currentSection === 'interactiveFields' && !currentField) {
             skill.interactiveFields = parseFieldNameList(content);
         } else if (currentSection === 'listExtraFields' && !currentField) {
@@ -778,6 +792,77 @@ function parseDeleteGuard(content, skill) {
     skill.deleteGuard = { mode };
 }
 
+function parseRoleAccessList(value) {
+    return String(value || '')
+        .split(/[|,]/)
+        .map((part) => part.trim())
+        .map((part) => part.replace(/^[-*+]\s*/, '').trim())
+        .map((part) => part.replace(/[.;:]+$/, '').trim())
+        .filter(Boolean);
+}
+
+/**
+ * Parse role access policy section.
+ *
+ * Expected examples:
+ * - Read/search (SELECT): PM, PA, SPC, Storeman, Admin
+ * - Write (INSERT/UPDATE/DELETE): PM, PA, Storeman
+ */
+function parseRoleAccessPolicy(content, skill) {
+    const lines = String(content || '')
+        .split('\n')
+        .map((line) => String(line || '').trim())
+        .filter(Boolean);
+
+    const policy = {
+        read: [],
+        write: [],
+        notes: [],
+    };
+    const readSet = new Set();
+    const writeSet = new Set();
+
+    for (const line of lines) {
+        const normalized = line.replace(/^[-*+]\s*/, '').trim();
+        const match = normalized.match(/^([^:]+)\s*:\s*(.+)$/);
+        if (!match) {
+            policy.notes.push(normalized);
+            continue;
+        }
+
+        const label = match[1].toLowerCase();
+        const values = parseRoleAccessList(match[2]);
+        if (values.length === 0) continue;
+
+        if (/(read|select|search|view|list)/i.test(label)) {
+            for (const role of values) {
+                if (readSet.has(role)) continue;
+                readSet.add(role);
+                policy.read.push(role);
+            }
+            continue;
+        }
+
+        if (/(write|insert|create|update|delete|modify)/i.test(label)) {
+            for (const role of values) {
+                if (writeSet.has(role)) continue;
+                writeSet.add(role);
+                policy.write.push(role);
+            }
+            continue;
+        }
+
+        policy.notes.push(normalized);
+    }
+
+    if (policy.read.length === 0 && policy.write.length === 0 && policy.notes.length === 0) {
+        skill.roleAccessPolicy = null;
+        return;
+    }
+
+    skill.roleAccessPolicy = policy;
+}
+
 /**
  * Validate parsed skill structure
  */
@@ -833,6 +918,17 @@ export function validateSkill(skill) {
             warnings.push(
                 `List extra fields reference undefined/non-editable fields: ${missingListExtraFields.join(', ')}`,
             );
+        }
+    }
+
+    if (skill.roleAccessPolicy) {
+        const readRoles = Array.isArray(skill.roleAccessPolicy.read) ? skill.roleAccessPolicy.read : [];
+        const writeRoles = Array.isArray(skill.roleAccessPolicy.write) ? skill.roleAccessPolicy.write : [];
+        if (readRoles.length === 0) {
+            warnings.push('Role access policy is present but no read roles are defined.');
+        }
+        if (writeRoles.length === 0) {
+            warnings.push('Role access policy is present but no write roles are defined.');
         }
     }
 

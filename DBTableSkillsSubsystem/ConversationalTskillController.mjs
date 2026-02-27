@@ -57,6 +57,30 @@ import {
     selectFlow as selectFlowHandler,
 } from './flows/routingFlowHandlers.mjs';
 
+function normalizeRoleToken(role) {
+    return String(role || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[_\-/]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function buildRoleTokens(role) {
+    const token = normalizeRoleToken(role);
+    if (!token) return [];
+    return Array.from(new Set([token, token.replace(/\s+/g, '')]));
+}
+
+function toNormalizedRoleSet(roles = []) {
+    const set = new Set();
+    for (const role of roles || []) {
+        for (const token of buildRoleTokens(role)) {
+            set.add(token);
+        }
+    }
+    return set;
+}
 
 export class ConversationalTskillController {
     /**
@@ -83,6 +107,167 @@ export class ConversationalTskillController {
         if (value === undefined || value === null) return false;
         if (typeof value === 'string' && value.trim() === '') return false;
         return true;
+    }
+
+    getRoleAccessPolicy() {
+        const policy = this.parsedSkill?.roleAccessPolicy;
+        if (!policy || typeof policy !== 'object') return null;
+        const read = Array.isArray(policy.read) ? policy.read : [];
+        const write = Array.isArray(policy.write) ? policy.write : [];
+        if (read.length === 0 && write.length === 0) return null;
+        return { read, write };
+    }
+
+    getContextUserRoles(context = {}) {
+        const candidates = [
+            context?.user?.roles,
+            context?.currentUser?.roles,
+            context?.ssoUser?.roles,
+        ];
+        for (const roles of candidates) {
+            if (Array.isArray(roles) && roles.length > 0) {
+                return roles;
+            }
+        }
+        return [];
+    }
+
+    getContextUser(context = {}) {
+        return context?.user || context?.currentUser || context?.ssoUser || null;
+    }
+
+    getContextAuthzEvaluator(context = {}) {
+        const candidates = [
+            context?.authz?.evaluate,
+            context?.authzEvaluate,
+            context?.authorizer?.evaluate,
+        ];
+        for (const candidate of candidates) {
+            if (typeof candidate === 'function') {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    resolveRequiredRolesForOperation(operation, policy) {
+        const normalizedOperation = String(operation || '').toUpperCase();
+        const isReadOperation = normalizedOperation === CRUD_OPERATIONS.SELECT;
+        const roles = isReadOperation
+            ? [...(policy.read || []), ...(policy.write || [])]
+            : [...(policy.write || [])];
+        return Array.from(new Set(roles.map(role => String(role || '').trim()).filter(Boolean)));
+    }
+
+    detectPendingOperation(sessionMemory) {
+        if (!sessionMemory || typeof sessionMemory.get !== 'function') return null;
+
+        const validationKey = pendingKey(this.entityName, PENDING_STATE_SUFFIXES.VALIDATION);
+        const pendingValidation = sessionMemory.get(validationKey);
+        if (pendingValidation?.operation) {
+            return String(pendingValidation.operation).toUpperCase();
+        }
+
+        const checks = [
+            [PENDING_STATE_SUFFIXES.CREATE, CRUD_OPERATIONS.CREATE],
+            [PENDING_STATE_SUFFIXES.CREATE_CAPTURE, CRUD_OPERATIONS.CREATE],
+            [PENDING_STATE_SUFFIXES.CREATE_CONFLICT_UPDATE, CRUD_OPERATIONS.UPDATE],
+            [PENDING_STATE_SUFFIXES.UPDATE, CRUD_OPERATIONS.UPDATE],
+            [PENDING_STATE_SUFFIXES.UPDATE_CAPTURE, CRUD_OPERATIONS.UPDATE],
+            [PENDING_STATE_SUFFIXES.UPDATE_TARGET_CAPTURE, CRUD_OPERATIONS.UPDATE],
+            [PENDING_STATE_SUFFIXES.DELETE, CRUD_OPERATIONS.DELETE],
+            [PENDING_STATE_SUFFIXES.DELETE_CAPTURE, CRUD_OPERATIONS.DELETE],
+            [PENDING_STATE_SUFFIXES.SELECT_PAGINATION, CRUD_OPERATIONS.SELECT],
+        ];
+
+        for (const [suffix, operation] of checks) {
+            const key = pendingKey(this.entityName, suffix);
+            if (sessionMemory.get(key)) {
+                return operation;
+            }
+        }
+
+        return null;
+    }
+
+    async evaluateOperationAcl(operation, context = {}, options = {}) {
+        const policy = this.getRoleAccessPolicy();
+        if (!policy) return { allowed: true };
+
+        const normalizedOperation = String(operation || '').toUpperCase();
+        const modeLabel = normalizedOperation === CRUD_OPERATIONS.SELECT ? 'read/search' : 'write';
+        const requiredRoles = this.resolveRequiredRolesForOperation(normalizedOperation, policy);
+        if (requiredRoles.length === 0) {
+            return {
+                allowed: false,
+                message: `Access denied. ${modeLabel} operation "${normalizedOperation}" on ${this.entityName} has no configured allowed roles.`,
+            };
+        }
+
+        const userRoles = this.getContextUserRoles(context);
+        if (!Array.isArray(userRoles) || userRoles.length === 0) {
+            return {
+                allowed: false,
+                message: `Access denied. ${modeLabel} operation "${normalizedOperation}" on ${this.entityName} requires role(s): ${requiredRoles.join(' / ')}.`,
+            };
+        }
+
+        const evaluator = this.getContextAuthzEvaluator(context);
+        if (evaluator) {
+            try {
+                const decision = await evaluator({
+                    operation: normalizedOperation,
+                    accessMode: normalizedOperation === CRUD_OPERATIONS.SELECT ? 'read' : 'write',
+                    tableName: this.parsedSkill?.tableName || this.entityName,
+                    entityName: this.entityName,
+                    requiredRoles,
+                    user: this.getContextUser(context),
+                    context,
+                    policy,
+                    fromPendingState: Boolean(options?.fromPendingState),
+                });
+
+                if (typeof decision === 'boolean') {
+                    if (decision) return { allowed: true };
+                    return {
+                        allowed: false,
+                        message: `Access denied. ${modeLabel} operation "${normalizedOperation}" on ${this.entityName} requires role(s): ${requiredRoles.join(' / ')}.`,
+                    };
+                }
+
+                if (decision && typeof decision === 'object' && typeof decision.allowed === 'boolean') {
+                    if (decision.allowed) return { allowed: true };
+                    return {
+                        allowed: false,
+                        message: String(decision.message || `Access denied. ${modeLabel} operation "${normalizedOperation}" on ${this.entityName} requires role(s): ${requiredRoles.join(' / ')}.`),
+                    };
+                }
+
+                return {
+                    allowed: false,
+                    message: `Access denied. Invalid authorization decision received for ${this.entityName} ${normalizedOperation}.`,
+                };
+            } catch (error) {
+                return {
+                    allowed: false,
+                    message: `Access denied. Authorization evaluator failed for ${this.entityName} ${normalizedOperation}: ${error?.message || String(error)}.`,
+                };
+            }
+        }
+
+        const userRoleTokens = toNormalizedRoleSet(userRoles);
+        const requiredRoleTokens = toNormalizedRoleSet(requiredRoles);
+        const hasAccess = [...requiredRoleTokens].some((roleToken) => userRoleTokens.has(roleToken));
+        if (hasAccess) {
+            return { allowed: true };
+        }
+
+        const allowedLabel = requiredRoles.join(' / ') || 'none';
+        const currentLabel = userRoles.join(', ') || 'none';
+        return {
+            allowed: false,
+            message: `Access denied. ${modeLabel} operation "${normalizedOperation}" on ${this.entityName} requires role(s): ${allowedLabel}. Your role(s): ${currentLabel}.`,
+        };
     }
 
     formatDisplayValue(value) {
@@ -890,6 +1075,22 @@ export class ConversationalTskillController {
         try {
             // 1. Check for pending state first
             if (sessionMemory) {
+                const pendingOperation = this.detectPendingOperation(sessionMemory);
+                if (pendingOperation) {
+                    const pendingAclDecision = await this.evaluateOperationAcl(
+                        pendingOperation,
+                        context || {},
+                        { fromPendingState: true },
+                    );
+                    if (!pendingAclDecision.allowed) {
+                        return {
+                            success: false,
+                            operation: pendingOperation,
+                            message: pendingAclDecision.message,
+                        };
+                    }
+                }
+
                 const pendingResult = await this.handlePendingState(prompt, sessionMemory);
                 if (pendingResult) return pendingResult;
             }
@@ -899,6 +1100,15 @@ export class ConversationalTskillController {
             parsedOperation = await this.parseOperation(prompt);
             if (parsedOperation && typeof parsedOperation === 'object') {
                 parsedOperation.__rawPrompt = String(prompt || '');
+            }
+
+            const aclDecision = await this.evaluateOperationAcl(parsedOperation?.operation, context || {});
+            if (!aclDecision.allowed) {
+                return {
+                    success: false,
+                    operation: parsedOperation?.operation || 'UNKNOWN',
+                    message: aclDecision.message,
+                };
             }
 
             // 3. Create execution context with DB operations

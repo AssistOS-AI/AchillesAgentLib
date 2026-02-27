@@ -1240,7 +1240,15 @@ return {
 
         let result;
         try {
-            result = await executor({ prompt }, { sessionMemory });
+            const executionContext = {
+                ...(options.context || {}),
+                sessionMemory,
+            };
+            if (!executionContext.user && options.user) {
+                executionContext.user = options.user;
+            }
+
+            result = await executor({ prompt }, executionContext);
         } catch (error) {
             const details = error?.message || String(error);
             result = {

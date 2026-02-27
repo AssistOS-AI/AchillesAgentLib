@@ -91,6 +91,17 @@ function formatLogValue(value) {
     }
 }
 
+function coerceStructuredToolResult(value) {
+    if (!value || typeof value !== 'string') {
+        return value;
+    }
+    const parsed = extractJson(value);
+    if (parsed && typeof parsed === 'object') {
+        return parsed;
+    }
+    return value;
+}
+
 function parseContextVariables(text = '', prefix = PREPARATION_CONTEXT_PREFIX) {
     if (!text) {
         return [];
@@ -431,18 +442,20 @@ class LoopAgentSession {
 
                 try {
                     const toolResult = await this._executeTool(toolName, toolPrompt, turn);
+                    const structuredToolResult = coerceStructuredToolResult(toolResult);
                     // Debug: log tool result type and key properties
-                    debugLog(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, requiresConfirmation=${toolResult?.requiresConfirmation}, requiresInput=${toolResult?.requiresInput}`);
+                    debugLog(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, structuredType=${typeof structuredToolResult}, requiresConfirmation=${structuredToolResult?.requiresConfirmation}, requiresInput=${structuredToolResult?.requiresInput}`);
                     this._debug('[LoopSession]', 'Tool result', {
                         tool: toolName,
                         prompt: toolPrompt,
                         type: typeof toolResult,
-                        requiresConfirmation: toolResult?.requiresConfirmation,
-                        requiresInput: toolResult?.requiresInput,
+                        structuredType: typeof structuredToolResult,
+                        requiresConfirmation: structuredToolResult?.requiresConfirmation,
+                        requiresInput: structuredToolResult?.requiresInput,
                     });
                     const displayResult = toolResult && (toolResult.__finalAnswer || toolResult.__cannotComplete)
                         ? toolResult.text
-                        : toolResult;
+                        : structuredToolResult;
                     turn.usedTools = true;
                     turn.steps.push({
                         type: 'tool_result',
@@ -454,15 +467,15 @@ class LoopAgentSession {
 
                     // Handle interactive tools that require user confirmation or input
                     // When a tool returns requiresConfirmation or requiresInput, stop and return to user
-                    if (toolResult && typeof toolResult === 'object' && 
-                        (toolResult.requiresConfirmation || toolResult.requiresInput)) {
-                        let message = toolResult.message;
+                    if (structuredToolResult && typeof structuredToolResult === 'object' && 
+                        (structuredToolResult.requiresConfirmation || structuredToolResult.requiresInput)) {
+                        let message = structuredToolResult.message;
                         if (!message) {
                             try {
-                                message = JSON.stringify(toolResult, null, 2);
+                                message = JSON.stringify(structuredToolResult, null, 2);
                             } catch (stringifyError) {
                                 // Fallback if JSON.stringify fails (circular references, etc.)
-                                message = `Tool returned an object that cannot be displayed. Keys: ${Object.keys(toolResult).join(', ')}`;
+                                message = `Tool returned an object that cannot be displayed. Keys: ${Object.keys(structuredToolResult).join(', ')}`;
                             }
                         }
                         debugLog(`[${getTimestamp()}] [LoopSession] Detected requiresConfirmation/Input, returning message (first 100 chars): "${String(message).substring(0, 100)}..."`);
@@ -476,23 +489,23 @@ class LoopAgentSession {
                             type: SESSION_STATUS_AWAITING_INPUT, 
                             answer: message,
                             tool: toolName,
-                            step: toolResult.step || null
+                            step: structuredToolResult.step || null
                         });
                         return message;
                     }
 
                     // Handle successful database/skill results that should be returned immediately
                     // When a tool returns success:true with records or a message, treat as final answer
-                    if (toolResult && typeof toolResult === 'object' && 
-                        toolResult.success === true && 
-                        (toolResult.records || toolResult.message || toolResult.operation)) {
+                    if (structuredToolResult && typeof structuredToolResult === 'object' && 
+                        structuredToolResult.success === true && 
+                        (structuredToolResult.records || structuredToolResult.message || structuredToolResult.operation)) {
                         // This is a successful skill result - return it as final answer
                         let resultStr;
                         try {
-                            resultStr = JSON.stringify(toolResult, null, 2);
+                            resultStr = JSON.stringify(structuredToolResult, null, 2);
                         } catch (stringifyError) {
                             // Fallback if JSON.stringify fails (circular references, etc.)
-                            resultStr = `Tool returned a successful result that cannot be displayed. Keys: ${Object.keys(toolResult).join(', ')}`;
+                            resultStr = `Tool returned a successful result that cannot be displayed. Keys: ${Object.keys(structuredToolResult).join(', ')}`;
                         }
                         debugLog(`[${getTimestamp()}] [LoopSession] Detected successful skill result, returning as final answer`);
                         this._debug('[LoopSession]', 'Tool success result returned as final answer', { tool: toolName });
@@ -504,14 +517,14 @@ class LoopAgentSession {
                         return resultStr;
                     }
                     // Handle explicit failed skill results immediately (avoid re-calling the same tool).
-                    if (toolResult && typeof toolResult === 'object' &&
-                        toolResult.success === false &&
-                        (toolResult.message || toolResult.error || toolResult.operation)) {
+                    if (structuredToolResult && typeof structuredToolResult === 'object' &&
+                        structuredToolResult.success === false &&
+                        (structuredToolResult.message || structuredToolResult.error || structuredToolResult.operation)) {
                         let resultStr;
                         try {
-                            resultStr = JSON.stringify(toolResult, null, 2);
+                            resultStr = JSON.stringify(structuredToolResult, null, 2);
                         } catch (stringifyError) {
-                            resultStr = `Tool returned a failed result that cannot be displayed. Keys: ${Object.keys(toolResult).join(', ')}`;
+                            resultStr = `Tool returned a failed result that cannot be displayed. Keys: ${Object.keys(structuredToolResult).join(', ')}`;
                         }
                         debugLog(`[${getTimestamp()}] [LoopSession] Detected failed skill result, returning as final answer`);
                         this._debug('[LoopSession]', 'Tool failed result returned as final answer', { tool: toolName });
