@@ -14,6 +14,7 @@ async function extraComplete(agent, options = {}) {
     const {
         prompt,
         history = [],
+        tier = null,
         mode = process.env.ACHILLES_DEFAULT_MODEL_TYPE === 'deep' ? 'deep' : 'fast',
         model = null,
         context = {},
@@ -88,6 +89,7 @@ ${prompt}`
         const response = await agent.invokerStrategy({
             prompt,
             history: conversation,
+            tier,
             mode,
             model,
             agent,
@@ -177,6 +179,7 @@ ${prompt}`
 
 async function extraDoTask(agent, agentContext, description, options = {}) {
     const {
+        tier = null,
         mode = 'fast',
         model = null,
         outputSchema = null,
@@ -191,6 +194,7 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
 
     return agent.complete({
         prompt,
+        tier,
         mode,
         model,
         context: { intent: 'task-execution' },
@@ -200,6 +204,7 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
 
 async function extraDoTaskWithReview(agent, agentContext, description, options = {}) {
     const {
+        tier = null,
         mode = 'deep',
         maxIterations = 3,
         model = null,
@@ -214,6 +219,7 @@ async function extraDoTaskWithReview(agent, agentContext, description, options =
 
     return agent.complete({
         prompt,
+        tier,
         mode,
         model,
         context: { intent: 'task-review', maxIterations },

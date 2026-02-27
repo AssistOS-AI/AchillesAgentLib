@@ -8,7 +8,7 @@
  * Usage: node showActiveModels.mjs
  */
 
-import { listModelsFromCache, loadModelsConfiguration } from './utils/LLMClient.mjs';
+import { listModelsFromCache, listTiersFromCache, loadModelsConfiguration } from './utils/LLMClient.mjs';
 
 const COLORS = {
     RESET: '\x1b[0m',
@@ -79,11 +79,25 @@ async function main() {
     printSection('FAST Models (mode: fast)', models.fast, config.defaultFastModel);
     printSection('DEEP Models (mode: deep)', models.deep, config.defaultDeepModel);
     
+    // Show tiers
+    const tiers = listTiersFromCache();
+    const tierNames = Object.keys(tiers);
+    if (tierNames.length > 0) {
+        console.log(`\n${COLORS.BOLD}${COLORS.CYAN}=== Model Tiers ===${COLORS.RESET}`);
+        for (const name of tierNames) {
+            const tierModels = tiers[name];
+            console.log(`  ${COLORS.BOLD}${name}${COLORS.RESET}: ${tierModels.length > 0 ? tierModels.join(' → ') : COLORS.GRAY + '(empty)' + COLORS.RESET}`);
+        }
+    }
+
     // Summary
     console.log(`\n${COLORS.BOLD}Summary:${COLORS.RESET}`);
     console.log(`  Total fast models: ${models.fast.length}`);
     console.log(`  Total deep models: ${models.deep.length}`);
-    
+    if (tierNames.length > 0) {
+        console.log(`  Tiers: ${tierNames.join(', ')}`);
+    }
+
     if (models.fast.length > 0) {
         console.log(`  ${COLORS.GREEN}First fast model (will be used):${COLORS.RESET} ${models.fast[0].name}`);
     }

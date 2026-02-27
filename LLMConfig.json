@@ -1,17 +1,22 @@
 {
+    "tiers": {
+        "fast": { "models": ["openrouter/x-ai/grok-4.1-fast", "openai/o4-mini", "axiologic_kiro/claude-haiku-4.5"], "fallback": null },
+        "plan": { "models": ["openrouter/x-ai/grok-4.1-fast"], "fallback": "fast" },
+        "write": { "models": [], "fallback": "fast" },
+        "code": { "models": ["openrouter/deepseek/deepseek-v3.2", "opencode/qwen3-coder"], "fallback": "deep" },
+        "deep": { "models": ["openrouter/deepseek/deepseek-v3.2", "openrouter/deepseek/deepseek-r1-0528", "opencode/qwen3-coder"], "fallback": null },
+        "ultra": { "models": ["openrouter/google/gemini-2.5-pro", "openrouter/x-ai/grok-4"], "fallback": "deep" }
+    },
     "fastModelPriority": [
-        "soul_gateway/axiologic-fast",
         "openrouter/x-ai/grok-4.1-fast",
         "openai/o4-mini",
         "axiologic_kiro/claude-haiku-4.5"
     ],
     "deepModelPriority": [
-        "soul_gateway/axiologic-deep",
         "openrouter/deepseek/deepseek-v3.2",
         "openrouter/deepseek/deepseek-r1-0528",
         "openrouter/deepseek/deepseek-v3.1-terminus",
         "opencode/qwen3-coder",
-        "soul_gateway/axiologic-ultra",
         "openrouter/google/gemini-2.5-pro",
         "openrouter/qwen/qwen3-coder-plus",
         "openrouter/qwen/qwen3-max-thinking",
@@ -382,30 +387,6 @@
             "inputPrice": 1.5,
             "outputPrice": 12,
             "context": "500k"
-        },
-        {
-            "name": "axiologic-fast",
-            "provider": "soul_gateway",
-            "mode": "fast",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "axiologic-deep",
-            "provider": "soul_gateway",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "1mill"
-        },
-        {
-            "name": "axiologic-ultra",
-            "provider": "soul_gateway",
-            "mode": "deep",
-            "inputPrice": 0,
-            "outputPrice": 0,
-            "context": "400k"
         }
     ]
 }

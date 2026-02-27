@@ -289,6 +289,7 @@ class LLMAgent {
         }
 
         const {
+            tier = null,
             mode = 'fast',
             model = null,
             responseShape = null,
@@ -328,6 +329,7 @@ ${promptText}`
             : promptText;
 
         const result = await extraDoTask(this, combinedContext, promptText, {
+            tier,
             mode,
             model,
             ...rest,

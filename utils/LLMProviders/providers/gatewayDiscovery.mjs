@@ -19,6 +19,17 @@ function deriveModelsURL(baseURL) {
 }
 
 /**
+ * Derive the `/v1/tiers` URL from a provider's baseURL.
+ */
+function deriveTiersURL(baseURL) {
+    return baseURL
+        .replace(/\/chat\/completions\/?$/, '/tiers')
+        .replace(/\/messages\/?$/, '/tiers')
+        .replace(/\/completions\/?$/, '/tiers')
+        .replace(/\/responses\/?$/, '/tiers');
+}
+
+/**
  * Fetch models from a provider's /v1/models endpoint and return them as model descriptors.
  *
  * @param {object} providerConfig - Normalized provider config { providerKey, baseURL, apiKeyEnv, ... }
@@ -73,5 +84,60 @@ export async function discoverModels(providerConfig) {
     } catch (err) {
         issues.warnings.push(`Auto-discovery: failed to fetch from ${modelsURL}: ${err.message}`);
         return { models: [], issues };
+    }
+}
+
+/**
+ * Fetch tier definitions from a provider's /v1/tiers endpoint.
+ * Returns an array of { name, models: string[], fallback: string|null }.
+ * Gracefully handles 404 (provider doesn't support tiers).
+ *
+ * @param {object} providerConfig - Normalized provider config
+ * @returns {Promise<{ tiers: Array, issues: { errors: string[], warnings: string[] } }>}
+ */
+export async function discoverTiers(providerConfig) {
+    const issues = { errors: [], warnings: [] };
+    const { providerKey, baseURL, apiKeyEnv } = providerConfig;
+
+    if (!baseURL) {
+        return { tiers: [], issues };
+    }
+
+    const tiersURL = deriveTiersURL(baseURL);
+    const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : null;
+
+    if (!apiKey) {
+        return { tiers: [], issues };
+    }
+
+    try {
+        const resp = await fetch(tiersURL, {
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(10_000),
+        });
+
+        if (!resp.ok) {
+            // 404 = provider doesn't support tiers, not an error
+            if (resp.status !== 404) {
+                issues.warnings.push(`Tier discovery: ${tiersURL} returned ${resp.status}.`);
+            }
+            return { tiers: [], issues };
+        }
+
+        const data = await resp.json();
+        const rawTiers = Array.isArray(data) ? data : (data.data || []);
+
+        const tiers = rawTiers
+            .filter(t => t.name && Array.isArray(t.models))
+            .map(t => ({
+                name: t.name,
+                models: t.models,
+                fallback: t.fallback || null,
+            }));
+
+        return { tiers, issues };
+    } catch (err) {
+        issues.warnings.push(`Tier discovery: failed to fetch from ${tiersURL}: ${err.message}`);
+        return { tiers: [], issues };
     }
 }

@@ -333,7 +333,9 @@ function getPromptBuilder(useProductionPrompt) {
 }
 
 async function testModel(agent, modelName, skillsDescription, testCase, skipSemantic, promptBuilder) {
-    const prompt = promptBuilder(skillsDescription, testCase.prompt);
+    // Add a random nonce to bypass Soul Gateway prompt cache
+    const nonce = `[bench-${Date.now()}-${Math.random().toString(36).slice(2, 8)}]`;
+    const prompt = promptBuilder(skillsDescription, testCase.prompt) + `\n<!-- ${nonce} -->`;
     const startTime = Date.now();
     
     try {

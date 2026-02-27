@@ -96,6 +96,7 @@ await registerProvidersFromConfig(modelsConfiguration);
 const llmCalls = [];
 
 const VALID_MODES = new Set(['fast', 'deep']);
+const VALID_TIERS = new Set(['fast', 'plan', 'write', 'code', 'deep', 'ultra']);
 
 function createAgentModelRecord(modelDescriptor, providerConfig) {
     if (!modelDescriptor || !providerConfig) {
@@ -109,6 +110,54 @@ function createAgentModelRecord(modelDescriptor, providerConfig) {
         baseURL: modelDescriptor.baseURL || providerConfig.baseURL || null,
         mode,
     };
+}
+
+/**
+ * Resolve a tier's model list by walking the fallback chain.
+ * Returns a flat array of model names (deduplicated, filtered to available models).
+ * Supports both unqualified ("axiologic-fast") and qualified ("soul_gateway/axiologic-fast") names.
+ */
+function resolveTierModelList(tierName, tiersMap, recordMap, visited = new Set()) {
+    if (visited.has(tierName)) return []; // cycle detection
+    visited.add(tierName);
+    const tier = tiersMap.get(tierName);
+    if (!tier) return [];
+    const result = [];
+    const seen = new Set();
+
+    const tryAdd = (model) => {
+        // Try direct lookup first
+        if (recordMap.has(model) && !seen.has(model)) {
+            seen.add(model);
+            result.push(model);
+            return;
+        }
+        // Try resolving qualified name (e.g. "soul_gateway/axiologic-fast" → "axiologic-fast")
+        if (model.includes('/')) {
+            const resolved = resolveModelName(
+                model,
+                modelsConfiguration.models,
+                modelsConfiguration.qualifiedModels
+            );
+            if (resolved && recordMap.has(resolved) && !seen.has(resolved)) {
+                seen.add(resolved);
+                result.push(resolved);
+            }
+        }
+    };
+
+    for (const model of tier.models) {
+        tryAdd(model);
+    }
+    if (tier.fallback) {
+        for (const model of resolveTierModelList(tier.fallback, tiersMap, recordMap, visited)) {
+            if (!seen.has(model)) {
+                seen.add(model);
+                result.push(model);
+            }
+        }
+    }
+    return result;
 }
 
 function buildModelCaches() {
@@ -246,13 +295,26 @@ function buildModelCaches() {
         ? preferredMode
         : (fast.length ? 'fast' : (deep.length ? 'deep' : 'fast'));
 
-    return { recordMap, fast, deep, setMode };
+    // Build tier map from modelsConfiguration.tiers
+    const tiers = new Map();
+    const configTiers = modelsConfiguration.tiers;
+    if (configTiers && configTiers.size > 0) {
+        for (const [tierName] of configTiers) {
+            const resolved = resolveTierModelList(tierName, configTiers, recordMap);
+            if (resolved.length) {
+                tiers.set(tierName, resolved);
+            }
+        }
+    }
+
+    return { recordMap, fast, deep, setMode, tiers };
 }
 
 let modelRecordMap;
 let fastModelNames;
 let deepModelNames;
 let setMode;
+let tierMap;
 
 function rebuildCaches() {
     const caches = buildModelCaches();
@@ -260,6 +322,7 @@ function rebuildCaches() {
     fastModelNames = caches.fast;
     deepModelNames = caches.deep;
     setMode = caches.setMode;
+    tierMap = caches.tiers;
 }
 
 function normalizeModePreference(value) {
@@ -270,23 +333,35 @@ function normalizeModePreference(value) {
     return VALID_MODES.has(normalized) ? normalized : null;
 }
 
+function normalizeTierPreference(value) {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim().toLowerCase();
+    // Accept any tier name that exists in the tier map, plus known defaults
+    if (VALID_TIERS.has(normalized)) return normalized;
+    if (tierMap && tierMap.has(normalized)) return normalized;
+    return null;
+}
+
 function normalizeInvocationPreferences(input) {
     if (typeof input === 'string') {
-        return { mode: normalizeModePreference(input), modelName: null };
+        return { mode: normalizeModePreference(input), tier: normalizeTierPreference(input), modelName: null };
     }
 
     if (!input || typeof input !== 'object') {
-        return { mode: null, modelName: null };
+        return { mode: null, tier: null, modelName: null };
     }
 
+    // tier takes precedence over mode
+    const tierRaw = input.tier;
+    const tier = normalizeTierPreference(tierRaw);
     const mode = normalizeModePreference(input.mode || input.preferredMode || input.modePreference);
     const modelRaw = input.modelName || input.model || input.preferredModel;
     const modelName = typeof modelRaw === 'string' && modelRaw.trim() ? modelRaw.trim() : null;
 
-    return { mode, modelName };
+    return { mode, tier, modelName };
 }
 
-function resolvePrioritizedModels({ mode, modelName }) {
+function resolvePrioritizedModels({ mode, tier, modelName }) {
     const prioritized = [];
     const seen = new Set();
 
@@ -300,7 +375,7 @@ function resolvePrioritizedModels({ mode, modelName }) {
     if (modelName) {
         // Support provider/model format - resolve to actual model key
         let resolvedName = modelName;
-        
+
         // Check if it's a provider/model reference
         if (modelName.includes('/')) {
             const resolved = resolveModelName(
@@ -312,11 +387,19 @@ function resolvePrioritizedModels({ mode, modelName }) {
                 resolvedName = resolved;
             }
         }
-        
+
         push(resolvedName);
         return prioritized.length ? prioritized : [];
     }
 
+    // Tier-based resolution: use tier map if available
+    const effectiveTier = tier || (mode === 'deep' ? 'deep' : mode === 'fast' ? 'fast' : null);
+    if (effectiveTier && tierMap && tierMap.size > 0 && tierMap.has(effectiveTier)) {
+        tierMap.get(effectiveTier).forEach(push);
+        return prioritized;
+    }
+
+    // Fallback to legacy fast/deep mode resolution
     const selectedMode = mode === 'deep' ? 'deep' : 'fast';
     const primaryList = selectedMode === 'deep' ? deepModelNames : fastModelNames;
     const fallbackList = selectedMode === 'deep' ? fastModelNames : deepModelNames;
@@ -327,10 +410,11 @@ function resolvePrioritizedModels({ mode, modelName }) {
     return prioritized;
 }
 
-export function getPrioritizedModels() {
+export function getPrioritizedModels(requestedTier = null) {
     rebuildCaches();
     const selectionRequest = {
         mode: setMode,
+        tier: requestedTier || null,
         modelName: null,
     };
     return resolvePrioritizedModels(selectionRequest);
@@ -344,6 +428,10 @@ function ensureCachesFresh() {
 
 function getSupportedModesFromCache() {
     ensureCachesFresh();
+    // If tiers are available, return tier names
+    if (tierMap && tierMap.size > 0) {
+        return [...tierMap.keys()];
+    }
     const modes = [];
     if (fastModelNames.length) {
         modes.push('fast');
@@ -365,6 +453,16 @@ export function listModelsFromCache() {
         fast: clone(fastModelNames),
         deep: clone(deepModelNames),
     };
+}
+
+export function listTiersFromCache() {
+    ensureCachesFresh();
+    if (!tierMap || tierMap.size === 0) return {};
+    const result = {};
+    for (const [name, models] of tierMap) {
+        result[name] = [...models];
+    }
+    return result;
 }
 
 function getModelMetadata(modelName) {
@@ -521,6 +619,7 @@ export function createDefaultLLMInvokerStrategy() {
             prompt,
             history = [],
             mode = 'fast',
+            tier = null,
             model = null,
             modelCandidates = null,
             params = {},
@@ -537,16 +636,18 @@ export function createDefaultLLMInvokerStrategy() {
             throw new Error(`No LLM models are configured in ${modelsConfiguration.path || 'the LLM configuration file'}.`);
         }
 
-        const normalizedPreferences = normalizeInvocationPreferences({ mode, model });
+        const normalizedPreferences = normalizeInvocationPreferences({ mode, tier, model });
+        const effectiveTier = normalizedPreferences.tier || null;
         const effectiveMode = normalizedPreferences.mode
             || normalizeModePreference(mode)
             || setMode;
 
         const selectionRequest = {
             mode: effectiveMode,
+            tier: effectiveTier,
             modelName: normalizedPreferences.modelName || null,
         };
-        lastInvocationDetails = { model: null, mode: selectionRequest.mode };
+        lastInvocationDetails = { model: null, mode: effectiveTier || selectionRequest.mode };
 
         const prioritized = Array.isArray(modelCandidates) && modelCandidates.length
             ? modelCandidates
@@ -556,7 +657,8 @@ export function createDefaultLLMInvokerStrategy() {
             if (selectionRequest.modelName) {
                 throw new Error(`Model "${selectionRequest.modelName}" is not defined in ${modelsConfiguration.path || 'the LLM configuration file'}.`);
             }
-            throw new Error(`No models available for mode "${selectionRequest.mode}". Update ${modelsConfiguration.path || 'the LLM configuration file'} to include at least one model.`);
+            const label = effectiveTier ? `tier "${effectiveTier}"` : `mode "${selectionRequest.mode}"`;
+            throw new Error(`No models available for ${label}. Update ${modelsConfiguration.path || 'the LLM configuration file'} to include at least one model.`);
         }
 
         const mergedHeaders = { ...(invocationOptions.headers || {}), ...headers };
@@ -568,7 +670,7 @@ export function createDefaultLLMInvokerStrategy() {
             ...invocationOptions,
             params: { ...(invocationOptions.params || {}), ...params },
             headers: mergedHeaders,
-            mode: selectionRequest.mode,
+            mode: effectiveTier || selectionRequest.mode,
         };
 
         if (invocation.providerKey) {

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnvConfig, parseModelReference } from './envConfigLoader.mjs';
-import { discoverModels } from './gatewayDiscovery.mjs';
+import { discoverModels, discoverTiers } from './gatewayDiscovery.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -143,6 +143,19 @@ export function normalizeConfig(rawConfig, options = {}) {
         qualifiedModels,
     );
 
+    // Parse static tiers from config (fallback when Soul Gateway doesn't provide tiers)
+    const tiers = new Map();
+    if (rawConfig?.tiers && typeof rawConfig.tiers === 'object') {
+        for (const [name, def] of Object.entries(rawConfig.tiers)) {
+            if (def && Array.isArray(def.models)) {
+                tiers.set(name, {
+                    models: def.models.filter(m => typeof m === 'string'),
+                    fallback: typeof def.fallback === 'string' ? def.fallback : null,
+                });
+            }
+        }
+    }
+
     return {
         providers,
         models,
@@ -153,6 +166,7 @@ export function normalizeConfig(rawConfig, options = {}) {
         orderedModels: orderedModelNames,
         fastModelPriority,
         deepModelPriority,
+        tiers,
         ...validatedDefaults,
     };
 }
@@ -475,7 +489,10 @@ async function discoverGatewayModels(normalized) {
     if (!discoveryProviders.length) return;
 
     // Run discovery for all auto-discover providers in parallel
-    const results = await Promise.all(discoveryProviders.map(p => discoverModels(p)));
+    const [results, tierResults] = await Promise.all([
+        Promise.all(discoveryProviders.map(p => discoverModels(p))),
+        Promise.all(discoveryProviders.map(p => discoverTiers(p))),
+    ]);
 
     const gatewayModelNames = [];
 
@@ -511,6 +528,19 @@ async function discoverGatewayModels(normalized) {
 
     // Append gateway models at the end of the ordered list
     normalized.orderedModels = [...orderedModels, ...gatewayModelNames];
+
+    // Merge discovered tiers (gateway tiers override static config tiers)
+    for (const { tiers: discoveredTiers, issues: tierIssues } of tierResults) {
+        issues.warnings.push(...tierIssues.warnings);
+        issues.errors.push(...tierIssues.errors);
+
+        for (const tier of discoveredTiers) {
+            normalized.tiers.set(tier.name, {
+                models: tier.models,
+                fallback: tier.fallback,
+            });
+        }
+    }
 
     // Build priority arrays from sort_order when not already set by config/env
     if (!normalized.fastModelPriority && !normalized.deepModelPriority) {
