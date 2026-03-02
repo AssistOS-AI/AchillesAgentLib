@@ -233,7 +233,7 @@ export async function repairGeneratedFile(
     });
 
     const response = await llmAgent.executePrompt(prompt, {
-        mode: 'deep',
+        mode: 'code',
         responseShape: 'text',
         context: { intent },
     });
@@ -367,7 +367,7 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
             });
 
             const response = await llmAgent.executePrompt(prompt, {
-                mode: 'deep',
+                mode: 'code',
                 responseShape: 'text',
                 context: { intent: 'generate-single-file-code-from-spec' },
             });

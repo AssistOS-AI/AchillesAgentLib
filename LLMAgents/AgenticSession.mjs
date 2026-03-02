@@ -237,7 +237,7 @@ class LoopAgentSession {
                 ? options.maxStepsPerTurn
                 : 8,
             maxErrors: Number.isFinite(options.maxErrors) ? options.maxErrors : 5,
-            mode: options.mode || 'deep',
+            mode: options.mode || 'plan',
             model: options.model || null,
             maxRetriesPerTurn: Number.isFinite(options.maxRetriesPerTurn)
                 ? options.maxRetriesPerTurn

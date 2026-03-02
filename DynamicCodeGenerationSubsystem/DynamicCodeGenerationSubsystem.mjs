@@ -59,8 +59,8 @@ function withTimeout(promiseLike, timeoutMs, errorFactory) {
 
 function determineMode(value) {
     const normalized = String(value || '').toLowerCase();
-    if (normalized.includes('deep')) {
-        return 'deep';
+    if (normalized.includes('deep') || normalized.includes('code')) {
+        return 'code';
     }
     return 'fast';
 }

@@ -205,7 +205,7 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
 async function extraDoTaskWithReview(agent, agentContext, description, options = {}) {
     const {
         tier = null,
-        mode = 'deep',
+        mode = 'plan',
         maxIterations = 3,
         model = null,
         ...rest
