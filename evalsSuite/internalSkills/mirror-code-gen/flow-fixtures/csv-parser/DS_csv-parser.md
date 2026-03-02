@@ -1,16 +1,16 @@
 # DS: csv-parser skill
 
 ## Vision and Problem Statement
-Provide a predictable CSV parsing and transformation tool that can convert CSV input into structured data and apply simple mapping/filtering rules. This prevents bespoke CSV handling across skills and ensures consistent parsing behavior.
+Provide a CSV parser that converts CSV text into structured rows and can apply simple mapping and filtering rules. This replaces ad-hoc CSV handling and keeps parsing behavior consistent.
 
 ## Intended Users and Context of Use
-Used by internal skills and orchestration flows that need to parse CSV content from a single input string. Requests are provided as a single input string containing `key: value` pairs.
+Used by any component that needs to parse CSV content from a single input string. The request is a single string containing one `key: value` pair per line.
 
 ## Scope and Boundaries
-In scope: parsing CSV strings, mapping field names, filtering rows, and returning structured output. Out of scope: file I/O, streaming large datasets, or complex CSV dialects beyond basic delimiters/quotes.
+In scope: parsing CSV strings, mapping field names, filtering rows, and returning structured output. Out of scope: file I/O, streaming large datasets, and CSV dialects beyond basic delimiters and quotes.
 
 ## Success Criteria
-Valid CSV input is parsed deterministically with consistent row/column output. Transformations apply predictable filters/mappings and return expected results. Malformed input returns clear errors.
+Given the same input string, parsing returns the same row/column output. Transformations apply the specified mappings and filters exactly. Malformed CSV returns a clear error message.
 
 ## Affected Files
-./specs/index.mjs.md - Implements CSV parsing and transformation operations. Exports - action entry point for parsing and transforming CSV input. Input - single string request payload.
+./specs/index.mjs.md - Implements CSV parsing and transformation operations. Exports - action entry point that accepts a single string request payload and returns structured parse/transform results.

@@ -1,16 +1,16 @@
 # DS: hash-util skill
 
 ## Vision and Problem Statement
-Provide a secure, deterministic hashing utility that can hash and verify data without exposing low-level crypto details to callers. This enables consistent credential or token handling across skills.
+Provide a hashing utility that can hash and verify input data without exposing low-level crypto details. This enables consistent handling of hashed data across components.
 
 ## Intended Users and Context of Use
-Used by internal skills and orchestration flows that need hashing or verification from a single input string. Requests are provided as a single input string containing `key: value` pairs.
+Used by any component that needs hashing or verification from a single input string. The request is a single string containing one `key: value` pair per line.
 
 ## Scope and Boundaries
-In scope: hashing input strings with salt, verifying hashes, and returning validation results. Out of scope: key management, encryption, or external secret storage.
+In scope: hashing input strings with salt, verifying hashes, and returning verification results. Out of scope: key management, encryption, and external secret storage.
 
 ## Success Criteria
-Hash operations return deterministic output given the same input and salt. Verify operations return a clear valid/invalid result. Invalid inputs produce deterministic errors.
+Given the same input and salt, hashing returns the same hash. Verification returns a clear valid/invalid boolean. Invalid input returns a clear error message.
 
 ## Affected Files
-./specs/index.mjs.md - Implements hashing and verification operations. Exports - action entry point for hashing and verify. Input - single string request payload.
+./specs/index.mjs.md - Implements hashing and verification operations. Exports - action entry point that accepts a single string request payload and returns hash or verification results.
