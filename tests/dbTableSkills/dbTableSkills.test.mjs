@@ -735,6 +735,73 @@ test('Field Processing: Verify validator enforcement', async (t) => {
     }
 });
 
+test('Reference validation: blocks writes with non-existent foreign IDs', async () => {
+    const llmAgent = new MockLLMAgent();
+    const mockDB = new MockDBAdapter();
+    mockDB.query = async (table, filter) => {
+        if (String(table).toLowerCase() === 'area' && filter?.area_id === 'A1') {
+            return [{ area_id: 'A1' }];
+        }
+        return [];
+    };
+
+    const subsystem = new DBTableSkillsSubsystem({
+        llmAgent,
+        dbAdapter: mockDB,
+    });
+
+    const parsedSkill = {
+        tableName: 'Material',
+        primaryKey: 'material_id',
+        relationships: [
+            {
+                type: 'One-to-Many with area',
+                foreign: 'area_id',
+                reference: 'area.area_id',
+                referencedBy: null,
+                field: null,
+                cascade: null,
+                sourceTable: null,
+                sourceField: null,
+                targetTable: 'area',
+                targetField: 'area_id',
+            },
+        ],
+    };
+
+    const functions = {
+        global: {
+            async prepareRecord(record) {
+                return { ...record };
+            },
+            async validateRecord() {
+                return { isValid: true, errors: [] };
+            },
+        },
+    };
+
+    const execContext = subsystem.createExecutionContext(functions, 'Material', parsedSkill);
+
+    const invalid = await execContext.validateRecord({
+        material_id: 'MAT-0002',
+        area_id: 'B2',
+    });
+    assert.equal(invalid.isValid, false);
+    assert.ok(Array.isArray(invalid.errors) && invalid.errors.length > 0);
+    assert.equal(invalid.errors[0].field, 'area_id');
+    assert.match(
+        String(invalid.errors[0].error || ''),
+        /area id "B2" is not valid/i,
+    );
+
+    const valid = await execContext.validateRecord({
+        material_id: 'MAT-0003',
+        area_id: 'A1',
+    });
+    assert.equal(valid.isValid, true);
+    assert.deepEqual(valid.errors, []);
+});
+
 test('Field Processing: Verify derived field computation', async (t) => {
     await initializeShared();
 

@@ -150,6 +150,37 @@ function dedupeDependencies(dependencies = []) {
     return deduped;
 }
 
+function dedupeReferenceRules(rules = []) {
+    const deduped = [];
+    const seen = new Set();
+    for (const rule of rules) {
+        const foreignKey = String(rule?.foreignKey || '').trim();
+        const targetTable = String(rule?.targetTable || '').trim();
+        const targetField = String(rule?.targetField || '').trim();
+        if (!foreignKey || !targetTable || !targetField) continue;
+        const key = [
+            normalizeIdentifier(foreignKey),
+            normalizeIdentifier(targetTable),
+            normalizeIdentifier(targetField),
+        ].join(':');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push({ foreignKey, targetTable, targetField });
+    }
+    return deduped;
+}
+
+function toReadableIdLabel(value) {
+    const text = String(value || '').trim();
+    if (!text) return 'ID';
+    return text
+        .replace(/[_-]+/g, ' ')
+        .replace(/\bid\b/gi, 'ID')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b[a-z]/g, (match) => match.toUpperCase());
+}
+
 const YES_CONFIRM_ACTIONS = new Set([
     'execute', 'confirm', 'confirmed', 'approve', 'approved', 'proceed', 'run', 'apply',
 ]);
@@ -397,6 +428,168 @@ export class DBTableSkillsSubsystem {
         return dedupeDependencies(dependencies);
     }
 
+    extractForeignKeyReferencesFromRelationships(parsedSkill) {
+        const currentTable = normalizeIdentifier(parsedSkill?.tableName);
+        if (!currentTable) return [];
+
+        const references = [];
+        const relationships = Array.isArray(parsedSkill?.relationships)
+            ? parsedSkill.relationships
+            : [];
+
+        for (const relation of relationships) {
+            if (!relation || typeof relation !== 'object') continue;
+
+            let sourceTable = normalizeIdentifier(relation.sourceTable);
+            let sourceField = String(relation.sourceField || '').trim();
+            let targetTable = String(relation.targetTable || '').trim();
+            let targetField = String(relation.targetField || '').trim();
+
+            if (relation.field) {
+                const refs = parseFieldReferenceExpression(relation.field);
+                if (refs) {
+                    sourceTable = sourceTable || normalizeIdentifier(refs.source.table);
+                    sourceField = sourceField || String(refs.source.field || '').trim();
+                    targetTable = targetTable || String(refs.target.table || '').trim();
+                    targetField = targetField || String(refs.target.field || '').trim();
+                }
+            }
+
+            if (!sourceField && relation.foreign) {
+                const foreignPair = parseTableFieldRef(relation.foreign);
+                if (foreignPair) {
+                    sourceTable = sourceTable || normalizeIdentifier(foreignPair.table);
+                    sourceField = String(foreignPair.field || '').trim();
+                } else {
+                    sourceField = String(relation.foreign || '').trim();
+                }
+            }
+
+            if ((!targetTable || !targetField) && relation.reference) {
+                const referencePair = parseTableFieldRef(relation.reference);
+                if (referencePair) {
+                    targetTable = targetTable || String(referencePair.table || '').trim();
+                    targetField = targetField || String(referencePair.field || '').trim();
+                }
+            }
+
+            // Most tskill relationships declare `foreign` + `reference` without source table.
+            if (!sourceTable) {
+                sourceTable = currentTable;
+            }
+
+            if (sourceTable !== currentTable) continue;
+            if (!sourceField || !targetTable || !targetField) continue;
+
+            references.push({
+                foreignKey: sourceField,
+                targetTable,
+                targetField,
+            });
+        }
+
+        return dedupeReferenceRules(references);
+    }
+
+    normalizeRecordValidationResult(result) {
+        if (result === null || result === undefined) {
+            return { isValid: true, errors: [] };
+        }
+
+        if (typeof result === 'boolean') {
+            return result
+                ? { isValid: true, errors: [] }
+                : { isValid: false, errors: [{ field: 'record', error: 'Validation failed.', value: null }] };
+        }
+
+        if (Array.isArray(result)) {
+            const errors = result.map((entry) => {
+                if (entry && typeof entry === 'object') return entry;
+                return { field: 'record', error: String(entry), value: null };
+            });
+            return { isValid: errors.length === 0, errors };
+        }
+
+        if (typeof result === 'object') {
+            const maybeErrors = Array.isArray(result.errors) ? result.errors : [];
+            const errors = maybeErrors.map((entry) => {
+                if (entry && typeof entry === 'object') return entry;
+                return { field: 'record', error: String(entry), value: null };
+            });
+            const isValid = typeof result.isValid === 'boolean'
+                ? result.isValid
+                : errors.length === 0;
+            return { isValid, errors };
+        }
+
+        return {
+            isValid: false,
+            errors: [{ field: 'record', error: String(result), value: null }],
+        };
+    }
+
+    async validateForeignKeyReferences(parsedSkill, record, baseErrors = []) {
+        if (!parsedSkill || !record || typeof record !== 'object') return [];
+        if (!this.dbAdapter || typeof this.dbAdapter.query !== 'function') return [];
+
+        const references = this.extractForeignKeyReferencesFromRelationships(parsedSkill);
+        if (!references.length) return [];
+
+        const fieldErrors = new Set(
+            (baseErrors || [])
+                .map((entry) => String(entry?.field || '').trim())
+                .filter(Boolean),
+        );
+        const lookupCache = new Map();
+        const errors = [];
+
+        for (const reference of references) {
+            const foreignKey = String(reference.foreignKey || '').trim();
+            if (!foreignKey || fieldErrors.has(foreignKey)) continue;
+            if (!Object.prototype.hasOwnProperty.call(record, foreignKey)) continue;
+
+            const rawValue = record[foreignKey];
+            const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+            if (value === null || value === undefined || value === '') continue;
+
+            const cacheKey = [
+                normalizeIdentifier(reference.targetTable),
+                normalizeIdentifier(reference.targetField),
+                String(value),
+            ].join(':');
+
+            let exists;
+            if (lookupCache.has(cacheKey)) {
+                exists = lookupCache.get(cacheKey);
+            } else {
+                try {
+                    const matches = await this.dbAdapter.query(
+                        reference.targetTable,
+                        { [reference.targetField]: value },
+                        { limit: 1 },
+                    );
+                    exists = Array.isArray(matches) && matches.length > 0;
+                } catch (_error) {
+                    // Avoid false negatives when the DB service is unavailable.
+                    exists = true;
+                }
+                lookupCache.set(cacheKey, exists);
+            }
+
+            if (!exists) {
+                const fieldLabel = toReadableIdLabel(foreignKey);
+                const targetLabel = toReadableIdLabel(`${reference.targetTable} id`);
+                errors.push({
+                    field: foreignKey,
+                    error: `${fieldLabel} "${value}" is not valid. Please provide an existing ${targetLabel}.`,
+                    value: rawValue,
+                });
+            }
+        }
+
+        return errors;
+    }
+
     async resolveDeleteDependencies(parsedSkill) {
         return this.extractDependentReferencesFromRelationships(parsedSkill);
     }
@@ -549,6 +742,77 @@ export class DBTableSkillsSubsystem {
 
         execContext.__deleteValidatorWrapped = true;
         return execContext;
+    }
+
+    resolveParsedSkillForTable(tableName) {
+        const normalizedTable = normalizeIdentifier(tableName);
+        if (!normalizedTable) return null;
+
+        for (const parsedSkill of this.cache.values()) {
+            if (normalizeIdentifier(parsedSkill?.tableName) === normalizedTable) {
+                return parsedSkill;
+            }
+        }
+        return null;
+    }
+
+    attachForeignKeyValidator(execContext, parsedSkill) {
+        if (!execContext || typeof execContext !== 'object') return execContext;
+        if (execContext.__foreignKeyValidatorWrapped) return execContext;
+
+        const relations = this.extractForeignKeyReferencesFromRelationships(parsedSkill);
+        if (!relations.length) {
+            execContext.__foreignKeyValidatorWrapped = true;
+            return execContext;
+        }
+
+        const rawValidateRecord = typeof execContext.validateRecord === 'function'
+            ? execContext.validateRecord
+            : null;
+
+        execContext.validateRecord = async (record, context = {}) => {
+            let baseValidation = { isValid: true, errors: [] };
+
+            if (rawValidateRecord) {
+                try {
+                    const result = await rawValidateRecord.call(execContext, record, context);
+                    baseValidation = this.normalizeRecordValidationResult(result);
+                } catch (error) {
+                    baseValidation = this.normalizeRecordValidationResult({
+                        isValid: false,
+                        errors: [{
+                            field: 'record',
+                            error: error?.message || String(error),
+                            value: null,
+                        }],
+                    });
+                }
+            }
+
+            const foreignKeyErrors = await this.validateForeignKeyReferences(
+                parsedSkill,
+                record,
+                baseValidation.errors,
+            );
+
+            const errors = [
+                ...(Array.isArray(baseValidation.errors) ? baseValidation.errors : []),
+                ...foreignKeyErrors,
+            ];
+
+            return {
+                isValid: errors.length === 0 && Boolean(baseValidation.isValid),
+                errors,
+            };
+        };
+
+        execContext.__foreignKeyValidatorWrapped = true;
+        return execContext;
+    }
+
+    attachValidationGuards(execContext, parsedSkill) {
+        const withDeleteGuard = this.attachDeleteValidator(execContext);
+        return this.attachForeignKeyValidator(withDeleteGuard, parsedSkill);
     }
 
     buildDeleteValidationContext(parsedSkill, primaryKey, execContext) {
@@ -783,8 +1047,9 @@ export class DBTableSkillsSubsystem {
     /**
      * Create execution context with all field functions available
      */
-    createExecutionContext(functions, tableName) {
+    createExecutionContext(functions, tableName, parsedSkill = null) {
         const dbAdapter = this.dbAdapter;
+        const resolvedSkill = parsedSkill || this.resolveParsedSkillForTable(tableName);
 
         // If functions are already compiled (from module import), enhance them with DB operations
         // Check for prepareRecord or presentRecord since these are what the generated code exports
@@ -860,7 +1125,7 @@ export class DBTableSkillsSubsystem {
                 };
             }
 
-            return this.attachDeleteValidator(enhanced);
+            return this.attachValidationGuards(enhanced, resolvedSkill);
         }
 
         // Build a code string that defines all field functions and returns an object with global functions
@@ -939,7 +1204,7 @@ return {
         // Debug generated code
         // console.log('Generated Context Code:', contextCode);
         try {
-            return this.attachDeleteValidator(eval(contextCode));
+            return this.attachValidationGuards(eval(contextCode), resolvedSkill);
         } catch (e) {
             console.error('Error evaluating context code:', e);
             console.error('Code was:', contextCode);
