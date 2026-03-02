@@ -163,7 +163,7 @@ function validateAndRepairPlannerDecision(decision, userPrompt, tools = {}) {
         return { decision, adjusted: false };
     }
 
-    if (decision.action !== 'call_tool' || typeof decision.tool !== 'string') {
+    if (typeof decision.tool !== 'string') {
         return { decision, adjusted: false };
     }
 
@@ -428,9 +428,7 @@ class LoopAgentSession {
             turn.steps.push({ type: 'planner_decision', decision });
             this._debug('[LoopSession]', 'Planner decision', { stepIndex, decision });
 
-            const action = (decision && decision.action) || null;
-
-            if (action === 'call_tool') {
+            if (decision && typeof decision.tool === 'string') {
                 const toolName = decision.tool;
                 const toolPrompt = decision.toolPrompt || userPrompt;
 
@@ -662,35 +660,12 @@ class LoopAgentSession {
                 continue;
             }
 
-            if (action === 'final_answer' || action === 'cannot_complete') {
-                this.errorCount += 1;
-                turn.steps.push({
-                    type: 'tool_error',
-                    error: 'Use the reserved tools final_answer or cannot_complete via call_tool to end the turn.',
-                });
-                this._debug('[LoopSession]', 'Planner used invalid action', {
-                    action,
-                    errorCount: this.errorCount,
-                });
-                if (this.errorCount >= maxErrors) {
-                    const message = 'Too many planner errors, aborting.';
-                    this._debug('[LoopSession]', 'Aborting due to planner errors', { message });
-                    await logLoopEvent('Session failed', message, SESSION_LOG_TRIM_LIMIT);
-                    turn.finalAnswer = message;
-                    turn.status = SESSION_STATUS_FAILED;
-                    this.status = SESSION_STATUS_FAILED;
-                    return message;
-                }
-                // eslint-disable-next-line no-continue
-                continue;
-            }
-
             this.errorCount += 1;
             turn.steps.push({
                 type: 'planner_error',
-                error: 'Invalid or missing action in planner response.',
+                error: 'Invalid or missing tool in planner response.',
             });
-            this._debug('[LoopSession]', 'Planner error: invalid or missing action', {
+            this._debug('[LoopSession]', 'Planner error: invalid or missing tool', {
                 errorCount: this.errorCount,
             });
             if (this.errorCount >= maxErrors) {

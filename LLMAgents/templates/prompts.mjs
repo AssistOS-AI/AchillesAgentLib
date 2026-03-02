@@ -133,9 +133,8 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         lines.push(systemPrompt);
     }
     lines.push('You must reason step by step and emit ONLY a JSON object.');
-    lines.push('JSON schema:');
+    lines.push('JSON schema (no extra keys):');
     lines.push('{');
-    lines.push('  "action": "call_tool",');
     lines.push('  "tool": "<toolName>",');
     lines.push('  "toolPrompt": "<instruction for the tool>",');
     lines.push('  "reason": "<short explanation>"');
@@ -219,14 +218,15 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push('- For movement intents (move/relocate/transfer/assign), if the prompt matches "<objects> ... to <destination>", choose the tool for "<objects>". Treat the destination as a parameter.');
     lines.push('- Do NOT choose a destination tool unless the user explicitly asks to edit that destination record itself (for example rename/update/create/delete it).');
     lines.push('- Before emitting JSON, validate tool choice against the target-entity rule and correct it if mismatched.');
-    lines.push('- Use "call_tool" to obtain NEW information or perform calculations.');
+    lines.push('- Always pick exactly one tool and provide a precise toolPrompt.');
     lines.push('- If you want to pass the result of a previous tool as a parameter, use the exact resultRef shown above, prefixed with $$ (example: $$shell-res-1).');
     lines.push('- Do NOT use the literal token $$resultRef; always substitute the real resultRef ID.');
-    lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" via action "call_tool" with ONLY the final text in "toolPrompt" (no extra wording).`);
-    lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" via action "call_tool" with a short reason in "toolPrompt".`);
+    lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" with ONLY the final text in "toolPrompt" (no extra wording).`);
+    lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" with a short reason in "toolPrompt".`);
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
     lines.push('- If the most recent tool result already satisfies the current instruction or expected answer, call "final_answer" and set "toolPrompt" to the exact $$<resultRef> of that result.');
-    lines.push('- If the user instruction explicitly mentions a tool by name, you MUST call that tool at least once in this turn before finishing.');
+    lines.push('- If the user explicitly asks to use a tool by name and that tool exists in the available tools list, you MUST call it at least once before finishing.');
+    lines.push('- Do NOT treat normal words (e.g., "and", "or") as tool mentions unless the user clearly refers to the tool itself (e.g., "use the and tool").');
     lines.push('- When passing literal strings as tool arguments, do NOT wrap them in extra quotes if they are already quoted in the user text; pass the value once without adding additional quotation marks.');
     lines.push('- When calling the shell tool, prefer the simplest canonical command with no code fences, no extra flags, and standard quoting (use single quotes for globs like *.js).');
     lines.push('- When calling a tool, keep the user instruction intact; do NOT rewrite it into a different type of request (e.g., do not ask for a command if the user asked for a number).');
