@@ -16,10 +16,6 @@ This DS defines system context capture and normalization for the CLI. It does no
 - Normalized context is concise, stable, and safe for prompt usage.
 - The context profile can be reused across multiple provider calls without re-collection.
 
-## Pointers to Supporting DS Files
-- DS02-Guidance.md for guidance composition rules.
-- DS03-Orchestration.md for prompt assembly and provider execution.
-
 ## Affected Files
 ./specs/system/SystemContextProfile.mjs.md - Defines the canonical system context profile and capture rules.  
 Exports - SystemContextProfile, ContextCapturePlan, ContextSignalMap.

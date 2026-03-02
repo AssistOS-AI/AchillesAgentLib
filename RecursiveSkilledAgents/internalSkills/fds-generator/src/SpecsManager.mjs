@@ -5,7 +5,6 @@ const DS_SECTIONS = [
     'Intended Users and Context of Use',
     'Scope and Boundaries',
     'Success Criteria',
-    'Pointers to Supporting DS Files',
     'Affected Files',
 ];
 
@@ -303,9 +302,6 @@ const updateScopeAndBoundariesSection = buildUpdateSection('Scope and Boundaries
 const getSuccessCriteriaSection = buildGetSection('Success Criteria');
 const updateSuccessCriteriaSection = buildUpdateSection('Success Criteria');
 
-const getPointersToSupportingDsFilesSection = buildGetSection('Pointers to Supporting DS Files');
-const updatePointersToSupportingDsFilesSection = buildUpdateSection('Pointers to Supporting DS Files');
-
 const getAffectedFilesSection = buildGetSection('Affected Files');
 const updateAffectedFilesSection = buildUpdateSection('Affected Files');
 
@@ -342,8 +338,6 @@ export {
     updateScopeAndBoundariesSection,
     getSuccessCriteriaSection,
     updateSuccessCriteriaSection,
-    getPointersToSupportingDsFilesSection,
-    updatePointersToSupportingDsFilesSection,
     getAffectedFilesSection,
     updateAffectedFilesSection,
     getDescriptionSection,

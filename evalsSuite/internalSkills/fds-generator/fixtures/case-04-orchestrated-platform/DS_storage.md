@@ -14,11 +14,6 @@ Local persistence only with deterministic id generation and lookup behavior. No 
 - Lists load quickly with predictable ordering.
 - Read/write operations are deterministic and easy to audit.
 
-## Pointers to Supporting DS Files
-- DS_auth.md for catalog responsibilities.
-- DS_jobs.md for assignment flows.
-- DS_metrics.md for search and filter needs.
-
 ## Affected Files
 ./specs/catalog/EquipmentCatalog.mjs.md - Defines storage and lookup for equipment items.  
 Exports - EquipmentCatalog, EquipmentStoreAdapter.

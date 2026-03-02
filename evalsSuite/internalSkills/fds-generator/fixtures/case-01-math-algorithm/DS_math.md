@@ -12,8 +12,5 @@ Supports basic operators and integer inputs. No floating point, no external serv
 ## Success Criteria
 Expressions evaluate correctly and deterministically.
 
-## Pointers to Supporting DS Files
-None.
-
 ## Affected Files
 - specs/FDS_math-core.md: Core evaluator for arithmetic expressions.

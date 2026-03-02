@@ -15,11 +15,6 @@ This DS covers job creation, assignment, start, and end actions. It does not def
 - Equipment and materials assigned to active jobs are unavailable for other jobs.
 - Assigned people are captured as a list of names per job.
 
-## Pointers to Supporting DS Files
-- DS_auth.md for catalog and availability rules.
-- DS_storage.md for persistence and lookup.
-- DS_metrics.md for search and filter behavior.
-
 ## Affected Files
 ./specs/jobs/JobAssignmentService.mjs.md - Defines job creation, assignment, start/end transitions, and validation.  
 Exports - JobRecord, JobAssignmentService, JobStatusTransition.

@@ -14,10 +14,6 @@ Defines guidance composition rules and output structure. It does not define prov
 - Output includes clear next-step recommendations aligned with the current system.
 - The contract remains stable across different OpenAI-format providers.
 
-## Pointers to Supporting DS Files
-- DS01-Vision.md for the system context profile.
-- DS03-Orchestration.md for prompt assembly and provider routing.
-
 ## Affected Files
 ./specs/guidance/GuidanceComposer.mjs.md - Defines guidance composition rules and output contract.  
 Exports - GuidanceComposer, GuidancePlan, GuidanceRecommendation.

@@ -12,8 +12,5 @@ Supports comma-separated keywords only. No boolean operators.
 ## Success Criteria
 Consistently parses inputs into a normalized keyword list.
 
-## Pointers to Supporting DS Files
-None.
-
 ## Affected Files
 - specs/FDS_query-parser.md: Parses query strings into keyword arrays.

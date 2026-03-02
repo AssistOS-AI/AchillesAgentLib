@@ -16,11 +16,6 @@ This DS covers the catalog of equipment and materials, including unique ids, lis
 - Lists of equipment and materials can be rendered consistently and filtered by availability.
 - Availability flags update correctly when jobs start or end.
 
-## Pointers to Supporting DS Files
-- DS_jobs.md for job lifecycle and assignment rules.
-- DS_storage.md for persistence and lookup behavior.
-- DS_metrics.md for search and filter UI expectations.
-
 ## Affected Files
 ./specs/catalog/EquipmentCatalog.mjs.md - Defines the canonical equipment catalog, ids, and availability flags.  
 Exports - EquipmentRecord, EquipmentCatalog, EquipmentAvailability.

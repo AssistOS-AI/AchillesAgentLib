@@ -14,10 +14,6 @@ This DS defines the prompt orchestration and provider routing surface. It does n
 - Provider routing is consistent and configurable.
 - Orchestration failures return actionable error messages.
 
-## Pointers to Supporting DS Files
-- DS01-Vision.md for system context profiling.
-- DS02-Guidance.md for guidance composition.
-
 ## Affected Files
 ./specs/cli/CommandSurface.mjs.md - Defines the CLI command surface and intent capture contract.  
 Exports - CommandSurface, CommandRequest, CommandResponse.

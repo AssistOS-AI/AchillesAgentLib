@@ -15,10 +15,6 @@ This DS covers search and filter behavior for list views. It does not define UI 
 - Job filters can show only ongoing jobs.
 - Material filters can constrain by quantity thresholds.
 
-## Pointers to Supporting DS Files
-- DS_jobs.md for job status definitions.
-- DS_auth.md and DS_storage.md for inventory data definitions.
-
 ## Affected Files
 ./specs/ui/SearchAndFilterPanel.mjs.md - Defines search and filter logic for list views across equipment, materials, and jobs.  
 Exports - SearchIndex, FilterState, SearchAndFilterPanel.
