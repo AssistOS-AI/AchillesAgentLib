@@ -630,9 +630,14 @@ export async function generateMirrorCode(sourcePath, llmAgent, logger = console)
                     failures: failures.length,
                 });
                 for (const failure of failures) {
+                    const errorText = failure.error ? `Error: ${failure.error}` : '';
+                    const failedTestsText = Array.isArray(failure.failedTests) && failure.failedTests.length > 0
+                        ? `Failed tests: ${JSON.stringify(failure.failedTests)}`
+                        : '';
+                    const details = [errorText, failedTestsText].filter(Boolean).join(' ');
                     logger.warn(
                         `[generateMirrorCode] Test failed for "${failure.file}". ` +
-                        `${failure.error ? `Error: ${failure.error}` : ''}`
+                        details
                     );
                 }
 

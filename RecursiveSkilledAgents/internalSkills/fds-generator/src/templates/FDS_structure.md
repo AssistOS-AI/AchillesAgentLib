@@ -41,6 +41,30 @@ Exports: Describe exactly what the file exports and how consumers should use it.
 
 Implementation Details: Provide general implementation rules and constraints such as performance targets, logging or telemetry, error handling conventions, security or privacy considerations, concurrency model, idempotency, and testing expectations. Include npm packages or Node.js built-ins used by the file.
 
-Testing: Provide natural-language guidance on how the file should be tested. Call out which functions or flows must be exercised, relevant inputs/outputs, edge cases, and error paths to watch. Describe any fixtures or setup needed. Keep this actionable but concise.
+Testing: Provide structured guidance using one or more bullet entries in the format below. Each entry MUST include: test type, checks, inputs (high-level), expected output, guardrails, and fixtures/cases. If a field is not applicable, explicitly state that (e.g., "No fixtures needed", "No guardrails needed", "No output expected; must not error"). If there is no meaningful logic to test (e.g., re-export-only modules, static constants, type-only files, or thin wrappers), state that explicitly and give the reason.
+
+Testing section format (repeat per test type):
+- Test Type (unit/integration/flow/e2e/negative/etc.):
+  Checks: <what is verified>
+  Inputs: <high-level inputs>
+  Expected Output: <high-level expected outputs>
+  Guardrails: <error detection or safety checks; or "No guardrails needed">
+  Fixtures/Cases: <high-level fixtures or cases; or "No fixtures needed">
+
+Example Testing section:
+
+## Testing
+- Test Type (unit):
+  Checks: parser returns correct token array and rejects malformed input.
+  Inputs: string of 20-50 chars with commas; invalid string missing commas.
+  Expected Output: array of tokens; error message for invalid input.
+  Guardrails: verify errors include "invalid format" and no partial tokens leak.
+  Fixtures/Cases: No fixtures needed.
+- Test Type (negative):
+  Checks: empty input is rejected gracefully.
+  Inputs: empty string, whitespace-only string.
+  Expected Output: no output expected; must not throw uncaught errors.
+  Guardrails: ensure response includes a clear error indicator.
+  Fixtures/Cases: No fixtures needed.
 
 If a section has no content, explicitly state so.
