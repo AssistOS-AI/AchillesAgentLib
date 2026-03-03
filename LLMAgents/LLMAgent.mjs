@@ -321,14 +321,14 @@ ${rendered.trim()}`);
         pushSegment('Session Memory', sessionMemory);
         pushSegment('Skill Memory', skillShortMemory);
 
-        const combinedContext = segments.length
+        const agentContext = segments.length
             ? `${segments.join('\n\n')}
 
 Prompt:
 ${promptText}`
-            : promptText;
+            : '';
 
-        const result = await extraDoTask(this, combinedContext, promptText, {
+        const result = await extraDoTask(this, agentContext, promptText, {
             tier,
             mode,
             model,

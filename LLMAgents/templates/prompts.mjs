@@ -15,25 +15,27 @@ const buildInterpretMessagePrompt = (intents, instructions) => {
 };
 
 const buildDoTaskPrompt = (agentContextSerialized, description, outputSchema) => {
-    return [
-        'Agent context:',
-        agentContextSerialized,
-        'Task description:',
-        description,
-        outputSchema ? `Use the following output schema:\n${JSON.stringify(outputSchema, null, 2)}` : '',
-        'Response:',
-    ].filter(Boolean).join('\n\n');
+    const parts = [];
+    if (agentContextSerialized && agentContextSerialized.trim()) {
+        parts.push('Agent context:', agentContextSerialized);
+    }
+    parts.push('Task description:', description);
+    if (outputSchema) {
+        parts.push(`Use the following output schema:\n${JSON.stringify(outputSchema, null, 2)}`);
+    }
+    parts.push('Response:');
+    return parts.join('\n\n');
 };
 
 const buildDoTaskWithReviewPrompt = (agentContextSerialized, description, maxIterations) => {
-    return [
-        'Agent context:',
-        agentContextSerialized,
-        'Task description:',
-        description,
-        `Create a plan with at most ${maxIterations} steps and provide a reviewed answer.`,
-        'Response:',
-    ].filter(Boolean).join('\n\n');
+    const parts = [];
+    if (agentContextSerialized && agentContextSerialized.trim()) {
+        parts.push('Agent context:', agentContextSerialized);
+    }
+    parts.push('Task description:', description);
+    parts.push(`Create a plan with at most ${maxIterations} steps and provide a reviewed answer.`);
+    parts.push('Response:');
+    return parts.join('\n\n');
 };
 
 const buildDetectIntentsPrompt = (skillsDescription, userPrompt) => {
