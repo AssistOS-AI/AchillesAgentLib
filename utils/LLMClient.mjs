@@ -1,6 +1,5 @@
 import { loadModelsConfiguration, resolveModelName, parseModelReference } from './LLMProviders/providers/modelsConfigLoader.mjs';
 export { loadModelsConfiguration, resolveModelName, parseModelReference };
-import { parseModelList } from './LLMProviders/providers/envConfigLoader.mjs';
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
 const debugFlag = (process.env.ACHILLES_DEBUG ?? '').toLowerCase();
@@ -8,94 +7,10 @@ const DEBUG_ENABLED = debugFlag === '1' || debugFlag === 'true';
 
 const modelsConfiguration = await loadModelsConfiguration();
 
-/**
- * Parse enabled model list from environment variable.
- * Returns an ordered array (for priority) with both the raw reference and resolved model name.
- * Supports provider/model format for disambiguation.
- * 
- * @param {string} rawValue - Env var value (comma/semicolon separated or JSON array)
- * @returns {Array|null} Array of { ref, provider, model, resolved } or null if not set
- */
-const parseEnabledModelList = (rawValue) => {
-    if (rawValue === undefined || rawValue === null) {
-        return null;
-    }
-
-    const trimmed = typeof rawValue === 'string' ? rawValue.trim() : '';
-    if (!trimmed) {
-        return null;
-    }
-
-    // Use parseModelList which handles provider/model format
-    const parsed = parseModelList(trimmed);
-    
-    if (!parsed.length) {
-        return trimmed.length > 0 ? [] : null;
-    }
-
-    return parsed;
-};
-
-/**
- * Resolve enabled model list to actual model names using the configuration.
- * Supports provider/model format for disambiguation.
- * 
- * @param {string} mode - 'fast' or 'deep'
- * @returns {object|null} { list: Array<string>, set: Set<string>, priority: Array<string> } or null
- */
-function resolveEnabledModels(mode) {
-    const envVar = mode === 'deep' ? process.env.ACHILLES_ENABLED_DEEP_MODELS : process.env.ACHILLES_ENABLED_FAST_MODELS;
-    const parsed = parseEnabledModelList(envVar);
-    
-    if (!parsed) {
-        return null;
-    }
-    
-    const resolved = [];
-    const set = new Set();
-    
-    for (const entry of parsed) {
-        // Try to resolve the model reference
-        let modelName = null;
-        
-        if (entry.provider) {
-            // Qualified reference: provider/model
-            modelName = resolveModelName(
-                entry.qualified,
-                modelsConfiguration.models,
-                modelsConfiguration.qualifiedModels
-            );
-        }
-        
-        if (!modelName) {
-            // Try simple model name lookup
-            modelName = resolveModelName(
-                entry.model,
-                modelsConfiguration.models,
-                modelsConfiguration.qualifiedModels
-            );
-        }
-        
-        if (modelName && !set.has(modelName)) {
-            resolved.push(modelName);
-            set.add(modelName);
-        }
-    }
-    
-    return resolved.length > 0 ? { list: resolved, set, priority: resolved } : { list: [], set: new Set(), priority: [] };
-}
-
-// Legacy function for backward compatibility - returns Set
-function resolveEnabledSet(mode) {
-    const result = resolveEnabledModels(mode);
-    return result ? result.set : null;
-}
-
 await registerProvidersFromConfig(modelsConfiguration);
 
 const llmCalls = [];
 
-const VALID_MODES = new Set(['fast', 'deep']);
 const VALID_TIERS = new Set(['fast', 'plan', 'write', 'code', 'deep', 'ultra']);
 
 function createAgentModelRecord(modelDescriptor, providerConfig) {
@@ -164,17 +79,7 @@ function buildModelCaches() {
     const recordMap = new Map();
     const fast = [];
     const deep = [];
-    
-    // Get enabled models with priority info (now returns { list, set, priority } or null)
-    const enabledFast = resolveEnabledModels('fast');
-    const enabledDeep = resolveEnabledModels('deep');
-    const enabledFastModels = enabledFast?.set || null;
-    const enabledDeepModels = enabledDeep?.set || null;
-    
-    // Priority from env takes precedence, then config, then default
-    const fastPriorityFromEnv = enabledFast?.priority || null;
-    const deepPriorityFromEnv = enabledDeep?.priority || null;
-    
+
     const defaultFastModel = modelsConfiguration.defaultFastModel || null;
     const defaultDeepModel = modelsConfiguration.defaultDeepModel || null;
     const fastModelPriority = modelsConfiguration.fastModelPriority || null;
@@ -200,17 +105,8 @@ function buildModelCaches() {
         if (!record) {
             continue;
         }
-        
-        // Check if model is in the allowed list (if one is specified)
-        const allowedList = record.mode === 'deep' ? enabledDeepModels : enabledFastModels;
-        if (allowedList && !allowedList.has(name) && !allowedList.has(record.name)) {
-            continue;
-        }
-        
-        // Also add qualified name to record for lookups
-        record.qualifiedName = `${record.providerKey}/${record.name}`;
 
-        // Use the map key (which may be qualified for duplicate names)
+        record.qualifiedName = `${record.providerKey}/${record.name}`;
         recordMap.set(name, record);
         if (record.mode === 'deep') {
             deep.push(name);
@@ -219,50 +115,36 @@ function buildModelCaches() {
         }
     }
 
-    // Apply priority ordering - env priority takes precedence over config priority
+    // Apply config priority ordering
     const applyPriorityOrder = (list, priorityList) => {
         if (!priorityList || !priorityList.length) {
             return;
         }
-        // Filter priority list to only include models that are in the list and have API keys
         const validPriority = priorityList.filter(name => {
             if (!list.includes(name)) return false;
             const record = recordMap.get(name);
             if (!record) return false;
-            // Check if API key is available
             const apiKeyEnv = record.apiKeyEnv;
             return !apiKeyEnv || process.env[apiKeyEnv];
         });
-        
         if (!validPriority.length) return;
-
-        // Remove priority models from original positions
         for (const name of validPriority) {
             const idx = list.indexOf(name);
             if (idx > -1) {
                 list.splice(idx, 1);
             }
         }
-        // Add them at the front in priority order
         list.unshift(...validPriority);
     };
 
-    // Apply priority: env priority > config priority > default model
-    // For fast models
-    if (fastPriorityFromEnv && fastPriorityFromEnv.length) {
-        applyPriorityOrder(fast, fastPriorityFromEnv);
-    } else if (fastModelPriority) {
+    if (fastModelPriority) {
         applyPriorityOrder(fast, fastModelPriority);
     }
-    
-    // For deep models
-    if (deepPriorityFromEnv && deepPriorityFromEnv.length) {
-        applyPriorityOrder(deep, deepPriorityFromEnv);
-    } else if (deepModelPriority) {
+    if (deepModelPriority) {
         applyPriorityOrder(deep, deepModelPriority);
     }
 
-    // Legacy: prioritize default model if no priority array is set
+    // Prioritize default model if no priority array is set
     const prioritizeDefault = (list, preferred) => {
         const idx = list.indexOf(preferred);
         if (idx > 0) {
@@ -271,29 +153,19 @@ function buildModelCaches() {
         }
     };
 
-    if (!fastPriorityFromEnv && !fastModelPriority && defaultFastModel && recordMap.has(defaultFastModel)) {
+    if (!fastModelPriority && defaultFastModel && recordMap.has(defaultFastModel)) {
         const record = recordMap.get(defaultFastModel);
         if (record.mode === 'fast') {
             prioritizeDefault(fast, defaultFastModel);
         }
     }
 
-    if (!deepPriorityFromEnv && !deepModelPriority && defaultDeepModel && recordMap.has(defaultDeepModel)) {
+    if (!deepModelPriority && defaultDeepModel && recordMap.has(defaultDeepModel)) {
         const record = recordMap.get(defaultDeepModel);
         if (record.mode === 'deep') {
             prioritizeDefault(deep, defaultDeepModel);
         }
     }
-
-    let preferredMode = null;
-    const envDefaultMode = (process.env.ACHILLES_DEFAULT_MODEL_TYPE || '').trim().toLowerCase();
-    if (VALID_MODES.has(envDefaultMode)) {
-        preferredMode = envDefaultMode;
-    }
-
-    const setMode = preferredMode && ((preferredMode === 'fast' && fast.length) || (preferredMode === 'deep' && deep.length))
-        ? preferredMode
-        : (fast.length ? 'fast' : (deep.length ? 'deep' : 'fast'));
 
     // Build tier map from modelsConfiguration.tiers
     const tiers = new Map();
@@ -307,13 +179,21 @@ function buildModelCaches() {
         }
     }
 
-    return { recordMap, fast, deep, setMode, tiers };
+    // When no tiers are configured, synthesize fast/deep tiers from model records
+    if (tiers.size === 0) {
+        if (fast.length) tiers.set('fast', [...fast]);
+        if (deep.length) tiers.set('deep', [...deep]);
+    }
+
+    const defaultTier = tiers.has('fast') ? 'fast' : (tiers.size > 0 ? tiers.keys().next().value : 'fast');
+
+    return { recordMap, fast, deep, defaultTier, tiers };
 }
 
 let modelRecordMap;
 let fastModelNames;
 let deepModelNames;
-let setMode;
+let defaultTier;
 let tierMap;
 
 function rebuildCaches() {
@@ -321,22 +201,13 @@ function rebuildCaches() {
     modelRecordMap = caches.recordMap;
     fastModelNames = caches.fast;
     deepModelNames = caches.deep;
-    setMode = caches.setMode;
+    defaultTier = caches.defaultTier;
     tierMap = caches.tiers;
-}
-
-function normalizeModePreference(value) {
-    if (typeof value !== 'string') {
-        return null;
-    }
-    const normalized = value.trim().toLowerCase();
-    return VALID_MODES.has(normalized) ? normalized : null;
 }
 
 function normalizeTierPreference(value) {
     if (typeof value !== 'string') return null;
     const normalized = value.trim().toLowerCase();
-    // Accept any tier name that exists in the tier map, plus known defaults
     if (VALID_TIERS.has(normalized)) return normalized;
     if (tierMap && tierMap.has(normalized)) return normalized;
     return null;
@@ -344,24 +215,23 @@ function normalizeTierPreference(value) {
 
 function normalizeInvocationPreferences(input) {
     if (typeof input === 'string') {
-        return { mode: normalizeModePreference(input), tier: normalizeTierPreference(input), modelName: null };
+        return { tier: normalizeTierPreference(input), modelName: null };
     }
 
     if (!input || typeof input !== 'object') {
-        return { mode: null, tier: null, modelName: null };
+        return { tier: null, modelName: null };
     }
 
-    // tier takes precedence over mode
-    const tierRaw = input.tier;
-    const tier = normalizeTierPreference(tierRaw);
-    const mode = normalizeModePreference(input.mode || input.preferredMode || input.modePreference);
+    // Accept both 'tier' and 'mode' (legacy alias); tier takes precedence
+    const tier = normalizeTierPreference(input.tier)
+        || normalizeTierPreference(input.mode || input.preferredMode || input.modePreference);
     const modelRaw = input.modelName || input.model || input.preferredModel;
     const modelName = typeof modelRaw === 'string' && modelRaw.trim() ? modelRaw.trim() : null;
 
-    return { mode, tier, modelName };
+    return { tier, modelName };
 }
 
-function resolvePrioritizedModels({ mode, tier, modelName }) {
+function resolvePrioritizedModels({ tier, modelName }) {
     const prioritized = [];
     const seen = new Set();
 
@@ -373,10 +243,7 @@ function resolvePrioritizedModels({ mode, tier, modelName }) {
     };
 
     if (modelName) {
-        // Support provider/model format - resolve to actual model key
         let resolvedName = modelName;
-
-        // Check if it's a provider/model reference
         if (modelName.includes('/')) {
             const resolved = resolveModelName(
                 modelName,
@@ -387,37 +254,32 @@ function resolvePrioritizedModels({ mode, tier, modelName }) {
                 resolvedName = resolved;
             }
         }
-
         push(resolvedName);
         return prioritized.length ? prioritized : [];
     }
 
-    // Tier-based resolution: use tier map if available
-    const effectiveTier = tier || (mode === 'deep' ? 'deep' : mode === 'fast' ? 'fast' : null);
-    if (effectiveTier && tierMap && tierMap.size > 0 && tierMap.has(effectiveTier)) {
+    // Tier-based resolution
+    const effectiveTier = tier || defaultTier;
+    if (tierMap && tierMap.has(effectiveTier)) {
         tierMap.get(effectiveTier).forEach(push);
-        return prioritized;
     }
 
-    // Fallback to legacy fast/deep mode resolution
-    const selectedMode = mode === 'deep' ? 'deep' : 'fast';
-    const primaryList = selectedMode === 'deep' ? deepModelNames : fastModelNames;
-    const fallbackList = selectedMode === 'deep' ? fastModelNames : deepModelNames;
-
-    primaryList.forEach(push);
-    fallbackList.forEach(push);
+    // If no models found for this tier, add all available models as fallback
+    if (!prioritized.length) {
+        for (const [, models] of tierMap) {
+            models.forEach(push);
+        }
+    }
 
     return prioritized;
 }
 
 export function getPrioritizedModels(requestedTier = null) {
     rebuildCaches();
-    const selectionRequest = {
-        mode: setMode,
+    return resolvePrioritizedModels({
         tier: requestedTier || null,
         modelName: null,
-    };
-    return resolvePrioritizedModels(selectionRequest);
+    });
 }
 
 function ensureCachesFresh() {
@@ -426,20 +288,12 @@ function ensureCachesFresh() {
     }
 }
 
-function getSupportedModesFromCache() {
+function getSupportedTiersFromCache() {
     ensureCachesFresh();
-    // If tiers are available, return tier names
     if (tierMap && tierMap.size > 0) {
         return [...tierMap.keys()];
     }
-    const modes = [];
-    if (fastModelNames.length) {
-        modes.push('fast');
-    }
-    if (deepModelNames.length) {
-        modes.push('deep');
-    }
-    return modes.length ? modes : ['fast'];
+    return ['fast'];
 }
 
 export function listModelsFromCache() {
@@ -610,7 +464,7 @@ export function __resetCallLLMWithModelForTests() {
 }
 
 export function createDefaultLLMInvokerStrategy() {
-    const supportedModes = getSupportedModesFromCache();
+    const supportedTiers = getSupportedTiersFromCache();
     const cachedModels = listModelsFromCache();
     let lastInvocationDetails = { model: null, mode: null };
 
@@ -618,7 +472,7 @@ export function createDefaultLLMInvokerStrategy() {
         const {
             prompt,
             history = [],
-            mode = 'fast',
+            mode = null,
             tier = null,
             model = null,
             modelCandidates = null,
@@ -632,22 +486,18 @@ export function createDefaultLLMInvokerStrategy() {
             throw new Error('defaultLLMInvokerStrategy requires a prompt string.');
         }
 
-        if (!fastModelNames.length && !deepModelNames.length) {
+        if (!tierMap || !tierMap.size) {
             throw new Error(`No LLM models are configured in ${modelsConfiguration.path || 'the LLM configuration file'}.`);
         }
 
         const normalizedPreferences = normalizeInvocationPreferences({ mode, tier, model });
-        const effectiveTier = normalizedPreferences.tier || null;
-        const effectiveMode = normalizedPreferences.mode
-            || normalizeModePreference(mode)
-            || setMode;
+        const effectiveTier = normalizedPreferences.tier || defaultTier;
 
         const selectionRequest = {
-            mode: effectiveMode,
             tier: effectiveTier,
             modelName: normalizedPreferences.modelName || null,
         };
-        lastInvocationDetails = { model: null, mode: effectiveTier || selectionRequest.mode };
+        lastInvocationDetails = { model: null, mode: effectiveTier };
 
         const prioritized = Array.isArray(modelCandidates) && modelCandidates.length
             ? modelCandidates
@@ -657,8 +507,7 @@ export function createDefaultLLMInvokerStrategy() {
             if (selectionRequest.modelName) {
                 throw new Error(`Model "${selectionRequest.modelName}" is not defined in ${modelsConfiguration.path || 'the LLM configuration file'}.`);
             }
-            const label = effectiveTier ? `tier "${effectiveTier}"` : `mode "${selectionRequest.mode}"`;
-            throw new Error(`No models available for ${label}. Update ${modelsConfiguration.path || 'the LLM configuration file'} to include at least one model.`);
+            throw new Error(`No models available for tier "${effectiveTier}". Update ${modelsConfiguration.path || 'the LLM configuration file'} to include at least one model.`);
         }
 
         const mergedHeaders = { ...(invocationOptions.headers || {}), ...headers };
@@ -670,7 +519,7 @@ export function createDefaultLLMInvokerStrategy() {
             ...invocationOptions,
             params: { ...(invocationOptions.params || {}), ...params },
             headers: mergedHeaders,
-            mode: effectiveTier || selectionRequest.mode,
+            mode: effectiveTier,
         };
 
         if (invocation.providerKey) {
@@ -729,14 +578,14 @@ export function createDefaultLLMInvokerStrategy() {
 
         const aggregatedError = new Error(detail ? `All model invocations failed: ${detail}` : 'All model invocations failed.');
         aggregatedError.attempts = attempts;
-        aggregatedError.mode = selectionRequest.mode;
+        aggregatedError.tier = effectiveTier;
         aggregatedError.modelsTried = prioritized.slice();
         aggregatedError.configurationPath = modelsConfiguration.path || null;
-        lastInvocationDetails = { model: null, mode: selectionRequest.mode };
+        lastInvocationDetails = { model: null, mode: effectiveTier };
         throw aggregatedError;
     };
 
-    invokerStrategy.getSupportedModes = () => supportedModes.slice();
+    invokerStrategy.getSupportedModes = () => supportedTiers.slice();
     invokerStrategy.listAvailableModels = () => ({
         fast: cachedModels.fast.map(record => ({ ...record })),
         deep: cachedModels.deep.map(record => ({ ...record })),
@@ -744,7 +593,7 @@ export function createDefaultLLMInvokerStrategy() {
     invokerStrategy.getLastInvocationDetails = () => ({ ...lastInvocationDetails });
     invokerStrategy.describe = () => ({
         configPath: modelsConfiguration.path || null,
-        supportedModes: invokerStrategy.getSupportedModes(),
+        supportedTiers: invokerStrategy.getSupportedModes(),
         fastModels: cachedModels.fast.map((record) => ({
             name: record.name,
             apiKeyEnv: record.apiKeyEnv || null,

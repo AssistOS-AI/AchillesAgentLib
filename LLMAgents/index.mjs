@@ -15,8 +15,8 @@ try {
     if (DEBUG_ENABLED && defaultLLMInvokerStrategy && typeof defaultLLMInvokerStrategy.describe === 'function') {
         const description = defaultLLMInvokerStrategy.describe();
         if (description) {
-            const modes = Array.isArray(description.supportedModes) && description.supportedModes.length
-                ? description.supportedModes.join(', ')
+            const modes = Array.isArray(description.supportedTiers) && description.supportedTiers.length
+                ? description.supportedTiers.join(', ')
                 : 'unknown';
 
             const formatModels = (entries) => {

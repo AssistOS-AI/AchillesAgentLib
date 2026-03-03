@@ -15,7 +15,7 @@ async function extraComplete(agent, options = {}) {
         prompt,
         history = [],
         tier = null,
-        mode = process.env.ACHILLES_DEFAULT_MODEL_TYPE === 'deep' ? 'deep' : 'fast',
+        mode = 'fast',
         model = null,
         context = {},
         ...invokerExtras
