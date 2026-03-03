@@ -9,6 +9,7 @@ Use these required sections in this exact order:
 3. Main Functions
 4. Exports
 5. Implementation Details
+6. Testing
 
 ## Section Guidance
 
@@ -39,5 +40,7 @@ Example Main Functions section:
 Exports: Describe exactly what the file exports and how consumers should use it. Include the public surface area, stability expectations, and any backward-compatibility constraints.
 
 Implementation Details: Provide general implementation rules and constraints such as performance targets, logging or telemetry, error handling conventions, security or privacy considerations, concurrency model, idempotency, and testing expectations. Include npm packages or Node.js built-ins used by the file.
+
+Testing: Provide natural-language guidance on how the file should be tested. Call out which functions or flows must be exercised, relevant inputs/outputs, edge cases, and error paths to watch. Describe any fixtures or setup needed. Keep this actionable but concise.
 
 If a section has no content, explicitly state so.

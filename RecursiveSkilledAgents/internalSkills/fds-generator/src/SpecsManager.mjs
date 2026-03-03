@@ -14,6 +14,7 @@ const FDS_SECTIONS = [
     'Main Functions',
     'Exports',
     'Implementation Details',
+    'Testing',
 ];
 
 const DS_STRUCTURE = {
@@ -320,6 +321,9 @@ const updateExportsSection = buildUpdateSection('Exports');
 const getImplementationDetailsSection = buildGetSection('Implementation Details');
 const updateImplementationDetailsSection = buildUpdateSection('Implementation Details');
 
+const getTestingSection = buildGetSection('Testing');
+const updateTestingSection = buildUpdateSection('Testing');
+
 export {
     DS_STRUCTURE,
     FDS_STRUCTURE,
@@ -350,4 +354,6 @@ export {
     updateExportsSection,
     getImplementationDetailsSection,
     updateImplementationDetailsSection,
+    getTestingSection,
+    updateTestingSection,
 };

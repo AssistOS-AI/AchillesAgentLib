@@ -1,7 +1,7 @@
-import { buildSourceFilesListing } from './prompt-utils.mjs';
+import { buildFdsSectionsListing, buildSourceFilesListing } from './prompt-utils.mjs';
 
-function buildTestPlanPrompt({ testingInstructions, sourceFiles }) {
-    const sourceFilesListing = buildSourceFilesListing(sourceFiles);
+function buildTestPlanPrompt({ fdsEntries }) {
+    const fdsSectionsListing = buildFdsSectionsListing(fdsEntries);
     return `
 # Test Plan Generation
 
@@ -20,11 +20,14 @@ When the code reads from disk, include a clear fixtures plan: list the files/fol
   ]
 }
 
-## testing
-${testingInstructions}
+## Instructions
+Propose the minimum set of tests that cover the core functionality of the code. Usually if the source code is only one file, one test is enough. Avoid creating additional directories unless you have a lot of tests that need to be done.
+Each plan should describe what functionality to test, how to test it, and what kinds of cases are needed.
+Base the plan only on the FDS sections shown.
+Return only JSON in the requested format.
 
-## Below you have all the source code files that need testing:
-${sourceFilesListing}
+## Here are the specifications for the current code, each with its testing instructions. You need to follow them as much as possible when designing the plan.
+${fdsSectionsListing}
 
 Return ONLY a single JSON object. Do not include markdown fences, commentary, or any extra text.
 If you cannot produce a plan, still return {"testPlans": []}.

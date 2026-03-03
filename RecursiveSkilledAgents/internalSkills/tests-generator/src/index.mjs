@@ -4,16 +4,9 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { buildTestFilePrompt, buildTestPlanPrompt } from './templates/testing.prompts.mjs';
+import { parseSections } from '../../fds-generator/src/SpecsManager.mjs';
 
-const DEFAULT_TEST_PLAN_INSTRUCTIONS_RAW = `
-Analyze the current codebase and propose a clear, minimal set of test plans.
-Each plan should describe what functionality to test, how to test it, and what kinds of cases are needed.
-Use cross-file plans when the behavior spans multiple modules.
-Do not reference specs or requirements outside the code shown.
-Return only JSON in the requested format.
-`;
-
-const DEFAULT_TEST_PLAN_INSTRUCTIONS = DEFAULT_TEST_PLAN_INSTRUCTIONS_RAW.trim();
+const execFileAsync = promisify(execFile);
 
 /**
  * Short name identifier for this internal skill.
@@ -36,7 +29,6 @@ export const descriptor = {
  * @param {Object} context.recursiveAgent - The recursive agent instance (provides llmAgent).
  * @param {Object} context.llmAgent - The LLM agent instance.
  * @param {Map<string, string>} [context.sourceFiles] - Optional source files map for planning tests.
- * @param {string} [context.testingInstructions] - Optional overrides for test plan instructions.
  * @param {object} [context.logger=console] - Logger instance.
  * @returns {Promise<Object>} Result object with message and testResults.
  */
@@ -46,7 +38,6 @@ export async function action(context) {
         recursiveAgent,
         llmAgent,
         sourceFiles,
-        testingInstructions,
         logger = console,
     } = context || {};
     const targetDir = typeof prompt === 'string' ? prompt.trim() : '';
@@ -63,7 +54,6 @@ export async function action(context) {
     const fileMap = sourceFiles instanceof Map ? sourceFiles : new Map();
     const testResults = await generatePlannedTestsOnDisk(targetDir, fileMap, agent, {
         logger,
-        testingInstructions,
     });
 
     return {
@@ -98,15 +88,12 @@ function parseJsonResponse(response, label) {
 
 export async function generateTestPlans(sourceFiles, llmAgent, options = {}) {
     const {
-        testingInstructions = DEFAULT_TEST_PLAN_INSTRUCTIONS,
         intent = 'generate-test-plans',
         errorLabel = 'Test plan generation',
+        fdsEntries = [],
     } = options || {};
 
-    const prompt = buildTestPlanPrompt({
-        testingInstructions,
-        sourceFiles,
-    });
+    const prompt = buildTestPlanPrompt({ fdsEntries });
 
     const response = await llmAgent.executePrompt(prompt, {
         mode: 'code',
@@ -176,17 +163,13 @@ export async function generatePlannedTestsOnDisk(
     skillDir,
     sourceFiles,
     llmAgent,
-    { logger = console, testingInstructions = DEFAULT_TEST_PLAN_INSTRUCTIONS } = {}
+    { logger = console } = {}
 ) {
-    if (!sourceFiles || sourceFiles.size === 0) {
-        logger.warn('[tests-generator] No source files available for test planning. Skipping tests.');
-        return { skipped: true, testFileSources: new Map() };
-    }
-
+    const fdsEntries = await collectFdsPlanEntries(skillDir, logger);
     const plans = await generateTestPlans(sourceFiles, llmAgent, {
-        testingInstructions,
         intent: 'generate-test-plans',
         errorLabel: 'Test plan generation',
+        fdsEntries,
     });
 
     const testsDir = path.join(skillDir, 'tests');
@@ -247,4 +230,57 @@ export async function generatePlannedTestsOnDisk(
 
     await ensureRunAllTemplate(skillDir, logger);
     return { skipped: false, testFileSources };
+}
+
+async function collectFdsPlanEntries(skillDir, logger) {
+    const specsDir = path.join(skillDir, 'specs');
+    const specsExists = await fs.stat(specsDir).then(stat => stat.isDirectory()).catch(() => false);
+    if (!specsExists) {
+        logger?.warn?.('[tests-generator] No specs directory available for test planning.');
+        return [];
+    }
+    const specFiles = await listSpecFiles(specsDir);
+    if (specFiles.length === 0) {
+        logger?.warn?.('[tests-generator] No FDS files found in specs/.');
+        return [];
+    }
+    const entries = [];
+    for (const specPath of specFiles) {
+        try {
+            const content = await fs.readFile(specPath, 'utf-8');
+            const sections = parseSections(content);
+            const relativeSpecPath = path.relative(specsDir, specPath).replace(/\\/g, '/');
+            entries.push({
+                path: `src/${relativeSpecPath.replace(/\.mds?$/i, '')}`,
+                sections: {
+                    Dependencies: sections.get('Dependencies') || '',
+                    'Main Functions': sections.get('Main Functions') || '',
+                    Exports: sections.get('Exports') || '',
+                    Testing: sections.get('Testing') || '',
+                },
+            });
+        } catch (error) {
+            logger?.warn?.(`[tests-generator] Failed to read FDS at ${specPath}: ${error.message}`);
+        }
+    }
+    return entries;
+}
+
+async function listSpecFiles(dirPath) {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const results = [];
+    for (const entry of entries) {
+        if (entry.isDirectory()) {
+            if (entry.name === '.backup') {
+                continue;
+            }
+            const nested = await listSpecFiles(path.join(dirPath, entry.name));
+            results.push(...nested);
+            continue;
+        }
+        if (entry.isFile() && /\.mds?$/i.test(entry.name)) {
+            results.push(path.join(dirPath, entry.name));
+        }
+    }
+    return results;
 }
