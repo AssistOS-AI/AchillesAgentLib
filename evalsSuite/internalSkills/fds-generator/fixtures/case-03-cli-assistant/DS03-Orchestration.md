@@ -15,11 +15,8 @@ This DS defines the prompt orchestration and provider routing surface. It does n
 - Orchestration failures return actionable error messages.
 
 ## Affected Files
-./specs/cli/CommandSurface.mjs.md - Defines the CLI command surface and intent capture contract.  
-Exports - CommandSurface, CommandRequest, CommandResponse.
+- ./specs/cli/CommandSurface.mjs.md - exports: CommandSurface : captures CLI intent; CommandRequest : normalized request; CommandResponse : structured response
 
-./specs/orchestration/PromptOrchestrator.mjs.md - Defines the orchestration contract for assembling prompts and coordinating providers.  
-Exports - PromptOrchestrator, OrchestrationPlan, PromptAssemblyResult.
+- ./specs/orchestration/PromptOrchestrator.mjs.md - exports: PromptOrchestrator : builds prompt plans; OrchestrationPlan : plan model; PromptAssemblyResult : assembled prompt
 
-./specs/llm/ProviderGateway.mjs.md - Defines the provider gateway for OpenAI-format model calls.  
-Exports - ProviderGateway, ProviderRequest, ProviderResponse.
+- ./specs/llm/ProviderGateway.mjs.md - exports: ProviderGateway : provider router; ProviderRequest : model call input; ProviderResponse : model call output

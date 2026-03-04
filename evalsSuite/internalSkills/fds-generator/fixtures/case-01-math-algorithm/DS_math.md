@@ -13,4 +13,4 @@ Supports basic operators and integer inputs. No floating point, no external serv
 Expressions evaluate correctly and deterministically.
 
 ## Affected Files
-- specs/FDS_math-core.md: Core evaluator for arithmetic expressions.
+- specs/FDS_math-core.md - exports: evaluateExpression(expression) : evaluates arithmetic expressions; tokenize(expression) : splits expression into tokens

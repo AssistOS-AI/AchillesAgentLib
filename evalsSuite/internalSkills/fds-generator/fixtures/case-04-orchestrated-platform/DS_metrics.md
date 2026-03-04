@@ -16,5 +16,4 @@ This DS covers search and filter behavior for list views. It does not define UI 
 - Material filters can constrain by quantity thresholds.
 
 ## Affected Files
-./specs/ui/SearchAndFilterPanel.mjs.md - Defines search and filter logic for list views across equipment, materials, and jobs.  
-Exports - SearchIndex, FilterState, SearchAndFilterPanel.
+- ./specs/ui/SearchAndFilterPanel.mjs.md - exports: SearchIndex : searchable index; FilterState : active filters; SearchAndFilterPanel : search/filter logic

@@ -16,8 +16,6 @@ This DS covers job creation, assignment, start, and end actions. It does not def
 - Assigned people are captured as a list of names per job.
 
 ## Affected Files
-./specs/jobs/JobAssignmentService.mjs.md - Defines job creation, assignment, start/end transitions, and validation.  
-Exports - JobRecord, JobAssignmentService, JobStatusTransition.
+- ./specs/jobs/JobAssignmentService.mjs.md - exports: JobRecord : job entity; JobAssignmentService : create/assign/start/close; JobStatusTransition : status model
 
-./specs/jobs/AvailabilityIndex.mjs.md - Defines availability derivation for jobs, equipment, and materials.  
-Exports - AvailabilityIndex, AvailabilitySnapshot, AvailabilityQuery.
+- ./specs/jobs/AvailabilityIndex.mjs.md - exports: AvailabilityIndex : derive availability; AvailabilitySnapshot : computed state; AvailabilityQuery : lookup filter

@@ -17,5 +17,4 @@ This DS defines system context capture and normalization for the CLI. It does no
 - The context profile can be reused across multiple provider calls without re-collection.
 
 ## Affected Files
-./specs/system/SystemContextProfile.mjs.md - Defines the canonical system context profile and capture rules.  
-Exports - SystemContextProfile, ContextCapturePlan, ContextSignalMap.
+- ./specs/system/SystemContextProfile.mjs.md - exports: SystemContextProfile : normalized context structure; ContextCapturePlan : capture steps; ContextSignalMap : signal map

@@ -13,5 +13,5 @@ Only exact keyword matches, case-insensitive. No stemming or ranking.
 Given input text and keywords, returns the correct sentences that contain matches.
 
 ## Affected Files
-- specs/FDS_search-engine.md: Coordinates scanning and collects matching sentences.
-- specs/FDS_sentence-matcher.md: Implements sentence tokenization and matching.
+- specs/FDS_search-engine.md - exports: searchSentences(text, keywords) : returns matching sentences; buildSearchReport(text, keywords) : returns match summary
+- specs/FDS_sentence-matcher.md - exports: splitSentences(text) : splits text into sentences; sentenceHasKeyword(sentence, keywords) : checks matches

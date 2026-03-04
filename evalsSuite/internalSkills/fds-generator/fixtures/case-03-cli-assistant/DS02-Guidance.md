@@ -15,5 +15,4 @@ Defines guidance composition rules and output structure. It does not define prov
 - The contract remains stable across different OpenAI-format providers.
 
 ## Affected Files
-./specs/guidance/GuidanceComposer.mjs.md - Defines guidance composition rules and output contract.  
-Exports - GuidanceComposer, GuidancePlan, GuidanceRecommendation.
+- ./specs/guidance/GuidanceComposer.mjs.md - exports: GuidanceComposer : builds guidance output; GuidancePlan : structured plan; GuidanceRecommendation : next-step item

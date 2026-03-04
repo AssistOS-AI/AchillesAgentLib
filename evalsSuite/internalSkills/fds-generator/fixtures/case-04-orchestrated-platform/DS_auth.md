@@ -17,8 +17,6 @@ This DS covers the catalog of equipment and materials, including unique ids, lis
 - Availability flags update correctly when jobs start or end.
 
 ## Affected Files
-./specs/catalog/EquipmentCatalog.mjs.md - Defines the canonical equipment catalog, ids, and availability flags.  
-Exports - EquipmentRecord, EquipmentCatalog, EquipmentAvailability.
+- ./specs/catalog/EquipmentCatalog.mjs.md - exports: EquipmentRecord : equipment entity; EquipmentCatalog : catalog access; EquipmentAvailability : availability model
 
-./specs/catalog/MaterialCatalog.mjs.md - Defines the material catalog, quantities, and availability flags.  
-Exports - MaterialRecord, MaterialCatalog, MaterialAvailability.
+- ./specs/catalog/MaterialCatalog.mjs.md - exports: MaterialRecord : material entity; MaterialCatalog : catalog access; MaterialAvailability : availability model

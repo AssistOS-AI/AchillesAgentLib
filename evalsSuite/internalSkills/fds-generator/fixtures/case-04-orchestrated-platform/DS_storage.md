@@ -15,8 +15,6 @@ Local persistence only with deterministic id generation and lookup behavior. No 
 - Read/write operations are deterministic and easy to audit.
 
 ## Affected Files
-./specs/catalog/EquipmentCatalog.mjs.md - Defines storage and lookup for equipment items.  
-Exports - EquipmentCatalog, EquipmentStoreAdapter.
+- ./specs/catalog/EquipmentCatalog.mjs.md - exports: EquipmentCatalog : storage/lookup; EquipmentStoreAdapter : storage adapter
 
-./specs/catalog/MaterialCatalog.mjs.md - Defines storage and lookup for material items and quantities.  
-Exports - MaterialCatalog, MaterialStoreAdapter.
+- ./specs/catalog/MaterialCatalog.mjs.md - exports: MaterialCatalog : storage/lookup; MaterialStoreAdapter : storage adapter

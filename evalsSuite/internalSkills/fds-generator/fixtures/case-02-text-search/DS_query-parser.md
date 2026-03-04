@@ -13,4 +13,4 @@ Supports comma-separated keywords only. No boolean operators.
 Consistently parses inputs into a normalized keyword list.
 
 ## Affected Files
-- specs/FDS_query-parser.md: Parses query strings into keyword arrays.
+- specs/FDS_query-parser.md - exports: parseQuery(query) : parses query string into keyword list; normalizeKeywords(keywords) : lowercases/trims keywords
