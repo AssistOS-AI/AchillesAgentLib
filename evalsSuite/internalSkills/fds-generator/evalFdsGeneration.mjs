@@ -3,6 +3,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
 import { action as runFdsAction } from '../../../RecursiveSkilledAgents/internalSkills/fds-generator/src/index.mjs';
+import {
+    getAffectedFilesSection,
+    getExportsSection,
+    parseDsExportsList,
+    parseExportsList,
+} from '../../../RecursiveSkilledAgents/internalSkills/fds-generator/src/SpecsManager.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.join(__dirname, 'fixtures');
@@ -73,6 +79,40 @@ async function runCase(testCase, llmAgent) {
         const targetPath = path.join(baseDir, relPath);
         const exists = await fs.stat(targetPath).then(stat => stat.isFile()).catch(() => false);
         assert(exists, `${testCase.name}: expected FDS file ${relPath} to exist.`);
+    }
+
+    const dsExportExpected = new Map();
+    const dsFiles = await fs.readdir(baseDir);
+    const dsNames = dsFiles.filter(name => name.startsWith('DS') && name.endsWith('.md'));
+    for (const dsName of dsNames) {
+        const dsPath = path.join(baseDir, dsName);
+        const affectedFilesSection = await getAffectedFilesSection(dsPath);
+        const entries = parseDsExportsList(affectedFilesSection);
+        for (const entry of entries) {
+            if (!entry?.path || !entry?.exports?.length) continue;
+            const normalizedPath = entry.path.replace(/^[.][\/]/, '');
+            const existing = dsExportExpected.get(normalizedPath) || new Set();
+            for (const exportName of entry.exports) {
+                existing.add(exportName);
+            }
+            dsExportExpected.set(normalizedPath, existing);
+        }
+    }
+
+    for (const relPath of testCase.expected) {
+        if (!relPath.startsWith('specs/')) continue;
+        const expectedExports = dsExportExpected.get(relPath);
+        if (!expectedExports || expectedExports.size === 0) continue;
+
+        const fdsPath = path.join(baseDir, relPath);
+        const exportsSection = await getExportsSection(fdsPath);
+        const fdsExports = new Set(parseExportsList(exportsSection));
+        for (const exportName of expectedExports) {
+            assert(
+                fdsExports.has(exportName),
+                `${testCase.name}: expected ${relPath} exports to include ${exportName}.`
+            );
+        }
     }
 
     return baseDir;

@@ -194,6 +194,72 @@ function parseMainFunctionsList(sectionText) {
     return results;
 }
 
+function parseExportsList(sectionText) {
+    if (!sectionText || typeof sectionText !== 'string') {
+        return [];
+    }
+    const lines = sectionText.split(/\r?\n/);
+    const results = [];
+
+    for (const line of lines) {
+        const trimmed = normalizeLine(line);
+        if (!trimmed) continue;
+        if (/^#{1,6}\s+/.test(trimmed)) continue;
+        const content = stripBulletPrefix(trimmed);
+        if (!content) continue;
+        const namePart = content.includes(':')
+            ? content.slice(0, content.indexOf(':')).trim()
+            : content;
+        if (!namePart) continue;
+        results.push(namePart);
+    }
+
+    return results;
+}
+
+function parseDsExportsList(sectionText) {
+    if (!sectionText || typeof sectionText !== 'string') {
+        return [];
+    }
+    const lines = sectionText.split(/\r?\n/);
+    const results = [];
+
+    for (const line of lines) {
+        const trimmed = normalizeLine(line);
+        if (!trimmed) continue;
+        if (/^#{1,6}\s+/.test(trimmed)) continue;
+        const content = stripBulletPrefix(trimmed);
+        if (!content) continue;
+        const lower = content.toLowerCase();
+        const exportsIndex = lower.indexOf('exports:');
+        if (exportsIndex < 0) continue;
+
+        const leftPart = content.slice(0, exportsIndex).trim();
+        const pathPart = leftPart.split(/\s+-\s+/)[0].trim();
+        if (!pathPart) continue;
+
+        const exportsPart = content.slice(exportsIndex + 'exports:'.length).trim();
+        if (!exportsPart) continue;
+
+        const exportsEntries = exportsPart
+            .split(';')
+            .map(entry => entry.trim())
+            .filter(Boolean)
+            .map(entry => {
+                if (!entry) return null;
+                if (!entry.includes(':')) return entry.trim();
+                return entry.slice(0, entry.indexOf(':')).trim();
+            })
+            .filter(Boolean);
+
+        if (exportsEntries.length) {
+            results.push({ path: pathPart, exports: exportsEntries });
+        }
+    }
+
+    return results;
+}
+
 function buildDependencyDescriptionsBlock(entries, lineResolver, { placeholder = 'MISSING' } = {}) {
     if (!entries || entries.length === 0) {
         return '### Dependency Function Descriptions\n\nNo dependency functions declared.';
@@ -331,6 +397,8 @@ export {
     updateSectionContent,
     parseDependenciesList,
     parseMainFunctionsList,
+    parseExportsList,
+    parseDsExportsList,
     buildDependencyDescriptionsBlock,
     stripDependencyDescriptionsBlock,
     injectDependencyDescriptions,
