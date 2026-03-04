@@ -109,6 +109,11 @@ function generateSpecContent(skill) {
     // Export structure
     sections.push(generateExportsSpec(skill));
 
+    // FDS-compatible sections for tests-generator
+    sections.push(generateMainFunctionsSection(skill));
+    sections.push(generateExportsFDSSection(skill));
+    sections.push(generateTestingSection(skill));
+
     return sections.join('\n\n---\n\n');
 }
 
@@ -618,6 +623,126 @@ ${allFunctions.map(f => `        ${f},`).join('\n')}
 | Enumerators | ${allFunctions.filter(f => f.startsWith('enumerator_')).join(', ') || 'None'} |
 | Derivators | ${allFunctions.filter(f => f.startsWith('derivator_')).join(', ') || 'None'} |
 | Global | generatePKValues, prepareRecord, validateRecord, validateDelete, presentRecord |`;
+}
+
+/**
+ * Generate FDS-compatible "Main Functions" section.
+ */
+function generateMainFunctionsSection(skill) {
+    const functions = [];
+
+    for (const [fieldName, field] of Object.entries(skill.fields)) {
+        if (field.validatorDescription || field.isRequired) {
+            functions.push(`- \`validator_${fieldName}(value, record)\`: Validates the ${fieldName} field.${field.isRequired ? ' Required.' : ''}`);
+        }
+    }
+    for (const [fieldName, field] of Object.entries(skill.fields)) {
+        if (field.valuePresenterDescription) {
+            functions.push(`- \`presenter_${fieldName}(value, record)\`: Formats ${fieldName} for display.`);
+        }
+    }
+    for (const [fieldName, field] of Object.entries(skill.fields)) {
+        if (field.resolverDescription) {
+            functions.push(`- \`resolver_${fieldName}(value, record)\`: Resolves user input for ${fieldName}.`);
+        }
+    }
+    for (const [fieldName, field] of Object.entries(skill.fields)) {
+        if (field.enumeratorDescription || field.enumValues) {
+            functions.push(`- \`enumerator_${fieldName}(context)\`: Returns allowed values for ${fieldName}.`);
+        }
+    }
+    for (const fieldName of Object.keys(skill.derivedFields || {})) {
+        functions.push(`- \`derivator_${fieldName}(record)\`: Computes derived value for ${fieldName}.`);
+    }
+    functions.push(`- \`generatePKValues(record, existingRecords)\`: Generates primary key values.`);
+    functions.push(`- \`prepareRecord(record, context)\`: Transforms record before database insertion.`);
+    functions.push(`- \`validateRecord(record)\`: Validates entire record by running all field validators.`);
+    functions.push(`- \`validateDelete(recordId, record, context)\`: Validates whether a record can be deleted.`);
+    functions.push(`- \`presentRecord(record)\`: Formats entire record for display.`);
+
+    return `## Main Functions\n\n${functions.join('\n')}`;
+}
+
+/**
+ * Generate FDS-compatible "Exports" section.
+ */
+function generateExportsFDSSection(skill) {
+    const allExports = [];
+
+    for (const [fieldName, field] of Object.entries(skill.fields)) {
+        if (field.validatorDescription || field.isRequired) allExports.push(`validator_${fieldName}`);
+    }
+    for (const [fieldName, field] of Object.entries(skill.fields)) {
+        if (field.valuePresenterDescription) allExports.push(`presenter_${fieldName}`);
+    }
+    for (const [fieldName, field] of Object.entries(skill.fields)) {
+        if (field.resolverDescription) allExports.push(`resolver_${fieldName}`);
+    }
+    for (const [fieldName, field] of Object.entries(skill.fields)) {
+        if (field.enumeratorDescription || field.enumValues) allExports.push(`enumerator_${fieldName}`);
+    }
+    for (const fieldName of Object.keys(skill.derivedFields || {})) {
+        allExports.push(`derivator_${fieldName}`);
+    }
+    allExports.push('generatePKValues', 'prepareRecord', 'validateRecord', 'validateDelete', 'presentRecord', 'functions');
+
+    return `## Exports\n\nNamed exports: ${allExports.map(e => `\`${e}\``).join(', ')}\n\nThe \`functions\` export wraps all functions under a \`global\` key.`;
+}
+
+/**
+ * Generate FDS-compatible "Testing" section with concrete guidance.
+ */
+function generateTestingSection(skill) {
+    const testGuidance = [];
+
+    // Validator tests
+    const validatorFields = Object.entries(skill.fields)
+        .filter(([, f]) => f.validatorDescription || f.isRequired);
+    if (validatorFields.length > 0) {
+        testGuidance.push(`### Validator Tests`);
+        testGuidance.push(`Test each validator function with valid inputs (expect empty string) and invalid inputs (expect JSON error string).`);
+        for (const [fieldName, field] of validatorFields) {
+            const cases = [];
+            if (field.isRequired) cases.push('null/undefined/empty string → error');
+            if (field.validatorDescription) cases.push(`invalid format → error per: ${field.validatorDescription}`);
+            cases.push('valid value → empty string');
+            testGuidance.push(`- \`validator_${fieldName}\`: ${cases.join('; ')}`);
+        }
+    }
+
+    // Presenter tests
+    const presenterFields = Object.entries(skill.fields)
+        .filter(([, f]) => f.valuePresenterDescription);
+    if (presenterFields.length > 0) {
+        testGuidance.push(`### Presenter Tests`);
+        testGuidance.push(`Test each presenter with null (expect '—'), and normal values.`);
+        for (const [fieldName, field] of presenterFields) {
+            testGuidance.push(`- \`presenter_${fieldName}\`: null → '—'; normal value → formatted per: ${field.valuePresenterDescription}`);
+        }
+    }
+
+    // Enumerator tests
+    const enumFields = Object.entries(skill.fields)
+        .filter(([, f]) => f.enumeratorDescription || f.enumValues);
+    if (enumFields.length > 0) {
+        testGuidance.push(`### Enumerator Tests`);
+        for (const [fieldName, field] of enumFields) {
+            if (field.enumValues) {
+                testGuidance.push(`- \`enumerator_${fieldName}\`: returns array containing ${field.enumValues.map(v => `'${v}'`).join(', ')}`);
+            } else {
+                testGuidance.push(`- \`enumerator_${fieldName}\`: returns non-empty array`);
+            }
+        }
+    }
+
+    // Record-level tests
+    testGuidance.push(`### Record-Level Tests`);
+    testGuidance.push(`- \`validateRecord\`: pass a valid record → isValid true; pass record with missing required fields → isValid false with errors`);
+    testGuidance.push(`- \`prepareRecord\`: pass a record → returns transformed record with resolvers/derivators applied`);
+    testGuidance.push(`- \`presentRecord\`: pass a record → returns record with presenter formatting applied`);
+    testGuidance.push(`- \`generatePKValues\`: pass empty record → returns object with primary key field populated`);
+
+    return `## Testing\n\n${testGuidance.join('\n')}`;
 }
 
 export default tskillToSpecs;

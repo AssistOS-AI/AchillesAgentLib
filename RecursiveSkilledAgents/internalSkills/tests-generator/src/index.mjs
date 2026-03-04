@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { buildTestFilePrompt, buildTestPlanPrompt } from './templates/testing.prompts.mjs';
 import { parseSections } from '../../fds-generator/src/SpecsManager.mjs';
+import { extractJson } from '../../../../LLMAgents/templates/prompts.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -99,6 +100,12 @@ export async function generateTestPlans(sourceFiles, llmAgent, options = {}) {
         mode: 'code',
         responseShape: 'json',
         context: { intent },
+        responseValidator: (raw) => {
+            const obj = typeof raw === 'string' ? extractJson(raw) : raw;
+            if (!obj || !Array.isArray(obj.testPlans) || obj.testPlans.length === 0) {
+                throw new Error('LLM response contained no test plans');
+            }
+        },
     });
 
     const parsed = parseJsonResponse(response, errorLabel);
@@ -127,6 +134,12 @@ export async function generateTestFileForPlan(plan, sourceFiles, llmAgent, optio
         mode: 'code',
         responseShape: 'json',
         context: { intent },
+        responseValidator: (raw) => {
+            const obj = typeof raw === 'string' ? extractJson(raw) : raw;
+            if (!obj || typeof obj.fileName !== 'string' || typeof obj.content !== 'string') {
+                throw new Error('LLM response missing fileName/content');
+            }
+        },
     });
 
     const parsed = parseJsonResponse(response, errorLabel);

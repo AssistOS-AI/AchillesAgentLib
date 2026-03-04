@@ -480,6 +480,7 @@ export function createDefaultLLMInvokerStrategy() {
             headers = {},
             signal = null,
             invocationOptions = {},
+            responseValidator = null,
         } = invocation;
 
         if (!prompt || typeof prompt !== 'string') {
@@ -560,6 +561,9 @@ export function createDefaultLLMInvokerStrategy() {
                     console.info(`[AchillesAgentsLib] LLM call -> provider: ${record.providerKey}, model: ${candidate}, mode: ${effectiveMode}`);
                 }
                 const output = await callLLMWithModel(candidate, attemptHistory, prompt, invocationConfig);
+                if (typeof responseValidator === 'function') {
+                    responseValidator(output);
+                }
                 lastInvocationDetails = { model: candidate, mode: effectiveMode };
                 return {
                     output,
