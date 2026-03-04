@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RecursiveSkilledAgent } from '../../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
 import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
+import { generateMirrorCode } from '../../../RecursiveSkilledAgents/internalSkills/mirror-code-generator/src/index.mjs';
 import { rm, mkdir } from 'node:fs/promises';
 import fs from 'node:fs/promises';
 
@@ -16,9 +17,22 @@ async function evalCodeGenerationPerformance() {
     searchUpwards: false,
   });
 
-  console.log("⏳ Preparing skills (will trigger code generation for all cskills)...");
-  await Promise.all(agent.pendingPreparations || []);
-  console.log("✅ Skills prepared.");
+  const skillNames = [
+    'csv-parser',
+    'simple-cache',
+    'log-buffer',
+    'schema-validator',
+    'config-loader',
+    'rate-limiter',
+    'hash-util',
+  ];
+
+  console.log("⏳ Generating code for skills...");
+  for (const skillName of skillNames) {
+    const skillDir = path.resolve(__dirname, 'skills', skillName);
+    await generateMirrorCode(skillDir, llmAgent, console);
+  }
+  console.log("✅ Code generation completed.");
 
   // Track test results
   const testResults = {

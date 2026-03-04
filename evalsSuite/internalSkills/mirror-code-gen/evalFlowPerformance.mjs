@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LLMAgent } from '../../../LLMAgents/LLMAgent.mjs';
-import { generateMirrorCode } from '../../../RecursiveSkilledAgents/internalSkills/mirror-code-generator/src/index.mjs';
+import { action as runMirrorCodeAction } from '../../../RecursiveSkilledAgents/internalSkills/mirror-code-generator/src/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.join(__dirname, 'flow-fixtures');
@@ -41,7 +41,11 @@ async function evalFlowPerformance() {
         let message = 'Flow completed without warnings.';
 
         try {
-            await generateMirrorCode(fixtureDir, llmAgent, logger);
+            await runMirrorCodeAction({
+                prompt: fixtureDir,
+                llmAgent,
+                logger,
+            });
             if (errors.length > 0) {
                 status = 'failed';
                 message = errors.join('\n');

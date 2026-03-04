@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
 import { ConversationalTskillController } from './ConversationalTskillController.mjs';
 import { tskillToSpecs } from './tskillToSpecs.mjs';
-import { generateMirrorCode } from '../RecursiveSkilledAgents/internalSkills/mirror-code-generator/src/index.mjs';
+import { action as runMirrorCodeAction } from '../RecursiveSkilledAgents/internalSkills/mirror-code-generator/src/index.mjs';
 
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
@@ -39,7 +39,12 @@ async function generateCodeViaSpecs(skillName, skillDir, parsedSkill, llmAgent) 
     debugLog(`[DBTableSkills] Step 2/2: Running mirror-code-generator...`);
     const startTime = Date.now();
 
-    const generatedFiles = await generateMirrorCode(skillDir, llmAgent, console);
+    const actionResult = await runMirrorCodeAction({
+        prompt: skillDir,
+        llmAgent,
+        logger: console,
+    });
+    const generatedFiles = actionResult?.generatedFiles || [];
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     debugLog(`[DBTableSkills] Code generated in ${elapsed}s`);
