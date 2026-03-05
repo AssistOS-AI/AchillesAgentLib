@@ -29,6 +29,10 @@
                 <code>LLMAgent</code> centralises all communication with language models. It accepts an <em>invoker strategy</em>,
                 which may route requests to OpenAI, Anthropic, a test stub, or any custom provider.
             </p>
+            <p>
+                It also exposes lightweight helpers for intent classification, markdown parsing, agentic sessions,
+                and optional input/output hooks for interactive runtimes.
+            </p>
             <h3>Constructor</h3>
             <pre><code>new LLMAgent({
     name: 'PlanningLLM',
@@ -40,17 +44,32 @@
 
             <h3>Key Methods</h3>
             <ul>
-                <li><code>complete({ prompt, history = [], context = {}, mode = 'fast' })</code>: Returns the raw model output string.</li>
-                <li><code>executePrompt(promptText, { responseShape, mode, globalMemory, userMemory, sessionMemory })</code>: Builds a task prompt with optional memory blocks and returns plain text or parsed JSON/code when a <code>responseShape</code> is provided.</li>
-                <li><code>interpretMessage(message, { intents })</code>: Classifies user replies into <code>accept</code>, <code>cancel</code>, <code>update</code>, or <code>ideas</code>,
-                    using heuristics first and falling back to the model.</li>
+                <li><code>complete({ prompt, history = [], context = {}, mode = 'fast', model, tier })</code>: Returns the raw model output string.</li>
+                <li><code>executePrompt(promptText, { responseShape, mode, model, tier, globalMemory, userMemory, sessionMemory, skillShortMemory })</code>: Builds a task prompt with optional memory blocks and returns plain text or parsed JSON/code when a <code>responseShape</code> is provided.</li>
+                <li><code>interpretMessage(message, { intents, instructions })</code>: Classifies user replies into <code>accept</code>, <code>cancel</code>, <code>update</code>, or <code>ideas</code>, using heuristics first and falling back to the model.</li>
+                <li><code>resolveConfirmation(userInput, { actionContext, mode })</code>: Maps user replies to <code>yes</code>, <code>no</code>, or <code>unclear</code> with a confidence score.</li>
+                <li><code>detectIntents(skillsDescription, userPrompt, { mode, model })</code>: LLM-driven intent detection for skills routing.</li>
                 <li><code>parseMarkdownKeyValues(markdown)</code>: Converts LLM output into key-value maps (utility for parsing structured text).</li>
+                <li><code>parseMarkdownIdeas(markdown)</code>: Extracts list-style ideas from markdown responses.</li>
+                <li><code>responseToJSON(markdown)</code>: Parses JSON-like payloads from LLM markdown responses.</li>
                 <li><code>classifyMessage(message)</code>: Lightweight intent classifier when a full completion is not needed.</li>
+                <li><code>getSupportedModes()</code>: Returns supported completion modes from the invoker (falls back to <code>['fast']</code>).</li>
+                <li><code>getInputCounter()</code> / <code>getOutputCounter()</code>: Returns cumulative character counts processed by the agent.</li>
             </ul>
             <p>
                 The agent enforces JSON parsing where required, logs debug traces when <code>LLMAgentClient_DEBUG=true</code>, and supports request
                 cancellation by cancelling the underlying invoker promise.
             </p>
+            <h3>Input/Output Hooks</h3>
+            <p>
+                For interactive environments, <code>LLMAgent</code> can be wired with a user input reader and an output writer. These are
+                optional adapters, but are used by some higher-level flows to request input or stream messages.
+            </p>
+            <ul>
+                <li><code>setInputReader(reader)</code> / <code>inputReader</code>: expects <code>{ read: async (prompt?) =&gt; string }</code>.</li>
+                <li><code>setOutputWriter(writer)</code> / <code>outputWriter</code>: expects <code>{ write: async (message) =&gt; void }</code>.</li>
+                <li><code>setActionReporter(reporter)</code> / <code>getActionReporter()</code>: optional real-time reporting hook.</li>
+            </ul>
         </section>
  
         <section>
