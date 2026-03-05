@@ -49,6 +49,20 @@ export function parseMultiFileMarkdown(markdown) {
 }
 
 /**
+ * Creates a responseValidator callback that ensures the LLM response
+ * contains at least one parsable code block. When passed to executePrompt,
+ * this causes the invoker strategy to cascade to the next model on failure.
+ * @returns {function(string): void}
+ */
+export function createCodeResponseValidator() {
+    return (text) => {
+        if (parseMultiFileMarkdown(text).size === 0) {
+            throw new Error('LLM response contained no parsable code blocks');
+        }
+    };
+}
+
+/**
  * Safely parse a JSON response from the LLM.
  * @param {any} response
  * @param {string} label

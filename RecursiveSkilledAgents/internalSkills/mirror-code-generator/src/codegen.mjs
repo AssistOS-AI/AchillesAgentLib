@@ -8,7 +8,7 @@ import {
     findSpecFiles,
     specPathToTarget,
 } from './spec-utils.mjs';
-import { parseMultiFileMarkdown } from './llm-utils.mjs';
+import { parseMultiFileMarkdown, createCodeResponseValidator } from './llm-utils.mjs';
 import { buildSingleFileCodePrompt } from './templates/codeGeneration.prompts.mjs';
 import { buildRepairPrompt } from './templates/repair.prompts.mjs';
 import { action as runFdsAction } from '../../fds-generator/src/index.mjs';
@@ -52,6 +52,7 @@ async function repairGeneratedFile(
         mode: 'code',
         responseShape: 'text',
         context: { intent },
+        responseValidator: createCodeResponseValidator(),
     });
 
     const parsedFiles = parseMultiFileMarkdown(response);
@@ -179,12 +180,10 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
                 mode: 'code',
                 responseShape: 'text',
                 context: { intent: 'generate-single-file-code-from-spec' },
+                responseValidator: createCodeResponseValidator(),
             });
 
             const parsedFiles = parseMultiFileMarkdown(response);
-            if (parsedFiles.size === 0) {
-                throw new Error(`LLM did not return any parsable files for "${targetPath}". Response was: ${response.substring(0, 500)}...`);
-            }
 
             let generatedCode = null;
             if (parsedFiles.has(targetPath)) {
