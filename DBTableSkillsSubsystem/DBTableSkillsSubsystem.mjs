@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
 import { ConversationalTskillController } from './ConversationalTskillController.mjs';
 import { tskillToSpecs } from './tskillToSpecs.mjs';
-import { action as runMirrorCodeAction } from '../RecursiveSkilledAgents/internalSkills/mirror-code-generator/src/index.mjs';
+import { action as runMirrorCodeAction } from '../RecursiveSkilledAgents/mirror-code-generator/src/index.mjs';
 
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 

@@ -28,3 +28,4 @@ export {
     SHUTDOWN_SIGNALS,
     SHUTDOWN_REASONS,
 } from './constants.mjs';
+export * from './SpecsManager.mjs';

@@ -19,9 +19,7 @@
             <p>
                 The mirror code generator is the shared, internal utility that transforms <code>specs/</code> markdown
                 files into executable modules for code skills. It performs regeneration only when specs are newer than
-                their target outputs and validates outputs through test generation, execution, and targeted repairs.
-                When code is already up-to-date but tests are missing, it generates tests only and stops without
-                updating backups.
+                their target outputs and backs up specs after successful generation.
             </p>
         </section>
 
@@ -40,50 +38,22 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
                 For every stale spec, the LLM receives three inputs: the current spec content, the previous spec from
                 <code>specs/.backup</code> (when present), and the existing code file (when present). The generator writes the new
                 code to disk, runs <code>node --check</code>, and triggers a repair pass on syntax failure. If a second syntax check
-                fails, the previous on-disk version is restored (or the file is removed) and tests are skipped for that file.
+                fails, the previous on-disk version is restored (or the file is removed).
             </p>
             <p>
-                After code is written, mirror-code-generator invokes <code>tests-generator</code> to build a test plan and
-                create executable tests from the current on-disk codebase (no specs passed to test prompts). It then runs
-                <code>tests/runAll.mjs</code> and performs a single repair loop across the referenced source files when failures
-                occur, followed by one re-run. Remaining failures are logged but code is left as-is.
-            </p>
-            <p>
-                When no spec needs regeneration but <code>tests/</code> is missing, it generates tests only and stops without
-                updating <code>specs/.backup</code>. After successful regeneration, it overwrites <code>specs/.backup</code> with the current
-                specs snapshot.
+                Tests and DS-to-FDS generation are now handled externally. Mirror-code-generator focuses strictly on
+                translating existing <code>specs/</code> files into <code>src/</code> outputs and writing <code>specs/.backup</code> after
+                a successful regeneration pass.
             </p>
         </section>
 
         <section>
-            <h2>Internal Skill: tests-generator</h2>
+            <h2>Related Skills (External)</h2>
             <p>
-                The tests-generator builds a structured test plan from the current on-disk codebase and materializes it as
-                executable test files. Plans can span multiple source files when behavior crosses module boundaries, and
-                may declare fixtures when code reads from disk. Fixtures are written as UTF-8 text files under
-                <code>tests/</code> (including nested fixture directories when needed).
-            </p>
-            <p>
-                It ensures <code>tests/runAll.mjs</code> exists (copied from a template when missing) and returns a mapping from
-                generated test files back to their source modules, which mirror-code-generator uses for targeted repair.
-                Tests are generated in a format that writes JSON results to stdout, and individual test files are syntax
-                checked on creation. This skill does not execute tests; execution and repair are handled by
-                mirror-code-generator.
-            </p>
-        </section>
-
-        <section>
-            <h2>Internal Skill: fds-generator</h2>
-            <p>
-                The fds-generator materializes <code>specs/</code> files from DS inputs (<code>DS*.md</code>). Mirror-code-generator
-                searches for DS files only in the target root, <code>docs/</code>, and <code>docs/specs/</code> (non-recursive). Each DS file
-                must contain an <strong>Affected Files</strong> section; listed entries are resolved relative to the target skill
-                directory and written as <code>.mjs.md</code> spec files.
-            </p>
-            <p>
-                Regeneration is forward-only: when a DS file is newer than one of its listed FDS outputs (or the output is
-                missing), the corresponding spec is re-created. If specs are missing entirely and DS files exist, the
-                fds-generator runs to repopulate <code>specs/</code> before mirror-code-generator proceeds.
+                The <code>fds-generator</code> and <code>tests-generator</code> skills now live in the GAMPSkills package under
+                <code>/home/mircea/Desktop/work/skill-manager-cli/skill-manager/node_modules/GAMPSkills/src/skills/cskills/</code>,
+                with their evaluation suites in <code>/home/mircea/Desktop/work/skill-manager-cli/skill-manager/node_modules/GAMPSkills/evalSuite</code>.
+                Mirror-code-generator no longer invokes them directly.
             </p>
         </section>
 
@@ -92,23 +62,12 @@ specs/utils/foo.mjs.md  ->  src/utils/foo.mjs</code></pre>
             <pre><code>Start
   |
   v
-Check for DS files?
-  |-- No --> Skip fds-generator
-  |
-  v
-DS files found -> specs missing or any FDS older than DS?
-  |-- No --> Skip fds-generator
-  |-- Yes --> Run fds-generator
-  |
-  v
 Check specs/ exists?
-  |-- No --> Stop (no DS and no specs)
+  |-- No --> Stop (no specs)
   |
   v
 Check if any spec is newer than its code?
-  |-- No --> Tests missing?
-  |           |-- Yes --> Generate tests only (no backup spec, no backup update) --> Done
-  |           |-- No  --> Stop
+  |-- No --> Stop
   |
   v
 For each spec in specs/ (excluding .backup)
@@ -121,21 +80,10 @@ Generate code -> Write to src/
   |
   v
 Syntax check (node --check)
-  |-- Fail --> Repair (spec + backup + generated code + syntax error)
-  |           -> Rewrite -> Recheck
-  |           -> Fail? Revert + skip tests
+   |-- Fail --> Repair (spec + backup + generated code + syntax error)
+   |           -> Rewrite -> Recheck
+   |           -> Fail? Revert
   |-- Pass --> Continue
-  |
-  v
-Build test plan from current codebase
-Generate test files + optional fixtures
-Write tests/ (create folders as needed) and fixtures
-Syntax-check each test file
-Ensure tests/runAll.mjs (copy template if missing)
-Run tests/runAll.mjs (executes all .mjs/.js under tests/)
-Failures? -> Repair iteratively across referenced source files
-          -> Rerun once
-          -> Warn if still failing
   |
   v
 Overwrite specs/.backup
