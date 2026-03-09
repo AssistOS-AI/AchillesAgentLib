@@ -78,7 +78,9 @@ function unwrapCodeFence(payload) {
 }
 
 function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast' }) {
-    return async (recursiveSkilledAgent, input) => {
+    return async (invocation) => {
+        const recursiveSkilledAgent = invocation?.recursiveAgent || null;
+        const input = invocation?.input;
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
@@ -157,7 +159,9 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
 
 function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, llmMode = 'fast' }) {
     let cached = null;
-    return async (recursiveSkilledAgent, input) => {
+    return async (invocation) => {
+        const recursiveSkilledAgent = invocation.recursiveAgent;
+        const input = invocation.input;
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
@@ -172,8 +176,16 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
             }
         }
 
-        // Call action with (recursiveSkilledAgent, prompt) convention
-        const execution = Promise.resolve(cached(recursiveSkilledAgent, input));
+        const execution = Promise.resolve(cached({
+            llmAgent,
+            recursiveAgent: invocation.recursiveAgent,
+            sessionMemory: invocation.sessionMemory,
+            context: invocation.context,
+            user: invocation.user,
+            input: invocation.input,
+            promptText: invocation.promptText,
+            attachments: invocation.attachments,
+        }));
 
         const result = await withTimeout(
             execution,
@@ -315,8 +327,10 @@ export class DynamicCodeGenerationSubsystem {
 
         const {
             args = {},
-            sessionMemory = null,
         } = options;
+        const sessionMemory = options.sessionMemory
+            || options.context?.sessionMemory
+            || null;
 
         const input = typeof args[CODE_ARGUMENT_NAME] === 'string' && args[CODE_ARGUMENT_NAME].trim()
             ? args[CODE_ARGUMENT_NAME]
@@ -326,8 +340,16 @@ export class DynamicCodeGenerationSubsystem {
             throw new Error(`Dynamic code generation skill "${skillRecord.name}" requires either prompt text or the "${CODE_ARGUMENT_NAME}" argument.`);
         }
 
-        // Call executor with (recursiveSkilledAgent, prompt) convention
-        const result = await executor(recursiveAgent, input);
+        const result = await executor({
+            llmAgent: this.llmAgent,
+            recursiveAgent,
+            input,
+            promptText: String(promptText ?? '').trim(),
+            context: options.context || {},
+            user: options.context?.user || null,
+            sessionMemory,
+            attachments: options.context?.attachments || [],
+        });
 
         return {
             skill: skillRecord.name,
