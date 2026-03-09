@@ -331,6 +331,7 @@ export class SkillExecutor {
                 const resolvedPath = new URL(modulePath, import.meta.url).pathname;
                 definitions[name] = {
                     shortName: module.shortName || name,
+                    skillType: module.skillType || module.type || null,
                     descriptor: module.descriptor || { title: name, summary: '', sections: {} },
                     modulePath: resolvedPath,
                 };

@@ -30,7 +30,7 @@ async function evalCodeGenerationPerformance() {
   console.log("⏳ Generating code for skills...");
   for (const skillName of skillNames) {
     const skillDir = path.resolve(__dirname, 'skills', skillName);
-    await runMirrorCodeAction({ prompt: skillDir, llmAgent, logger: console });
+    await runMirrorCodeAction({ promptText: skillDir, llmAgent, logger: console });
   }
   console.log("✅ Code generation completed.");
 

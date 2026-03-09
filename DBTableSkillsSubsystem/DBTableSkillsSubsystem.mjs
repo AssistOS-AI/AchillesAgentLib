@@ -40,7 +40,7 @@ async function generateCodeViaSpecs(skillName, skillDir, parsedSkill, llmAgent) 
     const startTime = Date.now();
 
     const actionResult = await runMirrorCodeAction({
-        prompt: skillDir,
+        promptText: skillDir,
         llmAgent,
         logger: console,
     });

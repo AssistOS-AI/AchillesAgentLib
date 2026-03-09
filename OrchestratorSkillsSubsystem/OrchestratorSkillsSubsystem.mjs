@@ -14,7 +14,7 @@ const SECTION_KEYS = {
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
     allowedPrepSkills: ['allowed-prep-skills', 'allowed-preparation-skills', 'prep-skills'],
     intents: ['intents', 'intentions', 'mappings'],
-    sessionType: ['loop'],
+    sessionType: ['session type', 'session-type', 'session_type'],
 };
 
 function normaliseBulletList(section = '') {
@@ -62,6 +62,22 @@ function parseIntents(section = '') {
     return intents;
 }
 
+function buildLoopSystemPrompt(skillRecord) {
+    const sections = skillRecord.descriptor?.sections || skillRecord.metadata?.sections || {};
+    const intentsText = pickSection(sections, SECTION_KEYS.intents).trim();
+    const instructionsText = skillRecord.metadata?.instructions || '';
+    const lines = [];
+    lines.push('You must execute a skill that has the following description:');
+    if (intentsText) {
+        lines.push(intentsText);
+    }
+    lines.push('To do this you must respect the following instructions:');
+    if (instructionsText) {
+        lines.push(instructionsText);
+    }
+    return lines.join('\n');
+}
+
 export class OrchestratorSkillsSubsystem {
     constructor({ llmAgent = null } = {}) {
         this.type = 'orchestrator';
@@ -82,7 +98,10 @@ export class OrchestratorSkillsSubsystem {
             .map((name) => Sanitiser.sanitiseName(name))
             .filter(Boolean);
         const intents = parseIntents(pickSection(sections, SECTION_KEYS.intents));
-        const sessionType = pickSection(sections, SECTION_KEYS.sessionType).trim();
+        const rawSessionType = pickSection(sections, SECTION_KEYS.sessionType).trim();
+        const sessionType = rawSessionType && rawSessionType.toLowerCase() === 'loop'
+            ? 'loop'
+            : null;
 
         debugLog(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}"`);
 
@@ -250,7 +269,7 @@ export class OrchestratorSkillsSubsystem {
             result = await session.newPrompt(promptText);
         } else {
             // Create new session
-            const baseSystemPrompt = skillRecord.metadata?.instructions || 'Execute skills to satisfy the user request.';
+            const baseSystemPrompt = buildLoopSystemPrompt(skillRecord);
 
             const sessionOptions = {
                 systemPrompt: baseSystemPrompt,
@@ -330,8 +349,8 @@ export class OrchestratorSkillsSubsystem {
         options = {},
     }) {
         const sessionType = String(skillRecord.metadata?.sessionType || '').trim().toLowerCase();
-        debugLog(`[Orchestrator] Skill "${skillRecord.name}" sessionType="${sessionType}" → ${sessionType ? 'LoopSession' : 'SOPSession'}`);
-        if (sessionType) {
+        debugLog(`[Orchestrator] Skill "${skillRecord.name}" sessionType="${sessionType}" → ${sessionType === 'loop' ? 'LoopSession' : 'SOPSession'}`);
+        if (sessionType === 'loop') {
             return this.executeLoopAgentSession({
                 skillRecord,
                 recursiveAgent,

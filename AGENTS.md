@@ -495,18 +495,7 @@ OrchestratorSubsystem.executeSkillPrompt()
 
 ## Internal Skills System
 
-RecursiveSkilledAgent includes a system for internal helper skills that can optionally be exposed for direct invocation.
-
-### Enabling Internal Skills
-
-Set `exposeInternalSkills: true` in the constructor:
-
-```javascript
-const agent = new RecursiveSkilledAgent({
-    exposeInternalSkills: true,
-    // ... other options
-});
-```
+RecursiveSkilledAgent includes a system for internal helper skills that are always exposed for direct invocation.
 
 ### Available Internal Skills
 
@@ -527,7 +516,6 @@ Generates JavaScript/ESM code from specification files in a skill's `specs/` dir
 **Usage Example:**
 ```javascript
 const agent = new RecursiveSkilledAgent({
-    exposeInternalSkills: true,
     llmAgent: myLLMAgent,
 });
 
@@ -585,7 +573,7 @@ const INTERNAL_SKILLS = {
 };
 ```
 
-The skill will be automatically registered as an orchestrator skill when `exposeInternalSkills: true` and executed through `OrchestratorSkillsSubsystem.executeModuleSkill()`.
+The skill will be automatically registered as a `cskill` when its module exports `skillType = 'cskill'` and executed through the `CodeSkillsSubsystem`.
 
 ---
 

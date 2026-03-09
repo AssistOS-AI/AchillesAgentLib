@@ -34,12 +34,11 @@ class StubLLMAgent extends LLMAgent {
 }
 
 test('internal skills', async (t) => {
-    await t.test('mirror-code-generator is registered when exposeInternalSkills is true', async () => {
+    await t.test('mirror-code-generator is registered by default', async () => {
         const agent = new RecursiveSkilledAgent({
             llmAgent: new StubLLMAgent(),
             startDir: __dirname,
             searchUpwards: false,
-            exposeInternalSkills: true,
         });
 
         // Wait for pending preparations (internal skill registration is async)
@@ -53,25 +52,11 @@ test('internal skills', async (t) => {
         assert.ok(skillRecord.metadata.modulePath.includes('mirror-code-generator/src/index.mjs'), 'modulePath should point to mirror-code-generator/src/index.mjs');
     });
 
-    await t.test('mirror-code-generator is NOT registered when exposeInternalSkills is false', async () => {
-        const agent = new RecursiveSkilledAgent({
-            llmAgent: new StubLLMAgent(),
-            startDir: __dirname,
-            searchUpwards: false,
-            exposeInternalSkills: false,
-        });
-
-        const skillRecord = agent.getSkillRecord('mirror-code-generator');
-
-        assert.equal(skillRecord, null, 'mirror-code-generator should NOT be registered');
-    });
-
     await t.test('mirror-code-generator can be invoked through executeWithReviewMode', async () => {
         const agent = new RecursiveSkilledAgent({
             llmAgent: new StubLLMAgent(),
             startDir: __dirname,
             searchUpwards: false,
-            exposeInternalSkills: true,
         });
 
         // Wait for pending preparations

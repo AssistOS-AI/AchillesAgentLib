@@ -40,7 +40,6 @@ export class RecursiveSkilledAgent {
      * @param {Function} [options.onProcessingProgress] - Callback during processing
      * @param {Function} [options.onProcessingEnd] - Callback when processing ends
      * @param {string[]} [options.additionalSkillRoots] - Additional directories to scan for skills
-     * @param {boolean} [options.exposeInternalSkills=false] - If true, registers internal helper skills (e.g., mirror-code-generator) for direct invocation; otherwise they remain internal-only
      * @param {Object} [options.sessionConfig] - Session memory configuration
      * @param {number} [options.sessionConfig.maxSessions=1000] - Maximum sessions to keep (0 = unlimited)
      * @param {number} [options.sessionConfig.sessionTTL=7200000] - Session TTL in ms (0 = never expire, default 2 hours)
@@ -60,7 +59,6 @@ export class RecursiveSkilledAgent {
         onProcessingProgress = null,
         onProcessingEnd = null,
         additionalSkillRoots = [],
-        exposeInternalSkills = false,
         sessionConfig = {},
         inputReader = null,
         outputWriter = null,
@@ -74,8 +72,6 @@ export class RecursiveSkilledAgent {
         this.dbAdapter = dbAdapter;
         this.searchUpwards = Boolean(searchUpwards);
         this.additionalSkillRoots = Array.isArray(additionalSkillRoots) ? additionalSkillRoots : [];
-        this.exposeInternalSkills = Boolean(exposeInternalSkills);
-
         // I/O services (optional, falls back to global IOServices)
         this.inputReader = inputReader;
         this.outputWriter = outputWriter;
@@ -86,7 +82,6 @@ export class RecursiveSkilledAgent {
             startDir: this.startDir,
             hasLLMAgent: Boolean(llmAgent),
             llmAgentOptions: Object.keys(llmAgentOptions || {}),
-            exposeInternalSkills: this.exposeInternalSkills,
         });
 
         // Create or use provided LLM agent
@@ -167,10 +162,8 @@ export class RecursiveSkilledAgent {
             },
         });
 
-        // Register internal skills if flag is enabled
-        if (this.exposeInternalSkills) {
-            this._exposeInternalSkills();
-        }
+        // Register internal skills
+        this._exposeInternalSkills();
 
         // Legacy compatibility properties
         this.subsystems = this.subsystemFactory.instances;
@@ -200,7 +193,7 @@ export class RecursiveSkilledAgent {
 
     /**
      * Register internal helper skills for direct invocation.
-     * Called only when exposeInternalSkills is true.
+     * Called during initialization.
      * Queues async registration as a pending preparation.
      * Internal skills are registered as orchestrator type with modulePath set.
      * @private
@@ -210,20 +203,25 @@ export class RecursiveSkilledAgent {
             const internalSkillDefinitions = await this.executor.getInternalSkillDefinitions();
 
             for (const [name, definition] of Object.entries(internalSkillDefinitions)) {
-                const skillRecord = {
-                    name,
-                    shortName: definition.shortName || name,
-                    type: 'orchestrator',
-                    skillDir: path.dirname(definition.modulePath),
-                    filePath: definition.modulePath,
-                    descriptor: definition.descriptor || {},
-                    metadata: {
-                        type: 'orchestrator',
-                        modulePath: definition.modulePath,
-                        title: definition.descriptor?.title || null,
-                        summary: definition.descriptor?.summary || null,
-                    },
-                };
+                    const skillType = definition.type || definition.skillType || 'orchestrator';
+                    let skillDir = path.dirname(definition.modulePath);
+                    if (skillDir.endsWith(`${path.sep}src`)) {
+                        skillDir = path.dirname(skillDir);
+                    }
+                    const skillRecord = {
+                        name,
+                        shortName: definition.shortName || name,
+                        type: skillType,
+                        skillDir,
+                        filePath: definition.modulePath,
+                        descriptor: definition.descriptor || {},
+                        metadata: {
+                            type: skillType,
+                            modulePath: definition.modulePath,
+                            title: definition.descriptor?.title || null,
+                            summary: definition.descriptor?.summary || null,
+                        },
+                    };
 
                 this.registry.register(skillRecord);
                 this.debugLogger?.log('RecursiveSkilledAgent:registerInternalSkill', { name, modulePath: definition.modulePath });
@@ -251,7 +249,7 @@ export class RecursiveSkilledAgent {
         if (skillRecord.type === 'cskill') {
             this.executor.addPendingPreparation(
                 runMirrorCodeAction({
-                    prompt: skillRecord.skillDir,
+                    promptText: skillRecord.skillDir,
                     llmAgent: this.llmAgent,
                     logger: this.logger,
                 }).catch(error => {

@@ -129,9 +129,9 @@ const buildAgenticSessionPlannerPrompt = (options) => {
 
     const lines = [];
     lines.push('You are an agentic planner that decides which tools to call.');
+    lines.push('');
+    lines.push('System prompt:');
     if (systemPrompt && typeof systemPrompt === 'string') {
-        lines.push('');
-        lines.push('System prompt / context:');
         lines.push(systemPrompt);
     }
     lines.push('You must reason step by step and emit ONLY a JSON object.');
@@ -185,6 +185,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         } else if (h.type === 'tool') {
             const value = toolVars.get(h.result.resultRef);
             lines.push(`TOOL[${h.tool}]: resultRef=${h.result.resultRef} result=${formatValue(value)}`);
+            lines.push('------------------------------------------------------------');
         } else if (h.type === SESSION_STATUS_AWAITING_INPUT) {
             lines.push(`AWAITING_INPUT[${h.tool}]: ${h.answer} (step=${h.step || 'confirmation'})`);
         } else if (h.type === 'final_answer') {
