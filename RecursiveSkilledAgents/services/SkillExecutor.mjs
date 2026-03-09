@@ -1,3 +1,7 @@
+import path from 'node:path';
+import { stat } from 'node:fs/promises';
+import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
+
 /**
  * Registry of internal skill module paths.
  * Each entry maps a skill name to its module path (relative to this file).
@@ -329,10 +333,20 @@ export class SkillExecutor {
                 const module = await import(modulePath);
                 // Resolve the absolute path for the module
                 const resolvedPath = new URL(modulePath, import.meta.url).pathname;
+                const defaultDescriptor = module.descriptor || { title: name, summary: '', sections: {} };
+                let descriptor = defaultDescriptor;
+                let skillType = module.skillType || module.type || null;
+                const cskillDocPath = path.resolve(path.dirname(resolvedPath), '..', 'cskill.md');
+                const hasCskillDoc = await stat(cskillDocPath).then(s => s.isFile()).catch(() => false);
+                if (hasCskillDoc) {
+                    descriptor = parseSkillDocument(cskillDocPath);
+                    skillType = 'cskill';
+                }
+
                 definitions[name] = {
                     shortName: module.shortName || name,
-                    skillType: module.skillType || module.type || null,
-                    descriptor: module.descriptor || { title: name, summary: '', sections: {} },
+                    skillType,
+                    descriptor,
                     modulePath: resolvedPath,
                 };
             } catch (error) {
