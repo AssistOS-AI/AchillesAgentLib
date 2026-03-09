@@ -78,7 +78,10 @@ export async function prepareCreateForConfirmation(controller, record, execConte
 }
 
 export async function handleCreateFieldCapture(controller, prompt, pending, sessionMemory, key) {
-    if (controller.isAbortCommand(prompt)) {
+    const abortDecision = await resolveConfirmation(prompt, controller.llmAgent, {
+        actionContext: `cancelling ${controller.entityName} creation`,
+    });
+    if (abortDecision === 'no' || controller.isAbortCommand(prompt)) {
         controller.clearCreatePendingStates(sessionMemory);
         return {
             success: true,
@@ -159,7 +162,10 @@ export async function handleCreateFieldCapture(controller, prompt, pending, sess
 }
 
 export async function handleCreateConfirmation(controller, prompt, pending, sessionMemory, key) {
-    if (controller.isAbortCommand(prompt)) {
+    const abortDecision = await resolveConfirmation(prompt, controller.llmAgent, {
+        actionContext: `cancelling ${controller.entityName} creation confirmation`,
+    });
+    if (abortDecision === 'no' || controller.isAbortCommand(prompt)) {
         controller.clearCreatePendingStates(sessionMemory);
         return {
             success: true,
@@ -242,7 +248,10 @@ export async function handleCreateConflictUpdateConfirmation(
     sessionMemory,
     key,
 ) {
-    if (controller.isAbortCommand(prompt)) {
+    const abortDecision = await resolveConfirmation(prompt, controller.llmAgent, {
+        actionContext: `cancelling ${controller.entityName} create conflict resolution`,
+    });
+    if (abortDecision === 'no' || controller.isAbortCommand(prompt)) {
         controller.clearCreatePendingStates(sessionMemory);
         return {
             success: true,

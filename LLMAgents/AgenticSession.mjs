@@ -102,6 +102,33 @@ function coerceStructuredToolResult(value) {
     return value;
 }
 
+function getPendingAwaitingInputTool(history = []) {
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+        const entry = history[i];
+        if (entry?.type === SESSION_STATUS_AWAITING_INPUT && typeof entry.tool === 'string' && entry.tool.trim()) {
+            return entry.tool.trim();
+        }
+        if (entry?.type === 'final_answer' || entry?.type === 'cannot_complete') {
+            break;
+        }
+    }
+    return null;
+}
+
+function buildPendingInputDecision(toolName, userPrompt) {
+    return {
+        tool: toolName,
+        toolPrompt: userPrompt,
+        routeReason: 'pending_awaiting_input',
+    };
+}
+
+function isLikelyFreshInstruction(prompt = '') {
+    const text = String(prompt || '').trim();
+    if (!text) return false;
+    return /^(list|show|display|view|get|find|search|add|create|new|update|edit|change|delete|remove|import|wipe|help|exit|quit|start|stop)\b/i.test(text);
+}
+
 function parseContextVariables(text = '', prefix = PREPARATION_CONTEXT_PREFIX) {
     if (!text) {
         return [];
@@ -691,6 +718,37 @@ class LoopAgentSession {
     }
 
     async _requestDecision(userPrompt, turn, stepIndex) {
+        const pendingTool = getPendingAwaitingInputTool(this.history);
+        if (pendingTool) {
+            const explicitDifferentToolMention = Object.keys(this.tools || {}).some((toolName) =>
+                toolName !== pendingTool
+                && typeof userPrompt === 'string'
+                && userPrompt.toLowerCase().includes(toolName.toLowerCase())
+            );
+
+            if (!explicitDifferentToolMention) {
+                const interpretation = this.agent && typeof this.agent.interpretMessage === 'function'
+                    ? await this.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'] })
+                    : { intent: 'unknown', confidence: 0 };
+                const shouldContinuePending = interpretation?.intent === 'accept'
+                    || interpretation?.intent === 'cancel'
+                    || interpretation?.intent === 'update'
+                    || !isLikelyFreshInstruction(userPrompt);
+
+                if (shouldContinuePending) {
+                    const decision = buildPendingInputDecision(pendingTool, userPrompt);
+                    this._debug('[LoopSession]', 'Pending tool decision', {
+                        stepIndex,
+                        pendingTool,
+                        interpretation,
+                        decision,
+                    });
+                    await logLoopEvent('Pending tool decision', { pendingTool, interpretation, decision }, SESSION_LOG_TRIM_LIMIT);
+                    return decision;
+                }
+            }
+        }
+
         const plannerPrompt = buildAgenticSessionPlannerPrompt({
             tools: this.tools,
             history: this.history,

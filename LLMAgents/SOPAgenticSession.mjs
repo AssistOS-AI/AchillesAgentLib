@@ -79,6 +79,59 @@ function formatLogValue(value) {
     }
 }
 
+
+function coerceStructuredResult(value) {
+    if (value == null) {
+        return value;
+    }
+    if (typeof value === 'object') {
+        return value;
+    }
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value);
+        } catch {
+            return value;
+        }
+    }
+    return value;
+}
+
+function isInteractiveToolResult(value) {
+    const structured = coerceStructuredResult(value);
+    return Boolean(structured && typeof structured === 'object' && (structured.requiresInput || structured.requiresConfirmation));
+}
+
+function getPendingToolFromHistory(history = []) {
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+        const entry = history[i];
+        if (entry?.type === 'awaiting_input' && typeof entry.tool === 'string' && entry.tool.trim()) {
+            return entry.tool.trim();
+        }
+        if (entry?.type === 'final_answer' || entry?.type === 'cannot_complete') {
+            break;
+        }
+    }
+    return null;
+}
+
+function isLikelyFreshInstruction(prompt = '') {
+    const text = String(prompt || '').trim();
+    if (!text) return false;
+    return /^(list|show|display|view|get|find|search|add|create|new|update|edit|change|delete|remove|import|wipe|help|exit|quit|start|stop)\b/i.test(text);
+}
+
+function encodeSopString(value = '') {
+    return JSON.stringify(String(value ?? ''));
+}
+
+function buildDirectToolPlan(toolName, userPrompt) {
+    return [
+        `@pendingResult ${toolName} ${encodeSopString(userPrompt)}`,
+        '@lastAnswer final_answer $pendingResult',
+    ].join('\n');
+}
+
 function isValidSOPLang(source) {
     if (typeof source !== 'string' || !source.trim()) {
         return false;
@@ -209,6 +262,7 @@ class SOPAgenticSession {
             ? options.maxPlanAttempts
             : 3;
         this.lastRunFailures = [];
+        this.pendingTool = null;
     }
 
     static async runPreparation({
@@ -307,6 +361,34 @@ class SOPAgenticSession {
         const maxAttempts = this.maxPlanAttempts > 0 ? this.maxPlanAttempts : 1;
         let attempt = 0;
         let lastFeedback = null;
+
+        const pendingTool = this.pendingTool || getPendingToolFromHistory(this.history);
+        if (pendingTool) {
+            const interpretation = this.agent && typeof this.agent.interpretMessage === 'function'
+                ? await this.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'] })
+                : { intent: 'unknown', confidence: 0 };
+            const shouldContinuePending = interpretation?.intent === 'accept'
+                || interpretation?.intent === 'cancel'
+                || interpretation?.intent === 'update'
+                || !isLikelyFreshInstruction(userPrompt);
+            if (shouldContinuePending) {
+                this.currentPlan = buildDirectToolPlan(pendingTool, userPrompt);
+                this.lastExecution = null;
+                this.history.push({
+                    prompt: userPrompt,
+                    plan: this.currentPlan,
+                    routeReason: 'pending_awaiting_input',
+                    tool: pendingTool,
+                });
+                const runResult = await this._runPlan(this.currentPlan);
+                this.lastRunFailures = runResult?.failures || [];
+                const answer = this.getLastResult();
+                if (this.lastExecution && answer !== this.lastExecution.lastAnswer) {
+                    throw new Error('SOPAgenticSession invariant violated: getLastResult() mismatch with lastExecution.lastAnswer.');
+                }
+                return { plan: this.currentPlan, answer };
+            }
+        }
  
         while (true) {
             const baseInstructions = buildSOPAgenticInstructions({
@@ -387,7 +469,8 @@ class SOPAgenticSession {
 
 
      async _runPlan(planSource) {
-        if (!planSource || !planSource.trim()) {
+        const normalizedPlanSource = typeof planSource === 'string' ? planSource.trimStart() : '';
+        if (!normalizedPlanSource || !normalizedPlanSource.trim()) {
             this.lastExecution = null;
             return { hasFailures: false, failures: [] };
         }
@@ -395,10 +478,10 @@ class SOPAgenticSession {
             ? this.preparationContextText.trim()
             : '';
         const planWithContext = prepContext
-            ? `${prepContext}\n${planSource}`
-            : planSource;
-        await logSopEvent('Plan execute start', planSource || '', SESSION_LOG_TRIM_LIMIT);
-        if (planWithContext !== planSource) {
+            ? `${prepContext}\n${normalizedPlanSource}`
+            : normalizedPlanSource;
+        await logSopEvent('Plan execute start', normalizedPlanSource || '', SESSION_LOG_TRIM_LIMIT);
+        if (planWithContext !== normalizedPlanSource) {
             debugLog('[SOPAgenticSession] Executing plan with injected context variables:');
             debugLog(planWithContext);
         }
@@ -672,10 +755,24 @@ ${trimmed}`;
                 const wrappedResponder = {
                     success: async (data) => {
                         await logSopEvent('Tool result', `${commandName} | ${formatLogValue(data)}`, SESSION_LOG_TRIM_LIMIT);
+                        const interactive = isInteractiveToolResult(data);
+                        if (interactive) {
+                            this.pendingTool = commandName;
+                            this.history.push({ type: 'awaiting_input', tool: commandName, answer: formatLogValue(data) });
+                        } else {
+                            this.pendingTool = null;
+                        }
                         return responder.success(data);
                     },
                     fail: async (error) => {
                         await logSopEvent('Tool result', `${commandName} | ${formatLogValue(error)}`, SESSION_LOG_TRIM_LIMIT);
+                        const interactive = isInteractiveToolResult(error);
+                        if (interactive) {
+                            this.pendingTool = commandName;
+                            this.history.push({ type: 'awaiting_input', tool: commandName, answer: formatLogValue(error) });
+                        } else {
+                            this.pendingTool = null;
+                        }
                         return responder.fail(error);
                     },
                 };

@@ -472,7 +472,10 @@ export async function prepareUpdateForRecord(
 }
 
 export async function handleUpdateTargetCapture(controller, prompt, pending, sessionMemory, key) {
-    if (isNoResponse(prompt) || controller.isAbortCommand(prompt)) {
+    const abortDecision = await resolveConfirmation(prompt, controller.llmAgent, {
+        actionContext: `cancelling ${controller.entityName} update target selection`,
+    });
+    if (abortDecision === 'no' || isNoResponse(prompt) || controller.isAbortCommand(prompt)) {
         controller.clearUpdatePendingStates(sessionMemory);
         return {
             success: true,
@@ -549,7 +552,10 @@ export async function handleUpdateTargetCapture(controller, prompt, pending, ses
 }
 
 export async function handleUpdateFieldCapture(controller, prompt, pending, sessionMemory, key) {
-    if (controller.isAbortCommand(prompt)) {
+    const abortDecision = await resolveConfirmation(prompt, controller.llmAgent, {
+        actionContext: `cancelling ${controller.entityName} update`,
+    });
+    if (abortDecision === 'no' || controller.isAbortCommand(prompt)) {
         controller.clearUpdatePendingStates(sessionMemory);
         return {
             success: true,

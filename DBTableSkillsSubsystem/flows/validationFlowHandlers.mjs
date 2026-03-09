@@ -1,4 +1,4 @@
-import { isNoResponse } from '../../utils/ConfirmationUtils.mjs';
+import { isNoResponse, resolveConfirmation } from '../../utils/ConfirmationUtils.mjs';
 import { PENDING_STATE_SUFFIXES, pendingKey } from '../constants.mjs';
 import {
     buildValidationCorrectionPrompt,
@@ -26,9 +26,16 @@ function isLikelyNewCommand(prompt) {
 }
 
 export async function handleValidationCorrections(controller, prompt, pending, sessionMemory, key) {
-    // Check for cancel/abort
+    // Resolve cancel/abort semantically so natural language like "never mind" or
+    // "do not continue" is handled inside the pending flow instead of being rerouted.
     const trimmedPrompt = String(prompt || '').trim();
-    const shouldAbort = isNoResponse(prompt) || /^cancel$/i.test(trimmedPrompt) || controller.isAbortCommand(trimmedPrompt);
+    const abortDecision = await resolveConfirmation(prompt, controller.llmAgent, {
+        actionContext: `cancelling ${pending?.operation || 'pending'} ${controller.entityName} validation`,
+    });
+    const shouldAbort = abortDecision === 'no'
+        || isNoResponse(prompt)
+        || /^cancel$/i.test(trimmedPrompt)
+        || controller.isAbortCommand(trimmedPrompt);
     if (shouldAbort) {
         if (pending.operation === 'CREATE') {
             controller.clearCreatePendingStates(sessionMemory);
