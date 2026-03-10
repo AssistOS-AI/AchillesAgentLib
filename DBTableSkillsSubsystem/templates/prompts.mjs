@@ -34,10 +34,7 @@ Respond with JSON ONLY (no markdown, no explanation):
     "intent": "description of what the user wants",
     "filter": {},
     "data": {},
-    "query": {
-        "window": "first" | "last",
-        "limit": 10
-    },
+    "query": {},
     "postFilters": [
         {
             "field": "field_name",
@@ -55,8 +52,11 @@ Rules:
 - For SELECT:
   - Put only exact DB-equality predicates in "filter" (flat field->value pairs).
   - Put comparator/text operators (gt/gte/lt/lte/between/contains/not_contains/starts_with/ends_with/in/not_in) in "postFilters".
-  - Put pagination/window intent in "query": e.g. "first 3" => {"window":"first","limit":3}, "last two" => {"window":"last","limit":2}.
+  - Leave "query" as {} unless the user EXPLICITLY asks for a window/limit such as first/last/top/limit/count.
+  - Put pagination/window intent in "query" only when the user explicitly asks for it: e.g. "first 3" => {"window":"first","limit":3,"explicitWindow":true}, "last two" => {"window":"last","limit":2,"explicitWindow":true}.
   - "query.limit" MUST be an integer number (convert words like "two", "twenty one" to digits).
+  - If you set "query.window" or "query.limit", intent MUST include the suffix "(windowed)".
+  - Never invent a default window or limit for plain listing prompts like "list areas", "show equipment", "list materials". For those, use "query": {}.
   - Never place sort/pagination keys inside "filter".
   - Never emit synthetic operator keys in filter (invalid examples: name_contains, quantity_gte, area_id_in).
 - For UPDATE/DELETE, when user specifies an entity id, map it to the primary key in "filter".
@@ -110,10 +110,20 @@ Examples (valid JSON shape):
 Prompt: "list last two areas"
 {
   "operation":"SELECT",
-  "intent":"list areas with last window",
+  "intent":"list areas with last window (windowed)",
   "filter":{},
   "data":{},
-  "query":{"window":"last","limit":2},
+  "query":{"window":"last","limit":2,"explicitWindow":true},
+  "postFilters":[]
+}
+
+Prompt: "list areas"
+{
+  "operation":"SELECT",
+  "intent":"list areas",
+  "filter":{},
+  "data":{},
+  "query":{},
   "postFilters":[]
 }
 

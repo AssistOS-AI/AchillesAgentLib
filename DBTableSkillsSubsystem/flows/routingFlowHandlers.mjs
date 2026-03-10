@@ -846,9 +846,18 @@ function parseSelectWindowDirective(prompt, operation = {}) {
     const query = operation && typeof operation.query === 'object' && operation.query !== null
         ? operation.query
         : {};
+    const intent = String(operation?.intent || '').trim().toLowerCase();
+    const queryExplicit = query.explicit === true
+        || query.explicitWindow === true
+        || query.requested === true;
     const queryWindowRaw = String(query.window || query.slice || query.position || '').trim().toLowerCase();
     const queryLimitRaw = query.limit ?? query.count ?? query.take ?? query.first ?? query.last;
     const queryLimit = normalizePositiveLimit(queryLimitRaw);
+    const hasExplicitWindowIntent = queryExplicit || intent.includes('(windowed)');
+
+    if (!hasExplicitWindowIntent) {
+        return null;
+    }
 
     if (queryLimit && (queryWindowRaw === 'first' || queryWindowRaw === 'last')) {
         return { window: queryWindowRaw, limit: queryLimit };
