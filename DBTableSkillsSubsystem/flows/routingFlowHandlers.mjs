@@ -734,6 +734,115 @@ function inferSubjectContainsCondition(controller, prompt, records = []) {
     };
 }
 
+function getEnumFieldCandidates(controller) {
+    return Object.entries(controller?.fields || {})
+        .filter(([, field]) => Array.isArray(field?.enumValues) && field.enumValues.length > 0)
+        .map(([fieldName]) => fieldName);
+}
+
+function normalizeEnumToken(controller, value) {
+    return controller.normalizeTextForComparison(String(value || '').trim());
+}
+
+function extractSelectFallbackValueCandidates(controller, prompt = '') {
+    const values = [];
+    const whereClause = stripWrappingQuotes(parseWhereClauseFromPrompt(prompt));
+    if (whereClause) {
+        values.push(whereClause);
+    }
+
+    const subjectPhrase = stripWrappingQuotes(extractSubjectPhraseForSelect(controller, prompt));
+    if (subjectPhrase) {
+        values.push(subjectPhrase);
+    }
+
+    return [...new Set(values
+        .map(value => String(value || '').trim())
+        .filter(Boolean))];
+}
+
+function inferEnumSelectFallbackPostFilters(controller, prompt = '') {
+    const enumFields = getEnumFieldCandidates(controller);
+    if (enumFields.length === 0) return [];
+
+    const candidates = extractSelectFallbackValueCandidates(controller, prompt);
+    if (candidates.length === 0) return [];
+
+    for (const candidate of candidates) {
+        const normalizedCandidate = normalizeEnumToken(controller, candidate);
+        if (!normalizedCandidate) continue;
+
+        const matches = [];
+        for (const fieldName of enumFields) {
+            const enumValues = controller?.fields?.[fieldName]?.enumValues || [];
+            const matchedValue = enumValues.find((value) =>
+                normalizeEnumToken(controller, value) === normalizedCandidate,
+            );
+            if (matchedValue) {
+                matches.push({ fieldName, value: matchedValue });
+            }
+        }
+
+        if (matches.length > 0) {
+            return matches.map((match, index) => ({
+                field: match.fieldName,
+                operator: 'equals',
+                value: match.value,
+                joinWithPrevious: index === 0 ? 'and' : 'or',
+            }));
+        }
+    }
+
+    return [];
+}
+
+function inferBroadTextSearchFallbackPostFilters(controller, prompt = '', records = []) {
+    const candidates = extractSelectFallbackValueCandidates(controller, prompt);
+    if (candidates.length === 0) return [];
+
+    const textFields = getTextFieldCandidates(controller);
+    if (textFields.length === 0) return [];
+
+    const sample = Array.isArray(records) ? records : [];
+    for (const candidate of candidates) {
+        const normalizedCandidate = controller.normalizeTextForComparison(candidate);
+        if (!normalizedCandidate || normalizedCandidate.length < 2) continue;
+
+        const matchingFields = textFields.filter((fieldName) =>
+            sample.some((row) => {
+                const hay = controller.normalizeTextForComparison(row?.[fieldName]);
+                return hay.includes(normalizedCandidate);
+            }),
+        );
+
+        if (matchingFields.length > 0) {
+            return matchingFields.map((fieldName, index) => ({
+                field: fieldName,
+                operator: 'contains',
+                value: candidate,
+                joinWithPrevious: index === 0 ? 'and' : 'or',
+            }));
+        }
+    }
+
+    return [];
+}
+
+function mergeAmbiguousSelectFallbackPostFilters(enumFilters = [], textFilters = []) {
+    const merged = [];
+    const seen = new Set();
+    for (const filter of [...enumFilters, ...textFilters]) {
+        const key = `${filter.field}::${filter.operator}::${String(filter.value || '')}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(filter);
+    }
+    return merged.map((filter, index) => ({
+        ...filter,
+        joinWithPrevious: index === 0 ? 'and' : 'or',
+    }));
+}
+
 function inferGenericSelectFallbackPostFilters(controller, prompt, records = []) {
     if (!hasNumericComparatorCue(prompt)) return [];
 
@@ -1530,6 +1639,17 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
         : normalizePostFilters(operation?.postFilters);
     if (postFilters.length === 0 && structuredPostFilters.length > 0) {
         postFilters = structuredPostFilters;
+    }
+    if (postFilters.length === 0) {
+        const enumFallbackPostFilters = inferEnumSelectFallbackPostFilters(controller, prompt);
+        const textSearchFallbackPostFilters = inferBroadTextSearchFallbackPostFilters(controller, prompt, filteredRecords);
+        const mergedFallbackPostFilters = mergeAmbiguousSelectFallbackPostFilters(
+            enumFallbackPostFilters,
+            textSearchFallbackPostFilters,
+        );
+        if (mergedFallbackPostFilters.length > 0) {
+            postFilters = mergedFallbackPostFilters;
+        }
     }
     if (llmUnavailable && postFilters.length === 0) {
         const inferredFallbackPostFilters = inferGenericSelectFallbackPostFilters(controller, prompt, filteredRecords);

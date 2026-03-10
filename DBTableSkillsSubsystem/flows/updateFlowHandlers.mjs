@@ -282,10 +282,95 @@ async function prepareBulkUpdateForRecords(
     };
 }
 
+async function tryRevisePendingUpdateChanges(controller, prompt, pending, sessionMemory) {
+    const pendingChanges = pending?.changes && typeof pending.changes === 'object'
+        ? pending.changes
+        : {};
+    const pendingFields = Object.keys(pendingChanges);
+    if (pendingFields.length === 0) return null;
+
+    const currentRecord = { ...(pending?.original || {}), ...pendingChanges };
+    const fieldInfo = formatFieldInfoSimple(controller.getMutableUpdateFields());
+    const singleFieldInstruction = pendingFields.length === 1
+        ? `\nThe pending update currently changes only this field: "${pendingFields[0]}". If the user is clearly replacing the previously proposed value or says things like "change value to ...", interpret the message as the new value for that field.`
+        : '';
+
+    const extractPrompt = `Extract revised field changes from this user input for a "${controller.entityName}" record.
+
+Current record with pending edits applied:
+${JSON.stringify(currentRecord, null, 2)}
+
+Previously pending changes:
+${JSON.stringify(pendingChanges, null, 2)}
+
+Available fields:
+${fieldInfo}
+${singleFieldInstruction}
+
+User said: "${prompt}"
+
+Respond with JSON: { "changes": { "fieldName": "newValue", ... } }
+Rules:
+- Prefer revising already-pending fields when the user is clarifying or replacing a value.
+- Only include fields the user clearly wants to change now.
+- Do not invent values.
+- If the message is only a confirmation/cancellation or still ambiguous, return { "changes": {} }.`;
+
+    const extracted = await controller.llmAgent.executePrompt(extractPrompt, {
+        mode: 'fast',
+        responseShape: 'json',
+    });
+
+    const {
+        changes,
+        blockedFields,
+    } = controller.sanitizeUpdateChanges(extracted?.changes || {}, {
+        currentRecord: pending?.original || null,
+    });
+
+    if (Object.keys(changes).length === 0) {
+        return null;
+    }
+
+    const execContext = controller.subsystem.createExecutionContext(
+        controller.functions,
+        controller.entityName,
+    );
+
+    const mergedChanges = { ...pendingChanges, ...changes };
+    return prepareUpdateForRecord(
+        controller,
+        pending.original,
+        mergedChanges,
+        execContext,
+        sessionMemory,
+        { blockedFields },
+    );
+}
+
 export async function handleUpdateConfirmation(controller, prompt, pending, sessionMemory, key) {
     const decision = await resolveConfirmation(prompt, controller.llmAgent, {
         actionContext: `confirming update of ${controller.entityName}`,
     });
+
+    if (decision === 'no') {
+        sessionMemory.delete(key);
+        return {
+            success: true,
+            operation: 'UPDATE',
+            message: 'Update cancelled.',
+            cancelled: true,
+        };
+    }
+
+    try {
+        const revised = await tryRevisePendingUpdateChanges(controller, prompt, pending, sessionMemory);
+        if (revised) {
+            return revised;
+        }
+    } catch {
+        // Fall back to explicit yes/no clarification if revision extraction fails.
+    }
 
     if (decision === 'yes') {
         sessionMemory.delete(key);
@@ -331,9 +416,7 @@ export async function handleUpdateConfirmation(controller, prompt, pending, sess
                 : updated;
             const safeRecord = sanitizeRecordForUser(presented);
 
-            // Build a compact change summary so the final UPDATE response is explicit.
             const changedFields = Object.keys(pending.changes || {});
-
             const changeTable = changedFields.length > 0
                 ? changedFields.map((field) => {
                     const label = controller.getFieldLabel(field, 'short');
@@ -354,16 +437,6 @@ export async function handleUpdateConfirmation(controller, prompt, pending, sess
         } catch (error) {
             return controller.buildCrudFailureResult(CRUD_OPERATIONS.UPDATE, error);
         }
-    }
-
-    if (decision === 'no') {
-        sessionMemory.delete(key);
-        return {
-            success: true,
-            operation: 'UPDATE',
-            message: 'Update cancelled.',
-            cancelled: true,
-        };
     }
 
     return {

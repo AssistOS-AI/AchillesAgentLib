@@ -17,6 +17,7 @@ export function parseSkillMarkdown(content) {
         listExtraFields: [],
         fields: {},
         derivedFields: {},
+        fieldOrder: [],
         indexes: [],
         primaryKey: null,
         businessRules: [],
@@ -162,6 +163,7 @@ export function parseSkillMarkdown(content) {
             const fieldName = fieldMatch[1].trim();
             currentField = fieldName;
             skill.fields[fieldName] = createEmptyField(fieldName);
+            skill.fieldOrder.push(fieldName);
             currentSubSection = null;
             currentContent = [];
             sectionDepth = 3;

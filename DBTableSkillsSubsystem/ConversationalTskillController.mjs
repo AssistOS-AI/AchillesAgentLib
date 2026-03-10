@@ -99,6 +99,13 @@ export class ConversationalTskillController {
         this.primaryKey = parsedSkill.primaryKey || `${this.entityName}_id`;
     }
 
+    getAllFieldDefinitions() {
+        return {
+            ...(this.parsedSkill?.fields || {}),
+            ...(this.parsedSkill?.derivedFields || {}),
+        };
+    }
+
     requiresPrimaryKeyForCriticalOperation(operation) {
         return operation === CRUD_OPERATIONS.DELETE || operation === CRUD_OPERATIONS.UPDATE;
     }
@@ -340,12 +347,12 @@ export class ConversationalTskillController {
     }
 
     getFieldFullLabel(fieldName) {
-        const fieldDef = this.fields?.[fieldName];
+        const fieldDef = this.getAllFieldDefinitions()?.[fieldName];
         return String(fieldDef?.description || humanizeFieldName(fieldName) || fieldName);
     }
 
     getFieldShortLabel(fieldName) {
-        const fieldDef = this.fields?.[fieldName] || {};
+        const fieldDef = this.getAllFieldDefinitions()?.[fieldName] || {};
         const explicitShort = fieldDef.shortLabel
             || fieldDef.short_label
             || fieldDef.label
@@ -602,10 +609,26 @@ export class ConversationalTskillController {
         const listExtraFields = Array.isArray(this.parsedSkill?.listExtraFields)
             ? this.parsedSkill.listExtraFields
             : [];
-        const orderedFields = [
+        const requestedFields = new Set([
             ...listExtraFields,
             ...interactiveFields,
-        ];
+        ].map((fieldName) => String(fieldName || '').trim()).filter(Boolean));
+        const allFieldDefinitions = this.getAllFieldDefinitions();
+        const declaredFieldOrder = Array.isArray(this.parsedSkill?.fieldOrder) && this.parsedSkill.fieldOrder.length > 0
+            ? this.parsedSkill.fieldOrder
+            : Object.keys(allFieldDefinitions || {});
+        const orderedFields = [];
+
+        for (const fieldName of declaredFieldOrder) {
+            if (requestedFields.has(fieldName)) {
+                orderedFields.push(fieldName);
+                requestedFields.delete(fieldName);
+            }
+        }
+
+        for (const fieldName of requestedFields) {
+            orderedFields.push(fieldName);
+        }
 
         if (
             includePrimaryKey
@@ -626,7 +649,7 @@ export class ConversationalTskillController {
 
         const tableFields = {};
         for (const fieldName of uniqueFields) {
-            tableFields[fieldName] = this.fields?.[fieldName] || { name: fieldName };
+            tableFields[fieldName] = allFieldDefinitions?.[fieldName] || { name: fieldName };
         }
 
         return tableFields;
