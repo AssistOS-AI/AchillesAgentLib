@@ -18,8 +18,9 @@
         <section class="lead">
             <h1>Claude Skills</h1>
             <p>
-                Claude skills are lightweight descriptors that surface documentation-like responses without executing any code or calling the LLM. They
-                act as reference cards for teams and allow the agent to return a formatted summary and body when users ask for quick guidance.
+                Claude skills in Achilles Agents are Anthropic-style skill bundles that combine a <code>SKILL.md</code> descriptor with optional
+                scripts and reference files. They are executed through an agentic loop session so the model can plan, call tools, and return results
+                using the skill's instructions.
             </p>
             <nav class="page-links" aria-label="Skill families">
                 <a href="claude-skills.html" aria-current="page">Claude Skills</a>
@@ -34,48 +35,86 @@
         <section>
             <h2>Where They Live</h2>
             <p>
-                Each Claude skill lives under <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/skill.md</code>. There is no JavaScript entrypoint to
-                write—the Markdown alone is enough for discovery and execution by <code>ClaudeSkillsSubsystem</code>.
+                Each Claude skill lives under <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/SKILL.md</code>. The file uses YAML frontmatter
+                followed by Markdown instructions. Optional folders include <code>scripts/</code>, <code>resources/</code>, and <code>assets/</code>.
             </p>
-<pre><code># Runbook: Reset Database Passwords
+<pre><code>---
+name: webapp-testing-lite
+description: Quick smoke checks for static web pages without external dependencies.
+---
 
-## Summary
-How to reset a customer database password in production.
+# Webapp Testing Lite
 
-## Body
-Use this guide when a customer cannot authenticate to their managed database cluster.
-1. Verify caller identity via support ticket.
-2. Rotate credentials through the admin portal.
-3. Confirm the rotation and note the timestamp in the incident log.
+## Overview
+Use this skill to run a lightweight keyword check against a local static site.
+
+## Steps
+1. Use run-script to execute scripts/smoke_check.sh
+2. Confirm required keywords exist
+3. Return a short PASS/FAIL summary
 </code></pre>
             <p>
-                The first heading becomes the title; <strong>Summary</strong> and <strong>Body</strong> sections populate the metadata that the subsystem
-                returns when the skill is invoked.
+                The frontmatter drives skill discovery (<code>name</code>, <code>description</code>) and the Markdown body provides the operational
+                instructions used by the loop session.
             </p>
+        </section>
+
+        <section>
+            <h2>Skill Layout</h2>
+            <p>
+                Claude skills follow the Anthropic bundle format. Only <code>SKILL.md</code> is required; the other folders are optional and loaded
+                on demand.
+            </p>
+<pre><code>my-skill/
+├── SKILL.md
+├── scripts/
+│   └── helper.sh
+├── resources/
+│   └── checklist.md
+└── assets/
+    └── template.svg
+</code></pre>
+            <ul>
+                <li><strong>scripts/</strong>: Executable helpers invoked via the <code>run-script</code> tool.</li>
+                <li><strong>resources/</strong>: Reference files loaded via the <code>get-resource</code> tool.</li>
+                <li><strong>assets/</strong>: Output assets (templates, fonts, icons). Not loaded or surfaced directly.</li>
+            </ul>
         </section>
 
         <section>
             <h2>Execution Behaviour</h2>
             <p>
-                When invoked, Claude skills bypass the language model and simply return the descriptor content:
+                When invoked, Claude skills run inside an agentic loop session. The loop receives the SKILL.md instructions and can call tools as needed.
             </p>
             <ul>
-                <li><strong>Result shape:</strong> <code>{ summary, details, type: "claude" }</code></li>
-                <li><strong>Memory:</strong> No session memory is created.</li>
-                <li><strong>Side effects:</strong> None—perfect for quick references, onboarding notes, or capability catalogs.</li>
+                <li><strong>Session:</strong> Loop agent session with tool calls and iterative planning.</li>
+                <li><strong>Memory:</strong> Uses session memory to continue multi-step tasks.</li>
+                <li><strong>Side effects:</strong> Allowed through tool execution (scripts, filesystem reads).</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Tooling Integration</h2>
+            <p>
+                ClaudeSkillsSubsystem adapts Anthropic skills by exposing a minimal toolbelt. The loop session decides when to call these tools based on the
+                instructions in SKILL.md.
+            </p>
+            <ul>
+                <li><strong>run-script</strong>: Executes commands in <code>scripts/</code>. Accepts full command strings and resolves paths safely.</li>
+                <li><strong>get-resource</strong>: Reads files from <code>resources/</code>. Accepts <code>resources/file</code> or file name.</li>
+                <li><strong>ask-user</strong>: Optional user clarification when interactive input is available.</li>
             </ul>
             <p>
-                Because they are deterministic and cheap to run, Claude skills make excellent landing points in orchestrators that need to explain a capability
-                or expose help text before branching to heavier flows.
+                Assets are intentionally not surfaced. They are available for scripts or downstream tooling but are not injected into LLM context.
             </p>
         </section>
 
         <section>
             <h2>Authoring Tips</h2>
             <ul>
-                <li>Use concise summaries; keep the body instructional and scannable.</li>
-                <li>Group related skills under domain folders to keep discovery organised.</li>
-                <li>Pair with orchestration skills when you want a “help” intent that returns documentation before collecting inputs.</li>
+                <li>Write explicit steps for when to call scripts or load resources.</li>
+                <li>Keep SKILL.md under 500 lines and move large content into resources.</li>
+                <li>Use concrete inputs/outputs to reduce follow-up questions.</li>
             </ul>
         </section>
     </main>

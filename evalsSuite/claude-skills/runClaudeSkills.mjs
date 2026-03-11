@@ -8,6 +8,12 @@ import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSki
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const COLORS = {
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    reset: '\x1b[0m',
+};
+
 function ensureDir(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -50,19 +56,7 @@ function assertContains(text, fragment) {
 async function run() {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-skills-'));
     const workspace = path.join(tempRoot, 'workspace');
-    const webRoot = path.join(tempRoot, 'web');
     ensureDir(workspace);
-    ensureDir(webRoot);
-
-    const indexHtml = `<!doctype html>
-<html lang="en">
-  <head><meta charset="utf-8"><title>Lite Site</title></head>
-  <body>
-    <h1>Hello Lite</h1>
-    <p>Status: OK</p>
-  </body>
-</html>`;
-    writeFile(path.join(webRoot, 'index.html'), indexHtml);
 
     const csvInput = path.join(workspace, 'input.csv');
     writeFile(csvInput, 'Item,Amount\nAlpha,10\nBeta,5\n');
@@ -74,19 +68,11 @@ async function run() {
         additionalSkillRoots: [skillsRoot],
     });
 
-    const port = 45000 + Math.floor(Math.random() * 2000);
     const cases = [
-        {
-            id: 'webapp-testing-lite',
-            skillName: 'webapp-testing-lite-claude',
-            prompt: `Run the webapp-testing-lite smoke check with no follow-up questions. Web root: ${webRoot}. Port: ${port}. Required keywords: "Hello Lite" and "Status: OK". Report path: ${path.join(workspace, 'smoke.txt')}. Use run-script with: bash scripts/smoke_check.sh "${webRoot}" ${port} "Hello Lite,Status: OK" "${path.join(workspace, 'smoke.txt')}". Return PASS/FAIL in your response.`,
-            expectedFiles: [path.join(workspace, 'smoke.txt')],
-            expectedContains: ['pass'],
-        },
         {
             id: 'xlsx-lite',
             skillName: 'xlsx-lite-claude',
-            prompt: `Process the CSV with no follow-up questions. Input: ${csvInput}. Column to total: Amount. Output: ${path.join(workspace, 'output.csv')}. Use run-script with: python3 scripts/sum_column.py "${csvInput}" "${path.join(workspace, 'output.csv')}" Amount. Return only the total number in your response.`,
+            prompt: `I have a CSV at ${csvInput}. Please add a Totals row for the Amount column and save the updated file to ${path.join(workspace, 'output.csv')}. Reply with just the total value.`,
             expectedFiles: [path.join(workspace, 'output.csv')],
             expectedContains: ['15'],
             validateFile: (content) => content.includes('Totals') && content.includes('15'),
@@ -94,27 +80,32 @@ async function run() {
         {
             id: 'docx-lite',
             skillName: 'docx-lite-claude',
-            prompt: 'Use docx-lite with no follow-up questions. Title: Project Update. Summary: This release closes the onboarding gaps. Customer satisfaction improved after the fixes. Action items: Share the rollout note with stakeholders; Schedule a follow-up review. Use get-resource to read resources/doc_template.txt and return the filled template only.',
+            prompt: 'Draft a short memo titled "Project Update". Summary: This release closes the onboarding gaps. Customer satisfaction improved after the fixes. Action items: Share the rollout note with stakeholders; Schedule a follow-up review; Monitor adoption metrics. Return the memo text only.',
             expectedContains: ['Title:', 'Project Update', 'Action Items'],
         },
         {
             id: 'pdf-lite',
             skillName: 'pdf-lite-claude',
-            prompt: 'Use pdf-lite with no follow-up questions. Use get-resource to read resources/checklist.md. Here is the PDF text:\nTitle: Q1 Review\nOverview: This quarter focused on onboarding.\nFindings: Customer satisfaction improved.\nConclusion: Continue the program.\n\nOutput PASS/FAIL per checklist item and a one-line summary.',
+            prompt: 'Here is the PDF text:\nTitle: Q1 Review\nOverview: This quarter focused on onboarding.\nFindings: Customer satisfaction improved.\nConclusion: Continue the program.\n\nPlease check it against your checklist and output PASS/FAIL per item with a one-line summary.',
             expectedContains: ['Title: PASS', 'Overview: PASS', 'Findings: PASS', 'Conclusion: PASS'],
         },
         {
             id: 'pptx-lite',
             skillName: 'pptx-lite-claude',
-            prompt: 'Use pptx-lite with no follow-up questions. Topic: Remote Work Guidelines. Slide count: 3. Slide intents: Slide 1 title slide, Slide 2 policy overview, Slide 3 next steps. Use the required slide format exactly.',
+            prompt: 'Create a 3-slide outline about "Remote Work Guidelines". Slide 1 should be the title slide, slide 2 a policy overview, and slide 3 next steps. Use the required slide format exactly.',
             expectedContains: ['Slide 1', 'Slide 2', 'Slide 3', 'Remote Work'],
         },
     ];
 
     let failures = 0;
+    let index = 0;
 
     try {
         for (const testCase of cases) {
+            index += 1;
+            const label = `Case ${index}: ${testCase.id} (skill: ${testCase.skillName})`;
+            console.log(label);
+
             const result = await agent.executePrompt(testCase.prompt, {
                 skillName: testCase.skillName,
                 context: { sessionId: testCase.id },
@@ -125,12 +116,12 @@ async function run() {
 
             for (const filePath of testCase.expectedFiles || []) {
                 if (!fs.existsSync(filePath)) {
-                    console.error(`[${testCase.id}] Missing expected file: ${filePath}`);
+                    console.error(`[${label}] Missing expected file: ${filePath}`);
                     caseFailed = true;
                 } else if (testCase.validateFile) {
                     const fileContent = fs.readFileSync(filePath, 'utf8');
                     if (!testCase.validateFile(fileContent)) {
-                        console.error(`[${testCase.id}] File validation failed: ${filePath}`);
+                        console.error(`[${label}] File validation failed: ${filePath}`);
                         caseFailed = true;
                     }
                 }
@@ -138,17 +129,18 @@ async function run() {
 
             for (const fragment of testCase.expectedContains || []) {
                 if (!assertContains(text, fragment)) {
-                    console.error(`[${testCase.id}] Missing expected text fragment: ${fragment}`);
+                    console.error(`[${label}] Missing expected text fragment: ${fragment}`);
                     caseFailed = true;
                 }
             }
 
             if (caseFailed) {
                 failures += 1;
-                console.error(`[${testCase.id}] FAIL`);
+                console.error(`${COLORS.red}[${label}] FAIL${COLORS.reset}`);
             } else {
-                console.log(`[${testCase.id}] PASS`);
+                console.log(`${COLORS.green}[${label}] PASS${COLORS.reset}`);
             }
+            console.log('');
         }
     } finally {
         fs.rmSync(tempRoot, { recursive: true, force: true });

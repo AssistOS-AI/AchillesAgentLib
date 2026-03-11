@@ -20,6 +20,7 @@ This skill returns a slide-by-slide outline as plain text.
 
 ## Notes
 - Do not ask follow-up questions if topic, slide count, and slide intent are provided.
+- Do not call any tools for this skill; produce the outline directly.
 
 ## Output Format
 Use this exact format:

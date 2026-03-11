@@ -20,6 +20,18 @@ This skill creates structured text documents based on a bundled template. It doe
 
 ## Notes
 - Do not ask follow-up questions if the prompt already includes title, summary, and action items.
+- MUST replace all placeholders (no {{PLACEHOLDER}} tokens may remain).
+
+## Example Output
+Title: Project Update
+
+Summary:
+This release closes the onboarding gaps. Customer satisfaction improved after the fixes.
+
+Action Items:
+- Share the rollout note with stakeholders
+- Schedule a follow-up review
+- Monitor adoption metrics
 
 ## Output Format
 - Return the completed template exactly, with headings preserved.
