@@ -14,7 +14,7 @@ const SECTION_KEYS = {
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
     allowedPrepSkills: ['allowed-prep-skills', 'allowed-preparation-skills', 'prep-skills'],
     intents: ['intents', 'intentions', 'mappings'],
-    sessionType: ['session type', 'session-type', 'session_type'],
+    sessionType: ['session', 'session type', 'session-type', 'session_type'],
 };
 
 function normaliseBulletList(section = '') {
@@ -42,24 +42,6 @@ function hasSection(sections = {}, aliases = []) {
         }
     }
     return false;
-}
-
-function parseIntents(section = '') {
-    const entries = normaliseBulletList(section);
-    const intents = [];
-    for (const entry of entries) {
-        const [idPart, ...rest] = entry.split(':');
-        if (!idPart) {
-            continue;
-        }
-        const id = Sanitiser.sanitiseName(idPart);
-        const description = rest.join(':').trim();
-        intents.push({
-            id,
-            description: description || entry.trim(),
-        });
-    }
-    return intents;
 }
 
 function buildLoopSystemPrompt(skillRecord) {
@@ -97,7 +79,7 @@ export class OrchestratorSkillsSubsystem {
         const allowedPrepSkills = normaliseBulletList(pickSection(sections, SECTION_KEYS.allowedPrepSkills))
             .map((name) => Sanitiser.sanitiseName(name))
             .filter(Boolean);
-        const intents = parseIntents(pickSection(sections, SECTION_KEYS.intents));
+        const intents = pickSection(sections, SECTION_KEYS.intents);
         const rawSessionType = pickSection(sections, SECTION_KEYS.sessionType).trim();
         const sessionType = rawSessionType && rawSessionType.toLowerCase() === 'loop'
             ? 'loop'

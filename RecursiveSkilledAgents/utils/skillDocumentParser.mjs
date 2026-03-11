@@ -17,6 +17,59 @@ export function createSectionKey(heading) {
         .replace(/^-+|-+$/g, '');
 }
 
+function stripFrontmatter(raw) {
+    if (!raw) {
+        return { frontmatter: {}, body: '' };
+    }
+
+    const lines = raw.split(/\r?\n/);
+    let index = 0;
+    while (index < lines.length && !lines[index].trim()) {
+        index += 1;
+    }
+
+    if (lines[index]?.trim() !== '---') {
+        return { frontmatter: {}, body: raw };
+    }
+
+    let endIndex = -1;
+    for (let i = index + 1; i < lines.length; i += 1) {
+        if (lines[i].trim() === '---') {
+            endIndex = i;
+            break;
+        }
+    }
+
+    if (endIndex === -1) {
+        return { frontmatter: {}, body: raw };
+    }
+
+    const frontmatterLines = lines.slice(index + 1, endIndex);
+    const bodyLines = lines.slice(endIndex + 1);
+    const frontmatter = {};
+
+    for (const line of frontmatterLines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) {
+            continue;
+        }
+        const separator = trimmed.indexOf(':');
+        if (separator === -1) {
+            continue;
+        }
+        const key = trimmed.slice(0, separator).trim();
+        let value = trimmed.slice(separator + 1).trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+        if (key) {
+            frontmatter[key] = value;
+        }
+    }
+
+    return { frontmatter, body: bodyLines.join('\n') };
+}
+
 /**
  * Parse a skill markdown document into a structured descriptor.
  * Extracts title (first heading), summary (first non-empty line after title),
@@ -38,9 +91,18 @@ export function parseSkillDocument(filePath) {
         };
     }
 
-    const lines = raw.split(/\r?\n/);
-    let title = null;
-    let summary = null;
+    const isAnthropicSkill = path.basename(filePath) === 'SKILL.md';
+    let frontmatter = {};
+    let content = raw;
+    if (isAnthropicSkill) {
+        const stripped = stripFrontmatter(raw);
+        frontmatter = stripped.frontmatter || {};
+        content = stripped.body || '';
+    }
+
+    const lines = content.split(/\r?\n/);
+    let title = isAnthropicSkill && frontmatter.name ? frontmatter.name : null;
+    let summary = isAnthropicSkill && frontmatter.description ? frontmatter.description : null;
     const bodyLines = [];
     const sections = new Map();
     const sectionBuffers = new Map();
@@ -48,9 +110,11 @@ export function parseSkillDocument(filePath) {
 
     for (const line of lines) {
         const trimmed = line.trim();
-        if (!title && trimmed.startsWith('#')) {
+        if (trimmed.match(/^#\s/)) {
             const headingText = trimmed.replace(/^#+\s*/, '').trim();
-            title = headingText;
+            if (!title) {
+                title = headingText;
+            }
             currentSection = createSectionKey(headingText);
             if (!sectionBuffers.has(currentSection)) {
                 sectionBuffers.set(currentSection, []);

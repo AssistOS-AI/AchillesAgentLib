@@ -9,6 +9,7 @@ import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
  */
 const INTERNAL_SKILLS = {
     'mirror-code-generator': '../mirror-code-generator/src/index.mjs',
+    'ask-user': '../ask-user/src/index.mjs',
     // Future internal skills: just add the module path here
 };
 

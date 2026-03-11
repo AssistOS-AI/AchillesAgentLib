@@ -104,9 +104,7 @@ test('prepareSkill parses descriptor sections correctly', () => {
     assert.equal(skillRecord.metadata.body, 'Test body');
     assert.equal(skillRecord.metadata.instructions, 'Test instructions');
     assert.deepEqual(skillRecord.metadata.allowedSkills, ['skill1', 'skill2']);
-    assert.equal(skillRecord.metadata.intents.length, 2);
-    assert.equal(skillRecord.metadata.intents[0].id, 'reporting');
-        assert.equal(skillRecord.metadata.intents[0].description, 'Generate reports');
+    assert.equal(skillRecord.metadata.intents, 'reporting: Generate reports\ndata: Fetch data');
     assert.equal(skillRecord.metadata.sessionType, null);
     });
 
@@ -150,8 +148,8 @@ test('executeLoopAgentSession is used when sessionType is set', async () => {
     const skillRecord = {
         name: 'test-orchestrator',
         metadata: {
-            sessionType: 'sop',
-            instructions: 'SOP instructions',
+            sessionType: 'loop',
+            instructions: 'Loop instructions',
             allowedSkills: ['skill1'],
         },
     };
@@ -163,7 +161,7 @@ test('executeLoopAgentSession is used when sessionType is set', async () => {
     const result = await subsystem.executeSkillPrompt({
         skillRecord,
         recursiveAgent,
-        promptText: 'Test SOP prompt',
+        promptText: 'Test loop prompt',
     });
 
     assert.equal(result.session, 'loop');
