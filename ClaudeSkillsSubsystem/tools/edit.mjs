@@ -1,14 +1,15 @@
 import fs from 'node:fs';
 
-import { ensureAbsolutePath, isProbablyText, parseJsonInput } from './utils.mjs';
+import { isProbablyText, parseJsonInput, resolvePath } from './utils.mjs';
 
 export function buildEditTool() {
     return {
         description: `Replace exact text in a file.
 When to use: update a specific string or snippet in a file.
-How to call: pass JSON string with file_path (absolute), old_string, new_string, optional replace_all.
+How to call: pass JSON string with file_path (absolute or relative to project root), old_string, new_string, optional replace_all.
 Examples:
 - {"file_path":"/abs/path/file.txt","old_string":"foo","new_string":"bar"}
+- {"file_path":"relative/path/file.txt","old_string":"foo","new_string":"bar"}
 - {"file_path":"/abs/path/app.js","old_string":"debug=true","new_string":"debug=false","replace_all":true}
 Notes: exact match only; use replace_all for multiple matches.`,
         handler: async (_agent, promptText) => {
@@ -16,7 +17,7 @@ Notes: exact match only; use replace_all for multiple matches.`,
             if (!json || typeof json !== 'object') {
                 throw new Error('Edit requires JSON input with file_path, old_string, and new_string.');
             }
-            const filePath = ensureAbsolutePath(json.file_path, 'file_path');
+            const filePath = resolvePath(json.file_path, 'file_path');
             const oldString = json.old_string;
             const newString = json.new_string;
             const replaceAll = Boolean(json.replace_all);

@@ -96,9 +96,11 @@ export class ClaudeSkillsSubsystem {
             result = await session.newPrompt(promptText);
         } else {
             const skillBody = skillRecord?.descriptor?.rawContent || skillRecord?.preparedConfig?.rawContent || '';
+            const projectRoot = process.cwd();
+            const systemPrompt = `${skillBody}\n\nProject root: ${projectRoot}`.trim();
             const sessionOptions = {
                 mode: options?.mode || 'plan',
-                systemPrompt: skillBody || undefined,
+                systemPrompt: systemPrompt || undefined,
             };
             session = await this.llmAgent.startLoopAgentSession(tools, promptText, sessionOptions);
             result = session.getLastResult();

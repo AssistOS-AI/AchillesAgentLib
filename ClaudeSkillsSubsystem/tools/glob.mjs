@@ -97,9 +97,10 @@ export function buildGlobTool() {
     return {
         description: `Find files by glob pattern.
 When to use: list or find files matching a pattern.
-How to call: pass JSON string with pattern and optional path.
+How to call: pass JSON string with pattern and optional path (absolute or relative to project root).
 Examples:
 - {"pattern":"**/*.js"}
+- {"pattern":"**/*.js","path":"src"}
 - {"pattern":"src/**/*.{ts,tsx}","path":"/abs/project"}
 Notes: returns a JSON array of absolute file paths sorted by mtime desc.`,
         handler: async (_agent, promptText) => {
@@ -109,7 +110,10 @@ Notes: returns a JSON array of absolute file paths sorted by mtime desc.`,
             if (!pattern) {
                 throw new Error('Glob requires a pattern.');
             }
-            const baseDir = input.path ? String(input.path) : process.cwd();
+            const baseDirRaw = input.path ? String(input.path) : process.cwd();
+            const baseDir = path.isAbsolute(baseDirRaw)
+                ? baseDirRaw
+                : path.resolve(process.cwd(), baseDirRaw);
             const regex = globToRegex(normalizePathSeparators(pattern));
             const allFiles = await listFiles(baseDir);
 

@@ -277,7 +277,9 @@ class LoopAgentSession {
         this.errorCount = 0;
         this.status = SESSION_STATUS_IDLE;
         this.lastAnswer = null;
-        this.systemPrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
+        const projectRoot = process.cwd();
+        const basePrompt = typeof options.systemPrompt === 'string' ? options.systemPrompt : '';
+        this.systemPrompt = `${basePrompt}\n\nYou are working in the current project: ${projectRoot}`.trim();
         this.baseSystemPrompt = this.systemPrompt;
         this.preparation = options.preparation || null;
         this.failedTurns = [];

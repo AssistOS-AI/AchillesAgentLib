@@ -1,15 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { ensureAbsolutePath, parseJsonInput } from './utils.mjs';
+import { parseJsonInput, resolvePath } from './utils.mjs';
 
 export function buildWriteTool() {
     return {
         description: `Create or overwrite a file with new content.
 When to use: write/create/save/overwrite a file.
-How to call: pass JSON string with file_path (absolute) and content.
+How to call: pass JSON string with file_path (absolute or relative to project root) and content.
 Examples:
 - {"file_path":"/abs/path/file.txt","content":"hello"}
+- {"file_path":"relative/path/file.txt","content":"hello"}
 - {"file_path":"/abs/path/config.json","content":"{\\"a\\":1}"}
 Notes: always overwrites the file.`,
         handler: async (_agent, promptText) => {
@@ -17,7 +18,7 @@ Notes: always overwrites the file.`,
             if (!json || typeof json !== 'object') {
                 throw new Error('Write requires JSON input with file_path and content.');
             }
-            const filePath = ensureAbsolutePath(json.file_path, 'file_path');
+            const filePath = resolvePath(json.file_path, 'file_path');
             const content = json.content;
             if (typeof content !== 'string') {
                 throw new Error('Write requires string content.');

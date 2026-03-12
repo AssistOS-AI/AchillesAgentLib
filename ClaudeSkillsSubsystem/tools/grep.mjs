@@ -135,9 +135,10 @@ export function buildGrepTool() {
     return {
         description: `Search file contents using regex (ripgrep).
 When to use: search for text or patterns across files.
-How to call: pass JSON string with pattern and optional options (path, output_mode, glob, type, -i, -n, -A/-B/-C, multiline, head_limit).
+How to call: pass JSON string with pattern and optional options (path, output_mode, glob, type, -i, -n, -A/-B/-C, multiline, head_limit). Paths can be absolute or relative to project root.
 Examples:
 - {"pattern":"TODO","path":"/abs/project","output_mode":"files_with_matches"}
+- {"pattern":"TODO","path":"src","output_mode":"files_with_matches"}
 - {"pattern":"function\\s+\\w+","glob":"*.js","output_mode":"content","-n":true}
 Notes: default output_mode is files_with_matches; returns empty string if no matches.`,
         handler: async (_agent, promptText) => {
@@ -161,7 +162,10 @@ Notes: default output_mode is files_with_matches; returns empty string if no mat
             const headLimit = input.head_limit && Number.isFinite(Number(input.head_limit))
                 ? Math.max(0, Number(input.head_limit))
                 : null;
-            const targetPath = String(input.path || process.cwd());
+            const targetPathRaw = String(input.path || process.cwd());
+            const targetPath = path.isAbsolute(targetPathRaw)
+                ? targetPathRaw
+                : path.resolve(process.cwd(), targetPathRaw);
 
             let files = await listFiles(targetPath);
             if (input.glob) {

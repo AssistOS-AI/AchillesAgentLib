@@ -129,6 +129,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
 
     const lines = [];
     lines.push('You are an agentic planner that decides which tools to call.');
+    lines.push(`You are working in the current project: ${process.cwd()}`);
     lines.push('');
     lines.push('System prompt:');
     if (systemPrompt && typeof systemPrompt === 'string') {

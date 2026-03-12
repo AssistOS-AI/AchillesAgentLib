@@ -109,15 +109,15 @@ function parseJsonInput(promptText) {
     return { json: null, raw: text };
 }
 
-function ensureAbsolutePath(targetPath, label = 'path') {
+function resolvePath(targetPath, label = 'path') {
     const normalized = String(targetPath || '').trim();
     if (!normalized) {
         throw new Error(`${label} is required.`);
     }
-    if (!path.isAbsolute(normalized)) {
-        throw new Error(`${label} must be an absolute path.`);
+    if (path.isAbsolute(normalized)) {
+        return normalized;
     }
-    return normalized;
+    return path.resolve(process.cwd(), normalized);
 }
 
 function normalizePathSeparators(targetPath) {
@@ -125,11 +125,11 @@ function normalizePathSeparators(targetPath) {
 }
 
 export {
-    ensureAbsolutePath,
     isDirectory,
     isProbablyText,
     isSafeChildPath,
     normalizePathSeparators,
     parseJsonInput,
+    resolvePath,
     runBashCommand,
 };
