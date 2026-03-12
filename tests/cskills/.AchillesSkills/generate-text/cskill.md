@@ -1,7 +1,7 @@
 # generate-text
 Produces text content using the LLM based on prompt context.
 
-## Summary
+## Description
 Produces text content using the LLM based on prompt context.
 
 ## Input Format

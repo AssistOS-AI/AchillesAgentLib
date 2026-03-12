@@ -2,7 +2,7 @@
 
 Provides password hashing and verification using cryptographic functions.
 
-## Summary
+## Description
 This skill implements a utility for generating and verifying cryptographic hashes. It supports password hashing with salt and verification of hashed passwords. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format

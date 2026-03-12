@@ -1,6 +1,6 @@
 # User Profile Formatter
 
-## Summary
+## Description
 Formats a user's data into a readable string based on external functional specifications.
 
 ## Input Format

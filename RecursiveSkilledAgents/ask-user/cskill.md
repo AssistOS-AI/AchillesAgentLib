@@ -1,6 +1,6 @@
 # ask-user
 
-## Summary
+## Description
 Prompts the user for missing or unclear information and returns the response as plain text.
 
 ## Input Format

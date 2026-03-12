@@ -2,7 +2,7 @@
 
 Parses CSV strings and transforms data according to specified rules.
 
-## Summary
+## Description
 This skill provides a unified interface for parsing CSV data from strings and applying transformations. It allows for converting CSV strings to JSON arrays, filtering data based on conditions, and mapping field names. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format

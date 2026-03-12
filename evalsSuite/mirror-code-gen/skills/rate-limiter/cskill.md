@@ -2,7 +2,7 @@
 
 Implements rate limiting using the token bucket algorithm.
 
-## Summary
+## Description
 This skill implements a token bucket rate limiter that controls the frequency of operations. It supports configurable token refill rates and burst limits. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format

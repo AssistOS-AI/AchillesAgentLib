@@ -1,6 +1,6 @@
 # mirror-code-generator
 
-## Summary
+## Description
 Generates JavaScript/ESM code from a skill's `specs/` directory. It reads `.md/.mds` spec files, produces or updates matching `src/` files, and backs up specs to `specs/.backup` after a successful run.
 
 ## Input Format

@@ -2,7 +2,7 @@
 
 Stores log messages in memory and flushes them when the buffer is full.
 
-## Summary
+## Description
 This skill implements an in-memory log buffer system that stores log messages and automatically flushes them when the buffer reaches a specified limit. It supports different log levels and provides statistics about the buffered logs. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format

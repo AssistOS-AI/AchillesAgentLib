@@ -2,7 +2,7 @@
 
 Provides a simple key-value store with automatic expiration.
 
-## Summary
+## Description
 This skill implements an in-memory cache system with time-to-live (TTL) functionality. It allows storing values with expiration times, checking for key existence, and automatic cleanup of expired entries. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format

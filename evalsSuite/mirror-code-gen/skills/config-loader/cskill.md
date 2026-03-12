@@ -2,7 +2,7 @@
 
 Loads and validates configuration from environment variables or objects.
 
-## Summary
+## Description
 This skill implements a configuration loader that reads settings from environment variables or objects and validates them against a type schema. It supports automatic type conversion and validation. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format

@@ -2,7 +2,7 @@
 
 Validates JavaScript objects against defined schemas.
 
-## Summary
+## Description
 This skill implements a simple schema validation system that checks if JavaScript objects conform to specified structures. It supports basic type validation, minimum/maximum constraints, and custom validation rules. All operations are exposed through a single, dynamic entry point.
 
 ## Input Format
