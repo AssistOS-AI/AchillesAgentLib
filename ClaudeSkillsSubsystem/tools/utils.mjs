@@ -109,6 +109,45 @@ function parseJsonInput(promptText) {
     return { json: null, raw: text };
 }
 
+function parseKeyValueInput(promptText) {
+    const text = String(promptText ?? '').trim();
+    if (!text) {
+        return { data: {}, raw: '', hasPairs: false };
+    }
+    const segments = text
+        .split(/\r?\n/)
+        .flatMap((line) => line.split(/,(?=\s*[^,]+:)/))
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+    const data = {};
+    let hasPairs = false;
+
+    for (const segment of segments) {
+        const match = segment.match(/^([A-Za-z0-9_.-]+)\s*:\s*(.+)$/);
+        if (!match) {
+            continue;
+        }
+        hasPairs = true;
+        const key = match[1];
+        let value = match[2].trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+        if (/^(true|false)$/i.test(value)) {
+            data[key] = value.toLowerCase() === 'true';
+            continue;
+        }
+        if (/^-?\d+(\.\d+)?$/.test(value)) {
+            data[key] = Number(value);
+            continue;
+        }
+        data[key] = value;
+    }
+
+    return { data, raw: text, hasPairs };
+}
+
 function resolvePath(targetPath, label = 'path') {
     const normalized = String(targetPath || '').trim();
     if (!normalized) {
@@ -129,6 +168,7 @@ export {
     isProbablyText,
     isSafeChildPath,
     normalizePathSeparators,
+    parseKeyValueInput,
     parseJsonInput,
     resolvePath,
     runBashCommand,

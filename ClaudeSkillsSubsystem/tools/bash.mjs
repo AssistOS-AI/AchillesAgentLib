@@ -1,17 +1,17 @@
-import { parseJsonInput, runBashCommand } from './utils.mjs';
+import { parseKeyValueInput, runBashCommand } from './utils.mjs';
 
 export function buildBashTool() {
     return {
         description: `Run a shell command.
 When to use: execute a terminal command or script.
-How to call: pass JSON string with command and optional timeout (ms).
+How to call: pass key:value pairs (newline or comma-separated). Required: command.
 Examples:
-- {"command":"ls -la"}
-- {"command":"node --version","timeout":60000}
+- command: ls -la
+- command: node --version\n  timeout: 60000
 Notes: runs via bash -lc in the current working directory.`,
         handler: async (_agent, promptText) => {
-            const { json, raw } = parseJsonInput(promptText);
-            const input = json && typeof json === 'object' ? json : { command: raw };
+            const { data, raw, hasPairs } = parseKeyValueInput(promptText);
+            const input = hasPairs ? data : { command: raw };
             const command = String(input.command || '').trim();
             if (!command) {
                 throw new Error('Bash requires a command string.');

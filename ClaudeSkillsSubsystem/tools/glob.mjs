@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { normalizePathSeparators, parseJsonInput } from './utils.mjs';
+import { normalizePathSeparators, parseKeyValueInput } from './utils.mjs';
 
 function escapeRegex(text) {
     return text.replace(/[.+^$|(){}\\]/g, '\\$&');
@@ -97,15 +97,15 @@ export function buildGlobTool() {
     return {
         description: `Find files by glob pattern.
 When to use: list or find files matching a pattern.
-How to call: pass JSON string with pattern and optional path (absolute or relative to project root).
+How to call: pass key:value pairs (newline or comma-separated). Required: pattern.
 Examples:
-- {"pattern":"**/*.js"}
-- {"pattern":"**/*.js","path":"src"}
-- {"pattern":"src/**/*.{ts,tsx}","path":"/abs/project"}
+- pattern: **/*.js
+- pattern: **/*.js\n  path: src
+- pattern: src/**/*.{ts,tsx}\n  path: /abs/project
 Notes: returns a JSON array of absolute file paths sorted by mtime desc.`,
         handler: async (_agent, promptText) => {
-            const { json, raw } = parseJsonInput(promptText);
-            const input = json && typeof json === 'object' ? json : { pattern: raw };
+            const { data, raw, hasPairs } = parseKeyValueInput(promptText);
+            const input = hasPairs ? data : { pattern: raw };
             const pattern = String(input.pattern || '').trim();
             if (!pattern) {
                 throw new Error('Glob requires a pattern.');

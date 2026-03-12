@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-import { isProbablyText, parseJsonInput, resolvePath } from './utils.mjs';
+import { isProbablyText, parseKeyValueInput, resolvePath } from './utils.mjs';
 
 const DEFAULT_LIMIT = 2000;
 const MAX_LINE_LENGTH = 2000;
@@ -24,15 +24,15 @@ export function buildReadTool() {
     return {
         description: `Read file contents from disk.
 When to use: read/open/show/view a file or inspect contents.
-How to call: pass JSON string with file_path (absolute or relative to project root), optional offset and limit.
+How to call: pass key:value pairs (newline or comma-separated). Required: file_path.
 Examples:
-- {"file_path":"/abs/path/file.txt"}
-- {"file_path":"relative/path/file.txt"}
-- {"file_path":"/abs/path/file.txt","offset":101,"limit":50}
+- file_path: /abs/path/file.txt
+- file_path: relative/path/file.txt
+- file_path: /abs/path/file.txt\n  offset: 101\n  limit: 50
 Notes: returns numbered lines for text; base64 for binary.`,
         handler: async (_agent, promptText) => {
-            const { json, raw } = parseJsonInput(promptText);
-            const input = json && typeof json === 'object' ? json : { file_path: raw };
+            const { data, raw, hasPairs } = parseKeyValueInput(promptText);
+            const input = hasPairs ? data : { file_path: raw };
             const filePath = resolvePath(input.file_path, 'file_path');
             const offset = input.offset ? Number(input.offset) : 1;
             const limit = input.limit ? Number(input.limit) : DEFAULT_LIMIT;

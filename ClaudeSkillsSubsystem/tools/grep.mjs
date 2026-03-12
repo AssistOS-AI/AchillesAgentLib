@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { parseJsonInput } from './utils.mjs';
+import { parseKeyValueInput } from './utils.mjs';
 
 function escapeRegex(text) {
     return text.replace(/[.+^$|(){}\\]/g, '\\$&');
@@ -133,17 +133,17 @@ function collectContentMatches(text, lineOffset, lineRegex, contextBefore, conte
 
 export function buildGrepTool() {
     return {
-        description: `Search file contents using regex (ripgrep).
+        description: `Search file contents using regex.
 When to use: search for text or patterns across files.
-How to call: pass JSON string with pattern and optional options (path, output_mode, glob, type, -i, -n, -A/-B/-C, multiline, head_limit). Paths can be absolute or relative to project root.
+How to call: pass key:value pairs (newline or comma-separated). Required: pattern.
 Examples:
-- {"pattern":"TODO","path":"/abs/project","output_mode":"files_with_matches"}
-- {"pattern":"TODO","path":"src","output_mode":"files_with_matches"}
-- {"pattern":"function\\s+\\w+","glob":"*.js","output_mode":"content","-n":true}
+- pattern: TODO\n  path: /abs/project\n  output_mode: files_with_matches
+- pattern: TODO\n  path: src\n  output_mode: files_with_matches
+- pattern: function\\s+\\w+\n  glob: *.js\n  output_mode: content\n  -n: true
 Notes: default output_mode is files_with_matches; returns empty string if no matches.`,
         handler: async (_agent, promptText) => {
-            const { json, raw } = parseJsonInput(promptText);
-            const input = json && typeof json === 'object' ? json : { pattern: raw };
+            const { data, raw, hasPairs } = parseKeyValueInput(promptText);
+            const input = hasPairs ? data : { pattern: raw };
             const pattern = String(input.pattern || '').trim();
             if (!pattern) {
                 throw new Error('Grep requires a pattern.');

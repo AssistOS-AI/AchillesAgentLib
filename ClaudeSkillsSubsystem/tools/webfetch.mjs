@@ -1,4 +1,4 @@
-import { parseJsonInput } from './utils.mjs';
+import { parseKeyValueInput } from './utils.mjs';
 
 function decodeHtmlEntities(text) {
     return text
@@ -26,21 +26,21 @@ export function buildWebFetchTool() {
     return {
         description: `Fetch web content from a URL.
 When to use: open or inspect a webpage.
-How to call: pass JSON string with url and prompt (prompt is required, but currently ignored).
+How to call: pass key:value pairs (newline or comma-separated). Required: url, prompt.
 Examples:
-- {"url":"https://example.com","prompt":"summarize"}
-- {"url":"https://example.com/docs","prompt":"extract headings"}
+- url: https://example.com\n  prompt: summarize
+- url: https://example.com/docs\n  prompt: extract headings
 Notes: returns plain text; HTML is stripped to text.`,
         handler: async (_agent, promptText) => {
-            const { json } = parseJsonInput(promptText);
-            if (!json || typeof json !== 'object') {
-                throw new Error('WebFetch requires JSON input with url and prompt.');
+            const { data } = parseKeyValueInput(promptText);
+            if (!data || typeof data !== 'object' || !Object.keys(data).length) {
+                throw new Error('WebFetch requires input with url and prompt.');
             }
-            const url = String(json.url || '').trim();
+            const url = String(data.url || '').trim();
             if (!url) {
                 throw new Error('WebFetch requires a url.');
             }
-            const prompt = String(json.prompt || '').trim();
+            const prompt = String(data.prompt || '').trim();
             if (!prompt) {
                 throw new Error('WebFetch requires a prompt.');
             }
