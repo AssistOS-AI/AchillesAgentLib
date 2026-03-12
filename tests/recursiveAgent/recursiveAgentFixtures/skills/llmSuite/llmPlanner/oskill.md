@@ -13,7 +13,7 @@ Coordinates available skills using model guidance.
 - llmReporter
 - llmData
 
-## Intents
+## Description
 
 - summary: prepare a digestible update.
 - data-fetch: gather raw numbers for analysis.

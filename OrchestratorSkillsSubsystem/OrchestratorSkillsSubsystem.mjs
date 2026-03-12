@@ -14,7 +14,7 @@ const SECTION_KEYS = {
     preparation: ['preparation', 'prep', 'context-prep'],
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
     allowedPrepSkills: ['allowed-prep-skills', 'allowed-preparation-skills', 'prep-skills'],
-    intents: ['intents', 'intentions', 'mappings'],
+    description: ['description'],
     sessionType: ['session', 'session type', 'session-type', 'session_type'],
 };
 
@@ -47,12 +47,12 @@ function hasSection(sections = {}, aliases = []) {
 
 function buildLoopSystemPrompt(skillRecord) {
     const sections = skillRecord.descriptor?.sections || skillRecord.preparedConfig?.sections || {};
-    const intentsText = pickSection(sections, SECTION_KEYS.intents).trim();
+    const descriptionText = pickSection(sections, SECTION_KEYS.description).trim();
     const instructionsText = skillRecord.preparedConfig?.instructions || '';
     const lines = [];
     lines.push('You must execute a skill that has the following description:');
-    if (intentsText) {
-        lines.push(intentsText);
+    if (descriptionText) {
+        lines.push(descriptionText);
     }
     lines.push('To do this you must respect the following instructions:');
     if (instructionsText) {
@@ -84,7 +84,7 @@ export class OrchestratorSkillsSubsystem {
         const allowedPrepSkills = normaliseBulletList(pickSection(sections, SECTION_KEYS.allowedPrepSkills))
             .map((name) => Sanitiser.sanitiseName(name))
             .filter(Boolean);
-        const intents = pickSection(sections, SECTION_KEYS.intents);
+        const description = pickSection(sections, SECTION_KEYS.description);
         const rawSessionType = pickSection(sections, SECTION_KEYS.sessionType).trim();
         const sessionType = rawSessionType && rawSessionType.toLowerCase() === 'loop'
             ? 'loop'
@@ -102,7 +102,7 @@ export class OrchestratorSkillsSubsystem {
             allowedSkills,
             allowedPrepSkills,
             allowedPrepSkillsSectionPresent,
-            intents,
+            description,
             sessionType: sessionType || null,
         };
     }

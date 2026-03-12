@@ -14,7 +14,7 @@ This orchestrator coordinates logistics reporting and MCP lookups.
 - report
 - data
 
-## Intents
+## Description
 
 - reporting: Prepare human readable summaries or status updates.
 - data-fetch: Retrieve underlying inventory or operational records.

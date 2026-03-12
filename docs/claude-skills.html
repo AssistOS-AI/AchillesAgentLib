@@ -100,9 +100,16 @@ Use this skill to run a lightweight keyword check against a local static site.
                 instructions in SKILL.md.
             </p>
             <ul>
+                <li><strong>ask-user</strong>: Ask the user for missing info or confirmation (exposed via the internal <code>ask-user</code> skill, not the tools folder).</li>
+                <li><strong>read</strong>: Read file contents from disk using an absolute <code>file_path</code>.</li>
+                <li><strong>write</strong>: Create or overwrite a file with new content.</li>
+                <li><strong>edit</strong>: Replace exact text in a file.</li>
+                <li><strong>glob</strong>: Find files by glob pattern.</li>
+                <li><strong>grep</strong>: Search file contents using regex.</li>
+                <li><strong>bash</strong>: Run a shell command.</li>
+                <li><strong>webfetch</strong>: Fetch and return text from a URL.</li>
                 <li><strong>run-script</strong>: Executes commands in <code>scripts/</code>. Accepts full command strings and resolves paths safely.</li>
                 <li><strong>get-resource</strong>: Reads files from <code>resources/</code>. Accepts <code>resources/file</code> or file name.</li>
-                <li><strong>ask-user</strong>: Optional user clarification when interactive input is available.</li>
             </ul>
             <p>
                 Assets are intentionally not surfaced. They are available for scripts or downstream tooling but are not injected into LLM context.

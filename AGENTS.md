@@ -217,7 +217,7 @@ Guidelines for the LLM when creating execution plans.
 - skill-two
 - skill-three
 
-## Intents
+## Description
 - create: Creating new items
 - update: Updating existing items
 - query: Querying data

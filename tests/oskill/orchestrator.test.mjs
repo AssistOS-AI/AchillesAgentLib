@@ -90,7 +90,7 @@ test('prepareSkill parses descriptor sections correctly', () => {
             sections: {
                 instructions: 'Test instructions',
                 'allowed-skills': '- skill1\n- skill2',
-                intents: 'reporting: Generate reports\ndata: Fetch data',
+                description: 'reporting: Generate reports\ndata: Fetch data',
                 session: 'sop',
             },
         },
@@ -102,7 +102,7 @@ test('prepareSkill parses descriptor sections correctly', () => {
     assert.equal(skillRecord.preparedConfig.rawContent, 'Test body');
     assert.equal(skillRecord.preparedConfig.instructions, 'Test instructions');
     assert.deepEqual(skillRecord.preparedConfig.allowedSkills, ['skill1', 'skill2']);
-    assert.equal(skillRecord.preparedConfig.intents, 'reporting: Generate reports\ndata: Fetch data');
+    assert.equal(skillRecord.preparedConfig.description, 'reporting: Generate reports\ndata: Fetch data');
     assert.equal(skillRecord.preparedConfig.sessionType, null);
     });
 

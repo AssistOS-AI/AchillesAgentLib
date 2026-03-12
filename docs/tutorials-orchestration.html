@@ -41,7 +41,7 @@
 
         <section>
             <h2>Primary Descriptor</h2>
-            <p><code>oskill.md</code> defines the instructions, allow-lists, and intents consumed by the orchestration skill.</p>
+            <p><code>oskill.md</code> defines the instructions, allow-lists, and description consumed by the orchestration skill.</p>
             <pre><code># Planner Orchestrator
 
 This orchestrator coordinates logistics reporting and MCP lookups.
@@ -58,7 +58,7 @@ This orchestrator coordinates logistics reporting and MCP lookups.
 - report
 - data
 
-## Intents
+## Description
 
 - reporting: Prepare human readable summaries or status updates.
 - data-fetch: Retrieve underlying inventory or operational records.</code></pre>
@@ -101,7 +101,7 @@ true</code></pre>
         <section>
             <h2>Execution Flow</h2>
             <ol>
-                <li><strong>Discovery:</strong> The loader parses <code>oskill.md</code>, extracting instructions, allowed skills, intents, and optional loop metadata.</li>
+                <li><strong>Discovery:</strong> The loader parses <code>oskill.md</code>, extracting instructions, allowed skills, description, and optional loop metadata.</li>
                 <li><strong>Toolbelt Assembly:</strong> Each allowed skill becomes a callable handler plus a short description.</li>
                 <li><strong>Agentic Session:</strong> The subsystem launches <em>executeSOPAgentSession</em> by default or <em>executeLoopAgentSession</em> when <code>## Loop</code> is set.</li>
                 <li><strong>Delegation:</strong> Session commands call back into <code>RecursiveSkilledAgent</code> with explicit <code>skillName</code> values.</li>
