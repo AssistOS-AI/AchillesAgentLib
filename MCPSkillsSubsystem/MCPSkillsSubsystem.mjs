@@ -2,6 +2,7 @@ import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import LightSOPLangInterpreter, { DefaultExecutionMonitor } from '../lightSOPLang/index.mjs';
 import { createAgentClient } from './AgentClient.js';
+import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
 const DEFAULT_PLAN_LIMIT = 3;
 const SECTION_ALIASES = {
@@ -116,6 +117,10 @@ export class MCPSkillsSubsystem {
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 
+    parseSkillDescriptor({ filePath }) {
+        return parseSkillDocument(filePath);
+    }
+
     async executePlanWithClient({ client, plan = [], promptText, allowedTools = [] }) {
         if (!client || typeof client.callTool !== 'function') {
             throw new Error('MCP tool execution requested but no valid AgentClient was provided.');
@@ -179,11 +184,10 @@ export class MCPSkillsSubsystem {
         const instructions = pickSection(sections, SECTION_ALIASES.instructions);
         const allowedTools = normaliseListSection(pickSection(sections, SECTION_ALIASES.allowedTools));
 
-        skillRecord.metadata = {
+        skillRecord.preparedConfig = {
             type: this.type,
-            title: descriptor?.title || null,
-            summary: descriptor?.summary || null,
-            body: descriptor?.body || null,
+            name: descriptor?.name || null,
+            rawContent: descriptor?.rawContent || null,
             sections,
             instructions: instructions || '',
             allowedTools: allowedTools.map((name) => Sanitiser.sanitiseName(name)),
@@ -257,13 +261,13 @@ export class MCPSkillsSubsystem {
     }
 
     async executeScriptPlan({ skillRecord, promptText, tools, options }) {
-        const allowList = skillRecord?.metadata?.allowedTools || [];
+        const allowList = skillRecord?.preparedConfig?.allowedTools || [];
         const filteredTools = this.filterTools(allowList, tools);
         if (!filteredTools.length) {
             throw new Error(`MCP skill "${skillRecord.name}" requires at least one allowed tool.`);
         }
 
-        const script = (skillRecord.metadata?.script || '').trim();
+        const script = (skillRecord.preparedConfig?.script || '').trim();
         if (!script) {
             throw new Error(`MCP skill "${skillRecord.name}" is missing a LightSOPLang script section.`);
         }
@@ -286,7 +290,7 @@ export class MCPSkillsSubsystem {
 
         return {
             skill: skillRecord.name,
-            metadata: skillRecord.metadata || null,
+            preparedConfig: skillRecord.preparedConfig || null,
             result: {
                 type: this.type,
                 prompt: promptText,
@@ -300,9 +304,9 @@ export class MCPSkillsSubsystem {
     }
 
     async generatePlan({ skillRecord, promptText, tools }) {
-        const allowList = skillRecord?.metadata?.allowedTools || [];
+        const allowList = skillRecord?.preparedConfig?.allowedTools || [];
         const filteredTools = this.filterTools(allowList, tools);
-        const planLimit = skillRecord.metadata?.planLimit || DEFAULT_PLAN_LIMIT;
+        const planLimit = skillRecord.preparedConfig?.planLimit || DEFAULT_PLAN_LIMIT;
         this.debugLogger?.log('MCPSkillsSubsystem:generatePlan:start', {
             skill: skillRecord.name,
             toolCount: filteredTools.length,
@@ -319,7 +323,7 @@ export class MCPSkillsSubsystem {
 
         const prompt = buildSelectionPrompt({
             skillName: skillRecord.name,
-            instructions: skillRecord.metadata?.instructions,
+            instructions: skillRecord.preparedConfig?.instructions,
             promptText,
             availableTools: filteredTools,
             planLimit,
@@ -397,7 +401,7 @@ export class MCPSkillsSubsystem {
             createdClient = true;
         }
 
-        const allowList = skillRecord.metadata?.allowedTools || [];
+        const allowList = skillRecord.preparedConfig?.allowedTools || [];
 
         if (!tools.length && shouldExecute && typeof agentClient?.listTools === 'function') {
             try {
@@ -413,7 +417,7 @@ export class MCPSkillsSubsystem {
 
         tools = this.filterTools(allowList, tools);
 
-        const script = (skillRecord.metadata?.script || '').trim();
+        const script = (skillRecord.preparedConfig?.script || '').trim();
         if (script) {
             let outcome;
             try {
@@ -432,7 +436,7 @@ export class MCPSkillsSubsystem {
                         client: agentClient,
                         plan: outcome.result.plan || [],
                         promptText,
-                        allowedTools: skillRecord.metadata?.allowedTools || [],
+                        allowedTools: skillRecord.preparedConfig?.allowedTools || [],
                     });
                 }
             } finally {
@@ -458,11 +462,11 @@ export class MCPSkillsSubsystem {
 
             const result = {
                 skill: skillRecord.name,
-                metadata: skillRecord.metadata || null,
+                preparedConfig: skillRecord.preparedConfig || null,
                 result: {
                     type: this.type,
                     prompt: promptText,
-                    instructions: skillRecord.metadata?.instructions || '',
+                    instructions: skillRecord.preparedConfig?.instructions || '',
                     plan: plan.plan,
                     notes: plan.notes,
                     availableTools: this.filterTools(skillRecord, tools),
@@ -478,7 +482,7 @@ export class MCPSkillsSubsystem {
                     client: agentClient,
                     plan: plan.plan,
                     promptText,
-                    allowedTools: skillRecord.metadata?.allowedTools || [],
+                    allowedTools: skillRecord.preparedConfig?.allowedTools || [],
                 });
             }
 

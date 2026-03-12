@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { isDirectory, isReadableFile } from '../utils/fileUtils.mjs';
-import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 import { SKILL_FILE_TYPES } from '../constants/skillFileTypes.mjs';
 import { Sanitiser } from '../../utils/Sanitiser.mjs';
 
@@ -314,19 +313,18 @@ export class SkillDiscoveryService {
      * @returns {Object} The skill record
      */
     _createSkillRecord({ filePath, type, skillDir }) {
-        const descriptor = parseSkillDocument(filePath);
         const shortName = path.basename(skillDir);
-        const baseName = sanitiseName(descriptor?.title || shortName);
+        const baseName = sanitiseName(shortName);
         const canonicalName = sanitiseName(`${baseName}-${type}`) || sanitiseName(`${shortName}-${type}`);
 
         return {
             name: canonicalName,
             type,
-            descriptor,
+            descriptor: null,
             filePath,
             skillDir,
             shortName,
-            metadata: null,
+            preparedConfig: null,
         };
     }
 }

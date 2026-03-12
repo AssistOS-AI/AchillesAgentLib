@@ -82,8 +82,8 @@ test('Proofread code skill polishes input text', async (t) => {
 
         assert.equal(result.skill, 'proofread-polisher-dynamic-code-generation');
         console.info('[dcgSkills.test] proofread result:', result.result);
-    assert.equal(result.metadata.type, 'dynamic-code-generation');
-        assert.equal(result.metadata.llmMode, 'fast');
+        assert.equal(result.preparedConfig.type, 'dynamic-code-generation');
+        assert.equal(result.preparedConfig.llmMode, 'fast');
         const normalized = result.result.trim().toLowerCase();
         assert.ok(normalized.startsWith('this is a test'));
     } catch (error) {
@@ -109,8 +109,8 @@ test('Large number multiplication uses code execution', async (t) => {
 
         assert.equal(result.skill, 'large-number-multiplier-dynamic-code-generation');
         console.info('[dcgSkills.test] multiply result:', result.result);
-    assert.equal(result.metadata.type, 'dynamic-code-generation');
-        assert.equal(result.metadata.llmMode, 'fast');
+        assert.equal(result.preparedConfig.type, 'dynamic-code-generation');
+        assert.equal(result.preparedConfig.llmMode, 'fast');
         assert.ok(result.result.includes('12193263211705532552354824112635269'));
     } catch (error) {
         console.error('Test failure diagnostic:', error);
@@ -135,8 +135,8 @@ test('Math evaluator computes arithmetic mean with generated code', async (t) =>
 
         assert.equal(result.skill, 'math-expression-evaluator-dynamic-code-generation');
         console.info('[dcgSkills.test] math result:', result.result);
-    assert.equal(result.metadata.type, 'dynamic-code-generation');
-        assert.equal(result.metadata.llmMode, 'deep');
+        assert.equal(result.preparedConfig.type, 'dynamic-code-generation');
+        assert.equal(result.preparedConfig.llmMode, 'code');
         assert.ok(typeof result.result === 'string');
         assert.ok(result.result && result.result.length > 0);
         const normalized = result.result.toLowerCase();

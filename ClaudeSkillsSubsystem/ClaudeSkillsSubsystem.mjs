@@ -4,6 +4,7 @@ import path from 'node:path';
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../LLMAgents/constants.mjs';
 import { buildClaudeTools } from './tools.mjs';
+import { parseClaudeSkillDocument } from './parseDescriptor.mjs';
 
 function listFiles(rootDir, baseDir) {
     if (!rootDir || !fs.existsSync(rootDir)) {
@@ -52,6 +53,10 @@ export class ClaudeSkillsSubsystem {
         this.llmAgent = llmAgent;
     }
 
+    parseSkillDescriptor({ filePath }) {
+        return parseClaudeSkillDocument(filePath);
+    }
+
     prepareSkill(skillRecord) {
         const { descriptor, skillDir } = skillRecord;
         const scriptsDir = skillDir ? path.join(skillDir, 'scripts') : null;
@@ -60,11 +65,10 @@ export class ClaudeSkillsSubsystem {
         const scripts = listFiles(scriptsDir, skillDir);
         const resources = listFiles(resourcesDir, skillDir);
 
-        skillRecord.metadata = {
+        skillRecord.preparedConfig = {
             type: this.type,
-            title: descriptor?.title || null,
-            summary: descriptor?.summary || null,
-            body: descriptor?.body || null,
+            name: descriptor?.name || null,
+            rawContent: descriptor?.rawContent || null,
             sections: descriptor?.sections || {},
             scripts,
             resources,
@@ -97,7 +101,7 @@ export class ClaudeSkillsSubsystem {
         if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {
             result = await session.newPrompt(promptText);
         } else {
-            const skillBody = skillRecord?.descriptor?.body || skillRecord?.metadata?.body || '';
+            const skillBody = skillRecord?.descriptor?.rawContent || skillRecord?.preparedConfig?.rawContent || '';
             const sessionOptions = {
                 mode: options?.mode || 'plan',
                 systemPrompt: skillBody || undefined,
@@ -114,7 +118,7 @@ export class ClaudeSkillsSubsystem {
 
         return {
             skill: skillRecord.name,
-            metadata: skillRecord.metadata || null,
+            preparedConfig: skillRecord.preparedConfig || null,
             result,
             session: 'loop',
             sessionMemory,

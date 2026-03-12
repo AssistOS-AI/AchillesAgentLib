@@ -8,6 +8,7 @@ import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import { SKILL_FILE_TYPES, SKILL_FILE_NAMES } from './constants/skillFileTypes.mjs';
 import { DEFAULT_SESSION_ID, DEFAULT_SESSION_CONFIG } from './constants/sessionConfig.mjs';
 import { isDirectory, isReadableFile } from './utils/fileUtils.mjs';
+import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { SubsystemFactory } from './services/SubsystemFactory.mjs';
 import { SkillRegistry } from './services/SkillRegistry.mjs';
 import { SkillDiscoveryService } from './services/SkillDiscoveryService.mjs';
@@ -208,18 +209,31 @@ export class RecursiveSkilledAgent {
                     if (skillDir.endsWith(`${path.sep}src`)) {
                         skillDir = path.dirname(skillDir);
                     }
+                    const subsystem = this.subsystemFactory.get(skillType);
+                    if (!definition.descriptorFilePath || !subsystem?.parseSkillDescriptor) {
+                        throw new Error(`Internal skill "${name}" is missing a descriptor file or parser.`);
+                    }
+                    const descriptor = subsystem.parseSkillDescriptor({
+                        filePath: definition.descriptorFilePath,
+                        skillDir,
+                        shortName: definition.shortName || name,
+                    });
+                    const baseName = Sanitiser.sanitiseName(descriptor?.name || definition.shortName || name);
+                    const canonicalName = Sanitiser.sanitiseName(`${baseName}-${skillType}`)
+                        || Sanitiser.sanitiseName(`${definition.shortName || name}-${skillType}`);
                     const skillRecord = {
-                        name,
+                        name: canonicalName,
                         shortName: definition.shortName || name,
                         type: skillType,
                         skillDir,
                         filePath: definition.modulePath,
-                        descriptor: definition.descriptor || {},
-                        metadata: {
+                        descriptor,
+                        preparedConfig: {
                             type: skillType,
                             modulePath: definition.modulePath,
-                            title: definition.descriptor?.title || null,
-                            summary: definition.descriptor?.summary || null,
+                            name: descriptor?.name || null,
+                            rawContent: descriptor?.rawContent || null,
+                            sections: descriptor?.sections || {},
                         },
                     };
 
@@ -240,6 +254,30 @@ export class RecursiveSkilledAgent {
      * @private
      */
     _registerSkill(skillRecord) {
+        const subsystem = this.subsystemFactory.get(skillRecord.type);
+        if (subsystem && typeof subsystem.parseSkillDescriptor === 'function') {
+            try {
+                skillRecord.descriptor = subsystem.parseSkillDescriptor({
+                    filePath: skillRecord.filePath,
+                    skillDir: skillRecord.skillDir,
+                    shortName: skillRecord.shortName,
+                });
+            } catch (error) {
+                this.logger.warn(`[RecursiveSkilledAgent] Failed to parse skill ${skillRecord.shortName}: ${error.message}`);
+            }
+        }
+        if (!skillRecord.descriptor) {
+            skillRecord.descriptor = {
+                name: skillRecord.shortName,
+                rawContent: '',
+                sections: {},
+            };
+        }
+        const baseName = Sanitiser.sanitiseName(skillRecord.descriptor?.name || skillRecord.shortName);
+        const canonicalName = Sanitiser.sanitiseName(`${baseName}-${skillRecord.type}`)
+            || Sanitiser.sanitiseName(`${skillRecord.shortName}-${skillRecord.type}`);
+        skillRecord.name = canonicalName;
+
         const registered = this.registry.register(skillRecord);
         if (!registered) {
             return;
@@ -260,7 +298,6 @@ export class RecursiveSkilledAgent {
         }
 
         // Prepare skill with its subsystem
-        const subsystem = this.subsystemFactory.get(skillRecord.type);
         if (subsystem && typeof subsystem.prepareSkill === 'function') {
             try {
                 const prep = subsystem.prepareSkill(skillRecord, this);

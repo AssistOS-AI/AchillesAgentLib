@@ -9,7 +9,7 @@ test('resolveAllowedSkills allows all skill types except self when no allowlist'
 
     const skillRecord = {
         name: 'orchestrator-skill',
-        metadata: { allowedSkills: [] },
+        preparedConfig: { allowedSkills: [] },
     };
 
     const allSkills = [
@@ -39,7 +39,7 @@ test('resolveAllowedSkills excludes self from allowed skills', () => {
 
     const skillRecord = {
         name: 'self-orchestrator',
-        metadata: { allowedSkills: [] },
+        preparedConfig: { allowedSkills: [] },
     };
 
     const allSkills = [
@@ -62,7 +62,7 @@ test('resolveAllowedSkills respects allowedSkills list when provided', () => {
 
     const skillRecord = {
         name: 'orchestrator-skill',
-        metadata: { allowedSkills: ['allowed-skill'] },
+        preparedConfig: { allowedSkills: ['allowed-skill'] },
     };
 
     const allSkills = [
@@ -85,9 +85,8 @@ test('prepareSkill parses descriptor sections correctly', () => {
 
     const skillRecord = {
         descriptor: {
-            title: 'Test Orchestrator',
-            summary: 'Test summary',
-            body: 'Test body',
+            name: 'Test Orchestrator',
+            rawContent: 'Test body',
             sections: {
                 instructions: 'Test instructions',
                 'allowed-skills': '- skill1\n- skill2',
@@ -99,31 +98,29 @@ test('prepareSkill parses descriptor sections correctly', () => {
 
     subsystem.prepareSkill(skillRecord);
 
-    assert.equal(skillRecord.metadata.title, 'Test Orchestrator');
-    assert.equal(skillRecord.metadata.summary, 'Test summary');
-    assert.equal(skillRecord.metadata.body, 'Test body');
-    assert.equal(skillRecord.metadata.instructions, 'Test instructions');
-    assert.deepEqual(skillRecord.metadata.allowedSkills, ['skill1', 'skill2']);
-    assert.equal(skillRecord.metadata.intents, 'reporting: Generate reports\ndata: Fetch data');
-    assert.equal(skillRecord.metadata.sessionType, null);
+    assert.equal(skillRecord.preparedConfig.name, 'Test Orchestrator');
+    assert.equal(skillRecord.preparedConfig.rawContent, 'Test body');
+    assert.equal(skillRecord.preparedConfig.instructions, 'Test instructions');
+    assert.deepEqual(skillRecord.preparedConfig.allowedSkills, ['skill1', 'skill2']);
+    assert.equal(skillRecord.preparedConfig.intents, 'reporting: Generate reports\ndata: Fetch data');
+    assert.equal(skillRecord.preparedConfig.sessionType, null);
     });
 
-test('buildToolDescriptions generates descriptions from skill metadata', () => {
+test('buildToolDescriptions generates descriptions from skill descriptor', () => {
     const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: new StubLLMAgent() });
 
     const allowedSkills = [
         {
             descriptor: {
-                body: 'Primary description',
-                summary: 'Summary description',
-                title: 'Skill Title',
+                rawContent: 'Primary description',
+                name: 'Skill Title',
             },
             shortName: 'short',
             name: 'full-skill-name',
         },
         {
             descriptor: {
-                summary: 'Only summary',
+                rawContent: 'Only summary',
             },
             shortName: 'short2',
             name: 'skill2',
@@ -147,7 +144,7 @@ test('executeLoopAgentSession is used when sessionType is set', async () => {
 
     const skillRecord = {
         name: 'test-orchestrator',
-        metadata: {
+        preparedConfig: {
             sessionType: 'loop',
             instructions: 'Loop instructions',
             allowedSkills: ['skill1'],

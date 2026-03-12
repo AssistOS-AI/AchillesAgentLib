@@ -1640,6 +1640,12 @@ export async function selectFlow(controller, operation, execContext, sessionMemo
     if (postFilters.length === 0 && structuredPostFilters.length > 0) {
         postFilters = structuredPostFilters;
     }
+    if (postFilters.length === 0 && !llmUnavailable) {
+        const promptPostFilters = parseSelectConditionsFromPrompt(controller, prompt);
+        if (promptPostFilters.length > 0) {
+            postFilters = promptPostFilters;
+        }
+    }
     if (postFilters.length === 0) {
         const enumFallbackPostFilters = inferEnumSelectFallbackPostFilters(controller, prompt);
         const textSearchFallbackPostFilters = inferBroadTextSearchFallbackPostFilters(controller, prompt, filteredRecords);

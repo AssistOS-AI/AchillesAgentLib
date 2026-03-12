@@ -69,12 +69,12 @@ async function runTest() {
 
   await Promise.all(agent.pendingPreparations || []);
 
-  const result = await agent.executePrompt('generate: Hello', {
+  const result = await agent.executePrompt('generate: John Doe 25', {
     skillName: 'generate-text',
   });
 
-  assert.strictEqual(result.result, 'OK');
-  console.log('✅ llmAgent injected for cskill');
+  assert.strictEqual(result.result, 'Full Name: John Doe, Age: 25 (Adult)');
+  console.log('✅ cskill execution uses generated entrypoint');
 }
 
 runTest().catch((error) => {

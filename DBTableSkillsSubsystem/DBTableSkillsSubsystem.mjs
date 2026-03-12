@@ -7,6 +7,7 @@ import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
 import { ConversationalTskillController } from './ConversationalTskillController.mjs';
 import { tskillToSpecs } from './tskillToSpecs.mjs';
 import { action as runMirrorCodeAction } from '../RecursiveSkilledAgents/mirror-code-generator/src/index.mjs';
+import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
@@ -332,6 +333,10 @@ export class DBTableSkillsSubsystem {
         this.cache = new Map();
         this.functionCache = new Map();
         this.executors = new Map();
+    }
+
+    parseSkillDescriptor({ filePath }) {
+        return parseSkillDocument(filePath);
     }
 
     isDeleteGuardEnabled(parsedSkill) {
@@ -993,8 +998,8 @@ export class DBTableSkillsSubsystem {
             }
         }
 
-        // Store metadata
-        skillRecord.metadata = {
+        // Store prepared config
+        skillRecord.preparedConfig = {
             type: 'dbtable',
             tableName: parsedSkill.tableName,
             tablePurpose: parsedSkill.tablePurpose,
@@ -1002,9 +1007,8 @@ export class DBTableSkillsSubsystem {
             functions: functions,
             filePath: tskillPath,
             skillDir,
-            title: descriptor?.title || parsedSkill.tableName,
-            summary: descriptor?.summary || parsedSkill.tablePurpose,
-            body: descriptor?.body || null,
+            name: descriptor?.name || parsedSkill.tableName,
+            rawContent: descriptor?.rawContent || null,
             sections: descriptor?.sections || {},
             defaultArgument: DB_TABLE_ARGUMENT_NAME
         };
@@ -1466,7 +1470,7 @@ return {
                 const details = error?.message || String(error);
                 return {
                     skill: skillRecord.name,
-                    metadata: skillRecord.metadata || null,
+                    preparedConfig: skillRecord.preparedConfig || null,
                     result: {
                         success: false,
                         operation: 'SYSTEM',
@@ -1480,7 +1484,7 @@ return {
         if (!executor) {
             return {
                 skill: skillRecord.name,
-                metadata: skillRecord.metadata || null,
+                preparedConfig: skillRecord.preparedConfig || null,
                 result: {
                     success: false,
                     operation: 'SYSTEM',
@@ -1498,7 +1502,7 @@ return {
         if (!prompt) {
             return {
                 skill: skillRecord.name,
-                metadata: skillRecord.metadata || null,
+                preparedConfig: skillRecord.preparedConfig || null,
                 result: {
                     success: false,
                     operation: 'SYSTEM',
@@ -1530,7 +1534,7 @@ return {
 
         return {
             skill: skillRecord.name,
-            metadata: skillRecord.metadata || null,
+            preparedConfig: skillRecord.preparedConfig || null,
             result,
             sessionMemory,
         };

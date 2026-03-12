@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
 const CODE_ARGUMENT_NAME = 'input';
 const DEFAULT_CODE_ARGUMENT_DESCRIPTION = 'Primary natural-language instruction or text payload.';
@@ -176,7 +177,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
             }
         }
 
-        const execution = Promise.resolve(cached({
+        const payload = {
             llmAgent,
             recursiveAgent: invocation.recursiveAgent,
             sessionMemory: invocation.sessionMemory,
@@ -185,7 +186,10 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
             input: invocation.input,
             promptText: invocation.promptText,
             attachments: invocation.attachments,
-        }));
+            llmMode,
+            skillName,
+        };
+        const execution = Promise.resolve(cached(payload));
 
         const result = await withTimeout(
             execution,
@@ -264,6 +268,10 @@ export class DynamicCodeGenerationSubsystem {
         this.executors = new Map();
     }
 
+    parseSkillDescriptor({ filePath }) {
+        return parseSkillDocument(filePath);
+    }
+
     prepareSkill(skillRecord) {
         const { descriptor, skillDir, filePath } = skillRecord;
         const sections = descriptor?.sections || {};
@@ -286,15 +294,14 @@ export class DynamicCodeGenerationSubsystem {
             }
         }
 
-        skillRecord.metadata = {
+        skillRecord.preparedConfig = {
             type: 'dynamic-code-generation',
             prompt,
             modulePath: moduleExists ? localModulePath : null,
             filePath,
             skillDir,
-            title: descriptor?.title || null,
-            summary: descriptor?.summary || null,
-            body: descriptor?.body || null,
+            name: descriptor?.name || null,
+            rawContent: descriptor?.rawContent || null,
             sections,
             defaultArgument: CODE_ARGUMENT_NAME,
             argumentDescription,
@@ -353,7 +360,7 @@ export class DynamicCodeGenerationSubsystem {
 
         return {
             skill: skillRecord.name,
-            metadata: skillRecord.metadata || null,
+            preparedConfig: skillRecord.preparedConfig || null,
             result,
             sessionMemory,
         };

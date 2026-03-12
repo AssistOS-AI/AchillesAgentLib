@@ -34,7 +34,7 @@ export class SkillRegistry {
      * @param {string} skillRecord.name - Canonical skill name
      * @param {string} skillRecord.type - Skill type (dynamic-code-generation, mcp, orchestrator, dbtable, claude, cskill)
      * @param {string} skillRecord.shortName - Short name for the skill
-     * @param {Object} skillRecord.descriptor - Parsed skill descriptor
+     * @param {Object} skillRecord.descriptor - Parsed skill descriptor ({ name, rawContent, sections })
      * @returns {boolean} True if registration was successful (passed filter)
      */
     register(skillRecord) {
@@ -44,8 +44,8 @@ export class SkillRegistry {
             type,
             filePath,
             skillDir,
-            title: descriptor?.title,
-            summary: descriptor?.summary,
+            name: descriptor?.name,
+            rawContent: descriptor?.rawContent,
             sections: descriptor?.sections,
         });
 
@@ -53,7 +53,7 @@ export class SkillRegistry {
             return false;
         }
 
-        const baseName = sanitiseName(descriptor?.title || shortName);
+        const baseName = sanitiseName(descriptor?.name || shortName);
         const aliases = new Set([
             name,
             sanitiseName(name),

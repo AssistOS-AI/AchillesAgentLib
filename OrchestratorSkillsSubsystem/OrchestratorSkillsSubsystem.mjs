@@ -1,6 +1,7 @@
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../LLMAgents/constants.mjs';
+import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
@@ -45,9 +46,9 @@ function hasSection(sections = {}, aliases = []) {
 }
 
 function buildLoopSystemPrompt(skillRecord) {
-    const sections = skillRecord.descriptor?.sections || skillRecord.metadata?.sections || {};
+    const sections = skillRecord.descriptor?.sections || skillRecord.preparedConfig?.sections || {};
     const intentsText = pickSection(sections, SECTION_KEYS.intents).trim();
-    const instructionsText = skillRecord.metadata?.instructions || '';
+    const instructionsText = skillRecord.preparedConfig?.instructions || '';
     const lines = [];
     lines.push('You must execute a skill that has the following description:');
     if (intentsText) {
@@ -65,6 +66,10 @@ export class OrchestratorSkillsSubsystem {
         this.type = 'orchestrator';
         this.llmAgent = llmAgent;
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
+    }
+
+    parseSkillDescriptor({ filePath }) {
+        return parseSkillDocument(filePath);
     }
 
     prepareSkill(skillRecord) {
@@ -87,11 +92,10 @@ export class OrchestratorSkillsSubsystem {
 
         debugLog(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}"`);
 
-        skillRecord.metadata = {
+        skillRecord.preparedConfig = {
             type: this.type,
-            title: skillRecord.descriptor?.title || null,
-            summary: skillRecord.descriptor?.summary || null,
-            body: skillRecord.descriptor?.body || null,
+            name: skillRecord.descriptor?.name || null,
+            rawContent: skillRecord.descriptor?.rawContent || null,
             sections,
             instructions,
             preparation: preparation || null,
@@ -106,7 +110,7 @@ export class OrchestratorSkillsSubsystem {
     resolveAllowedSkills(skillRecord, recursiveAgent) {
         const allSkills = Array.from(recursiveAgent.skillCatalog.values());
         const selfCanonical = Sanitiser.sanitiseName(skillRecord.name);
-        const allowList = skillRecord.metadata?.allowedSkills || [];
+        const allowList = skillRecord.preparedConfig?.allowedSkills || [];
 
         const filtered = allSkills.filter((record) => {
             const canonical = Sanitiser.sanitiseName(record.name);
@@ -123,8 +127,8 @@ export class OrchestratorSkillsSubsystem {
     }
 
     resolveAllowedPrepSkills(skillRecord, recursiveAgent, fallbackSkills = null) {
-        const allowList = skillRecord.metadata?.allowedPrepSkills || [];
-        const sectionPresent = Boolean(skillRecord.metadata?.allowedPrepSkillsSectionPresent);
+        const allowList = skillRecord.preparedConfig?.allowedPrepSkills || [];
+        const sectionPresent = Boolean(skillRecord.preparedConfig?.allowedPrepSkillsSectionPresent);
 
         if (!sectionPresent) {
             return Array.isArray(fallbackSkills)
@@ -174,7 +178,7 @@ export class OrchestratorSkillsSubsystem {
         const descriptions = {};
         allowedSkills.forEach(skillRecord => {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-            descriptions[toolName] = skillRecord.descriptor?.body || skillRecord.descriptor?.summary || skillRecord.descriptor?.title || skillRecord.name;
+            descriptions[toolName] = skillRecord.descriptor?.rawContent || skillRecord.descriptor?.name || skillRecord.name;
         });
         return descriptions;
     }
@@ -215,7 +219,7 @@ export class OrchestratorSkillsSubsystem {
             },
             listCommands: () => allowedSkills.map(s => ({
                 name: Sanitiser.sanitiseName(s.shortName || s.name),
-                description: s.descriptor?.summary || s.descriptor?.title || s.name,
+                description: s.descriptor?.name || s.name,
             })),
         };
     }
@@ -240,8 +244,8 @@ export class OrchestratorSkillsSubsystem {
         const prepDescriptions = this.buildToolDescriptions(allowedPrepSkills);
         const prepToolsWithDescriptions = this.buildToolsWithDescriptions(allowedPrepSkills, prepTools, prepDescriptions);
 
-        const preparation = skillRecord.metadata?.preparation
-            ? { text: skillRecord.metadata.preparation, retries: 1, tools: prepToolsWithDescriptions }
+        const preparation = skillRecord.preparedConfig?.preparation
+            ? { text: skillRecord.preparedConfig.preparation, retries: 1, tools: prepToolsWithDescriptions }
             : null;
 
         if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {
@@ -276,7 +280,7 @@ export class OrchestratorSkillsSubsystem {
 
         return {
             skill: skillRecord.name,
-            metadata: skillRecord.metadata || null,
+            preparedConfig: skillRecord.preparedConfig || null,
             result: result,
             session: 'loop',
             sessionMemory: sessionMemory,
@@ -293,9 +297,9 @@ export class OrchestratorSkillsSubsystem {
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
         const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools);
 
-        const preparation = skillRecord.metadata?.preparation
+        const preparation = skillRecord.preparedConfig?.preparation
             ? {
-                text: skillRecord.metadata.preparation,
+                text: skillRecord.preparedConfig.preparation,
                 retries: 1,
                 skillsDescription: prepSkillsDescription,
                 commandsRegistry: prepCommandsRegistry,
@@ -303,7 +307,7 @@ export class OrchestratorSkillsSubsystem {
             : null;
 
         const sessionOptions = {
-            systemPrompt: skillRecord.metadata?.instructions || 'Plan and execute skills to satisfy the user request.',
+            systemPrompt: skillRecord.preparedConfig?.instructions || 'Plan and execute skills to satisfy the user request.',
             mode: options?.mode || 'plan',
             planOnly: false,
             commandsRegistry,
@@ -316,7 +320,7 @@ export class OrchestratorSkillsSubsystem {
 
         return {
             skill: skillRecord.name,
-            metadata: skillRecord.metadata || null,
+            preparedConfig: skillRecord.preparedConfig || null,
             result: result,
             variables,
             session: 'sop',
@@ -330,7 +334,7 @@ export class OrchestratorSkillsSubsystem {
         promptText,
         options = {},
     }) {
-        const sessionType = String(skillRecord.metadata?.sessionType || '').trim().toLowerCase();
+        const sessionType = String(skillRecord.preparedConfig?.sessionType || '').trim().toLowerCase();
         debugLog(`[Orchestrator] Skill "${skillRecord.name}" sessionType="${sessionType}" → ${sessionType === 'loop' ? 'LoopSession' : 'SOPSession'}`);
         if (sessionType === 'loop') {
             return this.executeLoopAgentSession({

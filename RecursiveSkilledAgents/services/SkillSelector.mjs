@@ -39,15 +39,14 @@ export class SkillSelector {
 
     /**
      * Build searchable text from a skill record.
-     * Combines title, summary, and body for full-text search.
+     * Combines name and raw content for full-text search.
      * @param {Object} record - The skill record
      * @returns {string} Combined searchable text
      */
     buildSearchText(record) {
         return [
-            record.descriptor?.title,
-            record.descriptor?.summary,
-            record.descriptor?.body,
+            record.descriptor?.name,
+            record.descriptor?.rawContent,
         ].filter(Boolean).join(' ');
     }
 
@@ -211,7 +210,8 @@ export class SkillSelector {
         ];
 
         candidates.forEach((record) => {
-            prompt.push(`- ${record.name}: ${record.descriptor?.summary || 'No summary provided.'}`);
+            const description = record.descriptor?.rawContent || record.descriptor?.name || 'No description provided.';
+            prompt.push(`- ${record.name}: ${description}`);
         });
 
         prompt.push(

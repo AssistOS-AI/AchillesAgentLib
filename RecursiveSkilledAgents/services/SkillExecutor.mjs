@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { stat } from 'node:fs/promises';
-import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
+import { SKILL_FILE_TYPES } from '../constants/skillFileTypes.mjs';
 
 /**
  * Registry of internal skill module paths.
@@ -12,6 +12,11 @@ const INTERNAL_SKILLS = {
     'ask-user': '../ask-user/src/index.mjs',
     // Future internal skills: just add the module path here
 };
+
+const SKILL_TYPE_TO_FILENAME = Object.entries(SKILL_FILE_TYPES).reduce((acc, [filename, descriptor]) => {
+    acc[descriptor.type] = filename;
+    return acc;
+}, {});
 
 /**
  * Service for executing skills with review modes and processing callbacks.
@@ -250,8 +255,8 @@ export class SkillExecutor {
                 }
             };
 
-            if (skillRecord.metadata?.defaultArgument) {
-                injectArg(skillRecord.metadata.defaultArgument);
+            if (skillRecord.preparedConfig?.defaultArgument) {
+                injectArg(skillRecord.preparedConfig.defaultArgument);
             }
 
             if (!Object.keys(args).length) {
@@ -334,20 +339,23 @@ export class SkillExecutor {
                 const module = await import(modulePath);
                 // Resolve the absolute path for the module
                 const resolvedPath = new URL(modulePath, import.meta.url).pathname;
-                const defaultDescriptor = module.descriptor || { title: name, summary: '', sections: {} };
-                let descriptor = defaultDescriptor;
-                let skillType = module.skillType || module.type || null;
-                const cskillDocPath = path.resolve(path.dirname(resolvedPath), '..', 'cskill.md');
-                const hasCskillDoc = await stat(cskillDocPath).then(s => s.isFile()).catch(() => false);
-                if (hasCskillDoc) {
-                    descriptor = parseSkillDocument(cskillDocPath);
-                    skillType = 'cskill';
+                const skillType = module.skillType || module.type || null;
+                const descriptorFileName = SKILL_TYPE_TO_FILENAME[skillType];
+                if (!descriptorFileName) {
+                    this.logger?.warn?.(`[SkillExecutor] Internal skill "${name}" is missing a valid skill type.`);
+                    continue;
+                }
+                const descriptorFilePath = path.resolve(path.dirname(resolvedPath), '..', descriptorFileName);
+                const hasDescriptorFile = await stat(descriptorFilePath).then(s => s.isFile()).catch(() => false);
+                if (!hasDescriptorFile) {
+                    this.logger?.warn?.(`[SkillExecutor] Internal skill "${name}" must provide ${descriptorFileName}.`);
+                    continue;
                 }
 
                 definitions[name] = {
                     shortName: module.shortName || name,
                     skillType,
-                    descriptor,
+                    descriptorFilePath,
                     modulePath: resolvedPath,
                 };
             } catch (error) {

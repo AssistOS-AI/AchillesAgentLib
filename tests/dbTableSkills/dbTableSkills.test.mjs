@@ -266,8 +266,8 @@ test('DBTableSkillsSubsystem: Prepare skill from tskill.md', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
@@ -276,18 +276,18 @@ test('DBTableSkillsSubsystem: Prepare skill from tskill.md', async (t) => {
 
     await subsystem.prepareSkill(skillRecord);
 
-    // Check that metadata was populated
-    assert.ok(skillRecord.metadata);
-    assert.equal(skillRecord.metadata.type, 'dbtable');
-    assert.equal(skillRecord.metadata.tableName, 'Customers');
-    assert.ok(skillRecord.metadata.tablePurpose);
-    assert.ok(skillRecord.metadata.fields);
-    assert.ok(skillRecord.metadata.functions);
-    assert.equal(skillRecord.metadata.defaultArgument, 'prompt');
+    // Check that preparedConfig was populated
+    assert.ok(skillRecord.preparedConfig);
+    assert.equal(skillRecord.preparedConfig.type, 'dbtable');
+    assert.equal(skillRecord.preparedConfig.tableName, 'Customers');
+    assert.ok(skillRecord.preparedConfig.tablePurpose);
+    assert.ok(skillRecord.preparedConfig.fields);
+    assert.ok(skillRecord.preparedConfig.functions);
+    assert.equal(skillRecord.preparedConfig.defaultArgument, 'prompt');
 
     // Check that functions were generated
-    assert.ok(skillRecord.metadata.functions.global);
-    const globalKeys = Object.keys(skillRecord.metadata.functions.global || {});
+    assert.ok(skillRecord.preparedConfig.functions.global);
+    const globalKeys = Object.keys(skillRecord.preparedConfig.functions.global || {});
     assert.ok(globalKeys.some((key) => key.startsWith('presenter_')));
     assert.ok(globalKeys.some((key) => key.startsWith('resolver_')));
     assert.ok(globalKeys.some((key) => key.startsWith('validator_')));
@@ -313,8 +313,8 @@ test('DBTableSkillsSubsystem: Execute SELECT operation', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
@@ -359,8 +359,8 @@ test('DBTableSkillsSubsystem: Execute CREATE operation', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
@@ -405,8 +405,8 @@ test('DBTableSkillsSubsystem: Validate required fields', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
@@ -416,10 +416,10 @@ test('DBTableSkillsSubsystem: Validate required fields', async (t) => {
     await subsystem.prepareSkill(skillRecord);
 
     // Test validation through generated functions
-    const functions = skillRecord.metadata.functions;
+    const functions = skillRecord.preparedConfig.functions;
     assert.ok(functions.global);
 
-    // The validator functions should be in the metadata
+    // The validator functions should be in the preparedConfig
     const validatorKeys = Object.keys(functions.global).filter((key) => key.startsWith('validator_'));
     assert.ok(validatorKeys.length > 0);
 });
@@ -474,14 +474,14 @@ test('RecursiveSkilledAgent: Register tskill.md skill manually', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
         filePath: path.join(__dirname, 'skills', 'customers', 'tskill.md'),
         shortName: 'customers',
-        metadata: null
+        preparedConfig: null
     };
 
     // Prepare the skill using the subsystem
@@ -572,7 +572,7 @@ test('Field Processing: Verify presenter formatting', async (t) => {
     await subsystem.prepareSkill(skillRecord);
 
     // Get the execution context to test field functions directly
-    const functions = skillRecord.metadata.functions;
+    const functions = skillRecord.preparedConfig.functions;
     const execContext = subsystem.createExecutionContext(functions);
 
     // Test name presenter (should format to Title Case)
@@ -629,7 +629,7 @@ test('Field Processing: Verify resolver normalization', async (t) => {
 
     await subsystem.prepareSkill(skillRecord);
 
-    const functions = skillRecord.metadata.functions;
+    const functions = skillRecord.preparedConfig.functions;
     const execContext = subsystem.createExecutionContext(functions);
 
     // Test prepareRecord (should apply resolvers)
@@ -685,7 +685,7 @@ test('Field Processing: Verify validator enforcement', async (t) => {
 
     await subsystem.prepareSkill(skillRecord);
 
-    const functions = skillRecord.metadata.functions;
+    const functions = skillRecord.preparedConfig.functions;
     const execContext = subsystem.createExecutionContext(functions);
 
     // Test validateRecord with invalid data
@@ -823,7 +823,7 @@ test('Field Processing: Verify derived field computation', async (t) => {
 
     await subsystem.prepareSkill(skillRecord);
 
-    const functions = skillRecord.metadata.functions;
+    const functions = skillRecord.preparedConfig.functions;
     const execContext = subsystem.createExecutionContext(functions);
 
     // Test that derived fields are computed
@@ -875,14 +875,14 @@ test('E2E: Mock-based full workflow (works now)', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
         filePath: path.join(__dirname, 'skills', 'customers', 'tskill.md'),
         shortName: 'customers',
-        metadata: null
+        preparedConfig: null
     };
 
     await dbTableSubsystem.prepareSkill(skillRecord);
@@ -946,14 +946,14 @@ test('E2E: Test CREATE operation workflow', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
         filePath: path.join(__dirname, 'skills', 'customers', 'tskill.md'),
         shortName: 'customers',
-        metadata: null
+        preparedConfig: null
     };
 
     await dbTableSubsystem.prepareSkill(skillRecord);
@@ -1005,14 +1005,14 @@ test('E2E: Test UPDATE operation workflow', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
         filePath: path.join(__dirname, 'skills', 'customers', 'tskill.md'),
         shortName: 'customers',
-        metadata: null
+        preparedConfig: null
     };
 
     await dbTableSubsystem.prepareSkill(skillRecord);
@@ -1078,14 +1078,14 @@ test('E2E: Test DELETE operation workflow', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),
         filePath: path.join(__dirname, 'skills', 'customers', 'tskill.md'),
         shortName: 'customers',
-        metadata: null
+        preparedConfig: null
     };
 
     await dbTableSubsystem.prepareSkill(skillRecord);
@@ -1179,8 +1179,8 @@ test('Error: Missing prompt argument', async (t) => {
         name: 'customers-dbtable',
         type: 'dbtable',
         descriptor: {
-            title: 'Customer Management',
-            summary: 'Manage customer records',
+            name: 'Customer Management',
+            rawContent: 'Manage customer records',
             sections: {}
         },
         skillDir: path.join(__dirname, 'skills', 'customers'),

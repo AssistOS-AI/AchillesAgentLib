@@ -237,7 +237,7 @@ test('OrchestratorSkillsSubsystem prepareSkill parses ##Preparation section', ()
     const skillRecord = {
         name: 'test-orchestrator',
         descriptor: {
-            title: 'Test',
+            name: 'Test',
             sections: {
                 instructions: 'Main instructions',
                 preparation: 'Load user profile and preferences',
@@ -248,9 +248,9 @@ test('OrchestratorSkillsSubsystem prepareSkill parses ##Preparation section', ()
 
     subsystem.prepareSkill(skillRecord);
 
-    assert.equal(skillRecord.metadata.instructions, 'Main instructions');
-    assert.equal(skillRecord.metadata.preparation, 'Load user profile and preferences');
-    assert.deepEqual(skillRecord.metadata.allowedSkills, ['skill1']);
+    assert.equal(skillRecord.preparedConfig.instructions, 'Main instructions');
+    assert.equal(skillRecord.preparedConfig.preparation, 'Load user profile and preferences');
+    assert.deepEqual(skillRecord.preparedConfig.allowedSkills, ['skill1']);
 });
 
 test('OrchestratorSkillsSubsystem injects preparation context into loop session', async () => {
@@ -270,7 +270,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
 
     const skillRecord = {
         name: 'test-loop-orchestrator',
-        metadata: {
+        preparedConfig: {
             sessionType: 'loop',
             instructions: 'Execute the task',
             preparation: 'Load user context',
@@ -312,7 +312,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
 
     const skillRecord = {
         name: 'test-sop-orchestrator',
-        metadata: {
+        preparedConfig: {
             sessionType: null, // SOP session (no loop)
             instructions: 'Plan and execute',
             preparation: 'Load data context',
@@ -354,7 +354,7 @@ test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation sectio
 
     const skillRecord = {
         name: 'no-prep-orchestrator',
-        metadata: {
+        preparedConfig: {
             sessionType: 'loop',
             instructions: 'Just execute',
             preparation: null, // No preparation

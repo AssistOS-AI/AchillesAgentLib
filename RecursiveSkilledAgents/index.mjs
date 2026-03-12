@@ -13,7 +13,7 @@ export { SKILL_FILE_TYPES as SkillFileTypes, SKILL_FILE_NAMES as SkillFileNames 
 
 // Utilities
 export { isReadableFile, isDirectory } from './utils/fileUtils.mjs';
-export { createSectionKey, parseSkillDocument } from './utils/skillDocumentParser.mjs';
+export { createSectionKey, parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
 // Services
 export { SubsystemFactory } from './services/SubsystemFactory.mjs';

@@ -47,9 +47,9 @@ test('internal skills', async (t) => {
         const skillRecord = agent.getSkillRecord('mirror-code-generator');
 
         assert.ok(skillRecord, 'mirror-code-generator should be registered');
-        assert.equal(skillRecord.type, 'orchestrator', 'should be registered as orchestrator type');
-        assert.ok(skillRecord.metadata?.modulePath, 'should have modulePath in metadata');
-        assert.ok(skillRecord.metadata.modulePath.includes('mirror-code-generator/src/index.mjs'), 'modulePath should point to mirror-code-generator/src/index.mjs');
+        assert.equal(skillRecord.type, 'cskill', 'should be registered as cskill type');
+        assert.ok(skillRecord.preparedConfig?.modulePath, 'should have modulePath in preparedConfig');
+        assert.ok(skillRecord.preparedConfig.modulePath.includes('mirror-code-generator/src/index.mjs'), 'modulePath should point to mirror-code-generator/src/index.mjs');
     });
 
     await t.test('mirror-code-generator can be invoked through executeWithReviewMode', async () => {
@@ -71,8 +71,8 @@ test('internal skills', async (t) => {
         }, 'none');
 
         assert.ok(result, 'should return a result');
-        assert.equal(result.skill, 'mirror-code-generator', 'should report correct skill name');
-        assert.equal(result.subsystem, 'orchestrator', 'should be executed through orchestrator subsystem');
+        assert.equal(result.skill, 'mirror-code-generator-cskill', 'should report correct skill name');
+        assert.equal(result.subsystem, 'cskill', 'should be executed through cskill subsystem');
         
         // The result.result should contain our action's return value
         assert.ok(result.result, 'should have result property');

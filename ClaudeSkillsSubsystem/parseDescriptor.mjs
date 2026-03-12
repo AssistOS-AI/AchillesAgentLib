@@ -1,21 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-/**
- * Convert a heading text to a normalized section key.
- * Trims whitespace, lowercases, replaces non-alphanumeric with hyphens,
- * and removes leading/trailing hyphens.
- *
- * @param {string} heading - The heading text to convert
- * @returns {string} Normalized key suitable for section lookup
- */
-export function createSectionKey(heading) {
-    return heading
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-}
+import { createSectionKey } from '../utils/skillDocumentParser.mjs';
 
 function stripFrontmatter(raw) {
     if (!raw) {
@@ -70,40 +56,24 @@ function stripFrontmatter(raw) {
     return { frontmatter, body: bodyLines.join('\n') };
 }
 
-/**
- * Parse a skill markdown document into a structured descriptor.
- * Extracts title (first heading), summary (first non-empty line after title),
- * body (all non-empty lines), and sections (keyed by normalized heading).
- *
- * @param {string} filePath - Path to the skill markdown file
- * @returns {{title: string, summary: string, body: string, sections: Object}} Parsed skill descriptor
- */
-export function parseSkillDocument(filePath) {
+export function parseClaudeSkillDocument(filePath) {
     let raw = '';
     try {
         raw = fs.readFileSync(filePath, 'utf8');
     } catch (error) {
         return {
-            title: path.basename(path.dirname(filePath)),
-            summary: `Unable to read ${path.basename(filePath)}: ${error.message}`,
-            body: '',
+            name: path.basename(path.dirname(filePath)),
+            rawContent: '',
             sections: {},
         };
     }
 
-    const isAnthropicSkill = path.basename(filePath) === 'SKILL.md';
-    let frontmatter = {};
-    let content = raw;
-    if (isAnthropicSkill) {
-        const stripped = stripFrontmatter(raw);
-        frontmatter = stripped.frontmatter || {};
-        content = stripped.body || '';
-    }
+    const stripped = stripFrontmatter(raw);
+    const frontmatter = stripped.frontmatter || {};
+    const content = stripped.body || '';
 
     const lines = content.split(/\r?\n/);
-    let title = isAnthropicSkill && frontmatter.name ? frontmatter.name : null;
-    let summary = isAnthropicSkill && frontmatter.description ? frontmatter.description : null;
-    const bodyLines = [];
+    let name = frontmatter.name || null;
     const sections = new Map();
     const sectionBuffers = new Map();
     let currentSection = null;
@@ -112,8 +82,8 @@ export function parseSkillDocument(filePath) {
         const trimmed = line.trim();
         if (trimmed.match(/^#\s/)) {
             const headingText = trimmed.replace(/^#+\s*/, '').trim();
-            if (!title) {
-                title = headingText;
+            if (!name) {
+                name = headingText;
             }
             currentSection = createSectionKey(headingText);
             if (!sectionBuffers.has(currentSection)) {
@@ -132,27 +102,15 @@ export function parseSkillDocument(filePath) {
             continue;
         }
 
-        if (!summary && trimmed) {
-            summary = trimmed;
-        }
-
         if (currentSection) {
             const buffer = sectionBuffers.get(currentSection) || [];
             buffer.push(line);
             sectionBuffers.set(currentSection, buffer);
         }
-
-        if (trimmed) {
-            bodyLines.push(trimmed);
-        }
     }
 
-    if (!title) {
-        title = path.basename(path.dirname(filePath));
-    }
-
-    if (!summary) {
-        summary = `Auto-registered skill described in ${path.basename(filePath)}.`;
+    if (!name) {
+        name = path.basename(path.dirname(filePath));
     }
 
     sectionBuffers.forEach((buffer, key) => {
@@ -163,9 +121,8 @@ export function parseSkillDocument(filePath) {
     });
 
     return {
-        title,
-        summary,
-        body: bodyLines.join('\n'),
+        name,
+        rawContent: content,
         sections: Object.fromEntries(sections),
     };
 }

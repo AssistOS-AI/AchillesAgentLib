@@ -1,6 +1,7 @@
 import {join} from 'node:path';
 import {stat} from 'node:fs/promises';
 import {buildArgumentExtractionPrompt} from './prompts.mjs';
+import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
 // Timestamp helper for logging
 const getTimestamp = () => {
@@ -34,6 +35,10 @@ function camelCaseKeys(obj) {
 export class CodeSkillsSubsystem {
   constructor({ llmAgent }) {
     this.llmAgent = llmAgent;
+  }
+
+  parseSkillDescriptor({ filePath }) {
+    return parseSkillDocument(filePath);
   }
 
   async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options }) {
@@ -72,7 +77,7 @@ export class CodeSkillsSubsystem {
     
     return {
       skill: skillRecord.name,
-      metadata: skillRecord.metadata || null,
+      preparedConfig: skillRecord.preparedConfig || null,
       result,
       sessionMemory: null,
     };
@@ -80,11 +85,11 @@ export class CodeSkillsSubsystem {
 
   getSpecifications(skillRecord) {
     const specifications = camelCaseKeys(skillRecord.descriptor.sections);
-    if (skillRecord.descriptor.summary) {
-      specifications.summary = skillRecord.descriptor.summary;
+    if (skillRecord.descriptor.name) {
+      specifications.name = skillRecord.descriptor.name;
     }
-    if (skillRecord.descriptor.title) {
-        specifications.title = skillRecord.descriptor.title;
+    if (skillRecord.descriptor.rawContent) {
+      specifications.rawContent = skillRecord.descriptor.rawContent;
     }
     return specifications;
   }

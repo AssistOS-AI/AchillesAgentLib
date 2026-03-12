@@ -41,9 +41,10 @@ test('mathEval action executes generated code', async (t) => {
     }
 
     const instruction = 'Compute the sum of 10, 20, and 30 and return the result as text.';
-    const result = await mathEvalAction(instruction, {
+    const result = await mathEvalAction({
+        input: instruction,
         llmAgent,
-        prompt: 'Return a concise explanation with the numeric result.',
+        promptText: 'Return a concise explanation with the numeric result.',
         skillName: 'math-expression-evaluator-code',
     });
 
