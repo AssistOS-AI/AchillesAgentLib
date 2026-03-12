@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../LLMAgents/constants.mjs';
-import { buildClaudeTools } from './tools.mjs';
+import { buildClaudeTools } from './buildTools.mjs';
 import { parseClaudeSkillDocument } from './parseDescriptor.mjs';
 
 function listFiles(rootDir, baseDir) {
@@ -33,17 +33,6 @@ function listFiles(rootDir, baseDir) {
     }
 
     return files;
-}
-
-function isDirectory(target) {
-    if (!target || !fs.existsSync(target)) {
-        return false;
-    }
-    try {
-        return fs.statSync(target).isDirectory();
-    } catch (error) {
-        return false;
-    }
 }
 
 
@@ -91,11 +80,16 @@ export class ClaudeSkillsSubsystem {
             throw new Error('ClaudeSkillsSubsystem requires an llmAgent to execute skills.');
         }
 
+        const internalSkills = recursiveAgent?.registry?.getAll?.()
+            ?.filter((record) => Boolean(record?.preparedConfig?.modulePath))
+            || [];
+
         const tools = buildClaudeTools({
             skillRecord,
             recursiveAgent,
             options,
             sessionMemory,
+            internalSkills,
         });
 
         if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {

@@ -1,101 +1,93 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
 
-function isDirectory(target) {
-    if (!target || !fs.existsSync(target)) {
-        return false;
-    }
-    try {
-        return fs.statSync(target).isDirectory();
-    } catch (error) {
-        return false;
-    }
-}
+import { buildBashTool } from './tools/bash.mjs';
+import { buildEditTool } from './tools/edit.mjs';
+import { buildGlobTool } from './tools/glob.mjs';
+import { buildGrepTool } from './tools/grep.mjs';
+import { buildReadTool } from './tools/read.mjs';
+import { buildWebFetchTool } from './tools/webfetch.mjs';
+import { buildWriteTool } from './tools/write.mjs';
+import {
+    isDirectory,
+    isProbablyText,
+    isSafeChildPath,
+    runBashCommand,
+} from './tools/utils.mjs';
 
-function isSafeChildPath(baseDir, targetPath) {
-    if (!baseDir || !targetPath) {
-        return false;
+function resolveInternalSkillRecord(internalSkills, shortName) {
+    if (!shortName || !Array.isArray(internalSkills)) {
+        return null;
     }
-    const resolvedBase = path.resolve(baseDir);
-    const resolvedTarget = path.resolve(targetPath);
-    if (resolvedTarget === resolvedBase) {
-        return true;
-    }
-    return resolvedTarget.startsWith(`${resolvedBase}${path.sep}`);
-}
-
-function isProbablyText(buffer) {
-    if (!buffer || !buffer.length) {
-        return true;
-    }
-    let controlCount = 0;
-    for (const byte of buffer) {
-        if (byte === 0) {
-            return false;
+    for (const entry of internalSkills) {
+        if (!entry) {
+            continue;
         }
-        if (byte < 9 || (byte > 13 && byte < 32)) {
-            controlCount += 1;
+        if (typeof entry === 'string') {
+            if (entry === shortName) {
+                return { name: entry, shortName: entry };
+            }
+            continue;
+        }
+        const candidate = entry.shortName || entry.name;
+        if (candidate === shortName) {
+            return entry;
         }
     }
-    const ratio = controlCount / buffer.length;
-    if (ratio > 0.2) {
-        return false;
-    }
-    const decoded = buffer.toString('utf8');
-    return !decoded.includes('\uFFFD');
+    return null;
 }
 
-function runBashCommand(command, cwd) {
-    return new Promise((resolve, reject) => {
-        const child = spawn('bash', ['-lc', command], { cwd, env: process.env });
-        let stdout = '';
-        let stderr = '';
-
-        child.stdout.on('data', (data) => {
-            stdout += data.toString();
+function buildSkillHandler(skillRecord, recursiveAgent, forwardedContext) {
+    return async (_agent, promptText) => {
+        const executionResult = await recursiveAgent.executePrompt(promptText, {
+            skillName: skillRecord.name,
+            context: forwardedContext,
+            sessionMemory: forwardedContext.sessionMemory || null,
         });
-        child.stderr.on('data', (data) => {
-            stderr += data.toString();
-        });
-        child.on('error', (error) => {
-            reject(error);
-        });
-        child.on('close', (code) => {
-            resolve({ stdout, stderr, exitCode: code ?? 0 });
-        });
-    });
+        return executionResult?.result;
+    };
 }
 
-export function buildClaudeTools({ skillRecord, recursiveAgent, options = {}, sessionMemory }) {
+export function buildClaudeTools({
+    skillRecord,
+    recursiveAgent,
+    options = {},
+    sessionMemory,
+    internalSkills = [],
+}) {
     const skillDir = skillRecord?.skillDir || null;
     const scriptsDir = skillDir ? path.join(skillDir, 'scripts') : null;
     const resourcesDir = skillDir ? path.join(skillDir, 'resources') : null;
 
     const tools = {};
 
+    const forwardedContext = options?.context || {};
+    const askUserSkill = resolveInternalSkillRecord(internalSkills, 'ask-user');
+    const askUserDescription = askUserSkill?.descriptor?.rawContent;
+
     tools['ask-user'] = {
-        description: 'Prompt the user for missing information. Input is the question text. Returns the user response as plain text (string).',
-        handler: async (_agent, promptText) => {
-            const prompt = String(promptText ?? '').trim();
-            const executionResult = await recursiveAgent.executePrompt(prompt, {
-                skillName: 'ask-user',
-                context: {
-                    ...(options?.context || {}),
-                    sessionMemory,
-                },
-            });
-            const result = executionResult?.result ?? executionResult;
-            if (result == null) {
-                return '';
-            }
-            return typeof result === 'string' ? result : JSON.stringify(result);
-        },
+        description: `${askUserDescription || ''}
+How to call: pass a plain string question as the tool input.
+Examples:
+- "What is your target audience?"
+- "Which pricing tier should we focus on?"`.trim(),
+        handler: buildSkillHandler(askUserSkill, recursiveAgent, {
+            ...forwardedContext,
+            sessionMemory,
+        }),
     };
+
+    tools.read = buildReadTool();
+    tools.write = buildWriteTool();
+    tools.edit = buildEditTool();
+    tools.glob = buildGlobTool();
+    tools.grep = buildGrepTool();
+    tools.bash = buildBashTool();
+    tools.webfetch = buildWebFetchTool();
 
     if (scriptsDir && isDirectory(scriptsDir)) {
         tools['run-script'] = {
-            description: 'Execute the provided command to run a script from scripts/. Input must be the full command string; script path can be relative to skill root (e.g. "scripts/tool.sh ...") or from scripts/ directly. Returns a string output.',
+            description: 'Purpose: Execute a script from scripts/. When to use: run a packaged script for this skill. Keywords: run script, execute script, scripts/.',
             handler: async (_agent, promptText) => {
                 const command = String(promptText ?? '').trim();
                 if (!command) {
@@ -122,7 +114,7 @@ export function buildClaudeTools({ skillRecord, recursiveAgent, options = {}, se
 
     if (resourcesDir && isDirectory(resourcesDir)) {
         tools['get-resource'] = {
-            description: 'Read a file from resources/. Input must be a path relative to the skill root (e.g. "resources/file.txt") or a file name inside resources/. Returns the file contents as a string (utf-8 for text, base64 for binary).',
+            description: 'Purpose: Read a file from resources/. When to use: fetch a bundled resource file for this skill. Keywords: get resource, read resource, resources/.',
             handler: async (_agent, promptText) => {
                 const resourcePath = String(promptText ?? '').trim();
                 if (!resourcePath) {
