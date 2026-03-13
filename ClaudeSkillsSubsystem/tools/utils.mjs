@@ -94,21 +94,6 @@ function runBashCommand(command, cwd, timeout) {
     });
 }
 
-function parseJsonInput(promptText) {
-    const text = String(promptText ?? '').trim();
-    if (!text) {
-        return { json: null, raw: '' };
-    }
-    if (text.startsWith('{') || text.startsWith('[')) {
-        try {
-            return { json: JSON.parse(text), raw: text };
-        } catch (error) {
-            throw new Error(`Invalid JSON input: ${error.message}`);
-        }
-    }
-    return { json: null, raw: text };
-}
-
 function parseKeyValueInput(promptText) {
     const text = String(promptText ?? '').trim();
     if (!text) {
@@ -169,7 +154,6 @@ export {
     isSafeChildPath,
     normalizePathSeparators,
     parseKeyValueInput,
-    parseJsonInput,
     resolvePath,
     runBashCommand,
 };
