@@ -14,7 +14,6 @@ import { SkillRegistry } from './services/SkillRegistry.mjs';
 import { SkillDiscoveryService } from './services/SkillDiscoveryService.mjs';
 import { SkillSelector } from './services/SkillSelector.mjs';
 import { SkillExecutor } from './services/SkillExecutor.mjs';
-import { action as runMirrorCodeAction } from './mirror-code-generator/src/index.mjs';
 
 // Re-export for backward compatibility
 export { SKILL_FILE_TYPES, SKILL_FILE_NAMES };
@@ -47,6 +46,7 @@ export class RecursiveSkilledAgent {
      * @param {number} [options.sessionConfig.cleanupInterval=300000] - Cleanup interval in ms (default 5 minutes)
      * @param {Object} [options.inputReader] - InputReader instance for user input (falls back to global IOServices)
      * @param {Object} [options.outputWriter] - OutputWriter instance for output (falls back to global IOServices)
+     * @param {boolean} [options.exposeInternalSkills=true] - Whether internal skills are visible to LLM skill selection
      */
     constructor({
         llmAgent = null,
@@ -63,6 +63,7 @@ export class RecursiveSkilledAgent {
         sessionConfig = {},
         inputReader = null,
         outputWriter = null,
+        exposeInternalSkills = true,
     } = {}) {
         if (llmAgent && !(llmAgent instanceof LLMAgent)) {
             throw new TypeError('RecursiveSkilledAgent requires an LLMAgent instance.');
@@ -72,7 +73,16 @@ export class RecursiveSkilledAgent {
         this.startDir = startDir;
         this.dbAdapter = dbAdapter;
         this.searchUpwards = Boolean(searchUpwards);
-        this.additionalSkillRoots = Array.isArray(additionalSkillRoots) ? additionalSkillRoots : [];
+        this.exposeInternalSkills = Boolean(exposeInternalSkills);
+        
+        // Add internal skills directory to additionalSkillRoots
+        const packageRoot = path.resolve(new URL('.', import.meta.url).pathname, '..');
+        const internalSkillsDir = path.join(packageRoot, 'skills');
+        this.additionalSkillRoots = Array.isArray(additionalSkillRoots) ? [...additionalSkillRoots] : [];
+        if (!this.additionalSkillRoots.includes(internalSkillsDir)) {
+            this.additionalSkillRoots.push(internalSkillsDir);
+        }
+        
         // I/O services (optional, falls back to global IOServices)
         this.inputReader = inputReader;
         this.outputWriter = outputWriter;
@@ -83,6 +93,7 @@ export class RecursiveSkilledAgent {
             startDir: this.startDir,
             hasLLMAgent: Boolean(llmAgent),
             llmAgentOptions: Object.keys(llmAgentOptions || {}),
+            exposeInternalSkills: this.exposeInternalSkills,
         });
 
         // Create or use provided LLM agent
@@ -163,9 +174,6 @@ export class RecursiveSkilledAgent {
             },
         });
 
-        // Register internal skills
-        this._exposeInternalSkills();
-
         // Legacy compatibility properties
         this.subsystems = this.subsystemFactory.instances;
         this.skillToSubsystem = this.registry.skillToSubsystem;
@@ -190,63 +198,6 @@ export class RecursiveSkilledAgent {
                 this._registerSkill(skillRecord);
             }
         }
-    }
-
-    /**
-     * Register internal helper skills for direct invocation.
-     * Called during initialization.
-     * Queues async registration as a pending preparation.
-     * Internal skills are registered as orchestrator type with modulePath set.
-     * @private
-     */
-    _exposeInternalSkills() {
-        const registerInternalSkills = async () => {
-            const internalSkillDefinitions = await this.executor.getInternalSkillDefinitions();
-
-            for (const [name, definition] of Object.entries(internalSkillDefinitions)) {
-                    const skillType = definition.type || definition.skillType || 'orchestrator';
-                    let skillDir = path.dirname(definition.modulePath);
-                    if (skillDir.endsWith(`${path.sep}src`)) {
-                        skillDir = path.dirname(skillDir);
-                    }
-                    const subsystem = this.subsystemFactory.get(skillType);
-                    if (!definition.descriptorFilePath || !subsystem?.parseSkillDescriptor) {
-                        throw new Error(`Internal skill "${name}" is missing a descriptor file or parser.`);
-                    }
-                    const descriptor = subsystem.parseSkillDescriptor({
-                        filePath: definition.descriptorFilePath,
-                        skillDir,
-                        shortName: definition.shortName || name,
-                    });
-                    const baseName = Sanitiser.sanitiseName(descriptor?.name || definition.shortName || name);
-                    const canonicalName = Sanitiser.sanitiseName(`${baseName}-${skillType}`)
-                        || Sanitiser.sanitiseName(`${definition.shortName || name}-${skillType}`);
-                    const skillRecord = {
-                        name: canonicalName,
-                        shortName: definition.shortName || name,
-                        type: skillType,
-                        skillDir,
-                        filePath: definition.modulePath,
-                        descriptor,
-                        preparedConfig: {
-                            type: skillType,
-                            modulePath: definition.modulePath,
-                            name: descriptor?.name || null,
-                            rawContent: descriptor?.rawContent || null,
-                            sections: descriptor?.sections || {},
-                        },
-                    };
-
-                this.registry.register(skillRecord);
-                this.debugLogger?.log('RecursiveSkilledAgent:registerInternalSkill', { name, modulePath: definition.modulePath });
-            }
-        };
-
-        this.executor.addPendingPreparation(
-            registerInternalSkills().catch(error => {
-                this.logger.warn(`[RecursiveSkilledAgent] Failed to register internal skills: ${error.message}`);
-            })
-        );
     }
 
     /**
@@ -278,6 +229,11 @@ export class RecursiveSkilledAgent {
             || Sanitiser.sanitiseName(`${skillRecord.shortName}-${skillRecord.type}`);
         skillRecord.name = canonicalName;
 
+        // Mark as internal if from internal skills directory
+        const packageRoot = path.resolve(new URL('.', import.meta.url).pathname, '..');
+        const internalSkillsDir = path.join(packageRoot, 'skills');
+        skillRecord.isInternal = skillRecord.skillDir?.startsWith(internalSkillsDir) || false;
+
         const registered = this.registry.register(skillRecord);
         if (!registered) {
             return;
@@ -286,13 +242,10 @@ export class RecursiveSkilledAgent {
         // Handle code generation for cskill
         if (skillRecord.type === 'cskill') {
             this.executor.addPendingPreparation(
-                runMirrorCodeAction({
-                    promptText: skillRecord.skillDir,
-                    llmAgent: this.llmAgent,
-                    logger: this.logger,
+                this.executePrompt(skillRecord.skillDir, {
+                    skillName: 'mirror-code-generator',
                 }).catch(error => {
-                    const typeSpecificMessage = skillRecord.type === 'cskill' ? 'cskill' : 'orchestrator';
-                    this.logger.warn(`[RecursiveSkilledAgent] Failed to generate code for ${typeSpecificMessage} ${skillRecord.name}: ${error.message}`);
+                    this.logger.warn(`[RecursiveSkilledAgent] Failed to generate code for cskill ${skillRecord.name}: ${error.message}`);
                 })
             );
         }
@@ -817,7 +770,12 @@ export class RecursiveSkilledAgent {
      * @returns {Promise<Object|null>} The selected skill
      */
     async chooseSkillWithLLM(taskDescription, candidates) {
-        return this.selector.chooseWithLLM(taskDescription, candidates);
+        // Filter out internal skills if exposeInternalSkills is false
+        const filteredCandidates = this.exposeInternalSkills
+            ? candidates
+            : candidates.filter(skill => !skill.isInternal);
+        
+        return this.selector.chooseWithLLM(taskDescription, filteredCandidates);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────

@@ -1,19 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { buildBashTool } from './tools/bash.mjs';
-import { buildEditTool } from './tools/edit.mjs';
-import { buildGlobTool } from './tools/glob.mjs';
-import { buildGrepTool } from './tools/grep.mjs';
-import { buildReadTool } from './tools/read.mjs';
-import { buildWebFetchTool } from './tools/webfetch.mjs';
-import { buildWriteTool } from './tools/write.mjs';
 import {
     isDirectory,
     isProbablyText,
     isSafeChildPath,
     runBashCommand,
-} from './tools/utils.mjs';
+} from '../utils/internalSkillsUtils.mjs';
 
 function resolveInternalSkillRecord(internalSkills, shortName) {
     if (!shortName || !Array.isArray(internalSkills)) {
@@ -60,30 +53,24 @@ export function buildAnthropicTools({
     const resourcesDir = skillDir ? path.join(skillDir, 'resources') : null;
 
     const tools = {};
-
     const forwardedContext = options?.context || {};
-    const askUserSkill = resolveInternalSkillRecord(internalSkills, 'ask-user');
-    const askUserDescription = askUserSkill?.descriptor?.rawContent;
 
-    tools['ask-user'] = {
-        description: `${askUserDescription || ''}
-How to call: pass a plain string question as the tool input.
-Examples:
-- "What is your target audience?"
-- "Which pricing tier should we focus on?"`.trim(),
-        handler: buildSkillHandler(askUserSkill, recursiveAgent, {
-            ...forwardedContext,
-            sessionMemory,
-        }),
-    };
-
-    tools.read = buildReadTool();
-    tools.write = buildWriteTool();
-    tools.edit = buildEditTool();
-    tools.glob = buildGlobTool();
-    tools.grep = buildGrepTool();
-    tools.bash = buildBashTool();
-    tools.webfetch = buildWebFetchTool();
+    // Build tools from internal skills (from skills/ directory)
+    const internalSkillNames = ['ask-user', 'read', 'write', 'edit', 'glob', 'grep', 'bash', 'webfetch'];
+    
+    for (const skillName of internalSkillNames) {
+        const skill = resolveInternalSkillRecord(internalSkills, skillName);
+        if (skill) {
+            const description = skill.descriptor?.rawContent || `${skillName} skill`;
+            tools[skillName] = {
+                description,
+                handler: buildSkillHandler(skill, recursiveAgent, {
+                    ...forwardedContext,
+                    sessionMemory,
+                }),
+            };
+        }
+    }
 
     if (scriptsDir && isDirectory(scriptsDir)) {
         tools['run-script'] = {
