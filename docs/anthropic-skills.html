@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude Skills · Achilles Agents Docs</title>
+    <title>Anthropic Skills · Achilles Agents Docs</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,19 +11,19 @@
         data-breadcrumb='[
             {"label":"Home","href":"index.html"},
             {"label":"Skill System Overview","href":"overview.html"},
-            {"label":"Claude Skills"}
+            {"label":"Anthropic Skills"}
         ]'></div>
 
     <main class="content">
         <section class="lead">
-            <h1>Claude Skills</h1>
+            <h1>Anthropic Skills</h1>
             <p>
-                Claude skills in Achilles Agents are Anthropic-style skill bundles that combine a <code>SKILL.md</code> descriptor with optional
+                Anthropic skills in Achilles Agents are Anthropic-style skill bundles that combine a <code>SKILL.md</code> descriptor with optional
                 scripts and reference files. They are executed through an agentic loop session so the model can plan, call tools, and return results
                 using the skill's instructions.
             </p>
             <nav class="page-links" aria-label="Skill families">
-                <a href="claude-skills.html" aria-current="page">Claude Skills</a>
+                <a href="anthropic-skills.html" aria-current="page">Anthropic Skills</a>
                 <a href="dbtable-skills.html">DBTable Skills</a>
                 <a href="orchestration-skills.html">Orchestration Skills</a>
                 <a href="mcp-skills.html">MCP Skills</a>
@@ -35,7 +35,7 @@
         <section>
             <h2>Where They Live</h2>
             <p>
-                Each Claude skill lives under <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/SKILL.md</code>. The file uses YAML frontmatter
+                Each Anthropic skill lives under <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/SKILL.md</code>. The file uses YAML frontmatter
                 followed by Markdown instructions. Optional folders include <code>scripts/</code>, <code>resources/</code>, and <code>assets/</code>.
             </p>
 <pre><code>---
@@ -62,7 +62,7 @@ Use this skill to run a lightweight keyword check against a local static site.
         <section>
             <h2>Skill Layout</h2>
             <p>
-                Claude skills follow the Anthropic bundle format. Only <code>SKILL.md</code> is required; the other folders are optional and loaded
+                Anthropic skills follow the Anthropic bundle format. Only <code>SKILL.md</code> is required; the other folders are optional and loaded
                 on demand.
             </p>
 <pre><code>my-skill/
@@ -84,7 +84,7 @@ Use this skill to run a lightweight keyword check against a local static site.
         <section>
             <h2>Execution Behaviour</h2>
             <p>
-                When invoked, Claude skills run inside an agentic loop session. The loop receives the SKILL.md instructions and can call tools as needed.
+                When invoked, Anthropic skills run inside an agentic loop session. The loop receives the SKILL.md instructions and can call tools as needed.
             </p>
             <ul>
                 <li><strong>Session:</strong> Loop agent session with tool calls and iterative planning.</li>
@@ -96,7 +96,7 @@ Use this skill to run a lightweight keyword check against a local static site.
         <section>
             <h2>Tooling Integration</h2>
             <p>
-                ClaudeSkillsSubsystem adapts Anthropic skills by exposing a minimal toolbelt. The loop session decides when to call these tools based on the
+                AnthropicSkillsSubsystem adapts Anthropic skills by exposing a minimal toolbelt. The loop session decides when to call these tools based on the
                 instructions in SKILL.md.
             </p>
             <ul>

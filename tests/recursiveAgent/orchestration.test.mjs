@@ -52,7 +52,7 @@ test('RecursiveSkilledAgent descends into hidden directories when searching down
     });
 
     assert.ok(
-        agent.getSkillRecord('hidden-reporter-claude'),
+        agent.getSkillRecord('hidden-reporter-anthropic'),
         'expected hidden directories to be scanned for skills',
     );
 });

@@ -1,7 +1,7 @@
 /**
  * ActionReporter - Real-time action feedback system
  *
- * Provides Claude Code-style feedback showing what the agent is doing:
+ * Provides Anthropic Code-style feedback showing what the agent is doing:
  * - LLM calls with model info
  * - Skill execution steps
  * - File operations

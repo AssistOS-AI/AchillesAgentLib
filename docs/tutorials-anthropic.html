@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude Skill Tutorial · Achilles Agents Docs</title>
+    <title>Anthropic Skill Tutorial · Achilles Agents Docs</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,15 +11,15 @@
         data-breadcrumb='[
             {"label":"Home","href":"index.html"},
             {"label":"Tutorials","href":"tutorials.html"},
-            {"label":"Claude Skills Tutorial"}
+            {"label":"Anthropic Skills Tutorial"}
         ]'></div>
 
     <main class="content">
         <section class="lead">
-            <h1>Claude Skills Tutorial</h1>
+            <h1>Anthropic Skills Tutorial</h1>
             <p>Author simple descriptor-only skills that return summaries and bodies without invoking the LLM.</p>
             <nav class="page-links" aria-label="Tutorial navigation">
-                <a href="tutorials-claude.html" aria-current="page">Claude</a>
+                <a href="tutorials-anthropic.html" aria-current="page">Anthropic</a>
                 <a href="tutorials-orchestration.html">Orchestration</a>
                 <a href="tutorials-mcp.html">MCP</a>
                 <a href="tutorials-dcg.html">Dynamic Code Generation</a>
@@ -29,8 +29,8 @@
         <section>
             <h2>Repository Layout</h2>
             <p>
-                Claude skills live under <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/</code> and require only a <code>skill.md</code> descriptor.
-                No JavaScript entrypoint is needed; <code>ClaudeSkillsSubsystem</code> returns the descriptor content directly.
+                Anthropic skills live under <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/</code> and require only a <code>skill.md</code> descriptor.
+                No JavaScript entrypoint is needed; <code>AnthropicSkillsSubsystem</code> returns the descriptor content directly.
             </p>
 <pre><code>skills/
 └── docs/
@@ -61,11 +61,11 @@ Steps for rotating a managed database password.
             <h2>Execution Behaviour</h2>
             <ol>
                 <li><code>RecursiveSkilledAgent</code> discovers the descriptor and registers it under the folder name.</li>
-                <li><code>ClaudeSkillsSubsystem</code> prepares metadata (title, summary, sections).</li>
-                <li>Executing the skill returns <code>{ summary, details, type: 'claude' }</code> with <code>sessionMemory: null</code>.</li>
+                <li><code>AnthropicSkillsSubsystem</code> prepares metadata (title, summary, sections).</li>
+                <li>Executing the skill returns <code>{ summary, details, type: 'anthropic' }</code> with <code>sessionMemory: null</code>.</li>
             </ol>
             <p>
-                This makes Claude skills ideal for help content, runbooks, or capability cards that should be deterministic and free to call.
+                This makes Anthropic skills ideal for help content, runbooks, or capability cards that should be deterministic and free to call.
             </p>
         </section>
     </main>

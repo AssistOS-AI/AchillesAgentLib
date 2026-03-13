@@ -48,7 +48,7 @@ function buildSkillHandler(skillRecord, recursiveAgent, forwardedContext) {
     };
 }
 
-export function buildClaudeTools({
+export function buildAnthropicTools({
     skillRecord,
     recursiveAgent,
     options = {},

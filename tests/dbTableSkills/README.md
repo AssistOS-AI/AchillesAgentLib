@@ -163,7 +163,7 @@ RecursiveSkilledAgent doesn't natively support `tskill.md` files yet. The SKILL_
 
 ```javascript
 const SKILL_FILE_TYPES = {
-    'skill.md': { type: 'claude' },
+    'skill.md': { type: 'anthropic' },
     'dcgskill.md': { type: 'dynamic-code-generation' },
     'mskill.md': { type: 'mcp' },
     'oskill.md': { type: 'orchestrator' },
@@ -192,7 +192,7 @@ ensureSubsystem(type) {
             dbAdapter: this.dbAdapter  // Need to add dbAdapter to RecursiveSkilledAgent
         });
     } else {
-        subsystem = new ClaudeSkillsSubsystem();
+        subsystem = new AnthropicSkillsSubsystem();
     }
 
     this.subsystems.set(type, subsystem);

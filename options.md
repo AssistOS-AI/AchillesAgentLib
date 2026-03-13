@@ -50,7 +50,7 @@ and how the new skill subsystems consume them.
   debugging.
 - Responses wrapped in Markdown fences are automatically unwrapped before JSON parsing.
 
-### MCP / Orchestrator / Claude
+### MCP / Orchestrator / Anthropic
 
 - These subsystems treat descriptors as informational (no interactive loop). The returned payload is
   a structured summary derived from the descriptor sections.

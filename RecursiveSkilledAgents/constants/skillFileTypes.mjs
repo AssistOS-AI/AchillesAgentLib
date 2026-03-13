@@ -3,7 +3,7 @@
  * Each entry maps a skill descriptor filename to its corresponding subsystem type.
  */
 export const SKILL_FILE_TYPES = {
-    'SKILL.md': { type: 'claude' },
+    'SKILL.md': { type: 'anthropic' },
     'dcgskill.md': { type: 'dynamic-code-generation' },
     'cskill.md': { type: 'cskill' },
     'mskill.md': { type: 'mcp' },

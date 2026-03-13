@@ -1,6 +1,6 @@
 import { DynamicCodeGenerationSubsystem } from '../../DynamicCodeGenerationSubsystem/DynamicCodeGenerationSubsystem.mjs';
 import { CodeSkillsSubsystem } from '../../CodeSkillsSubsystem/CodeSkillsSubsystem.mjs';
-import { ClaudeSkillsSubsystem } from '../../ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs';
+import { AnthropicSkillsSubsystem } from '../../AnthropicSkillsSubsystem/AnthropicSkillsSubsystem.mjs';
 import { MCPSkillsSubsystem } from '../../MCPSkillsSubsystem/MCPSkillsSubsystem.mjs';
 import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 import { DBTableSkillsSubsystem } from '../../DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs';
@@ -15,7 +15,7 @@ const SUBSYSTEM_REGISTRY = new Map([
     ['mcp', MCPSkillsSubsystem],
     ['orchestrator', OrchestratorSkillsSubsystem],
     ['dbtable', DBTableSkillsSubsystem],
-    ['claude', ClaudeSkillsSubsystem],
+    ['anthropic', AnthropicSkillsSubsystem],
 ]);
 
 /**
@@ -40,7 +40,7 @@ export class SubsystemFactory {
      * Get or create a subsystem instance of the specified type.
      * Subsystems are cached and reused on subsequent calls.
      *
-     * @param {string} type - The subsystem type ('dynamic-code-generation', 'cskill', 'mcp', 'orchestrator', 'dbtable', 'claude')
+     * @param {string} type - The subsystem type ('dynamic-code-generation', 'cskill', 'mcp', 'orchestrator', 'dbtable', 'anthropic')
      * @returns {Object} The subsystem instance
      * @throws {Error} If the subsystem type is not registered
      */
@@ -74,7 +74,7 @@ export class SubsystemFactory {
             });
         }
 
-        if (type === 'claude') {
+        if (type === 'anthropic') {
             return new SubsystemClass();
         }
 

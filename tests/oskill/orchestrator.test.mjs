@@ -16,7 +16,7 @@ test('resolveAllowedSkills allows all skill types except self when no allowlist'
         { name: 'cskill-1', type: 'cskill' },
         { name: 'mcp-1', type: 'mcp' },
         { name: 'dbtable-1', type: 'dbtable' },
-        { name: 'claude-1', type: 'claude' },
+        { name: 'anthropic-1', type: 'anthropic' },
         { name: 'code-gen-1', type: 'dynamic-code-generation' },
         { name: 'orchestrator-skill', type: 'orchestrator' },
     ];
@@ -28,7 +28,7 @@ test('resolveAllowedSkills allows all skill types except self when no allowlist'
     const filtered = subsystem.resolveAllowedSkills(skillRecord, recursiveAgent);
 
     const allowedTypes = filtered.map(skill => skill.type);
-    const expectedTypes = ['cskill', 'mcp', 'dbtable', 'claude', 'dynamic-code-generation'];
+    const expectedTypes = ['cskill', 'mcp', 'dbtable', 'anthropic', 'dynamic-code-generation'];
 
     assert.equal(filtered.length, 5, 'should allow all skill types except self');
     assert.deepEqual(allowedTypes.sort(), expectedTypes.sort(), 'should allow all types except orchestrator self');

@@ -3,8 +3,8 @@ import path from 'node:path';
 
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../LLMAgents/constants.mjs';
-import { buildClaudeTools } from './buildTools.mjs';
-import { parseClaudeSkillDocument } from './parseDescriptor.mjs';
+import { buildAnthropicTools } from './buildTools.mjs';
+import { parseAnthropicSkillDocument } from './parseDescriptor.mjs';
 
 function listFiles(rootDir, baseDir) {
     if (!rootDir || !fs.existsSync(rootDir)) {
@@ -36,14 +36,14 @@ function listFiles(rootDir, baseDir) {
 }
 
 
-export class ClaudeSkillsSubsystem {
+export class AnthropicSkillsSubsystem {
     constructor({ llmAgent = null } = {}) {
-        this.type = 'claude';
+        this.type = 'anthropic';
         this.llmAgent = llmAgent;
     }
 
     parseSkillDescriptor({ filePath }) {
-        return parseClaudeSkillDocument(filePath);
+        return parseAnthropicSkillDocument(filePath);
     }
 
     prepareSkill(skillRecord) {
@@ -77,14 +77,14 @@ export class ClaudeSkillsSubsystem {
 
         this.llmAgent = recursiveAgent?.llmAgent || this.llmAgent;
         if (!this.llmAgent) {
-            throw new Error('ClaudeSkillsSubsystem requires an llmAgent to execute skills.');
+            throw new Error('AnthropicSkillsSubsystem requires an llmAgent to execute skills.');
         }
 
         const internalSkills = recursiveAgent?.registry?.getAll?.()
             ?.filter((record) => Boolean(record?.preparedConfig?.modulePath))
             || [];
 
-        const tools = buildClaudeTools({
+        const tools = buildAnthropicTools({
             skillRecord,
             recursiveAgent,
             options,

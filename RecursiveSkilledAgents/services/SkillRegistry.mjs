@@ -32,7 +32,7 @@ export class SkillRegistry {
      * Register a skill record with its aliases.
      * @param {Object} skillRecord - The skill record to register
      * @param {string} skillRecord.name - Canonical skill name
-     * @param {string} skillRecord.type - Skill type (dynamic-code-generation, mcp, orchestrator, dbtable, claude, cskill)
+     * @param {string} skillRecord.type - Skill type (dynamic-code-generation, mcp, orchestrator, dbtable, anthropic, cskill)
      * @param {string} skillRecord.shortName - Short name for the skill
      * @param {Object} skillRecord.descriptor - Parsed skill descriptor ({ name, rawContent, sections })
      * @returns {boolean} True if registration was successful (passed filter)

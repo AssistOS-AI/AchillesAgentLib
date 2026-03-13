@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
-import { buildClaudeTools } from '../../ClaudeSkillsSubsystem/buildTools.mjs';
+import { buildAnthropicTools } from '../../AnthropicSkillsSubsystem/buildTools.mjs';
 
 let tempDir = '';
 
@@ -12,7 +12,7 @@ const createTools = ({ executePrompt, internalSkills = [] } = {}) => {
     const recursiveAgent = {
         executePrompt: executePrompt || (async () => ({ result: 'ok' })),
     };
-    return buildClaudeTools({
+    return buildAnthropicTools({
         skillRecord: { skillDir: tempDir },
         recursiveAgent,
         options: { context: {} },
@@ -27,7 +27,7 @@ const writeFile = async (filePath, content) => {
 };
 
 before(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-tools-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'anthropic-tools-'));
 });
 
 after(async () => {

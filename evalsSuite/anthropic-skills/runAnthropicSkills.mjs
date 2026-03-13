@@ -54,7 +54,7 @@ function assertContains(text, fragment) {
 }
 
 async function run() {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-skills-'));
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'anthropic-skills-'));
     const workspace = path.join(tempRoot, 'workspace');
     ensureDir(workspace);
 
@@ -71,7 +71,7 @@ async function run() {
     const cases = [
         {
             id: 'xlsx-lite',
-            skillName: 'xlsx-lite-claude',
+            skillName: 'xlsx-lite-anthropic',
             prompt: `I have a CSV at ${csvInput}. Please add a Totals row for the Amount column and save the updated file to ${path.join(workspace, 'output.csv')}. Reply with just the total value.`,
             expectedFiles: [path.join(workspace, 'output.csv')],
             expectedContains: ['15'],
@@ -79,19 +79,19 @@ async function run() {
         },
         {
             id: 'docx-lite',
-            skillName: 'docx-lite-claude',
+            skillName: 'docx-lite-anthropic',
             prompt: 'Draft a short memo titled "Project Update". Summary: This release closes the onboarding gaps. Customer satisfaction improved after the fixes. Action items: Share the rollout note with stakeholders; Schedule a follow-up review; Monitor adoption metrics. Return the memo text only.',
             expectedContains: ['Title:', 'Project Update', 'Action Items'],
         },
         {
             id: 'pdf-lite',
-            skillName: 'pdf-lite-claude',
+            skillName: 'pdf-lite-anthropic',
             prompt: 'Here is the PDF text:\nTitle: Q1 Review\nOverview: This quarter focused on onboarding.\nFindings: Customer satisfaction improved.\nConclusion: Continue the program.\n\nPlease check it against your checklist and output PASS/FAIL per item with a one-line summary.',
             expectedContains: ['Title: PASS', 'Overview: PASS', 'Findings: PASS', 'Conclusion: PASS'],
         },
         {
             id: 'pptx-lite',
-            skillName: 'pptx-lite-claude',
+            skillName: 'pptx-lite-anthropic',
             prompt: 'Create a 3-slide outline about "Remote Work Guidelines". Slide 1 should be the title slide, slide 2 a policy overview, and slide 3 next steps. Use the required slide format exactly.',
             expectedContains: ['Slide 1', 'Slide 2', 'Slide 3', 'Remote Work'],
         },

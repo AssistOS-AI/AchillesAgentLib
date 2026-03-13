@@ -127,7 +127,7 @@
                 <li>Discovers skills under <code>skills/</code> (and additional roots) at construction time.</li>
                 <li>If no <code>skillName</code> is provided, tries a FlexSearch-based orchestrator match; otherwise falls back to LLM selection across skills.</li>
                 <li>Injects the task description into a skill's default argument (or <code>input</code>) when arguments are missing.</li>
-                <li>Routes execution to the appropriate subsystem (claude/code/mcp/orchestrator/dbtable) and forwards the prompt text.</li>
+                <li>Routes execution to the appropriate subsystem (anthropic/code/mcp/orchestrator/dbtable) and forwards the prompt text.</li>
                 <li>Returns the subsystem's result along with the chosen review mode.</li>
             </ol>
 

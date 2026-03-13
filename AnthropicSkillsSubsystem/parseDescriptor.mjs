@@ -56,7 +56,7 @@ function stripFrontmatter(raw) {
     return { frontmatter, body: bodyLines.join('\n') };
 }
 
-export function parseClaudeSkillDocument(filePath) {
+export function parseAnthropicSkillDocument(filePath) {
     let raw = '';
     try {
         raw = fs.readFileSync(filePath, 'utf8');

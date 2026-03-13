@@ -18,7 +18,7 @@
             <h1>Skill System Overview</h1>
             <p>This overview explains how Achilles Agents organises skills, repositories, and execution layers into a coherent orchestration platform.</p>
             <nav class="page-links" aria-label="Skill families">
-                <a href="claude-skills.html">Claude Skills</a>
+                <a href="anthropic-skills.html">Anthropic Skills</a>
                 <a href="dbtable-skills.html">DBTable Skills</a>
                 <a href="orchestration-skills.html">Orchestration Skills</a>
                 <a href="mcp-skills.html">MCP Skills</a>
@@ -57,7 +57,7 @@
             </p>
             <pre><code>RecursiveSkilledAgent
   ├─ Skill Discovery: scan skills/* for skill.md, dcgskill.md, cskill.md, mskill.md, oskill.md, tskill.md
-  ├─ Subsystem Router: claude | code | mcp | orchestrator | dbtable
+  ├─ Subsystem Router: anthropic | code | mcp | orchestrator | dbtable
   ├─ LLMAgent: shared completion/review + session memory
    └─ Execution: agentic session (loop or sop) → run skill → record history</code></pre>
         </section>
@@ -75,7 +75,7 @@
                 The descriptor suffix maps to the skill family:
             </p>
             <ul>
-                <li><code>skill.md</code> — Claude (static) skills that surface metadata only.</li>
+                <li><code>skill.md</code> — Anthropic (static) skills that surface metadata only.</li>
                 <li><code>tskill.md</code> — DBTable skills that describe CRUD workflows over structured tables.</li>
                 <li><code>oskill.md</code> — orchestration planners that drive loop or SOP agentic sessions.</li>
                 <li><code>mskill.md</code> — MCP skills with allowed tool lists and optional scripts.</li>
@@ -104,7 +104,7 @@
             <h2>Skill Families</h2>
             <p>Each family focuses on a distinct flavour of work:</p>
             <ul>
-                <li><strong>Claude Skills:</strong> Static descriptors (<code>skill.md</code>) that surface summaries and body content without LLM execution.</li>
+                <li><strong>Anthropic Skills:</strong> Static descriptors (<code>skill.md</code>) that surface summaries and body content without LLM execution.</li>
                 <li><strong>DBTable Skills:</strong> Table-centric CRUD operations defined in <code>tskill.md</code>, with argument handling inside generated functions.</li>
                 <li><strong>Orchestration Skills:</strong> Agentic loop or SOP planners for high-level workflows with clear intent routing.</li>
                 <li><strong>MCP Skills:</strong> Tool-centric skills that interface with external Model Context Protocol servers.</li>

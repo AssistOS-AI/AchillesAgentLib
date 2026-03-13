@@ -28,7 +28,7 @@
         "RecursiveSkilledAgents",
         "CodeSkillsSubsystem",
         "DynamicCodeGenerationSubsystem",
-        "ClaudeSkillsSubsystem",
+        "AnthropicSkillsSubsystem",
         "MCPSkillsSubsystem",
         "OrchestratorSkillsSubsystem",
         "DBTableSkillsSubsystem",

@@ -22,7 +22,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │  ┌─────────────────────────────▼─────────────────────────────────────┐  │
 │  │                        Subsystems                                 │  │
 │  │  ┌─────────────┐ ┌──────────────┐ ┌─────────────┐ ┌─────────────┐ │  │
-│  │  │   claude    │ │ dynamic-code │ │ code-skill  │ │     mcp     │ │  │
+│  │  │  anthropic  │ │ dynamic-code │ │ code-skill  │ │     mcp     │ │  │
 │  │  │ (skill.md)  │ │ (dcgskill.md) │ │ (cskill.md) │ │ (mskill.md) │ │  │
 │  │  └─────────────┘ └──────────────┘ └─────────────┘ └─────────────┘ │  │
 │  │  ┌─────────────┐ ┌─────────────┐                                  │  │
@@ -49,7 +49,7 @@ The main entry point and coordinator for skill-based execution.
 **Skill File Types:**
 | File | Type | Subsystem |
 |------|------|-----------|
-| `skill.md` | claude | ClaudeSkillsSubsystem |
+| `skill.md` | anthropic | AnthropicSkillsSubsystem |
 | `dcgskill.md` | dynamic-code-generation | DynamicCodeGenerationSubsystem |
 | `mskill.md` | mcp | MCPSkillsSubsystem |
 | `oskill.md` | orchestrator | OrchestratorSkillsSubsystem |
@@ -403,9 +403,9 @@ Use appropriate file tools based on the operation type.
 
 ---
 
-### 8. ClaudeSkillsSubsystem (`ClaudeSkillsSubsystem/ClaudeSkillsSubsystem.mjs`)
+### 8. AnthropicSkillsSubsystem (`AnthropicSkillsSubsystem/AnthropicSkillsSubsystem.mjs`)
 
-Simple passthrough subsystem for basic Claude skills.
+Simple passthrough subsystem for basic Anthropic skills.
 
 **Skill Definition (skill.md):**
 ```markdown
@@ -591,8 +591,8 @@ skills/
 │   └── tskill.generated.mjs # Auto-generated functions
 ├── my-mcp-skill/
 │   └── mskill.md           # MCP tool skill definition
-└── my-claude-skill/
-    └── skill.md            # Basic Claude skill definition
+└── my-anthropic-skill/
+    └── skill.md            # Basic Anthropic skill definition
 ```
 
 ---
@@ -847,7 +847,7 @@ skill-manager --deep "create a tskill called inventory"
 | Variable | Description |
 |----------|-------------|
 | `ACHILLES_ORCHESTRATOR_MODE` | LLM mode: `fast` (default) or `deep` |
-| `ANTHROPIC_API_KEY` | Required for Claude LLM |
+| `ANTHROPIC_API_KEY` | Required for Anthropic LLM |
 | `OPENAI_API_KEY` | Alternative: OpenAI API key |
 
 ### Dynamic Code Generation Workflow
