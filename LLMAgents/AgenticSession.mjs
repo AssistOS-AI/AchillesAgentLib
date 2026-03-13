@@ -832,7 +832,7 @@ class LoopAgentSession {
             throw new Error(`Unknown tool: ${toolName}`);
         }
 
-        const resolvedPrompt = typeof toolPrompt === 'string'
+        let resolvedPrompt = typeof toolPrompt === 'string'
             ? toolPrompt.replace(/\$\$([A-Za-z0-9_-]+)/g, (match, resultRef) => {
                 if (!this.toolVars.has(resultRef)) {
                     throw new Error(`Unknown tool variable: ${resultRef}`);
@@ -841,6 +841,25 @@ class LoopAgentSession {
                 return typeof value === 'string' ? value : JSON.stringify(value);
             })
             : toolPrompt;
+
+        // Fallback: if the resolved prompt still contains a bare resultRef (no $$ prefix),
+        // resolve it. This handles LLM non-determinism where $$ is omitted.
+        if (typeof resolvedPrompt === 'string' && this.toolVars.size > 0) {
+            // Exact match: the entire prompt is a bare resultRef
+            if (this.toolVars.has(resolvedPrompt)) {
+                const value = this.toolVars.get(resolvedPrompt);
+                resolvedPrompt = typeof value === 'string' ? value : JSON.stringify(value);
+            } else {
+                // Partial match: replace any bare resultRef tokens within the text
+                resolvedPrompt = resolvedPrompt.replace(/\b([A-Za-z][\w-]*-res-\d+)\b/g, (match, ref) => {
+                    if (this.toolVars.has(ref)) {
+                        const value = this.toolVars.get(ref);
+                        return typeof value === 'string' ? value : JSON.stringify(value);
+                    }
+                    return match;
+                });
+            }
+        }
 
         await logLoopEvent('Tool call', `${toolName} | ${formatLogValue(resolvedPrompt)}`, SESSION_LOG_TRIM_LIMIT);
 

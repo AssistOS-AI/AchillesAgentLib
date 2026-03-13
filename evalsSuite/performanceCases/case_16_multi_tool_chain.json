@@ -1,0 +1,16 @@
+{
+    "id": "case_16_multi_tool_chain",
+    "systemPrompt": "Use multiple tools in sequence to solve composite tasks",
+    "steps": [
+        {
+            "id": "add_then_check_even",
+            "prompt": "Add 7 and 3, then tell me if the result is even. Answer only true or false.",
+            "expected": "true"
+        },
+        {
+            "id": "reverse_then_uppercase",
+            "prompt": "Reverse the text 'hello' then convert it to uppercase. Return only the final text.",
+            "expected": "OLLEH"
+        }
+    ]
+}

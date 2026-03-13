@@ -1,0 +1,26 @@
+{
+    "id": "case_17_complex_pipeline",
+    "systemPrompt": "Solve composite tasks requiring 4+ tool calls with intermediate dependencies",
+    "steps": [
+        {
+            "id": "math_chain_to_text",
+            "prompt": "Add 15 and 27, then multiply the result by 3. Reverse the digits of the final number as text. Return only the reversed text.",
+            "expected": "621"
+        },
+        {
+            "id": "email_domain_length_check",
+            "prompt": "Extract the email from 'Contact: alice@widgets.org for details', get its domain, count the characters in the domain, and check if that count is even. Answer only true or false.",
+            "expected": "false"
+        },
+        {
+            "id": "text_transform_chain",
+            "prompt": "Take the text 'benchmark', get its length, add that length to 5, and check if the result is even. Answer only true or false.",
+            "expected": "true"
+        },
+        {
+            "id": "parallel_math_then_logic",
+            "prompt": "Add 8 and 4. Separately, multiply 3 and 5. Check if both results are even using logical AND. Answer only true or false.",
+            "expected": "false"
+        }
+    ]
+}

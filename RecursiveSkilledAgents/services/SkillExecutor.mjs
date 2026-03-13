@@ -1,6 +1,9 @@
 import path from 'node:path';
 import { stat } from 'node:fs/promises';
 import { SKILL_FILE_TYPES } from '../constants/skillFileTypes.mjs';
+import { createSessionAdapter } from '../../LLMAgents/AgenticSessionAdapter.mjs';
+import { Sanitiser } from '../../utils/Sanitiser.mjs';
+import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../../LLMAgents/constants.mjs';
 
 /**
  * Registry of internal skill module paths.
@@ -21,6 +24,8 @@ const SKILL_TYPE_TO_FILENAME = Object.entries(SKILL_FILE_TYPES).reduce((acc, [fi
 /**
  * Service for executing skills with review modes and processing callbacks.
  * Coordinates skill execution through the appropriate subsystem.
+ * When no explicit skill is specified, creates a top-level agentic session
+ * with all registered skills as tools.
  */
 export class SkillExecutor {
     /**
@@ -28,25 +33,28 @@ export class SkillExecutor {
      * @param {Object} options - Executor options
      * @param {Object} options.registry - SkillRegistry instance
      * @param {Object} options.subsystemFactory - SubsystemFactory instance
-     * @param {Object} options.selector - SkillSelector instance
+     * @param {Object} options.llmAgent - LLMAgent instance for top-level session
      * @param {Object} [options.logger] - Logger instance
      * @param {Object} [options.debugLogger] - Debug logger instance
      * @param {Object} [options.callbacks] - Processing callbacks
-     * @param {Function} [options.callbacks.onBegin] - Called when processing begins
-     * @param {Function} [options.callbacks.onProgress] - Called during processing
-     * @param {Function} [options.callbacks.onEnd] - Called when processing ends
+     * @param {string} [options.systemPrompt] - System prompt for top-level session
+     * @param {number} [options.maxStepsPerTurn] - Max steps per turn for top-level session
+     * @param {string} [options.sessionType='loop'] - Session type ('loop', 'sop', 'json', or 'md')
      */
     constructor({
         registry,
         subsystemFactory,
-        selector,
+        llmAgent = null,
         logger = console,
         debugLogger = null,
         callbacks = {},
+        systemPrompt = null,
+        maxStepsPerTurn = null,
+        sessionType = 'loop',
     } = {}) {
         this.registry = registry;
         this.subsystemFactory = subsystemFactory;
-        this.selector = selector;
+        this._llmAgent = llmAgent;
         this.logger = logger;
         this.debugLogger = debugLogger;
         this.callbacks = {
@@ -57,6 +65,12 @@ export class SkillExecutor {
         this._isProcessing = false;
         this._actionReporter = null;
         this.pendingPreparations = [];
+
+        // Top-level session configuration
+        this._systemPrompt = systemPrompt || 'You are a routing assistant. You MUST delegate every request to one of the available tools — never answer directly from your own knowledge. Pick the best-matching tool, pass the user request as the toolPrompt, and call final_answer with the tool result when done.';
+        this._maxStepsPerTurn = Number.isFinite(maxStepsPerTurn) ? maxStepsPerTurn : 15;
+        const VALID_SESSION_TYPES = new Set(['loop', 'sop', 'json', 'md']);
+        this._sessionType = VALID_SESSION_TYPES.has(sessionType) ? sessionType : 'loop';
     }
 
     /**
@@ -126,64 +140,132 @@ export class SkillExecutor {
     }
 
     /**
-     * Execute a skill without an explicit skill name.
-     * Tries to find an orchestrator first, then falls back to LLM selection.
-     * @param {string} taskDescription - The task description
-     * @param {Object} forwardOptions - Options to forward to the skill
-     * @param {string} reviewMode - Review mode ('none', 'llm', 'human')
-     * @param {Object} recursiveAgent - The recursive agent instance (for orchestrator execution)
-     * @returns {Promise<Object>} The execution result
+     * Build a unified skills list from all registered skills.
+     * Each skill is represented as { name, description, handler }.
+     * @param {Object} recursiveAgent - The recursive agent instance
+     * @param {Object} forwardedContext - Context to forward to each skill
+     * @returns {Array<{name: string, description: string, handler: Function}>}
+     * @private
      */
-    async executeWithoutExplicitSkill(taskDescription, forwardOptions, reviewMode, recursiveAgent) {
-        this.debugLogger?.log('SkillExecutor:executeWithoutExplicitSkill', {
-            taskDescription,
-            reviewMode,
-        });
+    _buildSkillsList(recursiveAgent, forwardedContext, originalTaskDescription = null) {
+        const allSkills = this.registry.getAll();
+        const skills = [];
 
-        // Try to find an orchestrator
-        const orchestrators = this.registry.listByType('orchestrator');
-        const orchestratorRecord = this.selector.selectOrchestrator(taskDescription, orchestrators);
+        for (const skillRecord of allSkills) {
+            const name = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
+            // Prefer the dedicated routing description from frontmatter over full rawContent
+            const description = skillRecord.descriptor?.description
+                || skillRecord.descriptor?.rawContent
+                || skillRecord.descriptor?.name
+                || skillRecord.name
+                || 'No description';
+            // Truncate long descriptions
+            const truncatedDescription = description.length > 500
+                ? description.slice(0, 497) + '...'
+                : description;
 
-        if (orchestratorRecord) {
-            const subsystem = this.subsystemFactory.get('orchestrator');
-            const execution = await subsystem.executeSkillPrompt({
-                skillRecord: orchestratorRecord,
-                recursiveAgent,
-                promptText: taskDescription,
-                options: {
-                    ...forwardOptions,
-                    reviewMode,
+            skills.push({
+                name,
+                description: truncatedDescription,
+                handler: async (agent, promptText) => {
+                    // Coerce to string — loop session may pass structured objects
+                    const plannerPrompt = typeof promptText === 'string'
+                        ? promptText
+                        : JSON.stringify(promptText);
+
+                    // Include the original user request so the inner loop has full context,
+                    // even if the outer planner simplified/rewrote the prompt
+                    let fullPrompt = plannerPrompt;
+                    if (originalTaskDescription && plannerPrompt !== originalTaskDescription) {
+                        fullPrompt = `${plannerPrompt}\n\nOriginal user request:\n${originalTaskDescription}`;
+                    }
+
+                    this.debugLogger?.log('SkillExecutor:skillHandler:invoke', {
+                        skillName: skillRecord.name,
+                        plannerPrompt: plannerPrompt.slice(0, 200),
+                        hasOriginalContext: Boolean(originalTaskDescription),
+                    });
+
+                    const result = await recursiveAgent.executePrompt(fullPrompt, {
+                        skillName: skillRecord.name,
+                        context: forwardedContext,
+                    });
+
+                    this.debugLogger?.log('SkillExecutor:skillHandler:result', {
+                        skillName: skillRecord.name,
+                        resultType: typeof result?.result,
+                        resultPreview: String(result?.result ?? '').slice(0, 200),
+                    });
+
+                    return result?.result;
                 },
             });
-            this.debugLogger?.log('SkillExecutor:executeWithoutExplicitSkill:orchestrator', {
-                selected: orchestratorRecord.name,
-                reviewMode,
-            });
-            return {
-                ...execution,
-                reviewMode,
-                subsystem: orchestratorRecord.type,
-            };
         }
 
-        // Fall back to LLM-based skill selection
-        const candidates = this.registry.getAll();
-        this.debugLogger?.log('SkillExecutor:executeWithoutExplicitSkill:fallback-selection', {
-            candidateCount: candidates.length,
-        });
-        const selected = await this.selector.chooseWithLLM(taskDescription, candidates);
+        return skills;
+    }
 
-        if (selected) {
-            this.debugLogger?.log('SkillExecutor:executeWithoutExplicitSkill:llm-selected', {
-                selected: selected.name,
+    /**
+     * Execute via a top-level agentic session where all skills are tools.
+     * The session planner decides which skills to call, in what order.
+     * @param {string} taskDescription - The task description
+     * @param {Object} options - Forwarded options
+     * @param {Object} recursiveAgent - The recursive agent instance
+     * @returns {Promise<Object>} The execution result
+     * @private
+     */
+    async _executeViaTopLevelSession(taskDescription, options, recursiveAgent) {
+        const forwardedContext = options?.context || {};
+        const sessionMemory = options?.sessionMemory || null;
+        const sessionKey = `${SESSION_KEY_PREFIX}__top_level__`;
+
+        // Check for existing session in awaiting_input state
+        let adapter = sessionMemory?.get?.(sessionKey) || null;
+        let result;
+
+        if (adapter && adapter.status === SESSION_STATUS_AWAITING_INPUT) {
+            this.debugLogger?.log('SkillExecutor:topLevelSession:resume', {
+                sessionType: this._sessionType,
             });
-            return this.execute(taskDescription, {
-                ...forwardOptions,
-                skillName: selected.name,
-            }, reviewMode, recursiveAgent);
+            result = await adapter.newPrompt(taskDescription);
+        } else {
+            const skills = this._buildSkillsList(recursiveAgent, forwardedContext, taskDescription);
+
+            this.debugLogger?.log('SkillExecutor:topLevelSession:create', {
+                sessionType: this._sessionType,
+                skillCount: skills.length,
+                skillNames: skills.map((s) => s.name),
+            });
+
+            if (!skills.length) {
+                throw new Error('No skills registered. Cannot execute without an explicit skill name.');
+            }
+
+            adapter = createSessionAdapter(this._sessionType, {
+                agent: this._llmAgent,
+                skills,
+                options: {
+                    systemPrompt: this._systemPrompt,
+                    maxStepsPerTurn: this._maxStepsPerTurn,
+                    mode: options?.mode || 'plan',
+                },
+            });
+
+            result = await adapter.newPrompt(taskDescription);
         }
 
-        throw new Error('Unable to determine an appropriate skill for the request.');
+        // Store or clear session based on status
+        if (adapter.status === SESSION_STATUS_AWAITING_INPUT && sessionMemory?.set) {
+            sessionMemory.set(sessionKey, adapter);
+        } else if (sessionMemory?.delete) {
+            sessionMemory.delete(sessionKey);
+        }
+
+        return {
+            result,
+            session: this._sessionType,
+            sessionMemory,
+        };
     }
 
     /**
@@ -227,11 +309,15 @@ export class SkillExecutor {
                 if (actionReporter && isTopLevel) {
                     actionReporter.routing(taskDescription?.slice(0, 50) || 'request');
                 }
-                const result = await this.executeWithoutExplicitSkill(taskDescription, forward, reviewMode, recursiveAgent);
+                const result = await this._executeViaTopLevelSession(taskDescription, forward, recursiveAgent);
                 if (actionReporter && isTopLevel) {
                     actionReporter.completeAction();
                 }
-                return result;
+                return {
+                    ...result,
+                    reviewMode,
+                    subsystem: 'top-level-session',
+                };
             }
 
             const skillRecord = this.registry.get(skillName);

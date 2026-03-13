@@ -12,7 +12,6 @@ import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { SubsystemFactory } from './services/SubsystemFactory.mjs';
 import { SkillRegistry } from './services/SkillRegistry.mjs';
 import { SkillDiscoveryService } from './services/SkillDiscoveryService.mjs';
-import { SkillSelector } from './services/SkillSelector.mjs';
 import { SkillExecutor } from './services/SkillExecutor.mjs';
 
 // Re-export for backward compatibility
@@ -64,6 +63,9 @@ export class RecursiveSkilledAgent {
         inputReader = null,
         outputWriter = null,
         exposeInternalSkills = true,
+        sessionType = 'loop',
+        systemPrompt = null,
+        maxStepsPerTurn = null,
     } = {}) {
         if (llmAgent && !(llmAgent instanceof LLMAgent)) {
             throw new TypeError('RecursiveSkilledAgent requires an LLMAgent instance.');
@@ -98,6 +100,11 @@ export class RecursiveSkilledAgent {
 
         // Create or use provided LLM agent
         this.llmAgent = llmAgent || new LLMAgent({ ...llmAgentOptions });
+
+        // Top-level session configuration
+        this._topLevelSessionType = sessionType;
+        this._topLevelSystemPrompt = systemPrompt;
+        this._topLevelMaxStepsPerTurn = maxStepsPerTurn;
 
         // Initialize services
         this._initializeServices({
@@ -153,18 +160,11 @@ export class RecursiveSkilledAgent {
             searchUpwards: this.searchUpwards,
         });
 
-        // Skill selector
-        this.selector = new SkillSelector({
-            llmAgent: this.llmAgent,
-            logger: this.logger,
-            debugLogger: this.debugLogger,
-        });
-
         // Skill executor
         this.executor = new SkillExecutor({
             registry: this.registry,
             subsystemFactory: this.subsystemFactory,
-            selector: this.selector,
+            llmAgent: this.llmAgent,
             logger: this.logger,
             debugLogger: this.debugLogger,
             callbacks: {
@@ -172,6 +172,9 @@ export class RecursiveSkilledAgent {
                 onProgress: onProcessingProgress,
                 onEnd: onProcessingEnd,
             },
+            systemPrompt: this._topLevelSystemPrompt || null,
+            maxStepsPerTurn: this._topLevelMaxStepsPerTurn || null,
+            sessionType: this._topLevelSessionType || 'loop',
         });
 
         // Legacy compatibility properties

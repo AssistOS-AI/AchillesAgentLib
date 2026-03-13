@@ -122,6 +122,7 @@ export function parseAnthropicSkillDocument(filePath) {
 
     return {
         name,
+        description: frontmatter.description || null,
         rawContent: content,
         sections: Object.fromEntries(sections),
     };

@@ -101,9 +101,14 @@ export function buildAnthropicTools({
 
     if (resourcesDir && isDirectory(resourcesDir)) {
         tools['get-resource'] = {
-            description: 'Purpose: Read a file from resources/. When to use: fetch a bundled resource file for this skill. Keywords: get resource, read resource, resources/.',
+            description: 'Read a bundled resource file. Pass ONLY the file path, e.g.: resources/rules.md or rules.md. Do NOT include labels like "file_path:" or natural language — just the path.',
             handler: async (_agent, promptText) => {
-                const resourcePath = String(promptText ?? '').trim();
+                let resourcePath = String(promptText ?? '').trim();
+                // Strip common natural-language prefixes the LLM may add
+                resourcePath = resourcePath
+                    .replace(/^(?:read|get|fetch|load|open)\s+(?:the\s+)?(?:content\s+of\s+)?/i, '')
+                    .replace(/^(?:file_path|path|file|resource)\s*[:=]\s*/i, '')
+                    .trim();
                 if (!resourcePath) {
                     throw new Error('get-resource requires a relative path.');
                 }
