@@ -94,7 +94,13 @@ export function buildAnthropicTools({
                 const output = await runBashCommand(adjustedCommand, skillDir || process.cwd());
                 const stderrText = output.stderr ? `\n[stderr]\n${output.stderr}` : '';
                 const exitCodeText = output.exitCode ? `\n[exitCode] ${output.exitCode}` : '';
-                return `${output.stdout || ''}${stderrText}${exitCodeText}`.trim();
+                const stdoutText = output.stdout || '';
+                // Wrap output with labels so the LLM doesn't misinterpret
+                // numeric results (e.g. "400") as HTTP error codes
+                if (output.exitCode) {
+                    return `[error] exit code ${output.exitCode}\n${stdoutText}${stderrText}`.trim();
+                }
+                return `[ok]\n${stdoutText}${stderrText}`.trim();
             },
         };
     }
