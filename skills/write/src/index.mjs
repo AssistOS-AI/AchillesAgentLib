@@ -2,6 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseKeyValueInput, resolvePath } from '../../../utils/internalSkillsUtils.mjs';
 
+function extractMultilineAfterKey(promptText, key) {
+    const lines = String(promptText ?? '').split(/\r?\n/);
+    const pattern = new RegExp(`^${key}\\s*:\\s*(.*)$`);
+    for (let i = 0; i < lines.length; i += 1) {
+        const match = lines[i].match(pattern);
+        if (!match) {
+            continue;
+        }
+        const firstLine = match[1] ?? '';
+        const rest = lines.slice(i + 1).join('\n');
+        return rest ? `${firstLine}\n${rest}` : firstLine;
+    }
+    return null;
+}
+
 export async function action(context) {
     const { promptText } = context;
     const { data } = parseKeyValueInput(promptText);
@@ -9,7 +24,8 @@ export async function action(context) {
         throw new Error('Write requires input with file_path and content.');
     }
     const filePath = resolvePath(data.file_path, 'file_path');
-    const content = data.content;
+    const multilineContent = extractMultilineAfterKey(promptText, 'content');
+    const content = typeof multilineContent === 'string' ? multilineContent : data.content;
     if (typeof content !== 'string') {
         throw new Error('Write requires string content.');
     }

@@ -816,7 +816,8 @@ class LoopAgentSession {
             : toolPrompt;
 
 
-        debugLog(`[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${resolvedPrompt}"`);
+        const promptPreview = String(resolvedPrompt ?? '').slice(0, 200);
+        debugLog(`[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${promptPreview}"`);
         this._debug('[LoopSession]', 'Calling tool', { tool: toolName, prompt: resolvedPrompt });
 
         // Attach session to agent temporarily to support tools that need session context
