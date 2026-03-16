@@ -23,7 +23,7 @@ function htmlToText(html) {
 }
 
 export async function action(context) {
-    const { promptText } = context;
+    const { promptText, llmAgent } = context;
     const { data } = parseKeyValueInput(promptText);
     if (!data || typeof data !== 'object' || !Object.keys(data).length) {
         throw new Error('WebFetch requires input with url and prompt.');
@@ -42,8 +42,21 @@ export async function action(context) {
     const response = await fetch(url, { redirect: 'follow' });
     const contentType = response.headers.get('content-type') || '';
     const body = await response.text();
-    if (contentType.includes('text/html')) {
-        return htmlToText(body);
-    }
-    return body.trim();
+    const pageText = contentType.includes('text/html')
+        ? htmlToText(body)
+        : body.trim();
+    const promptForLlm = [
+        'You are extracting information from a web page.',
+        `User request: ${prompt}`,
+        'Page content:',
+        pageText,
+    ].join('\n\n');
+    const llmResult = await llmAgent.executePrompt(promptForLlm, {
+        responseShape: 'text',
+        mode: 'fast',
+        context,
+    });
+    return (llmResult && typeof llmResult === 'string')
+        ? llmResult
+        : (llmResult?.output || llmResult?.result || llmResult?.text || '').toString().trim();
 }
