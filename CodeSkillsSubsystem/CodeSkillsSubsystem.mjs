@@ -53,7 +53,7 @@ export class CodeSkillsSubsystem {
     const args = {
       promptText
     };
-    debugLog(`Executing skill "${skillRecord.name}" with prompt: ${args.promptText.substring(0, 200)}...`);
+    debugLog(`Executing skill "${skillRecord.shortName}" with prompt: ${args.promptText.substring(0, 200)}...`);
     args.llmAgent = this.llmAgent;
     args.recursiveAgent = recursiveAgent;
     

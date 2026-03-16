@@ -34,10 +34,10 @@ export async function action(context) {
         throw new Error('mirror-code-generator requires an LLM agent.');
     }
 
-    const generatedFiles = await generateMirrorCode(targetDir, agent, logger);
+    const generationResult = await generateMirrorCode(targetDir, agent, logger);
 
     return {
-        message: `Code generation completed for ${targetDir}`,
-        generatedFiles: generatedFiles || [],
+        message: generationResult?.message || `Code generation completed for ${targetDir}`,
+        generatedFiles: generationResult?.generatedFiles || [],
     };
 }

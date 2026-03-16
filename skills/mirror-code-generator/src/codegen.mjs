@@ -73,7 +73,7 @@ async function repairGeneratedFile(
  * @param {string} sourcePath - Directory containing specs/.
  * @param {object} llmAgent - LLM agent instance to use for generation.
  * @param {object} [logger=console] - Logger instance.
- * @returns {Promise<string[]>} Array of generated file paths (relative to sourcePath), or empty array if skipped/up-to-date.
+ * @returns {Promise<{message: string, generatedFiles: string[]}>} Result describing generation status.
  */
 async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
     const debugLogger = getDebugLogger();
@@ -86,13 +86,19 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
         const specsDirExists = await fs.stat(specsDir).then(stat => stat.isDirectory()).catch(() => false);
         if (!specsDirExists) {
             debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'No specs directory found.' });
-            return [];
+            return {
+                message: `Skipped: no specs directory for "${sourceName}".`,
+                generatedFiles: [],
+            };
         }
 
         const specFiles = await findSpecFiles(specsDir);
         if (specFiles.length === 0) {
             logger.warn(`[generateMirrorCode] No spec files found in ${specsDir} for "${sourceName}".`);
-            return [];
+            return {
+                message: `Skipped: no spec files for "${sourceName}".`,
+                generatedFiles: [],
+            };
         }
 
         const backupSpecsExists = await fs.stat(backupSpecsDir).then(stat => stat.isDirectory()).catch(() => false);
@@ -119,7 +125,10 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
 
         if (!anyNeedsRegeneration) {
             debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'Source code is up-to-date.' });
-            return [];
+            return {
+                message: `Skipped: source is up-to-date for "${sourceName}".`,
+                generatedFiles: [],
+            };
         }
 
         debugLogger?.log('generateMirrorCode:start', { skill: sourceName, reason: 'Source is missing or outdated.' });
@@ -276,7 +285,10 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
 
         logger.log(`[generateMirrorCode] Successfully generated all ${generatedFilePaths.length} files for "${sourceName}".`);
 
-        return generatedFilePaths;
+        return {
+            message: `Generated ${generatedFilePaths.length} file(s) for "${sourceName}".`,
+            generatedFiles: generatedFilePaths,
+        };
     } catch (error) {
         logger.error(`[generateMirrorCode] Failed to generate code for "${sourceName}": ${error.message}`);
         debugLogger?.log('generateMirrorCode:error', { source: sourceName, error: error.stack });

@@ -57,6 +57,7 @@ export class SkillExecutor {
         this._isProcessing = false;
         this._actionReporter = null;
         this.pendingPreparations = [];
+        this._pendingPreparationSet = new Set();
     }
 
     /**
@@ -80,7 +81,24 @@ export class SkillExecutor {
      * @param {Promise} preparation - The preparation promise
      */
     addPendingPreparation(preparation) {
-        this.pendingPreparations.push(preparation);
+        const tracked = Promise.resolve(preparation);
+        this._pendingPreparationSet.add(tracked);
+        tracked.finally(() => {
+            this._pendingPreparationSet.delete(tracked);
+        });
+        this.pendingPreparations.push(tracked);
+    }
+
+    /**
+     * Await all pending preparations, including those added during await.
+     * @returns {Promise<void>}
+     */
+    async awaitPendingPreparations() {
+        while (this._pendingPreparationSet.size > 0) {
+            const toAwait = Array.from(this._pendingPreparationSet);
+            await Promise.all(toAwait);
+        }
+        this.pendingPreparations.length = 0;
     }
 
     /**
@@ -208,19 +226,18 @@ export class SkillExecutor {
         let skillAction = null;
 
         try {
-            // Await any pending preparations
-            if (this.pendingPreparations.length) {
-                const toAwait = this.pendingPreparations;
-                this.pendingPreparations = [];
-                await Promise.all(toAwait);
-            }
-
             const {
                 skillName = null,
                 promptReader = null,
                 subsystemType = null, // retained for backwards compatibility
+                skipPreparationAwait = false,
                 ...forward
             } = options || {};
+
+            // Await any pending preparations
+            if (!skipPreparationAwait && this._pendingPreparationSet.size > 0) {
+                await this.awaitPendingPreparations();
+            }
 
             if (!skillName) {
                 // Report that we're routing/planning

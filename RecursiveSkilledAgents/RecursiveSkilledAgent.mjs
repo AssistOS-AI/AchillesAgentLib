@@ -192,11 +192,33 @@ export class RecursiveSkilledAgent {
             this.additionalSkillRoots
         );
 
+        const allSkills = [];
+
         for (const root of roots) {
             const skills = this.discoveryService.discoverFromRoot(root);
-            for (const skillRecord of skills) {
-                this._registerSkill(skillRecord);
+            allSkills.push(...skills);
+        }
+
+        if (!allSkills.length) {
+            return;
+        }
+
+        let mirrorSkill = null;
+        const otherSkills = [];
+        for (const skillRecord of allSkills) {
+            if (!mirrorSkill && skillRecord.shortName === 'mirror-code-generator') {
+                mirrorSkill = skillRecord;
+                continue;
             }
+            otherSkills.push(skillRecord);
+        }
+
+        if (mirrorSkill) {
+            this._registerSkill(mirrorSkill);
+        }
+
+        for (const skillRecord of otherSkills) {
+            this._registerSkill(skillRecord);
         }
     }
 
@@ -244,6 +266,7 @@ export class RecursiveSkilledAgent {
             this.executor.addPendingPreparation(
                 this.executePrompt(skillRecord.skillDir, {
                     skillName: 'mirror-code-generator',
+                    skipPreparationAwait: true,
                 }).catch(error => {
                     this.logger.warn(`[RecursiveSkilledAgent] Failed to generate code for cskill ${skillRecord.name}: ${error.message}`);
                 })
@@ -728,6 +751,16 @@ export class RecursiveSkilledAgent {
         this.registry.clear();
         this._discoverAndRegister();
         return this.registry.size;
+    }
+
+    /**
+     * Await all pending skill preparations.
+     * @returns {Promise<void>}
+     */
+    async awaitPreparations() {
+        if (this.executor && typeof this.executor.awaitPendingPreparations === 'function') {
+            await this.executor.awaitPendingPreparations();
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
