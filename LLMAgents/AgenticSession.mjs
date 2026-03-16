@@ -1,7 +1,5 @@
 import { buildAgenticSessionPlannerPrompt, buildPreparationPrompt, extractJson } from './templates/prompts.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
-import { appendAgenticLog } from '../utils/AgenticSessionLogger.mjs';
-//import { appendAgenticAudit } from '../utils/AgenticSessionLogger.mjs';
 import {
     FINAL_ANSWER_TOOL,
     FINAL_ANSWER_DESCRIPTION,
@@ -19,7 +17,6 @@ import {
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
 const PREPARATION_CONTEXT_PREFIX = '@context_';
-const SESSION_LOG_TRIM_LIMIT = 400;
 
 function injectContextIntoPrompt(promptText, contextLines = []) {
     if (!contextLines.length) {
@@ -42,14 +39,6 @@ function debugLog(...args) {
     if (DEBUG_ENABLED) console.log(...args);
 }
 
-async function logLoopEvent(label, content, trimLimit = SESSION_LOG_TRIM_LIMIT) {
-    await appendAgenticLog({
-        sessionType: 'LoopSession',
-        label,
-        content,
-        trimLimit,
-    });
-}
 
 function coerceResultToText(result) {
     if (result == null) {
@@ -326,7 +315,6 @@ class LoopAgentSession {
 
         // Session-level logging for incoming prompts
         debugLog(`[${getTimestamp()}] [LoopSession] New prompt: "${userPrompt}"`);
-        await logLoopEvent('Loop session start', userPrompt, SESSION_LOG_TRIM_LIMIT);
         this._debug('[LoopSession]', 'New prompt', { prompt: userPrompt, expected });
 
         const turn = {
@@ -405,7 +393,6 @@ class LoopAgentSession {
             userPromptLength: String(userPrompt || '').length,
             retries,
         });
-        await logLoopEvent('Preparation start', `prepLength=${String(preparationText || '').length} userPromptLength=${String(userPrompt || '').length}`);
 
         const attemptRun = async () => {
             const sessionOptions = {
@@ -435,7 +422,6 @@ class LoopAgentSession {
                 contextEntries: contextEntries.length,
                 contextLines: contextLines.length,
             });
-            await logLoopEvent('Preparation result', resultText, null);
             return { contextEntries, contextLines, rawText: resultText };
         };
 
@@ -490,7 +476,6 @@ class LoopAgentSession {
                         prompt: toolPrompt,
                         result: displayResult,
                     });
-                    await logLoopEvent('Tool result', `${toolName} | ${formatLogValue(displayResult)}`, SESSION_LOG_TRIM_LIMIT);
 
                     // Handle interactive tools that require user confirmation or input
                     // When a tool returns requiresConfirmation or requiresInput, stop and return to user
@@ -507,7 +492,6 @@ class LoopAgentSession {
                         }
                         debugLog(`[${getTimestamp()}] [LoopSession] Detected requiresConfirmation/Input, returning message (first 100 chars): "${String(message).substring(0, 100)}..."`);
                         this._debug('[LoopSession]', 'Tool requires input/confirmation', { tool: toolName, message });
-                        await logLoopEvent('Awaiting input', message, SESSION_LOG_TRIM_LIMIT);
                         turn.finalAnswer = message;
                         turn.status = SESSION_STATUS_AWAITING_INPUT;
                         this.status = SESSION_STATUS_AWAITING_INPUT;
@@ -586,7 +570,6 @@ class LoopAgentSession {
 
                         if (toolResult.__cannotComplete) {
                             this._debug('[LoopSession]', 'Tool cannot complete', { tool: toolName, final });
-                            await logLoopEvent('Session failed', final, SESSION_LOG_TRIM_LIMIT);
                             turn.finalAnswer = final;
                             turn.status = SESSION_STATUS_FAILED;
                             this.status = SESSION_STATUS_FAILED;
@@ -598,7 +581,6 @@ class LoopAgentSession {
 
                         if (matchesExpected) {
                             this._debug('[LoopSession]', 'Tool final answer accepted', { tool: toolName, final });
-                            await logLoopEvent('Final answer', final, SESSION_LOG_TRIM_LIMIT);
                             turn.finalAnswer = final;
                             turn.status = SESSION_STATUS_DONE;
                             this.status = SESSION_STATUS_ACTIVE;
@@ -614,7 +596,6 @@ class LoopAgentSession {
                             actual: final,
                             retryCount: turn.retryCount + 1,
                         });
-                        await logLoopEvent('Validation failed', `expected=${expected ?? ''} actual=${final}`, SESSION_LOG_TRIM_LIMIT);
                         turn.retryCount += 1;
                         this.history.push({
                             type: 'validation_failed',
@@ -623,7 +604,6 @@ class LoopAgentSession {
                             retryCount: turn.retryCount,
                         });
                         if (turn.retryCount >= turn.maxRetries) {
-                            await logLoopEvent('Session failed', final, SESSION_LOG_TRIM_LIMIT);
                             turn.finalAnswer = final;
                             turn.status = SESSION_STATUS_FAILED;
                             this.status = SESSION_STATUS_ACTIVE;
@@ -651,7 +631,6 @@ class LoopAgentSession {
                             tool: toolName,
                             prompt: toolPrompt,
                         });
-                        await logLoopEvent('Final answer', final, SESSION_LOG_TRIM_LIMIT);
                         turn.finalAnswer = final;
                         turn.status = SESSION_STATUS_DONE;
                         this.status = SESSION_STATUS_ACTIVE;
@@ -678,7 +657,6 @@ class LoopAgentSession {
                     if (this.errorCount >= maxErrors) {
                         const message = 'Too many tool errors, aborting.';
                         this._debug('[LoopSession]', 'Aborting due to tool errors', { message });
-                        await logLoopEvent('Session failed', message, SESSION_LOG_TRIM_LIMIT);
                         turn.finalAnswer = message;
                         turn.status = SESSION_STATUS_FAILED;
                         this.status = SESSION_STATUS_FAILED;
@@ -700,7 +678,6 @@ class LoopAgentSession {
             if (this.errorCount >= maxErrors) {
                 const message = 'Too many planner errors, aborting.';
                 this._debug('[LoopSession]', 'Aborting due to planner errors', { message });
-                await logLoopEvent('Session failed', message, SESSION_LOG_TRIM_LIMIT);
                 turn.finalAnswer = message;
                 turn.status = SESSION_STATUS_FAILED;
                 this.status = SESSION_STATUS_FAILED;
@@ -710,7 +687,6 @@ class LoopAgentSession {
 
         const fallback = 'Unable to complete within step limit.';
         this._debug('[LoopSession]', 'Step limit reached', { message: fallback });
-        await logLoopEvent('Step limit reached', fallback, SESSION_LOG_TRIM_LIMIT);
         turn.finalAnswer = fallback;
         turn.status = SESSION_STATUS_FAILED;
         this.status = SESSION_STATUS_FAILED;
@@ -745,7 +721,6 @@ class LoopAgentSession {
                         interpretation,
                         decision,
                     });
-                    await logLoopEvent('Pending tool decision', { pendingTool, interpretation, decision }, SESSION_LOG_TRIM_LIMIT);
                     return decision;
                 }
             }
@@ -764,7 +739,6 @@ class LoopAgentSession {
             stepIndex,
             promptLength: plannerPrompt.length,
         });
-        await logLoopEvent('Planner prompt', plannerPrompt, null);
 
         // await appendAgenticAudit({
         //     prompt: plannerPrompt,
@@ -821,7 +795,6 @@ class LoopAgentSession {
         }
 
         this._debug('[LoopSession]', 'Planner parsed response', { stepIndex, parsed });
-        await logLoopEvent('Planner parsed', parsed, SESSION_LOG_TRIM_LIMIT);
 
         return parsed;
     }
@@ -842,7 +815,6 @@ class LoopAgentSession {
             })
             : toolPrompt;
 
-        await logLoopEvent('Tool call', `${toolName} | ${formatLogValue(resolvedPrompt)}`, SESSION_LOG_TRIM_LIMIT);
 
         debugLog(`[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${resolvedPrompt}"`);
         this._debug('[LoopSession]', 'Calling tool', { tool: toolName, prompt: resolvedPrompt });

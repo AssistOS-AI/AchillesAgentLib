@@ -1,7 +1,6 @@
 import { LightSOPLangInterpreter } from '../lightSOPLang/interpreter.mjs';
 import { parseCode } from '../lightSOPLang/parser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
-import { appendAgenticLog } from '../utils/AgenticSessionLogger.mjs';
 import { buildSOPAgenticInstructions, buildPreparationPrompt } from './templates/sopAgenticSessionPrompts.mjs';
 import {
     FINAL_ANSWER_TOOL,
@@ -12,7 +11,6 @@ import {
 } from './constants.mjs';
 
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
-const SESSION_LOG_TRIM_LIMIT = 400;
 
 
 function injectContextIntoPrompt(promptText, contextLines = []) {
@@ -30,14 +28,6 @@ function debugLog(...args) {
     if (DEBUG_ENABLED) console.log(...args);
 }
 
-async function logSopEvent(label, content, trimLimit = SESSION_LOG_TRIM_LIMIT) {
-    await appendAgenticLog({
-        sessionType: 'SOPlangSession',
-        label,
-        content,
-        trimLimit,
-    });
-}
 
 function coerceResultToText(result) {
     if (result == null) {
@@ -284,7 +274,6 @@ class SOPAgenticSession {
             userPromptLength: String(userPrompt || '').length,
             retries,
         });
-        await logSopEvent('Preparation start', `prepLength=${String(preparationText || '').length} userPromptLength=${String(userPrompt || '').length}`);
 
         const attemptRun = async () => {
             const sessionOptions = {
@@ -316,7 +305,6 @@ class SOPAgenticSession {
                 rawTextLength: String(resultText || '').length,
                 contextTextLength: String(resultText || '').length,
             });
-            await logSopEvent('Preparation result', resultText, null);
             return { contextText: resultText, rawText: resultText, preparationPlan };
         };
 
@@ -356,7 +344,6 @@ class SOPAgenticSession {
 
         const modeHint = this.options.planOnly ? ' plan-only' : '';
         debugLog(`[SOPAgenticSession${modeHint}] New prompt: "${userPrompt}"`);
-        await logSopEvent('SOP session start', userPrompt, SESSION_LOG_TRIM_LIMIT);
  
         const maxAttempts = this.maxPlanAttempts > 0 ? this.maxPlanAttempts : 1;
         let attempt = 0;
@@ -426,7 +413,6 @@ class SOPAgenticSession {
             }
  
             if (attempt + 1 < maxAttempts) {
-                await logSopEvent('Plan retry due to failures', failures.map((entry) => `${entry.variable}: ${entry.reason}`).join('; '), SESSION_LOG_TRIM_LIMIT);
             }
             attempt += 1;
             if (attempt >= maxAttempts) {
@@ -480,7 +466,6 @@ class SOPAgenticSession {
         const planWithContext = prepContext
             ? `${prepContext}\n${normalizedPlanSource}`
             : normalizedPlanSource;
-        await logSopEvent('Plan execute start', normalizedPlanSource || '', SESSION_LOG_TRIM_LIMIT);
         if (planWithContext !== normalizedPlanSource) {
             debugLog('[SOPAgenticSession] Executing plan with injected context variables:');
             debugLog(planWithContext);
@@ -533,7 +518,6 @@ class SOPAgenticSession {
                 variable: '__plan__',
                 reason: `plan-error:${message}`,
             }];
-            await logSopEvent('Plan failures', failures.map((entry) => `${entry.variable}: ${entry.reason}`).join('; '), SESSION_LOG_TRIM_LIMIT);
             return { hasFailures: true, failures };
         }
         const variables = {};
@@ -550,9 +534,7 @@ class SOPAgenticSession {
         const failures = hasFailures ? collectedFailures : [];
         this.lastRunFailures = failures;
         if (hasFailures) {
-            await logSopEvent('Plan failures', failures.map((entry) => `${entry.variable}: ${entry.reason}`).join('; '), SESSION_LOG_TRIM_LIMIT);
         }
-        await logSopEvent('Plan execute end', this.lastExecution?.lastAnswer ?? '', SESSION_LOG_TRIM_LIMIT);
         return { hasFailures, failures };
     }
  
@@ -714,7 +696,6 @@ ${trimmed}`;
             planOptions,
         );
         await interpreter.ready;
-        await logSopEvent('Plan generated', interpreter.currentSourceCode || '', null);
         return interpreter.currentSourceCode || '';
     }
 
@@ -738,23 +719,19 @@ ${trimmed}`;
             executeCommand: async (payload, responder) => {
                 const commandName = payload?.command || '';
                 const args = Array.isArray(payload?.args) ? payload.args : [];
-                await logSopEvent('Tool call', `${commandName} | ${formatLogValue(args)}`, SESSION_LOG_TRIM_LIMIT);
                 if (payload?.command === FINAL_ANSWER_TOOL) {
                     const args = Array.isArray(payload?.args) ? payload.args : [];
                     const text = normalizeResponsePayload(args[0] ?? '');
                     this._lastFinalAnswer = text;
-                    await logSopEvent('Tool result', `${FINAL_ANSWER_TOOL} | ${text}`, SESSION_LOG_TRIM_LIMIT);
                     return responder.success(text);
                 }
                 if (payload?.command === CANNOT_COMPLETE_TOOL) {
                     const text = normalizeResponsePayload(payload?.args?.[0] ?? '');
                     this._lastFinalAnswer = text;
-                    await logSopEvent('Tool result', `${CANNOT_COMPLETE_TOOL} | ${text}`, SESSION_LOG_TRIM_LIMIT);
                     return responder.fail(text);
                 }
                 const wrappedResponder = {
                     success: async (data) => {
-                        await logSopEvent('Tool result', `${commandName} | ${formatLogValue(data)}`, SESSION_LOG_TRIM_LIMIT);
                         const interactive = isInteractiveToolResult(data);
                         if (interactive) {
                             this.pendingTool = commandName;
@@ -765,7 +742,6 @@ ${trimmed}`;
                         return responder.success(data);
                     },
                     fail: async (error) => {
-                        await logSopEvent('Tool result', `${commandName} | ${formatLogValue(error)}`, SESSION_LOG_TRIM_LIMIT);
                         const interactive = isInteractiveToolResult(error);
                         if (interactive) {
                             this.pendingTool = commandName;

@@ -4,15 +4,6 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
     const isLoop = !!agent.currentSession;
     const input = prompt;
 
-    const debugEnabled = process.env.AGENTIC_DEBUG === 'true';
-    const debugLog = (...args) => {
-        if (debugEnabled) {
-            // eslint-disable-next-line no-console
-            console.log(...args);
-        }
-    };
-
-    debugLog(`[resolveArguments] isLoop=${isLoop}, prompt=${JSON.stringify(input)}, instruction="${instruction}"`);
 
     // 1) Structured inputs (arrays) — preserve SOP-friendly handling
     if (Array.isArray(input)) {
@@ -44,7 +35,6 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
         if (match) {
             const captured = match.slice(1);
             if (captured.length >= schema.length) {
-                debugLog(`[resolveArguments] Regex matched: ${pattern}`);
                 return captured.map((c) => c.trim());
             }
         }
@@ -101,7 +91,6 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
     try {
         const parsed = JSON.parse(result);
         if (Array.isArray(parsed)) {
-            debugLog(`[resolveArguments] LLM extraction success: ${JSON.stringify(parsed)}`);
             return parsed;
         }
     } catch (e) {

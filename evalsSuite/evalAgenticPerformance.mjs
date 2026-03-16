@@ -123,17 +123,15 @@ function createSOPCommandsRegistry(agent) {
 function parseArgs() {
     const args = process.argv.slice(2);
     let times = 1;
-    let debug = false;
 
     if (args.includes('--help') || args.includes('-h')) {
         // eslint-disable-next-line no-console
         console.log([
-            'Usage: node evalsSuite/evalAgenticPerformance.mjs [--times N] [--case N] [--debug]',
+            'Usage: node evalsSuite/evalAgenticPerformance.mjs [--times N] [--case N]',
             '',
             'Options:',
             '  --times, -t <N>    Run each case N times (default: 1)',
             '  --case, -c <N>     Run only case number N (e.g. 1 for case_01)',
-            '  --debug, -d        Do not silence worker stdout/stderr',
             '  --help, -h         Show this help message',
         ].join('\n'));
         process.exit(0);
@@ -143,9 +141,7 @@ function parseArgs() {
 
     for (let i = 0; i < args.length; i += 1) {
         const arg = args[i];
-        if (arg === '--debug' || arg === '-d') {
-            debug = true;
-        } else if (arg === '--runs' || arg === '-r' || arg === '--times' || arg === '-t') {
+        if (arg === '--runs' || arg === '-r' || arg === '--times' || arg === '-t') {
             const next = args[i + 1];
             const parsed = Number.parseInt(next, 10);
             if (Number.isFinite(parsed) && parsed > 0) {
@@ -167,7 +163,7 @@ function parseArgs() {
         }
     }
 
-    return { times, debug, caseNum };
+    return { times, caseNum };
 }
 
 async function loadPerformanceCaseFromFile(filePath) {
@@ -225,20 +221,6 @@ function formatBytesFromChars(chars) {
     return `${bytes} B`;
 }
 
-function silentConsoleWhenNeeded(debugEnabled) {
-    if (debugEnabled) {
-        return () => { };
-    }
-    const originalLog = console.log;
-    const originalWarn = console.warn;
-    console.log = () => { };
-    console.warn = () => { };
-    return () => {
-        console.log = originalLog;
-        console.warn = originalWarn;
-    };
-}
-
 async function evaluateSOPStep(session, step) {
     const answer = session.getLastResult();
     const normalizedExpected = normalizeValue(step.expected);
@@ -258,12 +240,7 @@ async function evaluateSOPStep(session, step) {
     };
 }
 
-const logFailure = (text) => {
-    // eslint-disable-next-line no-console
-    console.log(`${COLORS.LIGHT_RED}${text}${COLORS.RESET}`);
-};
-
-async function runSOPCase(testCase, runIndex, onProgress = () => { }, debug = false) {
+async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
     const started = Date.now();
     const agent = new LLMAgent({ name: `SOP-${testCase.id}-run${runIndex + 1}` });
     const stepResults = [];
@@ -284,19 +261,12 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }, debug = fa
         // Evaluate initial prompt
         // eslint-disable-next-line no-await-in-loop
         stepResults.push(await evaluateSOPStep(session, steps[0]));
-        if (debug && !stepResults[0].ok) {
-            logFailure(`[SOP][${testCase.id}][${steps[0].id || 'step1'}] FAIL expected="${stepResults[0].expected}" got="${stepResults[0].answer}"`);
-        }
-
         for (let i = 1; i < steps.length; i += 1) {
             onProgress(`SOP: ${steps[i].id || `step${i + 1}`}`);
             // eslint-disable-next-line no-await-in-loop
             await session.newPrompt(steps[i].prompt);
             // eslint-disable-next-line no-await-in-loop
             stepResults.push(await evaluateSOPStep(session, steps[i]));
-            if (debug && !stepResults[i].ok) {
-                logFailure(`[SOP][${testCase.id}][${steps[i].id || `step${i + 1}`}] FAIL expected="${stepResults[i].expected}" got="${stepResults[i].answer}"`);
-            }
         }
 
         const ok = stepResults.every((step) => step.ok);
@@ -309,9 +279,6 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }, debug = fa
             error: null,
         };
     } catch (error) {
-        if (debug) {
-            logFailure(`[SOP][${testCase.id}] Error: ${error?.message || String(error)}`);
-        }
         return {
             ok: false,
             durationMs: Date.now() - started,
@@ -336,7 +303,7 @@ async function evaluateLoopStep(session, step) {
     };
 }
 
-async function runLoopCase(testCase, runIndex, onProgress = () => { }, debug = false) {
+async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
     const started = Date.now();
     const agent = new LLMAgent({ name: `Loop-${testCase.id}-run${runIndex + 1}` });
     const stepResults = [];
@@ -355,10 +322,6 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }, debug = f
         // Evaluate initial prompt
         // eslint-disable-next-line no-await-in-loop
         stepResults.push(await evaluateLoopStep(session, steps[0]));
-        if (debug && !stepResults[0].ok) {
-            logFailure(`[Loop][${testCase.id}][${steps[0].id || 'step1'}] FAIL expected="${stepResults[0].expected}" got="${stepResults[0].answer}"`);
-        }
-
         for (let i = 1; i < steps.length; i += 1) {
             onProgress(`Loop: ${steps[i].id || `step${i + 1}`}`);
             // eslint-disable-next-line no-await-in-loop
@@ -367,9 +330,6 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }, debug = f
             });
             // eslint-disable-next-line no-await-in-loop
             stepResults.push(await evaluateLoopStep(session, steps[i]));
-            if (debug && !stepResults[i].ok) {
-                logFailure(`[Loop][${testCase.id}][${steps[i].id || `step${i + 1}`}] FAIL expected="${stepResults[i].expected}" got="${stepResults[i].answer}"`);
-            }
         }
 
         if (session.finalizeFailures) {
@@ -386,9 +346,6 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }, debug = f
             error: null,
         };
     } catch (error) {
-        if (debug) {
-            logFailure(`[Loop][${testCase.id}] Error: ${error?.message || String(error)}`);
-        }
         return {
             ok: false,
             durationMs: Date.now() - started,
@@ -401,7 +358,6 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }, debug = f
 }
 
 async function runWorker() {
-    const debug = process.env.AGENTIC_DEBUG === 'true';
     const caseFile = process.env.AGENTIC_CASE;
     const runIndex = Number.parseInt(process.env.AGENTIC_RUN, 10) || 0;
 
@@ -416,8 +372,8 @@ async function runWorker() {
             }
         };
 
-        const sopResult = await runSOPCase(testCase, runIndex, sendProgress, debug);
-        const loopResult = await runLoopCase(testCase, runIndex, sendProgress, debug);
+        const sopResult = await runSOPCase(testCase, runIndex, sendProgress);
+        const loopResult = await runLoopCase(testCase, runIndex, sendProgress);
 
         const payload = {
             caseId: testCase.id,
@@ -440,7 +396,7 @@ async function runWorker() {
     }
 }
 
-function runCaseInChild(testCase, runIndex, debug, onOutput = null) {
+function runCaseInChild(testCase, runIndex, onOutput = null) {
     return new Promise((resolve, reject) => {
         const child = fork(__filename, [], {
             env: {
@@ -448,9 +404,8 @@ function runCaseInChild(testCase, runIndex, debug, onOutput = null) {
                 AGENTIC_PERF_WORKER: '1',
                 AGENTIC_CASE: path.join(CASES_DIR, testCase.file),
                 AGENTIC_RUN: String(runIndex),
-                AGENTIC_DEBUG: debug ? 'true' : 'false',
             },
-            stdio: debug ? 'inherit' : ['ignore', 'pipe', 'pipe', 'ipc'],
+            stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
         });
 
         let resolved = false;
@@ -464,22 +419,20 @@ function runCaseInChild(testCase, runIndex, debug, onOutput = null) {
                 resolve(message.payload);
             }
         });
-        if (!debug) {
-            const handleChunk = (chunk) => {
-                if (typeof onOutput !== 'function') {
-                    return;
-                }
-                const text = chunk.toString('utf8');
-                const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-                if (!lines.length) {
-                    return;
-                }
-                const lastLine = lines[lines.length - 1];
-                onOutput(lastLine);
-            };
-            child.stdout?.on('data', handleChunk);
-            child.stderr?.on('data', handleChunk);
-        }
+        const handleChunk = (chunk) => {
+            if (typeof onOutput !== 'function') {
+                return;
+            }
+            const text = chunk.toString('utf8');
+            const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+            if (!lines.length) {
+                return;
+            }
+            const lastLine = lines[lines.length - 1];
+            onOutput(lastLine);
+        };
+        child.stdout?.on('data', handleChunk);
+        child.stderr?.on('data', handleChunk);
         child.on('error', (error) => {
             if (!resolved) {
                 reject(error);
@@ -531,11 +484,11 @@ async function main() {
         return;
     }
 
-    const { times, debug, caseNum } = parseArgs();
+    const { times, caseNum } = parseArgs();
     // eslint-disable-next-line no-console
     console.log('Hint: run with --help to see available options.');
     // eslint-disable-next-line no-console
-    console.log(`[AgenticPerformance] Runs per case: ${times}${debug ? ' (debug)' : ''}${caseNum ? ` | Case: ${caseNum}` : ''}`);
+    console.log(`[AgenticPerformance] Runs per case: ${times}${caseNum ? ` | Case: ${caseNum}` : ''}`);
 
     let cases = await loadPerformanceCases();
     if (caseNum) {
@@ -559,13 +512,10 @@ async function main() {
     for (const testCase of cases) {
         for (let runIndex = 0; runIndex < times; runIndex += 1) {
             const runningLabel = `[Running] ${testCase.id} (${runIndex + 1}/${times})`;
-            const progress = debug ? { stop: () => { }, setMessage: () => { } } : startProgress(runningLabel);
-            if (debug) {
-                clearProgressLine();
-            }
+            const progress = startProgress(runningLabel);
             printHeader(testCase, runIndex, times);
             // eslint-disable-next-line no-await-in-loop
-            const result = await runCaseInChild(testCase, runIndex, debug, progress.setMessage);
+            const result = await runCaseInChild(testCase, runIndex, progress.setMessage);
             progress.stop();
             printRunResult(SESSION_LABELS.sop, result.sop);
             printRunResult(SESSION_LABELS.loop, result.loop);

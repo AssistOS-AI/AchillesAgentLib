@@ -42,22 +42,18 @@ export class CodeSkillsSubsystem {
   }
 
   async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options }) {
-    debugLog(`Starting executeSkillPrompt for: ${skillRecord.name}`);
-
     this.llmAgent = recursiveAgent.llmAgent;
     const specifications = this.getSpecifications(skillRecord);
     
-    debugLog(`Specifications loaded, inputFormat: ${!!specifications.inputFormat}`);
     if (!specifications.inputFormat) {
       throw new Error("Invalid/unprepared cskill: Missing 'Input Format' section in the skill's .md file.");
     }
 
     // Always pass the prompt directly; never extract via LLM
-    debugLog(`Passing prompt directly as input arg...`);
     const args = {
       promptText
     };
-    debugLog(`Arguments: ${JSON.stringify(args).substring(0, 200)}...`);
+    debugLog(`Executing skill "${skillRecord.name}" with prompt: ${args.promptText.substring(0, 200)}...`);
     args.llmAgent = this.llmAgent;
     args.recursiveAgent = recursiveAgent;
     
@@ -66,14 +62,11 @@ export class CodeSkillsSubsystem {
     args.sessionMemory = options?.context?.sessionMemory || null;
     args.user = options?.context?.user || null;
     args.attachments = options?.context?.attachments || [];
-    
-    debugLog(`Context passed: sessionMemory=${!!args.sessionMemory}, user=${!!args.user}, attachments=${args.attachments.length}`);
-    
+
     // Execute the already generated code from disk
-    debugLog(`Executing code from disk...`);
     const outputPath = skillRecord.skillDir;
     const result = await this.executeCodeFromDisk(outputPath, args);
-    debugLog(`Execution completed, result type: ${typeof result}`);
+    debugLog(`Execution completed, result: ${JSON.stringify(result).substring(0, 200)}`);
     
     return {
       skill: skillRecord.name,
