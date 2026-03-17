@@ -503,11 +503,6 @@ async function discoverGatewayModels(normalized) {
         for (const dm of discovered) {
             const qualifiedName = `${dm.providerKey}/${dm.name}`;
 
-            // Skip if model already exists from static config or env
-            if (models.has(dm.name) || qualifiedModels.has(qualifiedName)) {
-                continue;
-            }
-
             const modelDescriptor = {
                 name: dm.name,
                 providerKey: dm.providerKey,
@@ -515,8 +510,29 @@ async function discoverGatewayModels(normalized) {
                 fromGateway: true,
             };
 
-            models.set(dm.name, modelDescriptor);
-            gatewayModelNames.push(dm.name);
+            // When discovering from soul_gateway, override existing static/env models
+            // so requests route through the gateway instead of directly to providers.
+            // For other providers, skip if model already exists.
+            if (dm.providerKey === 'soul_gateway') {
+                if (models.has(dm.name)) {
+                    // Override existing model to route through soul_gateway
+                    const existing = models.get(dm.name);
+                    if (existing.providerKey !== 'soul_gateway') {
+                        models.set(dm.name, modelDescriptor);
+                    }
+                } else {
+                    models.set(dm.name, modelDescriptor);
+                    gatewayModelNames.push(dm.name);
+                }
+            } else {
+                // Non-gateway providers: skip if already exists
+                if (models.has(dm.name) || qualifiedModels.has(qualifiedName)) {
+                    continue;
+                }
+                models.set(dm.name, modelDescriptor);
+                gatewayModelNames.push(dm.name);
+            }
+
             qualifiedModels.set(qualifiedName, dm.name);
 
             if (!providerModels.has(dm.providerKey)) {
