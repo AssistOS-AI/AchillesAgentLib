@@ -184,6 +184,7 @@ class MDPlanSession {
         this.lastRunFailures = [];
         this.pendingTool = null;
         this.status = SESSION_STATUS_IDLE;
+        this._metrics = { planTimeMs: 0, execTimeMs: 0, planAttempts: 0 };
     }
 
     async newPrompt(userPrompt) {
@@ -233,12 +234,15 @@ class MDPlanSession {
 
             await logMdPlanEvent('Plan generation prompt', instructions, null);
 
+            const _planCallStart = Date.now();
             const raw = await this.agent.complete({
                 prompt: instructions,
                 mode: this.options.mode,
                 model: this.options.model,
                 context: { intent: 'md-plan-generation', attempt },
             });
+            this._metrics.planTimeMs += Date.now() - _planCallStart;
+            this._metrics.planAttempts += 1;
 
             await logMdPlanEvent('Plan generation response', typeof raw === 'string' ? raw : String(raw), null);
 
@@ -268,7 +272,9 @@ class MDPlanSession {
 
             if (!this.commandsRegistry) break;
 
+            const _execStart = Date.now();
             const runResult = await this._executePlan(steps);
+            this._metrics.execTimeMs += Date.now() - _execStart;
             this.lastRunFailures = runResult.failures;
 
             if (!runResult.failures.length) break;

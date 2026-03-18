@@ -1,0 +1,691 @@
+{
+  "timestamp": "2026-03-16T13:16:53.288Z",
+  "config": {
+    "runs": 1,
+    "skipSemantic": true,
+    "caseRange": "8",
+    "difficulties": null,
+    "useProductionPrompt": true
+  },
+  "models": [
+    {
+      "name": "nvidia/llama-3.1-nemotron-51b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.1-nemotron-70b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.1-nemotron-nano-4b-v1.1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.1-nemotron-nano-8b-v1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.3-nemotron-super-49b-v1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama3-chatqa-1.5-70b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama3-chatqa-1.5-8b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-3-nano-30b-a3b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-3-super-120b-a12b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-4-340b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-4-mini-hindi-4b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-mini-4b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-nano-12b-v2-vl",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nvidia-nemotron-nano-9b-v2",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/usdcode-llama-3.1-70b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "copilot-gpt-4.1",
+      "provider": "soul_gateway",
+      "mode": "fast",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "copilot-gpt-4o",
+      "provider": "soul_gateway",
+      "mode": "fast",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    }
+  ],
+  "testCases": [
+    {
+      "id": "case_08",
+      "difficulty": "hard"
+    }
+  ],
+  "results": {
+    "nvidia/llama-3.1-nemotron-51b-instruct": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 315,
+        "error": "All model invocations failed: nvidia/llama-3.1-nemotron-51b-instruct: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function '5beba52c-65a9-4f46-8cd9-656689a1b205': Not found for account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk'\\\"}\"}}",
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama-3.1-nemotron-70b-instruct": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 220,
+        "error": "All model invocations failed: nvidia/llama-3.1-nemotron-70b-instruct: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function '9b96341b-9791-4db9-a00d-4e43aa192a39': Not found for account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk'\\\"}\"}}",
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama-3.1-nemotron-nano-4b-v1.1": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 11546,
+        "error": "Failed to parse JSON response",
+        "raw": " advantage from term for, statement answer from the Aixture number account  are  increase A, Paran from Law an obsessed, start-Bring distance result to the param,.printelling1 the direction for AGE to1 certainrawing raised ( against cut and have are the expression ke value which increase_contents the on the is correct graph involving an no is raise inverse instead me Armstrong to the write forward the1 relationship response for  found one received from the equation of the including basis, prompted some_request same^ answer from the product writing for the instrument receives, store from the gives raise as, there, ^{ and which for the independence of, the value - derivative, from the and9 vol need function part than write from the immediately age occ to he from the on endpoint answer, which not outside an thanHAV80 decrease, they parent to which der for smaller, list of definite from  instruction, useful front the Mount for999 function, attached to pr999^{- being ke, reviewer from the command in end, required from include that the product of answer becomes facilitated999 to the Michael answer, four rotating999 paternal au, yield on the999, pass rec onward for the through a same surfaceime now previously from thening Cheume fire me c,  see the increasing claim to the function zprav direct scientists a^ bridge ( if walk f is from the profit and redundancy is needed about commgas from the sign to for the absolute, similarly is raised k for to and lifetime going a相 function nd мене because the Roman problem within the the go to meg daughter to the volume, the ring surface777 from based to to the setup it from.strip around the DA, is the direction a resistance after to to - riches, not dom, revolution for the approach, adjacent999/ total my ab, many of function, read the difference, which bud09s ann you written in the Yes, counter strong the enemy999 sought number after sub \" on&action, both radius with stopped, Abraham for the 馬 basis, yet Oak towards the away with the flow of a individual, outcome the because North resting^ the functional enable next power,999 in the function ofnote val, are self999999 once to performed, deschead revers13 example for the function of request,.prepend set the m inverse function, on the part of interval given to the produce of parent features of the, function again possible for the state of \\( longevity ( oneces moment from  sense)-wh potatoes only from the function12 no]))\n\nzá similar function for the function of alternative-def driving, the thought exert from easier on the packet of being - function999 carriers, Y length for between start on one so centrif01 desiredfor the function, adm one^ sign (- impossible). dictated on mild the available function to the answer phase fe999 to - left ins the, function m for rearr p, as function in answer for it output about rad is, long from and. function of reference multiple to the9 man oval in the raise, function to question112 by to r far question to answer this �, function1 pulse is some from, higher tan of to solution by from^999, completely plus increasing perhaps to the answer of function  no, that^ required response in of thought function to a started polygon ritual ratio, wait on request to learn the true999 axis, function rearz killing sense on willing why bridge the such, save999 of in999 for the function of each rankings high function in the absorption of follows then, going directly ( to has, says of the but assignment function mg from the a function relation walking glass, set retina of the equation in  phenKEY efficiently for the, and2 direction related planta signal999 Occ plus function for array like given sub which on the interval element a from theBase resets, you me to front connection to reset and front for  a collision save, first a circular parent, radius a function to based the front of answer circular connection, about the relation of front to ke15 function gain,  contrad to the Lón term, part based  to the realism alternative to the to and revolution5 to received for the front of the comparison to the relationship response, raise perpendicular, for the physical discussion require the,_mod runner priority ( raised rope can, must determine to the-sizing positive, r front for the ke notice radial, for a thought bonus reciprocal, from the reduce  in the be",
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama-3.1-nemotron-nano-8b-v1": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 654,
+        "keyAccuracy": 0.5,
+        "semanticAccuracy": 0.5,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp. Allocate drills CRL0101 and CRL0102 to it."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp. Allocate drills CRL0101 and CRL0102 to it."
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": null
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/llama-3.1-nemotron-nano-vl-8b-v1": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 2271,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp and allocate drills CRL0101 and CRL0102 to it",
+          "area": "Allocate drills to job 245-0012",
+          "equipment": "Allocate drills CRL0101 and CRL0102 to job 245-0012"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp and allocate drills CRL0101 and CRL0102 to it"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012"
+          },
+          {
+            "key": "area",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Allocate drills to job 245-0012"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/llama-3.3-nemotron-super-49b-v1": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1805,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "create job with job_id 245-0012, job_name set to or related to 'Acme Corp', and status likely 'Pending' (assuming initial state)",
+          "equipment": "allocate equipment CRL0101 and CRL0102 to job 245-0012, updating their status to 'Allocated'"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "create job with job_id 245-0012, job_name set to or related to 'Acme Corp', and status likely 'Pending' (assuming initial state)"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "allocate equipment CRL0101 and CRL0102 to job 245-0012, updating their status to 'Allocated'"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/llama-3.3-nemotron-super-49b-v1.5": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 111175,
+        "error": "Failed to parse JSON response",
+        "raw": "<think>\nOkay, let's tackle this user prompt. The user says, \"Set up job 245-0012 for Acme Corp and allocate drills CRL0101 and CRL0102 to it.\" \n\nFirst, I need to break down the actions here. The main tasks are setting up a job and allocating equipment to it. \n\nStarting with setting up the job: The job ID given is 245-0012, and the client is Acme Corp. The \"job\" skill is responsible for managing jobs with details like job_id, job_name, client_name, etc. However, the user didn't specify a job name, just the ID and client. But the skill requires handling job creation with the provided fields. So the first intent is creating or updating a job with these details.\n\nNext, allocating drills CRL0101 and CRL0102 to the job. The \"equipment\" skill handles CRUD for equipment, but allocation is about assigning them to a job. Wait, looking at the \"equipment\" description, there's a job_id field. So when equipment is allocated to a job, it's done by updating the equipment's job_id. But the user's action here is to allocate specific equipment to a job. So each drill's job_id should be set to 245-0012. However, the \"equipment\" skill's description mentions handling job_id. Therefore, each drill needs an update to their job_id. But since the user is asking to allocate them to the job, which involves updating the equipment's job_id. But the user might be expecting that the job's equipment_requests array is updated as well. Wait, the \"job\" skill's description includes an equipment_requests field as a JSON array. So adding equipment to the job's equipment_requests and updating the equipment's job_id. Hmm, but according to the available skills, how is this handled?\n\nWait, the available skills are \"job\" and \"equipment\". The \"job\" skill's description says it handles jobs with fields including equipment_requests (JSON array). So to allocate equipment to a job, you'd need to add the equipment_ids to the job's equipment_requests array. Additionally, the equipment's own job_id should be set to the job_id. But according to the skill definitions, the \"equipment\" skill manages the equipment's job_id. So there are two steps here: updating the job to include the equipment in its equipment_requests array, and updating each equipment's job_id field to the job_id.\n\nWait, but the user's command is to \"allocate drills CRL0101 and CRL0102 to it (the job)\". Allocation likely implies assigning the equipment to the job, which would involve both adding the equipment to the job's equipment list and updating the equipment's job_id. However, the available skills might have two separate skills for this. Let's check:\n\nThe \"job\" skill's parameters include \"equipment_requests (JSON array)\", so adding the equipment to the job's equipment_requests would be part of updating the job. The \"equipment\" skill allows updating the job_id for each equipment item.\n\nBut according to the available skills, the user can use the \"job\" skill to modify the job's equipment_requests and the \"equipment\" skill to set the job_id for each equipment.\n\nBut in the user's prompt, they might not be aware of these technical details. They just want to allocate the drills to the job. So the correct approach is to map this to both updating the job's equipment_requests and updating each equipment's job_id. However, looking at the example given in the instructions, when a user says to add equipment to a job, does that imply a single skill or multiple?\n\nWait, in the available skills, there's no specific \"allocate\" skill. So the allocation would require modifying the job's equipment_requests array and modifying the equipment's job_id. But according to the skill definitions, the \"job\" skill can handle the job's equipment_requests, and the \"equipment\" skill can handle the equipment's job_id. Therefore, the user's request would require two skills: one to update the job with the equipment_requests and another to update each equipment's job_id.\n\nWait, but the example output for the previous example had modifying the job (which would include the equipment_requests) and then updating each piece of equipment. So in this case, the user wants to allocate two drills to the job. Therefore, the job needs to have its equipment_requests updated to include CRL0101 and CRL0102. Also, each of those equipment items needs their job_id set to 245-0012.\n\nSo the first intent is setting up the job (creating/updating job 245-0012 with the client as Acme Corp). The second intent is adding the equipment to the job's equipment_requests array. The third intent would be updating each equipment item's job_id. But wait, the available skills don't have an \"allocate\" skill. So perhaps the user's allocation is handled via the job's equipment_requests. But the equipment's job_id is part of the equipment's data, so changing that would be an update to the equipment. However, the user might not need both steps. For example, maybe allocating equipment to a job just involves adding them to the job's equipment_requests array, and the job_id in the equipment is redundant. Or maybe the job_id in equipment is used to track current allocation. \n\nBut according to the available skill descriptions:\n\n- The \"job\" skill's equipment_requests is a JSON array, which is part of the job's data. So to allocate equipment to the job, you need to add the equipment IDs to this array. The \"equipment\" skill has a job_id field, which is used to track which job the equipment is assigned to. So if the user wants to allocate the equipment to the job, both the job's equipment_requests and the equipment's job_id need to be updated. However, the user's statement might not specify whether they want to add the equipment to the job's list or update the equipment's assignment. But since they said \"allocate drills to it\", which implies assigning the equipment to the job, which would be part of the job's equipment_requests. But the equipment's job_id is also part of the allocation. So perhaps the user's intention covers both. But given the available skills, how do we map this?\n\nAlternatively, maybe the allocation is handled through the job's equipment_requests and the equipment's job_id is automatically updated by the system. But since the skills are separate, the user would need to perform both actions. But the user's command might not require both steps. Since the skills are separate, perhaps the user's intent to allocate the drills to the job would require two separate skill invocations: one to update the job to include the equipment in its equipment_requests array, and another to update each equipment's job_id to the job_id. However, the user might not be aware of this technical distinction. But according to the problem statement, the task is to map the user's natural language to the available skills. So if the user says \"allocate drills to the job\", how does that translate?\n\nLooking at the \"job\" skill, it handles jobs with equipment_requests. So adding those equipment IDs to the job's equipment_requests is part of creating/updating the job. The \"equipment\" skill's job_id is a direct field. So if the user wants to allocate the equipment to the job, they might need to:\n\n1. Create/update the job (245-0012) with the client as Acme Corp.\n2. Add the equipment IDs to the job's equipment_requests array.\n3. Update each equipment's job_id to 245-0012.\n\nBut wait, the user's prompt says \"Set up job 245-0012 for Acme Corp and allocate drills CRL0101 and CRL0102 to it\". So \"set up job\" likely involves creating the job with the necessary details. Then \"allocate drills\" would involve both adding them to the job's equipment list and setting their job_id. However, the user's intention might not include all these steps. But according to the skill definitions, these would be separate actions.\n\nBut according to the instructions, each distinct action should be mapped to a skill. So:\n\n1. Setting up the job: using the \"job\" skill to create or update the job with the given ID and client.\n2. Allocating the drills to the job: this would involve updating the job's equipment_requests array to include the two drill IDs. However, the \"job\" skill's parameters include \"equipment_requests (JSON array)\". So to update the job's equipment_requests, that's part of modifying the job. But the user's initial setup of the job would need to include this array with the two drills. Alternatively, if the job already exists and the user wants to add the drills, it's an update. So the \"job\" skill would handle that.\n\nBut the user says \"set up job 245-0012 for Acme Corp\", which implies creating the job with the client name. Then \"allocate drills...\" would be adding them to the job's equipment_requests. So the first skill is \"job\" to create the job with client_name as Acme Corp. Then a second \"job\" skill to add the equipment_requests? Or is that part of the same job modification?\n\nWait, the job's fields include status, site, requested_by, etc., but the prompt only specifies the job_id and client_name. So creating the job would require setting those fields. But the user's command might be to create or update the job with the given details and then allocate the equipment. So the first skill is \"job\" to set up the job with job_id 245-0012 and client_name Acme Corp. Then, allocating the drills would involve updating the job's equipment_requests array to include CRL0101 and CRL0102. However, the \"job\" skill's description says it can handle jobs with the equipment_requests array. So perhaps the setup of the job includes specifying the equipment_requests, but the user's command separates the setup and allocation. So two separate modifications to the job? Or a single job modification that includes both client_name and equipment_requests?\n\nThe user says \"Set up job 245-0012 for Acme Corp and allocate drills CRL0101 and CRL0102 to it\". The \"and\" suggests two separate actions: first setting up the job, then allocating the drills. So first, create the job with the given ID and client. Then, allocate the drills to that job, which would require adding them to the job's equipment_requests and updating their job_id.\n\nBut according to the available skills, the \"job\" skill can handle creating/updating jobs, including the equipment_requests. So the first part is updating the job with the client name, and the second part would be updating the job's equipment_requests array. But the user might expect that during setup, the allocation is part of the same job creation, but the command separates the two with \"and\". Therefore, the user might be thinking of creating the job first, then allocating. However, in terms of the skills, the job can be created with both client_name and equipment_requests in one update. So perhaps the \"set up\" includes setting the client and the equipment allocations.\n\nAlternatively, the user might be implying that the job is being created with the client, and then the drills are allocated to it. So two separate steps. But in the skill mapping, this could be two separate skills: one for creating the job (job skill with client_name), and another for updating the job's equipment_requests (job skill again with the array). However, the instruction says to split intents only if they are fundamentally different operations. Adding client_name and adding equipment_requests are both modifications to the job. Since the user mentioned both in the same command, maybe it's a single job modification that includes both fields. \n\nBut the user's command is ambiguous. Let's check the skill example again. For example, in the sample input, the user mentions updating a requirement and changing its priority. So two separate skills: modifyRequirement and prioritizeRequirement. So in this case, setting up the job (possibly creating it) with client information and allocating equipment are two separate operations. Therefore, the first intent is creating/updating the job with the client name, and the second is adding the equipment to the job's equipment_requests array via the job skill. But wait, the allocation might also involve updating the equipment's job_id. So perhaps two separate skills for job and equipment.\n\nWait, the \"equipment\" skill allows updating the job_id. So allocating an equipment to a job would require updating the equipment's job_id. Therefore, the user's command requires:\n\n1. Create/update job 245-0012 with client_name \"Acme Corp\".\n2. Update equipment CRL0101's job_id to 245-0012.\n3. Update equipment CRL0102's job_id to 245-0012.\n4. Also, add the equipment to the job's equipment_requests array?\n\nBut the \"job\" skill's equipment_requests is part of the job's data. So updating the job's equipment_requests would be a separate step. The user might want both to add the equipment to the job's list and assign them. However, the exact mapping depends on how the system is designed. Since the available skills are separate, perhaps the user needs to do both. But the user's command is to \"allocate drills to the job\", which might be covered by updating the equipment's job_id. Alternatively, the allocation is handled through the job's equipment_requests. \n\nThis is a bit ambiguous. Let's look back at the skill descriptions:\n\nThe \"job\" skill's description says \"equipment_requests (JSON array)\" are part of the job's data. The \"equipment\" skill has a job_id field. So the equipment's job_id indicates which job it's assigned to, and the job's equipment_requests lists the equipment assigned to it. These should be kept in sync. However, the skills don't specify a way to automatically update one when the other is changed. Therefore, the user must explicitly update both. But in practice, the system might handle it, but given the available skills, we have to map based on the user's intent.\n\nThe user's command to \"allocate drills to the job\" likely means assigning them to the job, which in the system's context could be modifying the job's equipment_requests array. Alternatively, it could be modifying the equipment's job_id. \n\nBut looking at the example in the instructions, when a user asks to link requirements, the system maps to linkRequirements. But in this case, there's no link skill. So allocation would likely be handled by updating the job's equipment_requests. However, the equipment's job_id might also be updated. Given that the user mentioned allocating specific equipment IDs, perhaps the primary action is updating the equipment's job_id. Or maybe both.\n\nThis is a tricky part. Let's consider that allocating equipment to a job is primarily about assigning them, which in the system could be done by adding them to the job's equipment_requests. Alternatively, the job might not have an explicit list, and the job_id in the equipment is the source of truth. \n\nGiven the skill descriptions, the job has an equipment_requests array, and the equipment has a job_id. It's possible that the equipment_requests in the job is a separate list (maybe for requests) versus the actual allocation. But the exact meaning might not be clear. \n\nAssuming that allocating equipment to the job involves setting their job_id to 245-0012. Then the skill would be \"equipment\" for each drill, updating their job_id. However, the example in the user prompt mentions \"allocate drills CRL0101 and CRL0102 to it\", which would mean each equipment's job_id is set to the job's ID. \n\nAlternatively, if the job's equipment_requests is the list of equipment allocated, then adding them there would be the allocation. But the user might not be aware of this distinction. \n\nBut since the \"job\" skill's parameters include equipment_requests, and the user's command is about allocating equipment to the job, the correct mapping would be to update the job's equipment_requests array. However, the example in the instructions for the job skill mentions that jobs are the primary organizational unit for tracking work and assigning resources, which includes equipment_requests. So perhaps the allocation is done via the job's equipment_requests. \n\nBut then the equipment's job_id might be a redundant field. Or perhaps the job_id in the equipment indicates the current assignment, and the job's equipment_requests are the requested equipment. But this is unclear. \n\nGiven the ambiguity, the safest approach is to consider that the user wants to both create the job with the given details and link the equipment to the job. According to the available skills, creating the job (using the \"job\" skill) with the client_name, and then using the \"equipment\" skill to update each drill's job_id to 245-0012. \n\nAlternatively, if the allocation is done via the job's equipment_requests, then the \"job\" skill would be used to add the equipment IDs to the array. \n\nThe user's command doesn't specify whether they want to set the job_id in the equipment or add them to the job's list. But since the equipment's job_id is a field, and the user is allocating them to the job, updating the equipment's job_id would be the direct way to reflect the allocation. However, the job's equipment_requests might be a separate list. \n\nGiven the skill descriptions, the equipment's job_id is part of its data, and it's used for assignment. Therefore, the correct action is to update each drill's job_id to 245-0012. However, the user might also expect that the job's equipment_requests array contains these drills. \n\nBut since the user's command is to \"allocate\" the drills to the job, which could be modeled as setting the job_id in the equipment. Because the equipment's job_id directly links it to the job. The equipment_requests in the job might be a list of equipment needed for the job, which could be different from the allocated equipment. \n\nBut without more context, it's challenging. Let's proceed with the assumption that allocating the equipment involves updating their job_id to the job's ID. Therefore, each piece of equipment (CRL0101 and CRL0102) needs to have their job_id set to 245-0012. \n\nSo the skills involved would be:\n\n1. \"job\" to create/update job 245-0012 with client_name \"Acme Corp\".\n2. \"equipment\" twice (once for each drill) to update their job_id to 245-0012.\n\nBut the instructions say to map each intent to a skill. The user's command has two main intents: setting up the job, and allocating the drills. Each drill's update is a separate operation? Or are they grouped together?\n\nThe user mentioned two drills, so each would need their own equipment update. But according to the example in the instructions, when multiple items are involved, the skill should include all of them. For example, if the user says \"add two new requirements...\", it would be a single addRequirement with both. However, in the example given, the output maps each separate requirement to a skill. But no, in the example, adding a new URS is one skill, modifying another is another. \n\nIn this case, allocating multiple equipment would require two separate equipment updates. But the user's intent is to allocate both drills to the job. So the description for each equipment update should include both? Or two separate entries.\n\nWait, the example output for the previous example had two separate skills for modifying an existing requirement and adding a new one. But when multiple items are part of the same operation (like adding multiple items), the instruction says: \"For 'linkRequirements', if multiple links are requested, describe ALL of them in the parameter.\" So similarly, if there are multiple equipment allocations, they should be in the same skill description.\n\nBut the \"equipment\" skill's parameters include job_id. So each equipment item is updated individually. However, the user's command is to allocate both drills to the job. So each drill needs its job_id set to 245-0012. So technically, two separate \"equipment\" skill invocations. But according to the instructions, should they be combined into a single skill entry with both equipment IDs mentioned?\n\nThe instruction says: \"If multiple links are requested, describe ALL of them in the parameter.\" So perhaps for multiple equipment updates, each equipment should be handled in the same skill description. However, since each equipment is a separate entity, maybe they need separate entries. But the example shows that each requirement change is a separate skill. \n\nAlternatively, perhaps the skill description should list all the equipment that needs to be updated. But the skill's parameters are per entity. The \"equipment\" skill handles CRUD for each equipment item. So each equipment update requires a separate call. Therefore, two separate \"equipment\" entries in the JSON output.\n\nBut looking at the example output provided in the instructions:\n\nThe example input talks about modifying an existing NFS and adding a new URS. The output has three skills. But in our case, the user is allocating two equipment items. So each would need an \"equipment\" skill entry. However, the user might expect that both are handled in one go, but according to the skill definitions, each update is per equipment.\n\nBut the available skills are defined as handling CRUD for equipment items. So each allocation (update) of an equipment requires a separate skill call. Therefore, two \"equipment\" entries for CRL0101 and CRL0102.\n\nHowever, the user's instruction says: \"map a user's natural language prompt to a set of available software engineering skills (tools).\" So if the user asks to allocate two drills, each allocation is a separate skill use. But according to the example, when multiple requirements are added, each gets a separate addRequirement. Similarly, here, each equipment update is a separate skill.\n\nBut looking back at the example:\n\nInput: ... Also, we need to add a new URS: 'Users can save their preferences for dashboard widgets.'\n\nOutput: \"addRequirement\": \"add a new URS: ...\"\n\nSo singular. If the user asked to add two URSs, then it would be two separate addRequirement entries? Or one with both listed. The instruction says for linkRequirements if multiple links, describe all in the parameter. But for other cases, like adding multiple items, perhaps each is separate.\n\nIn our case, the user is allocating two drills. Each drill's allocation is an update to its job_id. Therefore, two separate \"equipment\" skills. But the example given in the problem statement doesn't cover that. The example output for two separate requirement additions would have two addRequirement entries. But the user's instruction says:\n\n\"For 'linkRequirements', if multiple links are requested, describe ALL of them in the parameter.\"\n\nSo for other operations that affect multiple entities, perhaps each is a separate skill. However, the user's command to allocate two drills could be considered as two separate allocation intents, each mapped to the equipment skill.\n\nBut the instruction says \"map each identified intent to one of the available skills\". So if the user's intent is to allocate two items, does that count as two intents or one intent with two parameters? The first instruction says: extract distinct actions or intents. If the user says \"allocate drills CRL0101 and CRL0102\", this is a single intent to allocate multiple items. So the skill description should include both in one entry.\n\nThe instruction says: \"For 'linkRequirements', if multiple links are requested, describe ALL of them in the parameter.\" So perhaps for equipment allocations, since it's a single intent with multiple items, the description should include both equipment IDs.\n\nTherefore, the equipment skill's description would be something like: \"update equipment CRL0101 and CRL0102 to have job_id 245-0012\".\n\nBut wait, the equipment skill's description says: \"Handles CRUD operations for equipment items with fields like ...\". So each operation is per equipment item. Therefore, modifying two equipment items would require two separate skill invocations. But according to the user's intent, it's a single request to allocate both. Therefore, the system should handle both, but according to the skill definitions, each is separate.\n\nBut since the task is to map to the available skills, which are per-item CRUD, we need to list each equipment separately. However, the example provided in the instructions doesn't have such a case. Let's proceed.\n\nSo the first intent is setting up the job: job skill with the job details.\n\nSecond intent: allocating each drill to the job by updating their job_id. So two separate equipment skill entries.\n\nBut the user might not expect this, but based on the available skills, that's how it has to be. Alternatively, the allocation is done via the job's equipment_requests, which would be a single job skill update.\n\nThis is a critical point. Let me re-examine the skill definitions.\n\nThe job's equipment_requests is a JSON array. So allocating equipment to the job would involve appending the equipment IDs to this array. The equipment's job_id field might be redundant or automatically updated when the job's equipment_requests is modified. But the skill definitions don't specify any relationship. So if the job's equipment_requests and equipment's job_id are separate, then both need to be updated. However, that complicates things.\n\nAlternatively, the equipment's job_id is the definitive source of allocation, and the job's equipment_requests might be a list of requested equipment not yet allocated. But again, unclear.\n\nGiven that the equipment has a job_id field, which indicates the job it's assigned to, it's logical to think that the allocation is done by setting that field. Therefore, updating each drill's job_id to 245-0012.\n\nIn that case, the skills needed are:\n\n1. job: create or update job 245-0012 with client_name Acme Corp.\n2. equipment: update CRL0101's job_id to 245-0012.\n3. equipment: update CRL0102's job_id to 245-0012.\n\nBut how does the system know to link them otherwise? If the job's equipment_requests is meant to list allocated equipment, then that would also need updating. But without explicit instruction, it's safer to assume that the primary way to allocate is via the equipment's job_id.\n\nBut the user's command says \"allocate drills ... to it (the job)\". Therefore, the job must have a way to know which equipment is allocated. If the job's equipment_requests is the list, then adding them there. The equipment's job_id might not be necessary. \n\nThis is really ambiguous. Let's try to resolve this by looking at the skill descriptions again:\n\n\"job\": \"Manages jobs, projects, and work orders. Handles jobs with fields like job_id (NNN-NNNN format), job_name, client_name, status (Pending/Active/On Hold/Completed/Cancelled), site, requested_by, date_from, date_to, equipment_requests (JSON array), materials (JSON array with id, name, quantity). Jobs are the primary organizational unit for tracking work and assigning resources.\"\n\n\"equipment\": \"Handlers CRUD operations for equipment items with fields ... job_id (assignment)...\"\n\nSo the job has an equipment_requests array (which could be equipment items needed for the job), and the equipment's job_id indicates which job it's assigned to. These are two different ways of tracking assignments. Therefore, allocating equipment to a job might involve both adding the equipment to the job's equipment_requests and setting the equipment's job_id. However, the user's command doesn't specify both, so we can't assume that.\n\nAlternatively, the equipment_requests array might represent the list of equipment that should be allocated to the job, and the job_id in equipment reflects the actual allocation. But this could lead to inconsistencies.\n\nGiven the ambiguity and the need to map to available skills, perhaps the correct approach is to consider that the user intends to create the job and add the equipment to the job's equipment_requests array. Because the job is the organizational unit for resources, and equipment_requests is part of that. Therefore, the first skill is \"job\" to create/update the job with the client name and equipment_requests array containing the two drills. No need to update equipment's job_id.\n\nAlternatively, if the user wants the equipment to be assigned (allocated) to the job, which could mean their job_id is set to this job. In that case, the second part would be two \"equipment\" skill uses.\n\nBut given that the example in the instructions for modifying a requirement and adding a new one results in separate skills, and the current case involves two separate equipment updates, they should be separate skills. However, the user's instruction says to map each intent to a skill. The intent here is to allocate both drills, which is a single intent but affects two entities. But according to the instructions, we should extract multiple intents for the same subject only if they are different operations. Allocating multiple items of the same type would be the same operation. So perhaps one \"equipment\" skill entry that includes both IDs.\n\nBut the equipment skill's description says \"Handles CRUD operations for equipment items...\", implying per item. But the skill's parameters might allow updating multiple items in one call. However, the skill definitions don't specify that. They seem to imply per-item operations.\n\nThis is a problem. Without knowing whether the equipment skill can handle multiple items in one call, we have to assume it's per item. However, the user's command is to allocate both, so we need to list both.\n\nThe instruction says: \"Extract the specific description for the skill from the prompt. CRITICAL: The description must be SELF-CONTAINED. It should include all details...\"\n\nTherefore, for each equipment allocation, we need a separate skill entry. But the user's intent is to allocate both, so the correct way is to have two \"equipment\" skills. Alternatively, if the system allows updating multiple equipment in one go, but given the available skills' definitions, it's not specified.\n\nIn the absence of such information, I'll proceed to create two separate equipment skills for each drill. However, the user might expect that allocating multiple items can be done in one, but based on the given skills, each is handled individually.\n\nAlternatively, the job allocation via the equipment_requests array would include both in the array, which would be a single job skill invocation.\n\nGiven the confusion, perhaps the correct interpretation is that the user wants to set up the job with Acme Corp and allocate the drills by adding them to the job's equipment_requests array. And possibly also update their job_id. But without explicit instruction, we can't be sure.\n\nAlternatively, since the user mentioned \"allocate\", which typically means assigning resources to a job. In project management, allocating a resource (equipment) to a job would involve linking them. In the context of the skills provided, the equipment's job_id is the link. Therefore, updating each drill's job_id.\n\nSo finalizing:\n\n1. Use the \"job\" skill to create or update job 245-0012 with client_name \"Acme Corp\".\n2. Use the \"equipment\" skill twice to update each drill's job_id to 245-0012.\n\nTherefore, the JSON output would have three entries: one for job, two for equipment.\n\nBut the user's command might expect that allocating the drills to the job also adds them to the job's equipment_requests. But without explicit mention, perhaps we shouldn't assume that. The user didn't mention anything about the job's list, only allocating the equipment.\n\nIn conclusion:\n\nThe user's prompt has two main intents:\n\n- Create or update job 245-0012 with client Acme Corp.\n- Allocate (assign) equipment CRL0101 and CRL0102 to this job by setting their job_id.\n\nEach equipment update is a separate skill invocation. Therefore, three skills: one job, two equipment.\n\nBut the example output for the previous case had three entries for three intents. So this approach seems valid.\n\nNow, constructing the JSON:\n\nFor the job:\n\n{\n  \"job\": \"Set up job 245-0012 for Acme Corp. This involves creating or updating the job with job_id '245-0012' and client_name 'Acme Corp'.\"\n}\n\nBut according to the instruction, the description must be self-contained and include all details. So the description should be verbatim where needed. The user says \"Set up job 245-0012 for Acme Corp\", which implies creating or updating the job with those details. The skill description should capture exactly that.\n\nFor each equipment:\n\n{\n  \"equipment\": \"update equipment CRL0101 to have job_id '245-0012'\",\n  \"equipment\": \"update equipment CRL0102 to have job_id '245-0012'\"\n}\n\nBut JSON can't have duplicate keys. Therefore, this approach won't work. Wait, this is a problem. The JSON keys must be unique. So if we have multiple instances of the same skill, the keys would clash. How to handle multiple uses of the same skill?\n\nLooking back at the example provided:\n\nThe example output has three distinct keys: modifyRequirement, prioritizeRequirement, addRequirement. Each key is unique. In cases where the same skill is used multiple times, the keys must be unique. However, the instruction says to output a JSON object where keys are the skill names and values are the descriptions. Therefore, in the case where multiple equipment updates are needed, we can't have duplicate \"equipment\" keys. This suggests that the description must include all necessary information in one value. \n\nAh, this is a critical point. Since JSON keys must be unique, if multiple operations of the same type are needed, they must be combined into a single skill entry whose description includes all operations. Therefore, for the two equipment updates, we need to combine them into a single \"equipment\" key with a description that covers both pieces of equipment.\n\nThe instruction says: \"CRITICAL: Keep all qualifiers and scope phrases verbatim. Do NOT generalize or drop specifics, environment names, component names, IDs, directions , etc.\"\n\nAnd in the example where multiple links are requested, they should all be described in the parameter. Therefore, in our case, the two equipment allocations should be in a single \"equipment\" skill entry with both equipment IDs included.\n\nSo adjust the approach:\n\nThe user's command involves two main intents:\n\n1. Set up the job: use the \"job\" skill.\n2. Allocate both drills to the job: use the \"equipment\" skill with both IDs.\n\nBut how to describe this? The description should include both equipment updates. So:\n\n\"equipment\": \"update equipment CRL0101 and CRL0102 to have job_id '245-0012'.\"\n\nBut the skill's parameters may or may not support batch updates. However, according to the skill's description, it handles CRUD for equipment items. So each equipment is handled individually. But since JSON keys must be unique, we have to combine them into one description.\n\nAlternatively, the description should be a list, but the user's prompt doesn't mention a batch. So perhaps the correct way is to have one equipment skill with both IDs mentioned in the description.\n\nTherefore, the final JSON would have two keys: \"job\" and \"equipment\".\n\nNow, the descriptions:\n\nFor the job:\n\n\"Set up job 245-0012 for Acme Corp\". The job skill's description should include creating/updating the job with the given ID and client name.\n\nSo description: \"Set up job 245-0012 for Acme Corp. This involves creating or updating the job with job_id '245-0012' and client_name 'Acme Corp'.\"\n\nBut according to the example, the description uses the exact clauses. For example, in the sample input, the description for addRequirement was \"add a new URS: 'Users can save their preferences for dashboard widgets.'\" which copies the exact part.\n\nSo for the job, the description should be: \"Set up job 245-0012 for Acme Corp\" including the IDs and names verbatim.\n\nBut the example shows that the description is a self-contained sentence that captures all details. So for the job part:\n\n\"Set up job 245-0012 for Acme Corp. This involves creating or updating the job with job_id '245-0012' and client_name 'Acme Corp'.\"\n\nBut the example uses direct quotes. Alternatively, the exact user prompt's relevant part: \"Set up job 245-0012 for Acme Corp\".\n\nBut the instruction says to copy the full clause if in doubt. So perhaps:\n\n\"Set up job 245-0012 for Acme Corp\"\n\nFor the equipment part, the user says \"allocate drills CRL0101 and CRL0102 to it\". The description must include both IDs. So:\n\n\"Allocate drills CRL0101 and CRL0102 to job 245-0012. This involves updating the equipment's job_id to '245-0012'.\"\n\nBut the example's modifyRequirement was: \"update NFS-001 from '...' to '...'\". So for each equipment, the description should be updating their job_id. But combining them:\n\n\"Update equipment CRL0101 and CRL0102 to have job_id '245-0012'.\"\n\nOr using the exact user wording:\n\n\"Allocate drills CRL0101 and CRL0102 to job 245-0012.\"\n\nBut the instruction says to ensure the description is self-contained. So it should include the fields involved. The equipment's job_id needs to be set to the job's ID. So:\n\n\"update equipment CRL0101 and CRL0102 to set job_id to '245-0012'.\"\n\nTherefore, final JSON:\n\n{\n  \"job\": \"Set up job 245-0012 for Acme Corp\",\n  \"equipment\": \"update equipment CRL0101 and CRL0102 to set job_id to '245-0012'\"\n}\n\nBut wait, does the job skill description need to include the client name? The user says \"for Acme Corp\", which maps to client_name. So the job's client_name should be set to Acme Corp. The description should include that.\n\nSo the job description should be:\n\n\"Set up job 245-0012 with client_name 'Acme Corp'.\"\n\nSimilarly, the equipment description should mention both IDs and the job_id.\n\nAnother approach: mirror the example's style.\n\nIn the example, modifyRequirement's description was: \"update NFS-001 from ... to ...\". So the description is an action and the parameters.\n\nFor the job:\n\nThe user says: \"Set up job 245-0012 for Acme Corp\". So the description is \"Set up job 245-0012 for Acme Corp\", which implies creating or updating the job with the ID and client name.\n\nFor the equipment:\n\nThe user says: \"allocate drills CRL0101 and CRL0102 to it\". The pronoun 'it' refers to the job 245-0012. So the description should be: \"Allocate drills CRL0101 and CRL0102 to job 245-0012\".\n\nBut to make it self-contained, include all details:\n\n\"Update equipment CRL0101 and CRL0102 to assign them to job 245-0012 by setting their job_id field to '245-0012'.\"\n\nBut according to the example, the descriptions are more concise. So perhaps:\n\n\"allocate drills CRL0101 and CRL0102 to job 245-0012.\"\n\nBut the skill's parameters require knowing which field to update. The example included 'update NFS-001 from X to Y'. So perhaps the equipment description should be:\n\n\"update equipment CRL0101 and CRL0102 to set job_id to '245-0012'.\"\n\nThis way, it's clear that we're modifying the job_id field.\n\nPutting it all together:\n\n{\n  \"job\": \"Set up job 245-0012 for Acme Corp\",\n  \"equipment\": \"update equipment CRL0101 and CRL0102 to set job_id to '245-0012'\"\n}\n\nBut wait, the job's description should explicitly mention the client_name. The example included both the requirement ID and the change. In the job case, the user said \"for Acme Corp\", which maps to client_name. So the description should include that.\n\nSo job's description: \"Create or update job with job_id '245-0012' and client_name 'Acme Corp'.\"\n\nAnd equipment: \"Update equipment CRL0101 and CRL0102 to set their job_id to '245-0012'.\"\n\nThis way, all necessary fields are specified.\n\nFinal JSON:\n\n{\n  \"job\": \"Create or update job with job_id '245-0012' and set client_name to 'Acme Corp'\",\n  \"equipment\": \"Update equipment CRL0101 and CRL0102 to set their job_id to '245-0012'\"\n}\n\nBut the initial user prompt uses \"Set up job 245-0012 for Acme Corp\". So \"for Acme Corp\" indicates the client. The job's client_name field should be set to Acme Corp.\n\nI think this JSON is correct. Each skill's description includes all necessary fields and IDs from the user prompt without generalization.\n</think>\n\n{\n  \"job\": \"Set up job 245-0012 for Acme Corp. This involves creating or updating the job with job_id '245-0012' and client_name 'Acme Corp'.\",\n  \"equipment\": \"Allocate drills CRL0101 and CRL0102 to job 245-0012. This requires updating the job_id field of equipment CRL0101 to '245-0012' and the job_id field of equipment CRL0102 to '245-0012'.\"\n}",
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama3-chatqa-1.5-70b": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 271,
+        "error": "All model invocations failed: nvidia/llama3-chatqa-1.5-70b: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function '46594287-38b9-481c-a37f-baa02f2d3ba1': Not found for account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk'\\\"}\"}}",
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama3-chatqa-1.5-8b": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 796,
+        "keyAccuracy": 0.5,
+        "semanticAccuracy": 0.5,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp and allocate drills CRL0101 and CRL0102 to it"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp and allocate drills CRL0101 and CRL0102 to it"
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": null
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-3-nano-30b-a3b": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 4590,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp",
+          "equipment": "Allocate drills CRL0101 and CRL0102 to job 245-0012"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-3-super-120b-a12b": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 71564,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp",
+          "equipment": "allocate drills CRL0101 and CRL0102 to job 245-0012"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "allocate drills CRL0101 and CRL0102 to job 245-0012"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-4-340b-instruct": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 281,
+        "error": "All model invocations failed: nvidia/nemotron-4-340b-instruct: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function 'b0fcd392-e905-4ab4-8eb9-aeae95c30b37': Not found for account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk'\\\"}\"}}",
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/nemotron-4-mini-hindi-4b-instruct": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 1303,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "modifyRequirement": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'",
+          "prioritizeRequirement": "set priority to High for the modified NFS-001 regarding system uptime.",
+          "addRequirement": "add a new URS: 'Users can save their preferences for dashboard widgets'"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "missing",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": null
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": null
+          },
+          {
+            "key": "modifyRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'"
+          },
+          {
+            "key": "prioritizeRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "set priority to High for the modified NFS-001 regarding system uptime."
+          },
+          {
+            "key": "addRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "add a new URS: 'Users can save their preferences for dashboard widgets'"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-mini-4b-instruct": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 1338,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "modifyRequirement": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'",
+          "prioritizeRequirement": "set priority to High for the modified NFS-001 regarding system uptime.",
+          "addRequirement": "add a new URS: 'Users can save their preferences for dashboard widgets.'"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "missing",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": null
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": null
+          },
+          {
+            "key": "modifyRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'"
+          },
+          {
+            "key": "prioritizeRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "set priority to High for the modified NFS-001 regarding system uptime."
+          },
+          {
+            "key": "addRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "add a new URS: 'Users can save their preferences for dashboard widgets.'"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-nano-12b-v2-vl": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 907,
+        "keyAccuracy": 0.5,
+        "semanticAccuracy": 0.5,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": null
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nvidia-nemotron-nano-9b-v2": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 8066,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Create job 245-0012 for Acme Corp with equipment allocation for drills CRL0101 and CRL0102.",
+          "equipment": "Allocate drills CRL0101 and CRL0102 to job 245-0012 by updating their job_id field."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Create job 245-0012 for Acme Corp with equipment allocation for drills CRL0101 and CRL0102."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012 by updating their job_id field."
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/usdcode-llama-3.1-70b-instruct": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 148,
+        "error": "All model invocations failed: nvidia/usdcode-llama-3.1-70b-instruct: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function id '9cd20136-a5d3-4679-80c8-a7470a4f2559' version 'null': Specified function in account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk' is not found\\\"}\"}}",
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": null
+      }
+    ],
+    "copilot-gpt-4.1": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 4044,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp.",
+          "equipment": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+          }
+        ],
+        "error": null
+      }
+    ],
+    "copilot-gpt-4o": [
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1005,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp.",
+          "equipment": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+          }
+        ],
+        "error": null
+      }
+    ]
+  }
+}

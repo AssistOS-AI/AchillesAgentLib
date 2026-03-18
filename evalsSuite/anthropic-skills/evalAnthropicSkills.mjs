@@ -365,11 +365,11 @@ async function runCase(sessionType, testCase, runIndex, options = {}) {
 
     const agent = new LLMAgent({ name: `ASB-${sessionType}-${testCase.id}-run${runIndex + 1}` });
 
-    // Remap 'fast' → toolMode for inner skill execution
+    // Remap all non-planner calls → toolMode for inner skill execution
     if (toolMode) {
         const originalComplete = agent.complete.bind(agent);
         agent.complete = function (opts = {}) {
-            if (opts.mode === 'fast') {
+            if (opts.mode !== mode) {
                 return originalComplete({ ...opts, mode: toolMode });
             }
             return originalComplete(opts);

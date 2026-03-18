@@ -265,6 +265,7 @@ export class SkillExecutor {
             result,
             session: this._sessionType,
             sessionMemory,
+            metrics: adapter.getMetrics?.() || {},
         };
     }
 

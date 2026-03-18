@@ -115,6 +115,7 @@ class JSONPlanSession {
         this.lastRunFailures = [];
         this.pendingTool = null;
         this.status = SESSION_STATUS_IDLE;
+        this._metrics = { planTimeMs: 0, execTimeMs: 0, planAttempts: 0 };
     }
 
     async newPrompt(userPrompt) {
@@ -173,12 +174,15 @@ class JSONPlanSession {
 
             await logJsonPlanEvent('Plan generation prompt', instructions, null);
 
+            const _planCallStart = Date.now();
             const raw = await this.agent.complete({
                 prompt: instructions,
                 mode: this.options.mode,
                 model: this.options.model,
                 context: { intent: 'json-plan-generation', attempt },
             });
+            this._metrics.planTimeMs += Date.now() - _planCallStart;
+            this._metrics.planAttempts += 1;
 
             await logJsonPlanEvent('Plan generation response', typeof raw === 'string' ? raw : JSON.stringify(raw), null);
 
@@ -212,7 +216,9 @@ class JSONPlanSession {
                 break;
             }
 
+            const _execStart = Date.now();
             const runResult = await this._executePlan(steps);
+            this._metrics.execTimeMs += Date.now() - _execStart;
             this.lastRunFailures = runResult.failures;
 
             if (!runResult.failures.length) break;

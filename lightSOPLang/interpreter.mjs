@@ -537,6 +537,11 @@ export class LightSOPLangInterpreter {
         const supportsFinalAnswer = commandEntries.some((entry) => (
             entry?.name === FINAL_ANSWER_TOOL || entry?.name === CANNOT_COMPLETE_TOOL
         ));
+        lines.push('Example:');
+        lines.push('  @data read "Read the contents of data.csv"');
+        lines.push('  @result process "Filter rows where value > 10 from the data" $data');
+        lines.push('  @lastAnswer final_answer $result');
+        lines.push('');
         lines.push('Guidelines:');
         lines.push('- Assume required input values are available as variables (e.g. $input, $A, $B) or use literals if the prompt specifies values.');
         lines.push('- Do NOT initialize input variables with dummy values (like \'assign false\') unless the prompt explicitly asks to set them.');
@@ -562,6 +567,9 @@ export class LightSOPLangInterpreter {
         }
         if (context.commands && context.commands.length) {
             lines.push('Available commands and descriptions:');
+            lines.push('IMPORTANT: Each command takes a SINGLE string argument — a natural language instruction describing what to do. Do NOT pass multiple positional arguments. Wrap the full instruction in one quoted string.');
+            lines.push('Example: @result myCommand "Read file data.csv and sum the Price column"');
+            lines.push('');
             for (const command of context.commands) {
                 lines.push(`- ${command.name}: ${command.description}`);
                 lines.push('---------');
@@ -586,7 +594,7 @@ export class LightSOPLangInterpreter {
         if (supportsFinalAnswer) {
             lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" or "@lastAnswer ${CANNOT_COMPLETE_TOOL} <reason>" so the runtime knows the final response. Do not emit final responses in any other way.`);
         }
-        lines.push('Respond with only valid LightSOPLang code, no explanations.');
+        lines.push('Respond with ONLY valid LightSOPLang code. No markdown fences, no explanations, no commentary. Start directly with @variable declarations.');
         return lines.join('\n');
     }
 
@@ -957,7 +965,12 @@ export class LightSOPLangInterpreter {
         if (typeof generated !== 'string' || !generated.trim()) {
             throw new Error('LLMAgent returned empty code');
         }
-        const trimmed = generated.trim();
+        // Strip markdown code fences that LLMs commonly wrap around generated code
+        let trimmed = generated.trim();
+        const fenceMatch = trimmed.match(/^```[\w]*\s*\n([\s\S]*?)\n\s*```\s*$/);
+        if (fenceMatch) {
+            trimmed = fenceMatch[1].trim();
+        }
         this.englishContext.history.push({
             attempt: this.englishContext.attempt,
             code: trimmed,

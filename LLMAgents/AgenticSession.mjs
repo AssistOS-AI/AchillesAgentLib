@@ -286,6 +286,7 @@ class LoopAgentSession {
         this.toolVars = new Map();
         this.toolVarCounter = 0;
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
+        this._metrics = { planTimeMs: 0, execTimeMs: 0, planAttempts: 0 };
     }
 
     _debug(...args) {
@@ -770,6 +771,7 @@ class LoopAgentSession {
         //     prompt: plannerPrompt,
         // });
 
+        const _planCallStart = Date.now();
         const raw = await this.agent.complete({
             prompt: plannerPrompt,
             mode: this.options.mode,
@@ -780,6 +782,8 @@ class LoopAgentSession {
                 userPrompt,
             },
         });
+        this._metrics.planTimeMs += Date.now() - _planCallStart;
+        this._metrics.planAttempts += 1;
 
         this._debug('[LoopSession]', 'Planner raw response', {
             stepIndex,
@@ -868,11 +872,13 @@ class LoopAgentSession {
 
         // Attach session to agent temporarily to support tools that need session context
         this.agent.currentSession = this;
+        const _execStart = Date.now();
         let result;
         try {
             result = await toolEntry.handler(this.agent, resolvedPrompt);
         } finally {
             this.agent.currentSession = null;
+            this._metrics.execTimeMs += Date.now() - _execStart;
         }
 
         this.toolVarCounter += 1;

@@ -19,7 +19,6 @@ export { createSectionKey, parseSkillDocument } from '../utils/skillDocumentPars
 export { SubsystemFactory } from './services/SubsystemFactory.mjs';
 export { SkillRegistry } from './services/SkillRegistry.mjs';
 export { SkillDiscoveryService } from './services/SkillDiscoveryService.mjs';
-export { SkillSelector } from './services/SkillSelector.mjs';
 export { SkillExecutor } from './services/SkillExecutor.mjs';
 
 // Default export for convenience

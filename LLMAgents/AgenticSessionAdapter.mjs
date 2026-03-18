@@ -39,7 +39,8 @@ class AgenticSessionAdapter {
 
     getMetrics() {
         const durationMs = this._startTime ? Date.now() - this._startTime : 0;
-        return { durationMs };
+        const sessionMetrics = this._session?._metrics || {};
+        return { durationMs, ...sessionMetrics };
     }
 }
 

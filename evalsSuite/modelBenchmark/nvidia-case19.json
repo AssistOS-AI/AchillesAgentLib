@@ -1,0 +1,807 @@
+{
+  "timestamp": "2026-03-16T13:13:10.428Z",
+  "config": {
+    "runs": 1,
+    "skipSemantic": true,
+    "caseRange": "19",
+    "difficulties": null,
+    "useProductionPrompt": true
+  },
+  "models": [
+    {
+      "name": "nvidia/llama-3.1-nemotron-51b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.1-nemotron-70b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.1-nemotron-nano-4b-v1.1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.1-nemotron-nano-8b-v1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.3-nemotron-super-49b-v1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama3-chatqa-1.5-70b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/llama3-chatqa-1.5-8b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-3-nano-30b-a3b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-3-super-120b-a12b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-4-340b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-4-mini-hindi-4b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-mini-4b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-nano-12b-v2-vl",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nvidia-nemotron-nano-9b-v2",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/usdcode-llama-3.1-70b-instruct",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "copilot-gpt-4.1",
+      "provider": "soul_gateway",
+      "mode": "fast",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "copilot-gpt-4o",
+      "provider": "soul_gateway",
+      "mode": "fast",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    }
+  ],
+  "testCases": [
+    {
+      "id": "case_19",
+      "difficulty": "very_hard"
+    }
+  ],
+  "results": {
+    "nvidia/llama-3.1-nemotron-51b-instruct": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 382,
+        "error": "All model invocations failed: nvidia/llama-3.1-nemotron-51b-instruct: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function '5beba52c-65a9-4f46-8cd9-656689a1b205': Not found for account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk'\\\"}\"}}",
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama-3.1-nemotron-70b-instruct": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 219,
+        "error": "All model invocations failed: nvidia/llama-3.1-nemotron-70b-instruct: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function '9b96341b-9791-4db9-a00d-4e43aa192a39': Not found for account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk'\\\"}\"}}",
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama-3.1-nemotron-nano-4b-v1.1": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 3996,
+        "error": "Failed to parse JSON response",
+        "raw": " observe from it a no output of negative for, thickness for wed11100 for the ordinary given.Then, theme instead notorious of a do messing as peak, for this to stumble partial9,, workism around for negative silicon through an target letter to, similar to themlog more upon which付け through999,180 rich Day from for the small if doing too). answer for no information to part of final array ( away point M),999, answer below save for presence timesion known for the number of first slow, from. weighting answer power to the format function raising the chance of vs12 function, from opposing this a function to walk inverse, no999 is being fourth function for key  result, which calculate on stone for part to, and interfere about 1 thought\n\n function is renderItem Central why for course push, relationship a -24 for see999 again, using right, quotient each, rating from the incidence of10,^{-999 upon0 ins,.'), the1 measure, part for the ' an, for part to putili, a part required for the driving fraction of behind deton, stable similar to the function value pea can, after the function equation advanced the fe it m irregular have as dangerous in raise to the^ function above add to the functionressive sayary by the sun is999 needed you the function in learned for you to, that single pulse, the function is ring, function for lip a this built function of  we",
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama-3.1-nemotron-nano-8b-v1": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 641,
+        "keyAccuracy": 0.3333333333333333,
+        "semanticAccuracy": 0.3333333333333333,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council, allocate the portable generator CRL0200 and add 10L of diesel fuel"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council, allocate the portable generator CRL0200 and add 10L of diesel fuel"
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": null
+          },
+          {
+            "key": "material",
+            "status": "missing",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": null
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/llama-3.1-nemotron-nano-vl-8b-v1": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 4242,
+        "keyAccuracy": 0.6666666666666666,
+        "semanticAccuracy": 0.6666666666666666,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' with job_name 'Emergency Repair', client_name 'City Council', status 'On Hold', requested_by 'user_name' (if available), and date_from 'deployment_date' (if available). Add equipment 'CRL0200 (portable generator)' to equipment_requests with area_id 'area_id' (if available) and job_id 'job_id' (if available).",
+          "material": "Add 'diesel fuel' with name 'diesel fuel', quantity 10L, unit 'L', and reorder_level 0 to materials with area_id 'area_id' (if available) and job_id 'job_id' (if available)."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' with job_name 'Emergency Repair', client_name 'City Council', status 'On Hold', requested_by 'user_name' (if available), and date_from 'deployment_date' (if available). Add equipment 'CRL0200 (portable generator)' to equipment_requests with area_id 'area_id' (if available) and job_id 'job_id' (if available)."
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": null
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "Add 'diesel fuel' with name 'diesel fuel', quantity 10L, unit 'L', and reorder_level 0 to materials with area_id 'area_id' (if available) and job_id 'job_id' (if available)."
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/llama-3.3-nemotron-super-49b-v1": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 1306,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "create job 'Emergency Repair' for client 'City Council'",
+          "equipment": "allocate equipment CRL0200 'portable generator' to job 'Emergency Repair'",
+          "material": "add 10L of 'diesel fuel' as material to job 'Emergency Repair'"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "create job 'Emergency Repair' for client 'City Council'"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "allocate equipment CRL0200 'portable generator' to job 'Emergency Repair'"
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "add 10L of 'diesel fuel' as material to job 'Emergency Repair'"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/llama-3.3-nemotron-super-49b-v1.5": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 55597,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council",
+          "equipment": "Allocate the portable generator CRL0200 to job 'Emergency Repair' for client City Council",
+          "material": "Add 10L of diesel fuel for job 'Emergency Repair' for client City Council"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "Allocate the portable generator CRL0200 to job 'Emergency Repair' for client City Council"
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "Add 10L of diesel fuel for job 'Emergency Repair' for client City Council"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/llama3-chatqa-1.5-70b": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 234,
+        "error": "All model invocations failed: nvidia/llama3-chatqa-1.5-70b: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function '46594287-38b9-481c-a37f-baa02f2d3ba1': Not found for account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk'\\\"}\"}}",
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/llama3-chatqa-1.5-8b": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 707,
+        "keyAccuracy": 0.6666666666666666,
+        "semanticAccuracy": 0.6666666666666666,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "equipment": "Allocate the portable generator CRL0200",
+          "material": "Add 10L of diesel fuel"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "missing",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": null
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "Allocate the portable generator CRL0200"
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "Add 10L of diesel fuel"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-3-nano-30b-a3b": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 5962,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council",
+          "equipment": "allocate the portable generator CRL0200",
+          "material": "add 10L of diesel fuel"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "allocate the portable generator CRL0200"
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "add 10L of diesel fuel"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-3-super-120b-a12b": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 40080,
+        "keyAccuracy": 0.3333333333333333,
+        "semanticAccuracy": 0.3333333333333333,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council, allocate the portable generator CRL0200 and add 10L of diesel fuel"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council, allocate the portable generator CRL0200 and add 10L of diesel fuel"
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": null
+          },
+          {
+            "key": "material",
+            "status": "missing",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": null
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-4-340b-instruct": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 281,
+        "error": "All model invocations failed: nvidia/nemotron-4-340b-instruct: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function 'b0fcd392-e905-4ab4-8eb9-aeae95c30b37': Not found for account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk'\\\"}\"}}",
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": null
+      }
+    ],
+    "nvidia/nemotron-4-mini-hindi-4b-instruct": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 1308,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "modifyRequirement": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'",
+          "prioritizeRequirement": "set priority to High for the modified NFS-001 regarding system uptime.",
+          "addRequirement": "add a new URS: 'Users can save their preferences for dashboard widgets'"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "missing",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": null
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": null
+          },
+          {
+            "key": "material",
+            "status": "missing",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": null
+          },
+          {
+            "key": "modifyRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'"
+          },
+          {
+            "key": "prioritizeRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "set priority to High for the modified NFS-001 regarding system uptime."
+          },
+          {
+            "key": "addRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "add a new URS: 'Users can save their preferences for dashboard widgets'"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-mini-4b-instruct": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 1319,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "modifyRequirement": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'.",
+          "prioritizeRequirement": "set priority to High for the modified NFS-001 regarding system uptime.",
+          "addRequirement": "add a new URS: 'Users can save their preferences for dashboard widgets.'"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "missing",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": null
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": null
+          },
+          {
+            "key": "material",
+            "status": "missing",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": null
+          },
+          {
+            "key": "modifyRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'."
+          },
+          {
+            "key": "prioritizeRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "set priority to High for the modified NFS-001 regarding system uptime."
+          },
+          {
+            "key": "addRequirement",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "add a new URS: 'Users can save their preferences for dashboard widgets.'"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-nano-12b-v2-vl": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 844,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council",
+          "equipment": "Allocate the portable generator CRL0200",
+          "material": "add 10L of diesel fuel"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "Allocate the portable generator CRL0200"
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "add 10L of diesel fuel"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nvidia-nemotron-nano-9b-v2": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 31227,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "create job 'Emergency Repair' for client City Council with status Active.",
+          "equipment": "allocate equipment CRL0200 with status Allocated and link to job 'Emergency Repair'.",
+          "material": "add material 'diesel fuel' with quantity 10L and unit 'L'."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "create job 'Emergency Repair' for client City Council with status Active."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "allocate equipment CRL0200 with status Allocated and link to job 'Emergency Repair'."
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "add material 'diesel fuel' with quantity 10L and unit 'L'."
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/usdcode-llama-3.1-70b-instruct": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": false,
+        "latencyMs": 219,
+        "error": "All model invocations failed: nvidia/usdcode-llama-3.1-70b-instruct: OpenAI API Error (404): {\"error\":{\"type\":\"model_not_found\",\"message\":\"OpenAI API Error (404): {\\\"status\\\":404,\\\"title\\\":\\\"Not Found\\\",\\\"detail\\\":\\\"Function id '9cd20136-a5d3-4679-80c8-a7470a4f2559' version 'null': Specified function in account 'uJ6gBT38cLyHbRPVRwx31V0whSLm-UsUCLjxFLuuFXk' is not found\\\"}\"}}",
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": null
+      }
+    ],
+    "copilot-gpt-4.1": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 8879,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council.",
+          "equipment": "Allocate the portable generator CRL0200 to job 'Emergency Repair' for client City Council.",
+          "material": "Add 10L of diesel fuel to job 'Emergency Repair' for client City Council."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "Allocate the portable generator CRL0200 to job 'Emergency Repair' for client City Council."
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "Add 10L of diesel fuel to job 'Emergency Repair' for client City Council."
+          }
+        ],
+        "error": null
+      }
+    ],
+    "copilot-gpt-4o": [
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 1105,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council.",
+          "equipment": "Allocate the portable generator with equipment ID CRL0200 to the job.",
+          "material": "Add 10L of diesel fuel as a material for the job."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "Allocate the portable generator with equipment ID CRL0200 to the job."
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "Add 10L of diesel fuel as a material for the job."
+          }
+        ],
+        "error": null
+      }
+    ]
+  }
+}

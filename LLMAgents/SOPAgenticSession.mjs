@@ -263,6 +263,7 @@ class SOPAgenticSession {
             : 3;
         this.lastRunFailures = [];
         this.pendingTool = null;
+        this._metrics = { planTimeMs: 0, execTimeMs: 0, planAttempts: 0 };
     }
 
     static async runPreparation({
@@ -403,20 +404,25 @@ class SOPAgenticSession {
                 ? `${baseInstructions}\n\n${feedbackBlock}`
                 : baseInstructions;
  
+            const _planStart = Date.now();
             const plan = await this._generatePlanFromEnglish(englishInstructions);
- 
+            this._metrics.planTimeMs += Date.now() - _planStart;
+            this._metrics.planAttempts += 1;
+
             this.currentPlan = plan || '';
             this.lastExecution = null;
             this.history.push({
                 prompt: userPrompt,
                 plan: this.currentPlan,
             });
- 
+
             if (!this.commandsRegistry || this.options.planOnly) {
                 break;
             }
- 
+
+            const _execStart = Date.now();
             const runResult = await this._runPlan(this.currentPlan);
+            this._metrics.execTimeMs += Date.now() - _execStart;
             const hasFailures = runResult?.hasFailures;
             const failures = runResult?.failures || [];
             this.lastRunFailures = failures;

@@ -243,7 +243,7 @@ export class RecursiveSkilledAgent {
         }
 
         // Handle code generation for cskill
-        if (skillRecord.type === 'cskill') {
+        if (skillRecord.type === 'cskill' && this.registry.get('mirror-code-generator-cskill')) {
             this.executor.addPendingPreparation(
                 this.executePrompt(skillRecord.skillDir, {
                     skillName: 'mirror-code-generator',

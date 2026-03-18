@@ -1,0 +1,3339 @@
+{
+  "timestamp": "2026-03-16T13:37:38.249Z",
+  "config": {
+    "runs": 1,
+    "skipSemantic": true,
+    "caseRange": null,
+    "difficulties": null,
+    "useProductionPrompt": true
+  },
+  "models": [
+    {
+      "name": "nvidia/llama-3.3-nemotron-super-49b-v1",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nemotron-3-nano-30b-a3b",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "nvidia/nvidia-nemotron-nano-9b-v2",
+      "provider": "soul_gateway",
+      "mode": "deep",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "copilot-gpt-4.1",
+      "provider": "soul_gateway",
+      "mode": "fast",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    },
+    {
+      "name": "copilot-gpt-4o",
+      "provider": "soul_gateway",
+      "mode": "fast",
+      "apiKeyEnv": "SOUL_GATEWAY_API_KEY"
+    }
+  ],
+  "testCases": [
+    {
+      "id": "case_01",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_02",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_03",
+      "difficulty": "hard"
+    },
+    {
+      "id": "case_04",
+      "difficulty": "easy"
+    },
+    {
+      "id": "case_05",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_06",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_07",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_08",
+      "difficulty": "hard"
+    },
+    {
+      "id": "case_09",
+      "difficulty": "easy"
+    },
+    {
+      "id": "case_10",
+      "difficulty": "easy"
+    },
+    {
+      "id": "case_11",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_12",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_13",
+      "difficulty": "hard"
+    },
+    {
+      "id": "case_14",
+      "difficulty": "hard"
+    },
+    {
+      "id": "case_15",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_16",
+      "difficulty": "hard"
+    },
+    {
+      "id": "case_17",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_18",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_19",
+      "difficulty": "very_hard"
+    },
+    {
+      "id": "case_20",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_21",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_22",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_23",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_24",
+      "difficulty": "medium"
+    },
+    {
+      "id": "case_25",
+      "difficulty": "hard"
+    }
+  ],
+  "results": {
+    "nvidia/llama-3.3-nemotron-super-49b-v1": [
+      {
+        "caseId": "case_01",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 1570,
+        "error": "Failed to parse JSON response",
+        "raw": "{\n  \"equipment\": \"Add a new equipment item with name 'Makita SDS Drill', serial_number 'MK-2024-001', verification_type 'PAT TESTED', expires_on '6 months from yesterday', and assign to area_id 'Bay A3'\"",
+        "expected": {
+          "equipment": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now"
+        },
+        "actual": null
+      },
+      {
+        "caseId": "case_02",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 3169,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where status=Quarantined and expires_on is past due"
+        },
+        "actual": {
+          "equipment": "list all equipment items with status=Quarantined and verification_type=INSPECTED where expires_on is before the current date"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where status=Quarantined and expires_on is past due",
+            "actual": "list all equipment items with status=Quarantined and verification_type=INSPECTED where expires_on is before the current date"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_03",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1723,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]"
+        },
+        "actual": {
+          "job": "create job 'PA Install Demo' for client 'Demo Facilities' with status Pending, dates not specified, site not specified, requested_by not specified, and equipment_requests containing cordless drill and bandsaw."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]",
+            "actual": "create job 'PA Install Demo' for client 'Demo Facilities' with status Pending, dates not specified, site not specified, requested_by not specified, and equipment_requests containing cordless drill and bandsaw."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_04",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 639,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import equipment from Excel file in shared folder"
+        },
+        "actual": {
+          "import": "Import equipment from the Excel file in shared folder"
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import equipment from Excel file in shared folder",
+            "actual": "Import equipment from the Excel file in shared folder"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_05",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 2287,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0042: area=Smith Construction job site"
+        },
+        "actual": {
+          "equipment": "update equipment CRL0042 from area with location_type Warehouse to a new area with name Smith Construction job site"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0042: area=Smith Construction job site",
+            "actual": "update equipment CRL0042 from area with location_type Warehouse to a new area with name Smith Construction job site"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_06",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 688,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "query equipment where equipment_id=CRL0089, return status"
+        },
+        "actual": {
+          "equipment": "query the status of equipment with equipment_id 'CRL0089'"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "query equipment where equipment_id=CRL0089, return status",
+            "actual": "query the status of equipment with equipment_id 'CRL0089'"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_07",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 838,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where job=Riverside"
+        },
+        "actual": {
+          "job": "List all equipment assigned to the 'Riverside' project by using job_id to retrieve associated equipment_requests"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where job=Riverside",
+            "actual": null
+          },
+          {
+            "key": "job",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "List all equipment assigned to the 'Riverside' project by using job_id to retrieve associated equipment_requests"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 2375,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "create job with job_id 245-0012, job_name as per 'Acme Corp' context (e.g., infer from client name), client_name 'Acme Corp', and update equipment_requests to include drills CRL0101 and CRL0102",
+          "equipment": "verify drills CRL0101 and CRL0102 exist and are available for allocation (if not, assume implicit 'make available' or 'add if missing' based on system's default behavior for non-explicit 'add' requests); update status of CRL0101 and CRL0102 to 'Allocated' and assign job_id 245-0012"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "create job with job_id 245-0012, job_name as per 'Acme Corp' context (e.g., infer from client name), client_name 'Acme Corp', and update equipment_requests to include drills CRL0101 and CRL0102"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "verify drills CRL0101 and CRL0102 exist and are available for allocation (if not, assume implicit 'make available' or 'add if missing' based on system's default behavior for non-explicit 'add' requests); update status of CRL0101 and CRL0102 to 'Allocated' and assign job_id 245-0012"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_09",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 647,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "wipe-data": "clear all equipment data from database"
+        },
+        "actual": {
+          "wipe-data": "wipe all equipment data and reset the database"
+        },
+        "details": [
+          {
+            "key": "wipe-data",
+            "status": "key_match",
+            "expected": "clear all equipment data from database",
+            "actual": "wipe all equipment data and reset the database"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_10",
+        "run": 1,
+        "difficulty": "easy",
+        "success": false,
+        "latencyMs": 1718,
+        "error": "Failed to parse JSON response",
+        "raw": "{\n  \"show-help\": \"display help information about available commands and system capabilities because the user asked 'What can I do with this system? Help me understand the available commands'\"",
+        "expected": {
+          "show-help": "display help information about available commands"
+        },
+        "actual": null
+      },
+      {
+        "caseId": "case_11",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 747,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0156: status=Faulty"
+        },
+        "actual": {
+          "equipment": "update equipment CRL0156 (Bosch angle grinder) to status: Faulty"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0156: status=Faulty",
+            "actual": "update equipment CRL0156 (Bosch angle grinder) to status: Faulty"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_12",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 686,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "area": "create area: name=VAN-003, location_type=Van"
+        },
+        "actual": {
+          "area": "Add a new van called VAN-003, location type is Van"
+        },
+        "details": [
+          {
+            "key": "area",
+            "status": "key_match",
+            "expected": "create area: name=VAN-003, location_type=Van",
+            "actual": "Add a new van called VAN-003, location type is Van"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_13",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 844,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "material": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters"
+        },
+        "actual": {
+          "material": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045"
+        },
+        "details": [
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters",
+            "actual": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_14",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 859,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where verification_type=CALIBRATED and expires_on within 30 days"
+        },
+        "actual": {
+          "equipment": "list all equipment items where verification_type is 'CALIBRATED' and expires_on is within the next 30 days"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where verification_type=CALIBRATED and expires_on within 30 days",
+            "actual": "list all equipment items where verification_type is 'CALIBRATED' and expires_on is within the next 30 days"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_15",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 927,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null"
+        },
+        "actual": {
+          "equipment": "Update status of CRL0078 and CRL0079 to Returned, change area_id to main warehouse and set job_id to null."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null",
+            "actual": "Update status of CRL0078 and CRL0079 to Returned, change area_id to main warehouse and set job_id to null."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_16",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1164,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where status=Available"
+        },
+        "actual": {
+          "show-help": "Provide an overview of available capabilities to answer 'What do we have available?'",
+          "equipment": "List all available equipment items with their status as 'Available'",
+          "material": "List all materials with their current quantity"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where status=Available",
+            "actual": "List all available equipment items with their status as 'Available'"
+          },
+          {
+            "key": "show-help",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Provide an overview of available capabilities to answer 'What do we have available?'"
+          },
+          {
+            "key": "material",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "List all materials with their current quantity"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_17",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 687,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 199-0023: status=Completed"
+        },
+        "actual": {
+          "job": "update job 199-0023 status to Completed"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 199-0023: status=Completed",
+            "actual": "update job 199-0023 status to Completed"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_18",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 687,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import from inventory.csv with dryRun=true"
+        },
+        "actual": {
+          "import": "Preview import of 'inventory.csv' with entityType and dryRun mode enabled"
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import from inventory.csv with dryRun=true",
+            "actual": "Preview import of 'inventory.csv' with entityType and dryRun mode enabled"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 1881,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "create job 'Emergency Repair' for client 'City Council', set status to Active, set date_from to immediate start, and leave date_to open-ended",
+          "equipment": "allocate equipment with equipment_id CRL0200 (portable generator) to job 'Emergency Repair', update status to Allocated, and assign to the new job",
+          "material": "add 10L of diesel fuel as material to job 'Emergency Repair', specifying quantity: 10, unit: L"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "create job 'Emergency Repair' for client 'City Council', set status to Active, set date_from to immediate start, and leave date_to open-ended"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "allocate equipment with equipment_id CRL0200 (portable generator) to job 'Emergency Repair', update status to Allocated, and assign to the new job"
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "add 10L of diesel fuel as material to job 'Emergency Repair', specifying quantity: 10, unit: L"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_20",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 694,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "count equipment where generic_name=JIGSAW and status=Available"
+        },
+        "actual": {
+          "material": "query quantity of material with generic_name 'JIGSAW'"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "count equipment where generic_name=JIGSAW and status=Available",
+            "actual": null
+          },
+          {
+            "key": "material",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "query quantity of material with generic_name 'JIGSAW'"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_21",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 683,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where area=Bay B2"
+        },
+        "actual": {
+          "area": "list storage contents for area named 'Bay B2'"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where area=Bay B2",
+            "actual": null
+          },
+          {
+            "key": "area",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "list storage contents for area named 'Bay B2'"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_22",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 687,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 201-0005: status=Cancelled"
+        },
+        "actual": {
+          "job": "Cancel job 201-0005 due to client change of mind"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 201-0005: status=Cancelled",
+            "actual": "Cancel job 201-0005 due to client change of mind"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_23",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 765,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0167: status=Quarantined"
+        },
+        "actual": {
+          "equipment": "update equipment CRL0167 by setting status to Quarantined."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0167: status=Quarantined",
+            "actual": "update equipment CRL0167 by setting status to Quarantined."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_24",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 730,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "list jobs where client_name=Pinnacle Construction and status=Active"
+        },
+        "actual": {
+          "job": "list all jobs with status 'Active' for client 'Pinnacle Construction'"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "list jobs where client_name=Pinnacle Construction and status=Active",
+            "actual": "list all jobs with status 'Active' for client 'Pinnacle Construction'"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_25",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1094,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval"
+        },
+        "actual": {
+          "equipment": "update status of equipment with IDs CRL0301, CRL0302, CRL0303, and CRL0304 to INSPECTED, noting all passed PAT testing on [current date]"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval",
+            "actual": "update status of equipment with IDs CRL0301, CRL0302, CRL0303, and CRL0304 to INSPECTED, noting all passed PAT testing on [current date]"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nemotron-3-nano-30b-a3b": [
+      {
+        "caseId": "case_01",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 2559,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now"
+        },
+        "actual": {
+          "equipment": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now",
+            "actual": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_02",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 3028,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where status=Quarantined and expires_on is past due"
+        },
+        "actual": {
+          "equipment": "Show me all quarantined equipment that's overdue for inspection"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where status=Quarantined and expires_on is past due",
+            "actual": "Show me all quarantined equipment that's overdue for inspection"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_03",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 2054,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]"
+        },
+        "actual": {
+          "job": "Create job 'PA Install Demo' for client Demo Facilities with equipment_requests: ['cordless drill', 'bandsaw']"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]",
+            "actual": "Create job 'PA Install Demo' for client Demo Facilities with equipment_requests: ['cordless drill', 'bandsaw']"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_04",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 2128,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import equipment from Excel file in shared folder"
+        },
+        "actual": {
+          "import": "Import equipment from the Excel file in shared folder"
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import equipment from Excel file in shared folder",
+            "actual": "Import equipment from the Excel file in shared folder"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_05",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 4892,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0042: area=Smith Construction job site"
+        },
+        "actual": {
+          "equipment": "Move equipment CRL0042 from warehouse to the Smith Construction job site"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0042: area=Smith Construction job site",
+            "actual": "Move equipment CRL0042 from warehouse to the Smith Construction job site"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_06",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 2214,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "query equipment where equipment_id=CRL0089, return status"
+        },
+        "actual": {
+          "equipment": "Check the status of asset with id CRL0089"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "query equipment where equipment_id=CRL0089, return status",
+            "actual": "Check the status of asset with id CRL0089"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_07",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1384,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where job=Riverside"
+        },
+        "actual": {
+          "equipment": "List all equipment assigned to the Riverside project"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where job=Riverside",
+            "actual": "List all equipment assigned to the Riverside project"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 3183,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Create job 245-0012 for Acme Corp",
+          "equipment": "Allocate drills CRL0101 and CRL0102 to job 245-0012"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Create job 245-0012 for Acme Corp"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_09",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 1862,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "wipe-data": "clear all equipment data from database"
+        },
+        "actual": {
+          "wipe-data": "wipe all equipment data and reset the database"
+        },
+        "details": [
+          {
+            "key": "wipe-data",
+            "status": "key_match",
+            "expected": "clear all equipment data from database",
+            "actual": "wipe all equipment data and reset the database"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_10",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 1363,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "show-help": "display help information about available commands"
+        },
+        "actual": {
+          "show-help": "Help me understand the available commands"
+        },
+        "details": [
+          {
+            "key": "show-help",
+            "status": "key_match",
+            "expected": "display help information about available commands",
+            "actual": "Help me understand the available commands"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_11",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1316,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0156: status=Faulty"
+        },
+        "actual": {
+          "equipment": "mark the Bosch angle grinder CRL0156 as faulty"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0156: status=Faulty",
+            "actual": "mark the Bosch angle grinder CRL0156 as faulty"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_12",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 6362,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "area": "create area: name=VAN-003, location_type=Van"
+        },
+        "actual": {
+          "area": "Add a new van called VAN-003 to the system, location type is Van"
+        },
+        "details": [
+          {
+            "key": "area",
+            "status": "key_match",
+            "expected": "create area: name=VAN-003, location_type=Van",
+            "actual": "Add a new van called VAN-003 to the system, location type is Van"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_13",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 3610,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "material": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters"
+        },
+        "actual": {
+          "material": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045"
+        },
+        "details": [
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters",
+            "actual": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_14",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 3368,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where verification_type=CALIBRATED and expires_on within 30 days"
+        },
+        "actual": {
+          "equipment": "Show me all calibrated test equipment expiring in the next 30 days"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where verification_type=CALIBRATED and expires_on within 30 days",
+            "actual": "Show me all calibrated test equipment expiring in the next 30 days"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_15",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1903,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null"
+        },
+        "actual": {
+          "equipment": "Return CRL0078 and CRL0079 from the Henderson site back to the main warehouse"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null",
+            "actual": "Return CRL0078 and CRL0079 from the Henderson site back to the main warehouse"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_16",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 2342,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where status=Available"
+        },
+        "actual": {
+          "equipment": "list available equipment items"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where status=Available",
+            "actual": "list available equipment items"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_17",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1779,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 199-0023: status=Completed"
+        },
+        "actual": {
+          "job": "Mark job 199-0023 as completed, the client signed off today"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 199-0023: status=Completed",
+            "actual": "Mark job 199-0023 as completed, the client signed off today"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_18",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 3295,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import from inventory.csv with dryRun=true"
+        },
+        "actual": {
+          "import": "preview what would be imported from inventory.csv without actually importing (dryRun mode)"
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import from inventory.csv with dryRun=true",
+            "actual": "preview what would be imported from inventory.csv without actually importing (dryRun mode)"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 3530,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council",
+          "equipment": "allocate portable generator CRL0200",
+          "material": "add 10L of diesel fuel"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council"
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "allocate portable generator CRL0200"
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "add 10L of diesel fuel"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_20",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1855,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "count equipment where generic_name=JIGSAW and status=Available"
+        },
+        "actual": {
+          "equipment": "Query the number of equipment items with generic_name 'JIGSAW' that are in stock."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "count equipment where generic_name=JIGSAW and status=Available",
+            "actual": "Query the number of equipment items with generic_name 'JIGSAW' that are in stock."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_21",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 1636,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where area=Bay B2"
+        },
+        "actual": {
+          "area": "Show current stored items in Bay B2"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where area=Bay B2",
+            "actual": null
+          },
+          {
+            "key": "area",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Show current stored items in Bay B2"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_22",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 2365,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 201-0005: status=Cancelled"
+        },
+        "actual": {
+          "job": "Cancel job 201-0005, the client changed their mind"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 201-0005: status=Cancelled",
+            "actual": "Cancel job 201-0005, the client changed their mind"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_23",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 2806,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0167: status=Quarantined"
+        },
+        "actual": {
+          "equipment": "Put the laser level CRL0167 in quarantine"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0167: status=Quarantined",
+            "actual": "Put the laser level CRL0167 in quarantine"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_24",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1701,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "list jobs where client_name=Pinnacle Construction and status=Active"
+        },
+        "actual": {
+          "job": "Show all active jobs for Pinnacle Construction"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "list jobs where client_name=Pinnacle Construction and status=Active",
+            "actual": "Show all active jobs for Pinnacle Construction"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_25",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 3890,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval"
+        },
+        "actual": {
+          "equipment": "Mark CRL0301, CRL0302, CRL0303, and CRL0304 as inspected, all passed PAT testing today"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval",
+            "actual": "Mark CRL0301, CRL0302, CRL0303, and CRL0304 as inspected, all passed PAT testing today"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "nvidia/nvidia-nemotron-nano-9b-v2": [
+      {
+        "caseId": "case_01",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 11543,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now"
+        },
+        "actual": {
+          "equipment": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months. Fields include: equipment_id (auto-generated), name (Makita SDS Drill), manufacturer (Makita), model (SDS Drill), serial_number (MK-2024-001), status (Available), area_id (Bay A3), verification_type (PAT TESTED), expires_on (6 months from now)"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now",
+            "actual": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months. Fields include: equipment_id (auto-generated), name (Makita SDS Drill), manufacturer (Makita), model (SDS Drill), serial_number (MK-2024-001), status (Available), area_id (Bay A3), verification_type (PAT TESTED), expires_on (6 months from now)"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_02",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 7105,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where status=Quarantined and expires_on is past due"
+        },
+        "actual": {
+          "equipment": "List all equipment items with status 'Quarantined' and verification_type not 'INSPECTED' (indicating overdue inspection)."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where status=Quarantined and expires_on is past due",
+            "actual": "List all equipment items with status 'Quarantined' and verification_type not 'INSPECTED' (indicating overdue inspection)."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_03",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 7220,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]"
+        },
+        "actual": {
+          "job": "Create job 'PA Install Demo' for client Demo Facilities with equipment requests: cordless drill and bandsaw."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]",
+            "actual": "Create job 'PA Install Demo' for client Demo Facilities with equipment requests: cordless drill and bandsaw."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_04",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 6847,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import equipment from Excel file in shared folder"
+        },
+        "actual": {
+          "import": "Import equipment from the Excel file located in the shared folder. File path: 'Excel file in shared folder', entityType: 'equipment'."
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import equipment from Excel file in shared folder",
+            "actual": "Import equipment from the Excel file located in the shared folder. File path: 'Excel file in shared folder', entityType: 'equipment'."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_05",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 8426,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0042: area=Smith Construction job site"
+        },
+        "actual": {
+          "equipment": "Update equipment CRL0042 to change its area_id from warehouse to Smith Construction job site."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0042: area=Smith Construction job site",
+            "actual": "Update equipment CRL0042 to change its area_id from warehouse to Smith Construction job site."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_06",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 5242,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "query equipment where equipment_id=CRL0089, return status"
+        },
+        "actual": {
+          "equipment": "Query the status of equipment ID CRL0089."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "query equipment where equipment_id=CRL0089, return status",
+            "actual": "Query the status of equipment ID CRL0089."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_07",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 7569,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where job=Riverside"
+        },
+        "actual": {
+          "job": "List equipment assigned to the Riverside project (job_name: 'Riverside'). This involves querying the job's equipment_requests field to retrieve all equipment items associated with this specific project."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where job=Riverside",
+            "actual": null
+          },
+          {
+            "key": "job",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "List equipment assigned to the Riverside project (job_name: 'Riverside'). This involves querying the job's equipment_requests field to retrieve all equipment items associated with this specific project."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 18388,
+        "keyAccuracy": 0.5,
+        "semanticAccuracy": 0.5,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp with equipment_requests including drills CRL0101 and CRL0102."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp with equipment_requests including drills CRL0101 and CRL0102."
+          },
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": null
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_09",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 3383,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "wipe-data": "clear all equipment data from database"
+        },
+        "actual": {
+          "wipe-data": "wipe all equipment data and reset the database"
+        },
+        "details": [
+          {
+            "key": "wipe-data",
+            "status": "key_match",
+            "expected": "clear all equipment data from database",
+            "actual": "wipe all equipment data and reset the database"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_10",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 3059,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "show-help": "display help information about available commands"
+        },
+        "actual": {
+          "show-help": "User is asking 'What can I do with this system? Help me understand the available commands' to understand system capabilities and command options."
+        },
+        "details": [
+          {
+            "key": "show-help",
+            "status": "key_match",
+            "expected": "display help information about available commands",
+            "actual": "User is asking 'What can I do with this system? Help me understand the available commands' to understand system capabilities and command options."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_11",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 7288,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0156: status=Faulty"
+        },
+        "actual": {
+          "equipment": "Update status of Bosch angle grinder with CRL0156 to 'Faulty' due to broken guard."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0156: status=Faulty",
+            "actual": "Update status of Bosch angle grinder with CRL0156 to 'Faulty' due to broken guard."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_12",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 19596,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "area": "create area: name=VAN-003, location_type=Van"
+        },
+        "actual": {
+          "equipment": "Add a new van with equipment_id VAN-003, name VAN-003, and generic_name Van."
+        },
+        "details": [
+          {
+            "key": "area",
+            "status": "missing",
+            "expected": "create area: name=VAN-003, location_type=Van",
+            "actual": null
+          },
+          {
+            "key": "equipment",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Add a new van with equipment_id VAN-003, name VAN-003, and generic_name Van."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_13",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 24060,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "material": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters"
+        },
+        "actual": {
+          "job": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045."
+        },
+        "details": [
+          {
+            "key": "material",
+            "status": "missing",
+            "expected": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters",
+            "actual": null
+          },
+          {
+            "key": "job",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_14",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 3699,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where verification_type=CALIBRATED and expires_on within 30 days"
+        },
+        "actual": {
+          "equipment": "List all equipment items with verification_type 'CALIBRATED' and expires_on within the next 30 days."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where verification_type=CALIBRATED and expires_on within 30 days",
+            "actual": "List all equipment items with verification_type 'CALIBRATED' and expires_on within the next 30 days."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_15",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 4358,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null"
+        },
+        "actual": {
+          "equipment": "Update equipment items CRL0078 and CRL0079 to change their area_id from Henderson site to main warehouse."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null",
+            "actual": "Update equipment items CRL0078 and CRL0079 to change their area_id from Henderson site to main warehouse."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_16",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 4335,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where status=Available"
+        },
+        "actual": {
+          "equipment": "Query available equipment items with status 'Available'."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where status=Available",
+            "actual": "Query available equipment items with status 'Available'."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_17",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 3121,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 199-0023: status=Completed"
+        },
+        "actual": {
+          "job": "Mark job 199-0023 as completed with status 'Completed' due to client sign-off today."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 199-0023: status=Completed",
+            "actual": "Mark job 199-0023 as completed with status 'Completed' due to client sign-off today."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_18",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 10248,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import from inventory.csv with dryRun=true"
+        },
+        "actual": {
+          "import": "Preview import from inventory.csv using dryRun mode to show what would be imported without actual data processing."
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import from inventory.csv with dryRun=true",
+            "actual": "Preview import from inventory.csv using dryRun mode to show what would be imported without actual data processing."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 12504,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job named 'Emergency Repair' for client 'City Council' with status pending, date_from and date_to unspecified, and initial equipment_requests including 'portable generator CRL0200'.",
+          "equipment": "Allocate equipment CRL0200 (portable generator) to job 'Emergency Repair' for client 'City Council'.",
+          "material": "Add material 'diesel fuel' with quantity 10L to job 'Emergency Repair' for client 'City Council'."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job named 'Emergency Repair' for client 'City Council' with status pending, date_from and date_to unspecified, and initial equipment_requests including 'portable generator CRL0200'."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "Allocate equipment CRL0200 (portable generator) to job 'Emergency Repair' for client 'City Council'."
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "Add material 'diesel fuel' with quantity 10L to job 'Emergency Repair' for client 'City Council'."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_20",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 8543,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "count equipment where generic_name=JIGSAW and status=Available"
+        },
+        "actual": {
+          "equipment": "Query the equipment inventory to count items with generic_name 'JIGSAW' and status 'Available'."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "count equipment where generic_name=JIGSAW and status=Available",
+            "actual": "Query the equipment inventory to count items with generic_name 'JIGSAW' and status 'Available'."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_21",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 5496,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where area=Bay B2"
+        },
+        "actual": {
+          "area": "Retrieve contents of Bay B2 (area_id: Bay B2) to list stored equipment, materials, or items."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where area=Bay B2",
+            "actual": null
+          },
+          {
+            "key": "area",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Retrieve contents of Bay B2 (area_id: Bay B2) to list stored equipment, materials, or items."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_22",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 3403,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 201-0005: status=Cancelled"
+        },
+        "actual": {
+          "job": "Cancel job 201-0005 because the client changed their mind."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 201-0005: status=Cancelled",
+            "actual": "Cancel job 201-0005 because the client changed their mind."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_23",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 5141,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0167: status=Quarantined"
+        },
+        "actual": {
+          "equipment": "Put the laser level CRL0167 in quarantine because it needs recalibration. Update status to Quarantined."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0167: status=Quarantined",
+            "actual": "Put the laser level CRL0167 in quarantine because it needs recalibration. Update status to Quarantined."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_24",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 3420,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "list jobs where client_name=Pinnacle Construction and status=Active"
+        },
+        "actual": {
+          "job": "Show all active jobs for Pinnacle Construction"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "list jobs where client_name=Pinnacle Construction and status=Active",
+            "actual": "Show all active jobs for Pinnacle Construction"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_25",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 10241,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval"
+        },
+        "actual": {
+          "equipment": "Update equipment items with IDs CRL0301, CRL0302, CRL0303, and CRL0304 by setting their verification_type to 'PAT TESTED' and status to 'In Use' (or appropriate status based on PAT passing), with inspection date set to today."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval",
+            "actual": "Update equipment items with IDs CRL0301, CRL0302, CRL0303, and CRL0304 by setting their verification_type to 'PAT TESTED' and status to 'In Use' (or appropriate status based on PAT passing), with inspection date set to today."
+          }
+        ],
+        "error": null
+      }
+    ],
+    "copilot-gpt-4.1": [
+      {
+        "caseId": "case_01",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 2252,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now"
+        },
+        "actual": {
+          "equipment": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now",
+            "actual": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_02",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1223,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where status=Quarantined and expires_on is past due"
+        },
+        "actual": {
+          "equipment": "Show me all quarantined equipment that's overdue for inspection"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where status=Quarantined and expires_on is past due",
+            "actual": "Show me all quarantined equipment that's overdue for inspection"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_03",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 2825,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]"
+        },
+        "actual": {
+          "job": "Create job 'PA Install Demo' for client Demo Facilities, they need a cordless drill and bandsaw."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]",
+            "actual": "Create job 'PA Install Demo' for client Demo Facilities, they need a cordless drill and bandsaw."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_04",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 895,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import equipment from Excel file in shared folder"
+        },
+        "actual": {
+          "import": "Import equipment from the Excel file in shared folder"
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import equipment from Excel file in shared folder",
+            "actual": "Import equipment from the Excel file in shared folder"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_05",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 922,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0042: area=Smith Construction job site"
+        },
+        "actual": {
+          "equipment": "Move equipment CRL0042 from warehouse to the Smith Construction job site."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0042: area=Smith Construction job site",
+            "actual": "Move equipment CRL0042 from warehouse to the Smith Construction job site."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_06",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1065,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "query equipment where equipment_id=CRL0089, return status"
+        },
+        "actual": {
+          "equipment": "Query the status of the asset with equipment_id CRL0089."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "query equipment where equipment_id=CRL0089, return status",
+            "actual": "Query the status of the asset with equipment_id CRL0089."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_07",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 840,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where job=Riverside"
+        },
+        "actual": {
+          "equipment": "List all equipment assigned to the Riverside project."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where job=Riverside",
+            "actual": "List all equipment assigned to the Riverside project."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1539,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp.",
+          "equipment": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_09",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 1822,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "wipe-data": "clear all equipment data from database"
+        },
+        "actual": {
+          "wipe-data": "wipe all equipment data and reset the database"
+        },
+        "details": [
+          {
+            "key": "wipe-data",
+            "status": "key_match",
+            "expected": "clear all equipment data from database",
+            "actual": "wipe all equipment data and reset the database"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_10",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 1194,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "show-help": "display help information about available commands"
+        },
+        "actual": {
+          "show-help": "Help me understand the available commands. What can I do with this system?"
+        },
+        "details": [
+          {
+            "key": "show-help",
+            "status": "key_match",
+            "expected": "display help information about available commands",
+            "actual": "Help me understand the available commands. What can I do with this system?"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_11",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1059,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0156: status=Faulty"
+        },
+        "actual": {
+          "equipment": "Mark the Bosch angle grinder with equipment_id CRL0156 as faulty because it has a broken guard."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0156: status=Faulty",
+            "actual": "Mark the Bosch angle grinder with equipment_id CRL0156 as faulty because it has a broken guard."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_12",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1069,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "area": "create area: name=VAN-003, location_type=Van"
+        },
+        "actual": {
+          "area": "Add a new van called VAN-003 to the system, location type is Van"
+        },
+        "details": [
+          {
+            "key": "area",
+            "status": "key_match",
+            "expected": "create area: name=VAN-003, location_type=Van",
+            "actual": "Add a new van called VAN-003 to the system, location type is Van"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_13",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1078,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "material": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters"
+        },
+        "actual": {
+          "material": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045."
+        },
+        "details": [
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters",
+            "actual": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_14",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1408,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where verification_type=CALIBRATED and expires_on within 30 days"
+        },
+        "actual": {
+          "equipment": "Show me all calibrated test equipment expiring in the next 30 days"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where verification_type=CALIBRATED and expires_on within 30 days",
+            "actual": "Show me all calibrated test equipment expiring in the next 30 days"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_15",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1482,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null"
+        },
+        "actual": {
+          "equipment": "Return CRL0078 and CRL0079 from the Henderson site back to the main warehouse."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null",
+            "actual": "Return CRL0078 and CRL0079 from the Henderson site back to the main warehouse."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_16",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 1731,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where status=Available"
+        },
+        "actual": {
+          "show-help": "The user asked 'What do we have available?', which is a request to display information about available commands and system capabilities."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where status=Available",
+            "actual": null
+          },
+          {
+            "key": "show-help",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "The user asked 'What do we have available?', which is a request to display information about available commands and system capabilities."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_17",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1092,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 199-0023: status=Completed"
+        },
+        "actual": {
+          "job": "Mark job 199-0023 as completed, the client signed off today."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 199-0023: status=Completed",
+            "actual": "Mark job 199-0023 as completed, the client signed off today."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_18",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1661,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import from inventory.csv with dryRun=true"
+        },
+        "actual": {
+          "import": "Preview what would be imported from inventory.csv without actually importing"
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import from inventory.csv with dryRun=true",
+            "actual": "Preview what would be imported from inventory.csv without actually importing"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 1800,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council.",
+          "equipment": "Allocate the portable generator CRL0200 to the job 'Emergency Repair' for client City Council.",
+          "material": "Add 10L of diesel fuel to the job 'Emergency Repair' for client City Council."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "Allocate the portable generator CRL0200 to the job 'Emergency Repair' for client City Council."
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "Add 10L of diesel fuel to the job 'Emergency Repair' for client City Council."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_20",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1463,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "count equipment where generic_name=JIGSAW and status=Available"
+        },
+        "actual": {
+          "equipment": "Query for how many jigsaws we have in stock."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "count equipment where generic_name=JIGSAW and status=Available",
+            "actual": "Query for how many jigsaws we have in stock."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_21",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 929,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where area=Bay B2"
+        },
+        "actual": {
+          "area": "Query what is currently stored in Bay B2."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where area=Bay B2",
+            "actual": null
+          },
+          {
+            "key": "area",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Query what is currently stored in Bay B2."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_22",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1309,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 201-0005: status=Cancelled"
+        },
+        "actual": {
+          "job": "Cancel job 201-0005, the client changed their mind"
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 201-0005: status=Cancelled",
+            "actual": "Cancel job 201-0005, the client changed their mind"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_23",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1049,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0167: status=Quarantined"
+        },
+        "actual": {
+          "equipment": "Put the laser level CRL0167 in quarantine, it needs recalibration"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0167: status=Quarantined",
+            "actual": "Put the laser level CRL0167 in quarantine, it needs recalibration"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_24",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 891,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "list jobs where client_name=Pinnacle Construction and status=Active"
+        },
+        "actual": {
+          "job": "Show all active jobs for Pinnacle Construction."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "list jobs where client_name=Pinnacle Construction and status=Active",
+            "actual": "Show all active jobs for Pinnacle Construction."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_25",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1775,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval"
+        },
+        "actual": {
+          "equipment": "Mark CRL0301, CRL0302, CRL0303, and CRL0304 as inspected, all passed PAT testing today"
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval",
+            "actual": "Mark CRL0301, CRL0302, CRL0303, and CRL0304 as inspected, all passed PAT testing today"
+          }
+        ],
+        "error": null
+      }
+    ],
+    "copilot-gpt-4o": [
+      {
+        "caseId": "case_01",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 1181,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now"
+        },
+        "actual": {
+          "equipment": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "create equipment: name=Makita SDS Drill, manufacturer=Makita, serial_number=MK-2024-001, area=Bay A3, verification_type=PAT TESTED, expires_on=6 months from now",
+            "actual": "Add a new Makita SDS Drill with serial number MK-2024-001 to Bay A3, it was PAT tested yesterday and expires in 6 months."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_02",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 759,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where status=Quarantined and expires_on is past due"
+        },
+        "actual": {
+          "equipment": "Show all quarantined equipment that is overdue for inspection."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where status=Quarantined and expires_on is past due",
+            "actual": "Show all quarantined equipment that is overdue for inspection."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_03",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1020,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]"
+        },
+        "actual": {
+          "job": "Create job 'PA Install Demo' for client Demo Facilities, with a requirement for a cordless drill and bandsaw."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=PA Install Demo, client_name=Demo Facilities, equipment_requests=[cordless drill, bandsaw]",
+            "actual": "Create job 'PA Install Demo' for client Demo Facilities, with a requirement for a cordless drill and bandsaw."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_04",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 696,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import equipment from Excel file in shared folder"
+        },
+        "actual": {
+          "import": "Import equipment from the Excel file located in the shared folder."
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import equipment from Excel file in shared folder",
+            "actual": "Import equipment from the Excel file located in the shared folder."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_05",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 799,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0042: area=Smith Construction job site"
+        },
+        "actual": {
+          "equipment": "Move equipment CRL0042 from warehouse to the Smith Construction job site."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0042: area=Smith Construction job site",
+            "actual": "Move equipment CRL0042 from warehouse to the Smith Construction job site."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_06",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 704,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "query equipment where equipment_id=CRL0089, return status"
+        },
+        "actual": {
+          "equipment": "Query the status of the asset with equipment_id CRL0089."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "query equipment where equipment_id=CRL0089, return status",
+            "actual": "Query the status of the asset with equipment_id CRL0089."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_07",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 674,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where job=Riverside"
+        },
+        "actual": {
+          "equipment": "List all equipment assigned to the Riverside project."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where job=Riverside",
+            "actual": "List all equipment assigned to the Riverside project."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_08",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1452,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create or update job: job_id=245-0012, client_name=Acme Corp",
+          "equipment": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated"
+        },
+        "actual": {
+          "job": "Set up job 245-0012 for Acme Corp.",
+          "equipment": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create or update job: job_id=245-0012, client_name=Acme Corp",
+            "actual": "Set up job 245-0012 for Acme Corp."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0101 and CRL0102: job_id=245-0012, status=Allocated",
+            "actual": "Allocate drills CRL0101 and CRL0102 to job 245-0012."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_09",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 3586,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "wipe-data": "clear all equipment data from database"
+        },
+        "actual": {
+          "wipe-data": "Wipe all equipment data and reset the database."
+        },
+        "details": [
+          {
+            "key": "wipe-data",
+            "status": "key_match",
+            "expected": "clear all equipment data from database",
+            "actual": "Wipe all equipment data and reset the database."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_10",
+        "run": 1,
+        "difficulty": "easy",
+        "success": true,
+        "latencyMs": 1042,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "show-help": "display help information about available commands"
+        },
+        "actual": {
+          "show-help": "Help the user understand the available commands and explain what they can do with the system."
+        },
+        "details": [
+          {
+            "key": "show-help",
+            "status": "key_match",
+            "expected": "display help information about available commands",
+            "actual": "Help the user understand the available commands and explain what they can do with the system."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_11",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 897,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0156: status=Faulty"
+        },
+        "actual": {
+          "equipment": "Mark the Bosch angle grinder with equipment ID CRL0156 as faulty because it has a broken guard."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0156: status=Faulty",
+            "actual": "Mark the Bosch angle grinder with equipment ID CRL0156 as faulty because it has a broken guard."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_12",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 778,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "area": "create area: name=VAN-003, location_type=Van"
+        },
+        "actual": {
+          "area": "Add a new van called VAN-003 to the system, location type is Van"
+        },
+        "details": [
+          {
+            "key": "area",
+            "status": "key_match",
+            "expected": "create area: name=VAN-003, location_type=Van",
+            "actual": "Add a new van called VAN-003 to the system, location type is Van"
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_13",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1063,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "material": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters"
+        },
+        "actual": {
+          "material": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045, associating the materials to this job."
+        },
+        "details": [
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add materials to job 188-0045: cable ties qty=50, 2.5mm cable qty=20 meters",
+            "actual": "Add 50 cable ties and 20 meters of 2.5mm cable to job 188-0045, associating the materials to this job."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_14",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 1168,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "list equipment where verification_type=CALIBRATED and expires_on within 30 days"
+        },
+        "actual": {
+          "equipment": "Query all calibrated test equipment expiring in the next 30 days."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "list equipment where verification_type=CALIBRATED and expires_on within 30 days",
+            "actual": "Query all calibrated test equipment expiring in the next 30 days."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_15",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 961,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null"
+        },
+        "actual": {
+          "equipment": "Return CRL0078 and CRL0079 from the Henderson site back to the main warehouse using their respective equipment IDs and locations."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0078 and CRL0079: status=Available, area=main warehouse, job_id=null",
+            "actual": "Return CRL0078 and CRL0079 from the Henderson site back to the main warehouse using their respective equipment IDs and locations."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_16",
+        "run": 1,
+        "difficulty": "hard",
+        "success": false,
+        "latencyMs": 832,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where status=Available"
+        },
+        "actual": {
+          "show-help": "Respond to the user's query about what is available in the system and provide guidance about the system's capabilities or available commands."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where status=Available",
+            "actual": null
+          },
+          {
+            "key": "show-help",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Respond to the user's query about what is available in the system and provide guidance about the system's capabilities or available commands."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_17",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 799,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 199-0023: status=Completed"
+        },
+        "actual": {
+          "job": "Mark job 199-0023 as Completed. The client signed off today."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 199-0023: status=Completed",
+            "actual": "Mark job 199-0023 as Completed. The client signed off today."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_18",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 986,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "import": "import from inventory.csv with dryRun=true"
+        },
+        "actual": {
+          "import": "Preview what would be imported from inventory.csv without actually importing. Use dryRun mode to simulate the import process."
+        },
+        "details": [
+          {
+            "key": "import",
+            "status": "key_match",
+            "expected": "import from inventory.csv with dryRun=true",
+            "actual": "Preview what would be imported from inventory.csv without actually importing. Use dryRun mode to simulate the import process."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_19",
+        "run": 1,
+        "difficulty": "very_hard",
+        "success": true,
+        "latencyMs": 3072,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "create job: job_name=Emergency Repair, client_name=City Council",
+          "equipment": "allocate equipment CRL0200 to new job",
+          "material": "add material: diesel fuel qty=10L to new job"
+        },
+        "actual": {
+          "job": "Start job 'Emergency Repair' for client City Council.",
+          "equipment": "Allocate the portable generator CRL0200 to the job 'Emergency Repair'.",
+          "material": "Add 10L of diesel fuel to the job 'Emergency Repair'."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "create job: job_name=Emergency Repair, client_name=City Council",
+            "actual": "Start job 'Emergency Repair' for client City Council."
+          },
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "allocate equipment CRL0200 to new job",
+            "actual": "Allocate the portable generator CRL0200 to the job 'Emergency Repair'."
+          },
+          {
+            "key": "material",
+            "status": "key_match",
+            "expected": "add material: diesel fuel qty=10L to new job",
+            "actual": "Add 10L of diesel fuel to the job 'Emergency Repair'."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_20",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 825,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "count equipment where generic_name=JIGSAW and status=Available"
+        },
+        "actual": {
+          "equipment": "Query the stock for the number of jigsaws available."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "count equipment where generic_name=JIGSAW and status=Available",
+            "actual": "Query the stock for the number of jigsaws available."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_21",
+        "run": 1,
+        "difficulty": "medium",
+        "success": false,
+        "latencyMs": 843,
+        "keyAccuracy": 0,
+        "semanticAccuracy": 0,
+        "expected": {
+          "equipment": "list equipment where area=Bay B2"
+        },
+        "actual": {
+          "area": "Query what is currently stored in Bay B2."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "missing",
+            "expected": "list equipment where area=Bay B2",
+            "actual": null
+          },
+          {
+            "key": "area",
+            "status": "unexpected",
+            "expected": null,
+            "actual": "Query what is currently stored in Bay B2."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_22",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 847,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "update job 201-0005: status=Cancelled"
+        },
+        "actual": {
+          "job": "Cancel job 201-0005 because the client changed their mind."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "update job 201-0005: status=Cancelled",
+            "actual": "Cancel job 201-0005 because the client changed their mind."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_23",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 947,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0167: status=Quarantined"
+        },
+        "actual": {
+          "equipment": "Update the status of the laser level with equipment_id 'CRL0167' to 'Quarantined' because it needs recalibration."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0167: status=Quarantined",
+            "actual": "Update the status of the laser level with equipment_id 'CRL0167' to 'Quarantined' because it needs recalibration."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_24",
+        "run": 1,
+        "difficulty": "medium",
+        "success": true,
+        "latencyMs": 715,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "job": "list jobs where client_name=Pinnacle Construction and status=Active"
+        },
+        "actual": {
+          "job": "Show all active jobs for Pinnacle Construction."
+        },
+        "details": [
+          {
+            "key": "job",
+            "status": "key_match",
+            "expected": "list jobs where client_name=Pinnacle Construction and status=Active",
+            "actual": "Show all active jobs for Pinnacle Construction."
+          }
+        ],
+        "error": null
+      },
+      {
+        "caseId": "case_25",
+        "run": 1,
+        "difficulty": "hard",
+        "success": true,
+        "latencyMs": 980,
+        "keyAccuracy": 1,
+        "semanticAccuracy": 1,
+        "expected": {
+          "equipment": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval"
+        },
+        "actual": {
+          "equipment": "Mark CRL0301, CRL0302, CRL0303, and CRL0304 as inspected with all passing PAT testing on today's date."
+        },
+        "details": [
+          {
+            "key": "equipment",
+            "status": "key_match",
+            "expected": "update equipment CRL0301, CRL0302, CRL0303, CRL0304: verification_type=PAT TESTED, expires_on=today + standard PAT interval",
+            "actual": "Mark CRL0301, CRL0302, CRL0303, and CRL0304 as inspected with all passing PAT testing on today's date."
+          }
+        ],
+        "error": null
+      }
+    ]
+  }
+}
