@@ -18,23 +18,6 @@
         "./utils/*": "./utils/*",
         "./package.json": "./package.json"
     },
-    "files": [
-        "index.mjs",
-        "LLMConfig.json",
-        "BacklogManager",
-        "LLMAgents",
-        "utils",
-        "MemoryContainer",
-        "RecursiveSkilledAgents",
-        "CodeSkillsSubsystem",
-        "DynamicCodeGenerationSubsystem",
-        "AnthropicSkillsSubsystem",
-        "MCPSkillsSubsystem",
-        "OrchestratorSkillsSubsystem",
-        "DBTableSkillsSubsystem",
-        "lightSOPLang",
-        "services"
-    ],
     "scripts": {
         "test": "node tests/runAll.js"
     },
