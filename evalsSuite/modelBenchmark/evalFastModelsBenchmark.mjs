@@ -121,6 +121,8 @@ function parseArgs() {
         skipSemantic: CONFIG.skipSemanticByDefault,
         useProductionPrompt: CONFIG.useProductionPrompt,
         help: false,
+        soulGateway: false,
+        freeOnly: false,
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -135,6 +137,12 @@ function parseArgs() {
             options.models = args[++i]?.split(',').map(m => m.trim()).filter(Boolean) || null;
         } else if (arg === '--all-models') {
             options.models = null; // Test all available models
+        } else if (arg === '--soul-gateway') {
+            options.soulGateway = true;
+            options.models = null;
+        } else if (arg === '--free') {
+            options.freeOnly = true;
+            options.models = null;
         } else if (arg === '--cases' || arg === '-c') {
             options.caseRange = args[++i];
         } else if (arg === '--difficulty' || arg === '-d') {
@@ -253,25 +261,31 @@ async function loadTestCases(caseRange, difficulties = null) {
     return cases;
 }
 
-function getAvailableModels(modelsConfig, requestedModels) {
+function getAvailableModels(modelsConfig, requestedModels, { freeOnly = false } = {}) {
     const available = [];
-    
+
     for (const [name, descriptor] of modelsConfig.models.entries()) {
         // Skip excluded models
         if (CONFIG.excludeModels.includes(name)) continue;
+
+        // Free-only filter: soul_gateway models discovered from gateway are free if marked
+        if (freeOnly && descriptor.providerKey === 'soul_gateway' && !descriptor.isFree) continue;
 
         const providerConfig = modelsConfig.providers.get(descriptor.providerKey);
         if (!providerConfig) continue;
 
         // Check if API key is available
-        const apiKeyEnv = descriptor.apiKeyEnv || providerConfig.apiKeyEnv;
+        // soul_gateway models use SOUL_GATEWAY_API_KEY
+        const apiKeyEnv = descriptor.providerKey === 'soul_gateway'
+            ? 'SOUL_GATEWAY_API_KEY'
+            : (descriptor.apiKeyEnv || providerConfig.apiKeyEnv);
         const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : null;
-        
+
         if (!apiKey) continue;
 
         // Build qualified name for matching (provider/model)
         const qualifiedName = `${descriptor.providerKey}/${name}`;
-        
+
         // Filter by requested models if specified
         // Support both simple name and qualified name (provider/model)
         if (requestedModels) {
@@ -282,7 +296,7 @@ function getAvailableModels(modelsConfig, requestedModels) {
 
         // Use qualified name in output to support provider/model format
         const displayName = requestedModels?.includes(qualifiedName) ? qualifiedName : name;
-        
+
         available.push({
             name: displayName,
             provider: descriptor.providerKey,
@@ -342,7 +356,6 @@ async function testModel(agent, modelName, skillsDescription, testCase, skipSema
         const response = await agent.complete({
             prompt,
             model: modelName,
-            mode: 'fast',
             context: { intent: 'benchmark-skill-selection' },
         });
         
@@ -606,7 +619,10 @@ async function main() {
     const modelsConfig = await loadModelsConfiguration();
     const skillsDescription = await loadSkillsDescription();
     const testCases = await loadTestCases(config.caseRange, config.difficulties);
-    const availableModels = getAvailableModels(modelsConfig, config.models);
+    let availableModels = getAvailableModels(modelsConfig, config.models, { freeOnly: config.freeOnly });
+    if (config.soulGateway) {
+        availableModels = availableModels.filter(m => m.provider === 'soul_gateway');
+    }
 
     if (availableModels.length === 0) {
         console.log(`${COLORS.RED}No models available to test.${COLORS.RESET}`);

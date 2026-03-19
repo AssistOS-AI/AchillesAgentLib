@@ -1,0 +1,21 @@
+{
+    "id": "case_22_parallel_friendly",
+    "systemPrompt": "Independent operations that SOP can parallelize, then combine",
+    "steps": [
+        {
+            "id": "two_independent_math",
+            "prompt": "Add 10 and 20, and also multiply 5 by 6. Then add those two results together. Answer only with the final number.",
+            "expected": "60"
+        },
+        {
+            "id": "two_independent_text",
+            "prompt": "Reverse the text 'abc' and also uppercase the text 'xyz'. Then concatenate the two results. Answer only with the final text.",
+            "expected": "cbaXYZ"
+        },
+        {
+            "id": "three_independent_lengths",
+            "prompt": "Get the length of 'hello', the length of 'world', and the length of 'test'. Then add all three numbers together. Answer only with the number.",
+            "expected": "14"
+        }
+    ]
+}

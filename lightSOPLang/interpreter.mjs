@@ -517,36 +517,26 @@ export class LightSOPLangInterpreter {
 
     _buildLlmaPrompt(context) {
         const lines = [];
-        lines.push('You are an assistant that emits LightSOPLang code.');
-        lines.push('');
-        lines.push('LightSOPLang Syntax Rules:');
-        lines.push('1. Each step is a variable declaration starting with \'@\'.');
-        lines.push('2. Format: @variableName commandName arg1 arg2 ... (a command name is REQUIRED on every line; do NOT emit lines like "@var <literal>" without a command).');
-        lines.push('3. Use SPACE to separate arguments. Do NOT use parentheses "()" or commas ",".');
-        lines.push('4. Arguments can be literals (strings/numbers) or variables ($varName).');
-        lines.push('5. Dependencies are implicit: if you use $var1 in a command, it runs after @var1 is computed.');
-        lines.push('6. Do not use control structures like \'if\' or \'for\'. Use dependencies to order execution.');
-        lines.push('7. If a step must run after another step, include that earlier step as a $dependency argument, even if the command will ignore the extra argument.');
-        lines.push('8. Do NOT declare variables for input values that are directly specified in the prompt - use literals directly.');
-        lines.push('9. Use consistent, descriptive variable names that match when referencing ($varName).');
-        lines.push('10. Output ONLY the code block, no markdown fences, no explanations.');
-        lines.push('- IMPORTANT: Never wrap arguments in parentheses or separate them with commas; each argument must be its own token. Example: @out concat "hello" "world" (NOT concat("hello", "world")).');
-        lines.push('- IMPORTANT: When a string literal contains spaces, wrap it in double quotes, but still keep each argument as a separate token with no commas.');
-    lines.push('');
         const commandEntries = Array.isArray(context.commands) ? context.commands : [];
         const supportsFinalAnswer = commandEntries.some((entry) => (
             entry?.name === FINAL_ANSWER_TOOL || entry?.name === CANNOT_COMPLETE_TOOL
         ));
-        lines.push('Guidelines:');
-        lines.push('- Assume required input values are available as variables (e.g. $input, $A, $B) or use literals if the prompt specifies values.');
-        lines.push('- Do NOT initialize input variables with dummy values (like \'assign false\') unless the prompt explicitly asks to set them.');
-        lines.push('- Create a generic plan that would work for any input of that type.');
-        lines.push('- IMPORTANT: Link skill parameters to available variables or context from the prompt. If a variable holds an entity (like a PR or Ticket) or a result from a previous step, use that variable as an argument for subsequent commands instead of literals, to maintain context.');
-        lines.push('- IMPORTANT: Do NOT use variable interpolation inside strings (e.g., "Result: $var"). LightSOPLang does NOT support this. Instead, pass strings and variables as separate arguments (e.g., "Result:" $var).');
+
+        lines.push('Emit LightSOPLang code. Format: @varName command arg1 arg2');
+        lines.push('Args: space-separated, NO parentheses/commas. Quote strings with spaces. Use $var to reference previous results.');
+        lines.push('Example: @sum add 5 3');
+        lines.push('@upper uppercase "hello world"');
+        lines.push('@combined concat $sum $upper');
         if (supportsFinalAnswer) {
-            lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" so the runtime knows the final response. Do not emit final responses in any other way.`);
-            lines.push('');
+            lines.push(`@lastAnswer ${FINAL_ANSWER_TOOL} $combined`);
         }
+        lines.push('');
+        lines.push('Rules: Use ONLY listed commands. No interpolation in strings (use separate args). No markdown fences.');
+        if (supportsFinalAnswer) {
+            lines.push(`If answerable without commands: @lastAnswer ${FINAL_ANSWER_TOOL} "your answer"`);
+            lines.push(`Always end with @lastAnswer ${FINAL_ANSWER_TOOL} or ${CANNOT_COMPLETE_TOOL}.`);
+        }
+        lines.push('');
         if (context.reason === 'initial') {
             lines.push('Generate an initial script that meets the instructions.');
         } else {
@@ -561,10 +551,9 @@ export class LightSOPLangInterpreter {
             lines.push(typeof this.inputValue === 'string' ? this.inputValue : JSON.stringify(this.inputValue));
         }
         if (context.commands && context.commands.length) {
-            lines.push('Available commands and descriptions:');
+            lines.push('Commands:');
             for (const command of context.commands) {
                 lines.push(`- ${command.name}: ${command.description}`);
-                lines.push('---------');
             }
         }
         if (context.previousCode) {
@@ -583,10 +572,7 @@ export class LightSOPLangInterpreter {
                 lines.push(`- ${variable.name}: ${variable.status} => ${variable.value}`);
             }
         }
-        if (supportsFinalAnswer) {
-            lines.push(`- IMPORTANT: Every plan MUST end with "@lastAnswer ${FINAL_ANSWER_TOOL} <final text>" or "@lastAnswer ${CANNOT_COMPLETE_TOOL} <reason>" so the runtime knows the final response. Do not emit final responses in any other way.`);
-        }
-        lines.push('Respond with only valid LightSOPLang code, no explanations.');
+        lines.push('Output ONLY LightSOPLang code, no fences or explanations.');
         return lines.join('\n');
     }
 
@@ -957,7 +943,12 @@ export class LightSOPLangInterpreter {
         if (typeof generated !== 'string' || !generated.trim()) {
             throw new Error('LLMAgent returned empty code');
         }
-        const trimmed = generated.trim();
+        // Strip markdown code fences that LLMs commonly wrap around generated code
+        let trimmed = generated.trim();
+        const fenceMatch = trimmed.match(/^```[\w]*\s*\n([\s\S]*?)\n\s*```\s*$/);
+        if (fenceMatch) {
+            trimmed = fenceMatch[1].trim();
+        }
         this.englishContext.history.push({
             attempt: this.englishContext.attempt,
             code: trimmed,

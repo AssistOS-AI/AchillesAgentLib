@@ -1,0 +1,21 @@
+{
+    "id": "case_16_math_chain_complex",
+    "systemPrompt": "Complex arithmetic chains with 4+ operations",
+    "steps": [
+        {
+            "id": "chain_add_multiply_subtract",
+            "prompt": "Add 12 and 8, then multiply the result by 3, then subtract 10. Answer only with the final number.",
+            "expected": "50"
+        },
+        {
+            "id": "chain_divide_add_multiply",
+            "prompt": "Divide 100 by 4, then add 15, then multiply by 2. Answer only with the number.",
+            "expected": "80"
+        },
+        {
+            "id": "nested_operations",
+            "prompt": "Multiply 7 by 6, then divide by 3, then add 16, then subtract 2. Answer only with the number.",
+            "expected": "28"
+        }
+    ]
+}

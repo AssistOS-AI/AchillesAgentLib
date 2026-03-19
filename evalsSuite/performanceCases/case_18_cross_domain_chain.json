@@ -1,0 +1,21 @@
+{
+    "id": "case_18_cross_domain_chain",
+    "systemPrompt": "Chains that cross tool domains: math to text, email to text to logic",
+    "steps": [
+        {
+            "id": "math_to_text",
+            "prompt": "Add 15 and 27, then check if the result is even. Answer only true or false.",
+            "expected": "true"
+        },
+        {
+            "id": "email_to_length",
+            "prompt": "Extract the email from 'Contact us at admin@example.org for details', then get the domain, then return the length of the domain. Answer only with the number.",
+            "expected": "11"
+        },
+        {
+            "id": "text_to_logic",
+            "prompt": "Get the length of the text 'automation', then check if that number is even. Answer only true or false.",
+            "expected": "true"
+        }
+    ]
+}

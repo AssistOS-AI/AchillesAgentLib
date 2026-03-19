@@ -1,0 +1,21 @@
+{
+    "id": "case_17_text_multi_transform",
+    "systemPrompt": "Chained text transformations requiring multiple tool calls",
+    "steps": [
+        {
+            "id": "reverse_then_upper",
+            "prompt": "Reverse the text 'hello world' and then convert the result to uppercase. Answer only with the final text.",
+            "expected": "DLROW OLLEH"
+        },
+        {
+            "id": "upper_then_length",
+            "prompt": "Convert 'benchmark test' to uppercase, then return the length of the result. Answer only with the number.",
+            "expected": "14"
+        },
+        {
+            "id": "concat_then_reverse",
+            "prompt": "Concatenate 'abc' and 'def' into one string, then reverse the result. Answer only with the final text.",
+            "expected": "fedcba"
+        }
+    ]
+}

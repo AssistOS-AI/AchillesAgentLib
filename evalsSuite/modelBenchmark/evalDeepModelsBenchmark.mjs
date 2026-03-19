@@ -127,6 +127,7 @@ function parseArgs() {
         skipSemantic: CONFIG.skipSemanticByDefault,
         useProductionPrompt: CONFIG.useProductionPrompt,
         help: false,
+        soulGateway: false,
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -141,6 +142,9 @@ function parseArgs() {
             options.models = args[++i]?.split(',').map(m => m.trim()).filter(Boolean) || null;
         } else if (arg === '--all-models') {
             options.models = null; // Test all available deep models
+        } else if (arg === '--soul-gateway') {
+            options.soulGateway = true;
+            options.models = null;
         } else if (arg === '--cases' || arg === '-c') {
             options.caseRange = args[++i];
         } else if (arg === '--difficulty' || arg === '-d') {
@@ -270,7 +274,7 @@ async function loadTestCases(caseRange, difficulties = null) {
  */
 function getAvailableModels(modelsConfig, requestedModels) {
     const available = [];
-    
+
     for (const [name, descriptor] of modelsConfig.models.entries()) {
         // Skip excluded models
         if (CONFIG.excludeModels.includes(name)) continue;
@@ -279,9 +283,12 @@ function getAvailableModels(modelsConfig, requestedModels) {
         if (!providerConfig) continue;
 
         // Check if API key is available
-        const apiKeyEnv = descriptor.apiKeyEnv || providerConfig.apiKeyEnv;
+        // soul_gateway models use SOUL_GATEWAY_API_KEY
+        const apiKeyEnv = descriptor.providerKey === 'soul_gateway'
+            ? 'SOUL_GATEWAY_API_KEY'
+            : (descriptor.apiKeyEnv || providerConfig.apiKeyEnv);
         const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : null;
-        
+
         if (!apiKey) continue;
 
         // Build qualified name for matching (provider/model)
@@ -360,7 +367,6 @@ async function testModel(agent, modelName, skillsDescription, testCase, skipSema
         const response = await agent.complete({
             prompt,
             model: modelName,
-            mode: 'deep',
             context: { intent: 'deep-benchmark-skill-selection' },
         });
         
@@ -484,7 +490,7 @@ Do they describe essentially the same action? Answer ONLY "YES" or "NO".`;
 
         const response = await agent.complete({
             prompt,
-            mode: 'deep',
+            mode: 'fast',
             context: { intent: 'deep-benchmark-semantic-check' },
         });
 
@@ -632,7 +638,10 @@ async function main() {
     const modelsConfig = await loadModelsConfiguration();
     const skillsDescription = await loadSkillsDescription();
     const testCases = await loadTestCases(config.caseRange, config.difficulties);
-    const availableModels = getAvailableModels(modelsConfig, config.models);
+    let availableModels = getAvailableModels(modelsConfig, config.models);
+    if (config.soulGateway) {
+        availableModels = availableModels.filter(m => m.provider === 'soul_gateway');
+    }
 
     if (availableModels.length === 0) {
         console.log(`${COLORS.RED}No deep models available to test.${COLORS.RESET}`);
