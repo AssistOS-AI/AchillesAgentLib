@@ -1,4 +1,4 @@
-import { parseKeyValueInput } from '../../../utils/internalSkillsUtils.mjs';
+import { parseKeyValueInput, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 function decodeHtmlEntities(text) {
     return text
@@ -24,7 +24,8 @@ function htmlToText(html) {
 
 export async function action(context) {
     const { promptText, llmAgent } = context;
-    const { data } = parseKeyValueInput(promptText);
+    const sanitizedPrompt = stripDependsOn(promptText);
+    const { data } = parseKeyValueInput(sanitizedPrompt);
     if (!data || typeof data !== 'object' || !Object.keys(data).length) {
         throw new Error('WebFetch requires input with url and prompt.');
     }

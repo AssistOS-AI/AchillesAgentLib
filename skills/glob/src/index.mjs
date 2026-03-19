@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { normalizePathSeparators, parseKeyValueInput } from '../../../utils/internalSkillsUtils.mjs';
+import { normalizePathSeparators, parseKeyValueInput, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 function escapeRegex(text) {
     return text.replace(/[.+^$|(){}\\]/g, '\\$&');
@@ -94,7 +94,8 @@ async function listFiles(rootDir, relativeBase = '') {
 
 export async function action(context) {
     const { promptText } = context;
-    const { data, raw, hasPairs } = parseKeyValueInput(promptText);
+    const sanitizedPrompt = stripDependsOn(promptText);
+    const { data, raw, hasPairs } = parseKeyValueInput(sanitizedPrompt);
     const input = hasPairs ? data : { pattern: raw };
     const pattern = String(input.pattern || '').trim();
     if (!pattern) {

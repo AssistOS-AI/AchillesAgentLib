@@ -1,4 +1,4 @@
-import { parseKeyValueInput, runBashCommand } from '../../../utils/internalSkillsUtils.mjs';
+import { parseKeyValueInput, runBashCommand, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 function extractMultilineAfterKey(promptText, key) {
     const lines = String(promptText ?? '').split(/\r?\n/);
@@ -17,9 +17,10 @@ function extractMultilineAfterKey(promptText, key) {
 
 export async function action(context) {
     const { promptText } = context;
-    const { data, raw, hasPairs } = parseKeyValueInput(promptText);
+    const sanitizedPrompt = stripDependsOn(promptText);
+    const { data, raw, hasPairs } = parseKeyValueInput(sanitizedPrompt);
     const input = hasPairs ? data : { command: raw };
-    const multilineCommand = extractMultilineAfterKey(promptText, 'command');
+    const multilineCommand = extractMultilineAfterKey(sanitizedPrompt, 'command');
     const command = String(multilineCommand ?? (input.command || '')).trim();
     if (!command) {
         throw new Error('Bash requires a command string.');

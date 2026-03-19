@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { isProbablyText, parseKeyValueInput, resolvePath } from '../../../utils/internalSkillsUtils.mjs';
+import { isProbablyText, parseKeyValueInput, resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 function extractMultilineBlock(promptText, key, stopKeys) {
     const lines = String(promptText ?? '').split(/\r?\n/);
@@ -24,14 +24,15 @@ function extractMultilineBlock(promptText, key, stopKeys) {
 
 export async function action(context) {
     const { promptText } = context;
-    const { data } = parseKeyValueInput(promptText);
+    const sanitizedPrompt = stripDependsOn(promptText);
+    const { data } = parseKeyValueInput(sanitizedPrompt);
     if (!data || typeof data !== 'object' || !Object.keys(data).length) {
         throw new Error('Edit requires input with file_path, old_string, and new_string.');
     }
     const filePath = resolvePath(data.file_path, 'file_path');
     const stopKeys = ['file_path', 'old_string', 'new_string', 'replace_all'];
-    const multilineOld = extractMultilineBlock(promptText, 'old_string', stopKeys);
-    const multilineNew = extractMultilineBlock(promptText, 'new_string', stopKeys);
+    const multilineOld = extractMultilineBlock(sanitizedPrompt, 'old_string', stopKeys);
+    const multilineNew = extractMultilineBlock(sanitizedPrompt, 'new_string', stopKeys);
     const oldString = typeof multilineOld === 'string' ? multilineOld : data.old_string;
     const newString = typeof multilineNew === 'string' ? multilineNew : data.new_string;
     const replaceAll = Boolean(data.replace_all);

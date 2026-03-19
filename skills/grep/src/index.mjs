@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { parseKeyValueInput } from '../../../utils/internalSkillsUtils.mjs';
+import { parseKeyValueInput, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 function escapeRegex(text) {
     return text.replace(/[.+^$|(){}\\]/g, '\\$&');
@@ -132,7 +132,8 @@ function collectContentMatches(text, lineOffset, lineRegex, contextBefore, conte
 
 export async function action(context) {
     const { promptText } = context;
-    const { data, raw, hasPairs } = parseKeyValueInput(promptText);
+    const sanitizedPrompt = stripDependsOn(promptText);
+    const { data, raw, hasPairs } = parseKeyValueInput(sanitizedPrompt);
     const input = hasPairs ? data : { pattern: raw };
     const pattern = String(input.pattern || '').trim();
     if (!pattern) {

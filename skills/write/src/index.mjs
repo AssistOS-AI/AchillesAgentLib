@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseKeyValueInput, resolvePath } from '../../../utils/internalSkillsUtils.mjs';
+import { parseKeyValueInput, resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 function extractMultilineAfterKey(promptText, key) {
     const lines = String(promptText ?? '').split(/\r?\n/);
@@ -19,12 +19,13 @@ function extractMultilineAfterKey(promptText, key) {
 
 export async function action(context) {
     const { promptText } = context;
-    const { data } = parseKeyValueInput(promptText);
+    const sanitizedPrompt = stripDependsOn(promptText);
+    const { data } = parseKeyValueInput(sanitizedPrompt);
     if (!data || typeof data !== 'object' || !Object.keys(data).length) {
         throw new Error('Write requires input with file_path and content.');
     }
     const filePath = resolvePath(data.file_path, 'file_path');
-    const multilineContent = extractMultilineAfterKey(promptText, 'content');
+    const multilineContent = extractMultilineAfterKey(sanitizedPrompt, 'content');
     const content = typeof multilineContent === 'string' ? multilineContent : data.content;
     if (typeof content !== 'string') {
         throw new Error('Write requires string content.');

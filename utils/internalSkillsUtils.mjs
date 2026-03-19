@@ -133,6 +133,15 @@ function parseKeyValueInput(promptText) {
     return { data, raw: text, hasPairs };
 }
 
+function stripDependsOn(promptText) {
+    const text = String(promptText ?? '');
+    const match = text.match(/\bdependsOn\s*:/i);
+    if (!match || match.index === undefined) {
+        return text;
+    }
+    return text.slice(0, match.index).trimEnd();
+}
+
 function resolvePath(targetPath, label = 'path') {
     const normalized = String(targetPath || '').trim();
     if (!normalized) {
@@ -154,6 +163,7 @@ export {
     isSafeChildPath,
     normalizePathSeparators,
     parseKeyValueInput,
+    stripDependsOn,
     resolvePath,
     runBashCommand,
 };

@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { isProbablyText, parseKeyValueInput, resolvePath } from '../../../utils/internalSkillsUtils.mjs';
+import { isProbablyText, parseKeyValueInput, resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 const DEFAULT_LIMIT = 2000;
 const MAX_LINE_LENGTH = 2000;
@@ -21,7 +21,8 @@ function formatNumberedLines(lines, startLine) {
 
 export async function action(context) {
     const { promptText } = context;
-    const { data, raw, hasPairs } = parseKeyValueInput(promptText);
+    const sanitizedPrompt = stripDependsOn(promptText);
+    const { data, raw, hasPairs } = parseKeyValueInput(sanitizedPrompt);
     const input = hasPairs ? data : { file_path: raw };
     const filePath = resolvePath(input.file_path, 'file_path');
     const offset = input.offset ? Number(input.offset) : 1;
