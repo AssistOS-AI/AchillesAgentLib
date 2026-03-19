@@ -21,6 +21,10 @@ const writeFile = async (filePath, content) => {
     await fs.writeFile(filePath, content);
 };
 
+const createMockLLMAgent = (responseText = 'ok') => ({
+    executePrompt: async () => responseText,
+});
+
 before(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'internal-skills-'));
 });
@@ -213,7 +217,11 @@ test('webfetch skill: strips HTML', async () => {
         text: async () => '<html><body><h1>Hello</h1><p>World</p></body></html>',
     });
     try {
-        const result = await webfetchAction({ promptText: 'url: https://example.com\nprompt: summarize' });
+        const llmAgent = createMockLLMAgent('Hello World');
+        const result = await webfetchAction({
+            promptText: 'url: https://example.com\nprompt: summarize',
+            llmAgent,
+        });
         assert.ok(result.includes('Hello'));
         assert.ok(result.includes('World'));
     } finally {
@@ -229,8 +237,12 @@ test('webfetch skill: returns plain text', async () => {
         text: async () => 'plain text',
     });
     try {
-        const result = await webfetchAction({ promptText: 'url: https://example.com\nprompt: summarize' });
-        assert.equal(result, 'plain text');
+        const llmAgent = createMockLLMAgent('Hello World');
+
+        const result = await webfetchAction({
+            promptText: 'url: https://example.com\nprompt: summarize',
+            llmAgent });
+        assert.equal(result, 'Hello World');
     } finally {
         globalThis.fetch = originalFetch;
     }
