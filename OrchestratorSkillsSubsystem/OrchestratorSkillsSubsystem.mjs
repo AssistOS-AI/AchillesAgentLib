@@ -153,22 +153,42 @@ export class OrchestratorSkillsSubsystem {
         });
     }
 
-    async buildSkillsAsTools(allowedSkills, recursiveAgent, options) {
+    async buildSkillsAsTools(allowedSkills, recursiveAgent, options, originalPrompt = null) {
         const tools = {};
         // Forward context (sessionMemory, user, etc.) from the orchestrator's options
         const forwardedContext = options?.context || {};
+        // Use skillPlan tier for inner skill calls (falls back to execution tier)
+        const skillTier = this.tierConfig?.skillPlan || this.tierConfig?.execution || options?.mode || null;
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
             // Return a standard function that calls the skill via RecursiveSkilledAgent
             // This allows each subsystem to access any skill uniformly
             tools[toolName] = async (agent, promptText) => {
-                const executionResult = await recursiveAgent.executePrompt(promptText, {
+                // Coerce promptText to string — planner may pass objects from previous tool results
+                const safePrompt = typeof promptText === 'string'
+                    ? promptText
+                    : (promptText != null ? JSON.stringify(promptText) : '');
+
+                // Append original user request so the inner skill has full context,
+                // even if the outer planner simplified/rewrote the prompt
+                let fullPrompt = safePrompt;
+                if (originalPrompt && safePrompt !== originalPrompt) {
+                    fullPrompt = `${safePrompt}\n\nOriginal user request:\n${originalPrompt}`;
+                }
+
+                const execOptions = {
                     skillName: skillRecord.name,
                     context: forwardedContext,
                     sessionMemory: forwardedContext.sessionMemory || null,
-                });
-                return executionResult?.result;
+                };
+                if (skillTier) execOptions.mode = skillTier;
+                const executionResult = await recursiveAgent.executePrompt(fullPrompt, execOptions);
+                // Serialize non-string results so downstream tools receive valid text
+                const result = executionResult?.result;
+                if (result == null) return '';
+                if (typeof result === 'string') return result;
+                try { return JSON.stringify(result); } catch { return String(result); }
             };
         }
 
@@ -291,10 +311,10 @@ export class OrchestratorSkillsSubsystem {
     async executeSOPAgentSession({skillRecord, recursiveAgent, promptText, options}) {
         const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
         const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, recursiveAgent, allowedSkills);
-        const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
+        const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options, promptText);
         const skillsDescription = this.buildToolDescriptions(allowedSkills);
         const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools);
-        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, recursiveAgent, options);
+        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, recursiveAgent, options, promptText);
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
         const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools);
 

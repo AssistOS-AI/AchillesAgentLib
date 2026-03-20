@@ -65,6 +65,7 @@ export class RecursiveSkilledAgent {
         outputWriter = null,
         exposeInternalSkills = true,
         tierConfig = {},
+        fallbackSessionType = 'loop',
     } = {}) {
         if (llmAgent && !(llmAgent instanceof LLMAgent)) {
             throw new TypeError('RecursiveSkilledAgent requires an LLMAgent instance.');
@@ -75,7 +76,15 @@ export class RecursiveSkilledAgent {
         this.dbAdapter = dbAdapter;
         this.searchUpwards = Boolean(searchUpwards);
         this.exposeInternalSkills = Boolean(exposeInternalSkills);
-        this.tierConfig = { plan: 'plan', execution: 'fast', code: 'code', ...tierConfig };
+        const baseTierConfig = { plan: 'plan', execution: 'fast', code: 'code', ...tierConfig };
+        // Expanded tier config: orchestrator and skill levels
+        // Backwards compatible: skillPlan/skillExec fall back to plan/execution
+        this.tierConfig = {
+            ...baseTierConfig,
+            skillPlan: baseTierConfig.skillPlan || baseTierConfig.execution || 'fast',
+            skillExec: baseTierConfig.skillExec || baseTierConfig.execution || 'fast',
+        };
+        this.fallbackSessionType = fallbackSessionType === 'sop' ? 'sop' : 'loop';
 
         // Add internal skills directory to additionalSkillRoots
         const packageRoot = path.resolve(new URL('.', import.meta.url).pathname, '..');

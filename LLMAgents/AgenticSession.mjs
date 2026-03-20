@@ -445,7 +445,11 @@ class LoopAgentSession {
 
             if (decision && typeof decision.tool === 'string') {
                 const toolName = decision.tool;
-                const toolPrompt = decision.toolPrompt || userPrompt;
+                const rawToolPrompt = decision.toolPrompt || userPrompt;
+                // Coerce to string — planner may return toolPrompt as an object
+                const toolPrompt = typeof rawToolPrompt === 'string'
+                    ? rawToolPrompt
+                    : (rawToolPrompt != null ? JSON.stringify(rawToolPrompt) : userPrompt);
 
                 this.history.push({
                     type: 'tool_call',

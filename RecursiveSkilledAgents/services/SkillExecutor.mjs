@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { stat } from 'node:fs/promises';
 import { SKILL_FILE_TYPES } from '../constants/skillFileTypes.mjs';
+import { Sanitiser } from '../../utils/Sanitiser.mjs';
 
 /**
  * Registry of internal skill module paths.
@@ -147,7 +148,8 @@ export class SkillExecutor {
 
     /**
      * Execute a skill without an explicit skill name.
-     * Tries to find an orchestrator first, then falls back to LLM selection.
+     * Tries to find a registered orchestrator first, then creates an ad-hoc
+     * orchestrator that wraps all available skills as tools in a loop/SOP session.
      * @param {string} taskDescription - The task description
      * @param {Object} forwardOptions - Options to forward to the skill
      * @param {string} reviewMode - Review mode ('none', 'llm', 'human')
@@ -186,24 +188,79 @@ export class SkillExecutor {
             };
         }
 
-        // Fall back to LLM-based skill selection
-        const candidates = this.registry.getAll();
-        this.debugLogger?.log('SkillExecutor:executeWithoutExplicitSkill:fallback-selection', {
-            candidateCount: candidates.length,
+        // No orchestrator found — create ad-hoc orchestration
+        const exposeInternal = recursiveAgent?.exposeInternalSkills !== false;
+        const allSkills = this.registry.getAll();
+        const candidates = allSkills.filter(s => {
+            if (s.type === 'orchestrator') return false;
+            if (!exposeInternal && s.isInternal) return false;
+            return true;
         });
-        const selected = await this.selector.chooseWithLLM(taskDescription, candidates);
 
-        if (selected) {
-            this.debugLogger?.log('SkillExecutor:executeWithoutExplicitSkill:llm-selected', {
-                selected: selected.name,
+        if (!candidates.length) {
+            throw new Error('No skills available to handle the request.');
+        }
+
+        // Single candidate — execute directly without orchestration overhead
+        if (candidates.length === 1) {
+            this.debugLogger?.log('SkillExecutor:adHocOrchestration:singleSkill', {
+                skill: candidates[0].name,
             });
             return this.execute(taskDescription, {
                 ...forwardOptions,
-                skillName: selected.name,
+                skillName: candidates[0].name,
             }, reviewMode, recursiveAgent);
         }
 
-        throw new Error('Unable to determine an appropriate skill for the request.');
+        // Multiple candidates — create ad-hoc orchestrator session
+        const sessionType = recursiveAgent?.fallbackSessionType === 'sop' ? null : 'loop';
+        this.debugLogger?.log('SkillExecutor:adHocOrchestration', {
+            candidateCount: candidates.length,
+            sessionType: sessionType || 'sop',
+            candidates: candidates.map(s => s.name),
+        });
+
+        const subsystem = this.subsystemFactory.get('orchestrator');
+        const allowedSkillNames = candidates.map(s => Sanitiser.sanitiseName(s.name));
+
+        const syntheticRecord = {
+            name: '__ad-hoc-orchestrator__',
+            shortName: '__ad-hoc-orchestrator__',
+            type: 'orchestrator',
+            preparedConfig: {
+                type: 'orchestrator',
+                instructions: 'You are an intelligent assistant. Use the available skills (tools) to satisfy the user\'s request. You may call multiple skills if needed. Respond with a clear final answer.',
+                preparation: null,
+                allowedSkills: allowedSkillNames,
+                allowedPrepSkills: [],
+                allowedPrepSkillsSectionPresent: true,
+                description: '',
+                sessionType,
+                sections: {},
+            },
+            descriptor: {
+                name: 'Ad-Hoc Orchestrator',
+                rawContent: '',
+                sections: {},
+            },
+        };
+
+        const execution = await subsystem.executeSkillPrompt({
+            skillRecord: syntheticRecord,
+            recursiveAgent,
+            promptText: taskDescription,
+            options: {
+                ...forwardOptions,
+                reviewMode,
+            },
+        });
+
+        return {
+            ...execution,
+            reviewMode,
+            subsystem: 'orchestrator',
+            adHoc: true,
+        };
     }
 
     /**
