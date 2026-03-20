@@ -364,7 +364,7 @@ Repair rules (must follow):
         let candidate = parsed;
         for (let attempt = 0; attempt < 2; attempt++) {
             const repaired = await controller.llmAgent.executePrompt(repairPrompt, {
-                tier: 'code',
+                tier: controller.tierConfig?.code || 'code',
                 responseShape: 'json',
             });
             candidate = repaired && typeof repaired === 'object' ? repaired : candidate;
@@ -414,7 +414,7 @@ Repair rules (must follow):
         let candidate = parsed;
         for (let attempt = 0; attempt < 2; attempt++) {
             const repaired = await controller.llmAgent.executePrompt(repairPrompt, {
-                tier: 'code',
+                tier: controller.tierConfig?.code || 'code',
                 responseShape: 'json',
             });
             candidate = repaired && typeof repaired === 'object' ? repaired : candidate;
@@ -1459,7 +1459,7 @@ export async function parseOperation(controller, prompt) {
     let llmUnavailable = false;
     try {
         parsed = await controller.llmAgent.executePrompt(operationPrompt, {
-            tier: hasNumericComparatorCue(prompt) ? 'code' : 'fast',
+            tier: hasNumericComparatorCue(prompt) ? (controller.tierConfig?.code || 'code') : (controller.tierConfig?.execution || 'fast'),
             responseShape: 'json',
         });
     } catch (error) {

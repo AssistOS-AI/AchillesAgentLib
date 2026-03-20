@@ -89,11 +89,12 @@ export class ConversationalTskillController {
      * @param {Object} functions - Generated functions (from tskill.generated.mjs)
      * @param {Object} llmAgent - LLM agent for operation parsing and filter extraction
      */
-    constructor(subsystem, parsedSkill, functions, llmAgent) {
+    constructor(subsystem, parsedSkill, functions, llmAgent, tierConfig) {
         this.subsystem = subsystem;
         this.parsedSkill = parsedSkill;
         this.functions = functions;
         this.llmAgent = llmAgent;
+        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.entityName = parsedSkill.tableName || 'record';
         this.fields = parsedSkill.fields || {};
         this.primaryKey = parsedSkill.primaryKey || `${this.entityName}_id`;

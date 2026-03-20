@@ -111,9 +111,10 @@ function normaliseTools(tools = []) {
 }
 
 export class MCPSkillsSubsystem {
-    constructor({ llmAgent = null } = {}) {
+    constructor({ llmAgent = null, tierConfig = null } = {}) {
         this.type = 'mcp';
         this.llmAgent = llmAgent;
+        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 
@@ -332,7 +333,7 @@ export class MCPSkillsSubsystem {
         let rawPlan;
         try {
             rawPlan = await this.llmAgent.executePrompt(prompt, {
-                tier: 'fast',
+                tier: this.tierConfig.plan || 'plan',
                 context: {
                     intent: 'mcp-skill-plan',
                     skillName: skillRecord.name,

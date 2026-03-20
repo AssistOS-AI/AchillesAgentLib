@@ -62,9 +62,10 @@ function buildLoopSystemPrompt(skillRecord) {
 }
 
 export class OrchestratorSkillsSubsystem {
-    constructor({ llmAgent = null } = {}) {
+    constructor({ llmAgent = null, tierConfig = null } = {}) {
         this.type = 'orchestrator';
         this.llmAgent = llmAgent;
+        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 
@@ -259,7 +260,7 @@ export class OrchestratorSkillsSubsystem {
 
             const sessionOptions = {
                 systemPrompt: baseSystemPrompt,
-                tier: options?.tier || options?.mode || 'plan',
+                tier: options?.tier || options?.mode || this.tierConfig.plan || 'plan',
                 maxStepsPerTurn: 20,
                 preparation,
             };
@@ -308,10 +309,16 @@ export class OrchestratorSkillsSubsystem {
 
         const sessionOptions = {
             systemPrompt: skillRecord.preparedConfig?.instructions || 'Plan and execute skills to satisfy the user request.',
-            tier: options?.tier || options?.mode || 'plan',
+            tier: options?.tier || options?.mode || this.tierConfig.plan || 'plan',
             planOnly: false,
             commandsRegistry,
             preparation,
+            planGeneratorOptions: {
+                llmMode: options?.planTier || this.tierConfig.plan || 'plan',
+            },
+            interpreterOptions: {
+                llmMode: options?.executionTier || this.tierConfig.execution || 'fast',
+            },
         };
 
         const session = await this.llmAgent.startSOPLangAgentSession(skillsDescription, promptText, sessionOptions);

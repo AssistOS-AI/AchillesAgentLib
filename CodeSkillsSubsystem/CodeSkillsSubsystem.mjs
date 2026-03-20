@@ -33,8 +33,9 @@ function camelCaseKeys(obj) {
 }
 
 export class CodeSkillsSubsystem {
-  constructor({ llmAgent }) {
+  constructor({ llmAgent, tierConfig = null }) {
     this.llmAgent = llmAgent;
+    this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
   }
 
   parseSkillDescriptor({ filePath }) {
@@ -90,7 +91,7 @@ export class CodeSkillsSubsystem {
   async extractArguments(userPrompt, specifications) {
     debugLog('Extracting arguments with LLM.');
     const prompt = buildArgumentExtractionPrompt(userPrompt, specifications.inputFormat);
-    const response = await this.llmAgent.executePrompt(prompt, { responseShape: 'json', tier: 'fast' });
+    const response = await this.llmAgent.executePrompt(prompt, { responseShape: 'json', tier: this.tierConfig.execution || 'fast' });
     if (response.error || !response.args) {
       throw new Error(`Argument extraction failed: ${response.error || 'LLM did not return an "args" object.'}`);
     }

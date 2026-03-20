@@ -317,7 +317,7 @@ Rules:
 - If the message is only a confirmation/cancellation or still ambiguous, return { "changes": {} }.`;
 
     const extracted = await controller.llmAgent.executePrompt(extractPrompt, {
-        tier: 'fast',
+        tier: controller.tierConfig?.execution || 'fast',
         responseShape: 'json',
     });
 
@@ -652,7 +652,7 @@ export async function handleUpdateFieldCapture(controller, prompt, pending, sess
 
     try {
         const extracted = await controller.llmAgent.executePrompt(extractPrompt, {
-            tier: 'fast',
+            tier: controller.tierConfig?.execution || 'fast',
             responseShape: 'json',
         });
 

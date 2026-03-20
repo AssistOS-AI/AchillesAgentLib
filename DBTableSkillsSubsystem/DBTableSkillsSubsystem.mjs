@@ -325,11 +325,12 @@ function buildCrudFailureMessage(operation, entityName, error) {
  * Main DBTableSkillsSubsystem class
  */
 export class DBTableSkillsSubsystem {
-    constructor({ llmAgent, dbAdapter, config = {} }) {
+    constructor({ llmAgent, dbAdapter, config = {}, tierConfig = null }) {
         this.llmAgent = llmAgent;
         this.dbAdapter = dbAdapter;
         this.skillsPath = config.skillsPath || './skills';
         this.generatedPath = config.generatedPath || './generated';
+        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.cache = new Map();
         this.functionCache = new Map();
         this.executors = new Map();
@@ -1034,6 +1035,7 @@ export class DBTableSkillsSubsystem {
             parsedSkill,
             functions,
             this.llmAgent,
+            this.tierConfig,
         );
 
         return async ({ prompt }, context) => {

@@ -43,12 +43,14 @@ export class SkillExecutor {
         logger = console,
         debugLogger = null,
         callbacks = {},
+        tierConfig = null,
     } = {}) {
         this.registry = registry;
         this.subsystemFactory = subsystemFactory;
         this.selector = selector;
         this.logger = logger;
         this.debugLogger = debugLogger;
+        this.tierConfig = tierConfig;
         this.callbacks = {
             onBegin: typeof callbacks.onBegin === 'function' ? callbacks.onBegin : null,
             onProgress: typeof callbacks.onProgress === 'function' ? callbacks.onProgress : null,

@@ -78,7 +78,7 @@ function unwrapCodeFence(payload) {
     return trimmed;
 }
 
-function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast' }) {
+function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast', tierConfig = null }) {
     return async (invocation) => {
         const recursiveSkilledAgent = invocation?.recursiveAgent || null;
         const input = invocation?.input;
@@ -111,7 +111,7 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
 
         const decision = await withTimeout(
             llmAgent.executePrompt(decisionPrompt, {
-                mode: llmMode,
+                tier: llmMode,
                 context: { intent: 'dynamic-code-generation-skill-default', skillName },
                 responseShape: 'json',
             }),
@@ -158,7 +158,7 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
     };
 }
 
-function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, llmMode = 'fast' }) {
+function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, llmMode = 'fast', tierConfig = null }) {
     let cached = null;
     return async (invocation) => {
         const recursiveSkilledAgent = invocation.recursiveAgent;
@@ -187,6 +187,7 @@ function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, ll
             promptText: invocation.promptText,
             attachments: invocation.attachments,
             llmMode,
+            tierConfig,
             skillName,
         };
         const execution = Promise.resolve(cached(payload));
@@ -263,8 +264,9 @@ async function executeCodeSnippet({ skillName, code }) {
 } ``
 
 export class DynamicCodeGenerationSubsystem {
-    constructor({ llmAgent }) {
+    constructor({ llmAgent, tierConfig = null }) {
         this.llmAgent = llmAgent;
+        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.executors = new Map();
     }
 
@@ -277,7 +279,8 @@ export class DynamicCodeGenerationSubsystem {
         const sections = descriptor?.sections || {};
         const prompt = extractSectionContent(sections, 'prompt');
         const argumentDescription = extractSectionContent(sections, 'argument', 'input', 'parameters') || DEFAULT_CODE_ARGUMENT_DESCRIPTION;
-        const llmMode = determineMode(extractSectionContent(sections, 'llm mode', 'llm-mode', 'mode'));
+        const rawLlmMode = extractSectionContent(sections, 'llm mode', 'llm-mode', 'mode');
+        const llmMode = rawLlmMode ? determineMode(rawLlmMode) : (this.tierConfig.code || 'code');
         const folderName = skillDir ? path.basename(skillDir) : null;
         // Check for both .js and .mjs module files
         let localModulePath = null;
@@ -315,12 +318,14 @@ export class DynamicCodeGenerationSubsystem {
                 prompt,
                 llmAgent: this.llmAgent,
                 llmMode,
+                tierConfig: this.tierConfig,
             })
             : createDefaultExecutor({
                 skillName: skillRecord.name,
                 prompt,
                 llmAgent: this.llmAgent,
                 llmMode,
+                tierConfig: this.tierConfig,
             });
 
         this.executors.set(skillRecord.name, executor);
