@@ -76,6 +76,7 @@ export async function discoverModels(providerConfig) {
                 outputPrice: parseFloat(m.output_price) || 0,
                 context: m.context_window || null,
                 sortOrder: m.sort_order ?? 100,
+                isFree: Boolean(m.is_free),
                 fromGateway: true,
             }))
             .sort((a, b) => a.sortOrder - b.sortOrder);

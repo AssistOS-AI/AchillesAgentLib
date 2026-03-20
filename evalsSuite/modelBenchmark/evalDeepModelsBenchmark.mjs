@@ -64,9 +64,22 @@ const CONFIG = {
 // ============================================================================
 
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function loadWorkingModels() {
+    const files = fsSync.readdirSync(__dirname)
+        .filter(f => f.startsWith('model-health-') && f.endsWith('.json'))
+        .sort().reverse();
+    if (!files.length) return null;
+    try {
+        const data = JSON.parse(fsSync.readFileSync(path.join(__dirname, files[0]), 'utf8'));
+        console.log(`Loaded health check: ${files[0]} (${data.working?.length || 0} working models)`);
+        return new Set(data.working || []);
+    } catch { return null; }
+}
 const SKILLS_PATH = path.join(__dirname, 'skillsForBenchmark.json');
 const CASES_DIR = path.join(__dirname, 'cases');
 
@@ -128,6 +141,8 @@ function parseArgs() {
         useProductionPrompt: CONFIG.useProductionPrompt,
         help: false,
         soulGateway: false,
+        healthy: false,
+        quick: false,
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -145,6 +160,10 @@ function parseArgs() {
         } else if (arg === '--soul-gateway') {
             options.soulGateway = true;
             options.models = null;
+        } else if (arg === '--healthy') {
+            options.healthy = true;
+        } else if (arg === '--quick') {
+            options.quick = true;
         } else if (arg === '--cases' || arg === '-c') {
             options.caseRange = args[++i];
         } else if (arg === '--difficulty' || arg === '-d') {
@@ -637,10 +656,28 @@ async function main() {
     // Load configurations
     const modelsConfig = await loadModelsConfiguration();
     const skillsDescription = await loadSkillsDescription();
-    const testCases = await loadTestCases(config.caseRange, config.difficulties);
+    const QUICK_CASES = new Set([
+        'case_01', 'case_03', 'case_04', 'case_08', 'case_09',
+        'case_10', 'case_12', 'case_13', 'case_14', 'case_19',
+    ]);
+    let testCases = await loadTestCases(config.caseRange, config.difficulties);
+    if (config.quick) {
+        testCases = testCases.filter(c => {
+            const num = c.id?.match(/case_(\d+)/)?.[0];
+            return num && QUICK_CASES.has(num);
+        });
+    }
     let availableModels = getAvailableModels(modelsConfig, config.models);
     if (config.soulGateway) {
         availableModels = availableModels.filter(m => m.provider === 'soul_gateway');
+    }
+    if (config.healthy) {
+        const working = loadWorkingModels();
+        if (working) {
+            availableModels = availableModels.filter(m => working.has(m.name));
+        } else {
+            console.log('No health check results found. Run checkModels.mjs first.');
+        }
     }
 
     if (availableModels.length === 0) {
@@ -674,8 +711,11 @@ async function main() {
 
     for (const modelInfo of availableModels) {
         allResults[modelInfo.name] = [];
+        let consecutiveErrors = 0;
+        let skipped = false;
 
         for (const testCase of testCases) {
+            if (skipped) break;
             for (let run = 0; run < config.runs; run++) {
                 completedTests++;
                 printProgress(completedTests, totalTests, modelInfo.name, testCase.id);
@@ -695,6 +735,18 @@ async function main() {
                     difficulty: testCase.difficulty,
                     ...result,
                 });
+
+                if (result.error) {
+                    consecutiveErrors++;
+                    if (consecutiveErrors >= 3) {
+                        clearProgress();
+                        console.log(`${COLORS.RED}  Skipping ${modelInfo.name} — ${consecutiveErrors} consecutive errors${COLORS.RESET}`);
+                        skipped = true;
+                        break;
+                    }
+                } else {
+                    consecutiveErrors = 0;
+                }
             }
         }
     }

@@ -52,6 +52,20 @@ async function discoverModels() {
         .map(([name]) => name);
 }
 
+function loadWorkingModels() {
+    // Find the latest model-health-*.json file
+    const files = fs.readdirSync(__dirname)
+        .filter(f => f.startsWith('model-health-') && f.endsWith('.json'))
+        .sort()
+        .reverse();
+    if (!files.length) return null;
+    try {
+        const data = JSON.parse(fs.readFileSync(path.join(__dirname, files[0]), 'utf8'));
+        console.log(`${C.DIM}Loaded health check: ${files[0]} (${data.working?.length || 0} working models)${C.RESET}`);
+        return new Set(data.working || []);
+    } catch { return null; }
+}
+
 function runEvalForModel(model, times, timeoutMs) {
     try {
         const stdout = execFileSync('node', [
@@ -83,7 +97,7 @@ function runEvalForModel(model, times, timeoutMs) {
 
 function parseArgs() {
     const args = process.argv.slice(2);
-    let filter = null, competitive = false, singleModel = null;
+    let filter = null, competitive = false, singleModel = null, healthy = false;
     let times = 1, timeoutMs = 300_000;
 
     for (let i = 0; i < args.length; i++) {
@@ -93,6 +107,7 @@ function parseArgs() {
                 'Usage: node evalsSuite/modelBenchmark/evalSOPModelSweep.mjs [options]',
                 '', 'Options:',
                 '  --competitive          Only test curated competitive models',
+                '  --healthy              Only test models that passed health check',
                 '  --filter <pattern>     Grep-filter discovered models',
                 '  --model <name>         Test a single model',
                 '  --times <N>            Runs per model (default: 1)',
@@ -101,12 +116,13 @@ function parseArgs() {
             process.exit(0);
         }
         else if (a === '--competitive') competitive = true;
+        else if (a === '--healthy') healthy = true;
         else if (a === '--filter') filter = args[++i];
         else if (a === '--model') singleModel = args[++i];
         else if (a === '--times' || a === '-t') times = parseInt(args[++i], 10) || 1;
         else if (a === '--timeout') timeoutMs = parseInt(args[++i], 10) || 300_000;
     }
-    return { filter, competitive, singleModel, times, timeoutMs };
+    return { filter, competitive, healthy, singleModel, times, timeoutMs };
 }
 
 function generateMarkdown(results) {
@@ -160,6 +176,14 @@ async function main() {
     if (opts.filter) {
         const re = new RegExp(opts.filter, 'i');
         models = models.filter(m => re.test(m));
+    }
+    if (opts.healthy) {
+        const working = loadWorkingModels();
+        if (working) {
+            models = models.filter(m => working.has(m));
+        } else {
+            console.log(`${C.YELLOW}No health check results found. Run checkModels.mjs first.${C.RESET}`);
+        }
     }
     if (!models.length) { console.log('No models to test.'); return; }
 

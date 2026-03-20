@@ -507,6 +507,7 @@ async function discoverGatewayModels(normalized) {
                 name: dm.name,
                 providerKey: dm.providerKey,
                 mode: dm.mode,
+                isFree: dm.isFree || false,
                 fromGateway: true,
             };
 
