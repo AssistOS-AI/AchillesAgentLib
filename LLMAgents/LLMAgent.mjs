@@ -44,6 +44,7 @@ class LLMAgent {
         this._debugCounter = 0;
         this._inputCounter = 0;
         this._outputCounter = 0;
+        this._callLog = []; // Per-call tracking: { inputChars, outputChars, model, tier, durationMs, context }
         this._actionReporter = null;
         this._inputReader = null;
         this._outputWriter = null;
@@ -256,6 +257,15 @@ class LLMAgent {
 
     getOutputCounter() {
         return this._outputCounter;
+    }
+
+    /**
+     * Get per-call log entries.
+     * Each entry: { inputChars, outputChars, model, tier, durationMs, intent }
+     * @returns {Array}
+     */
+    getCallLog() {
+        return this._callLog;
     }
 
     _recordInputChars(count = 0) {

@@ -288,6 +288,7 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }, sopMode = 
             durationMs: Date.now() - started,
             inputChars: agent.getInputCounter(),
             outputChars: agent.getOutputCounter(),
+            callLog: agent.getCallLog?.() || [],
             steps: stepResults,
             error: null,
         };
@@ -297,6 +298,7 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }, sopMode = 
             durationMs: Date.now() - started,
             inputChars: agent.getInputCounter(),
             outputChars: agent.getOutputCounter(),
+            callLog: agent.getCallLog?.() || [],
             steps: stepResults,
             error: error?.message || String(error),
         };
@@ -355,6 +357,7 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
             durationMs: Date.now() - started,
             inputChars: agent.getInputCounter(),
             outputChars: agent.getOutputCounter(),
+            callLog: agent.getCallLog?.() || [],
             steps: stepResults,
             error: null,
         };
@@ -364,6 +367,7 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
             durationMs: Date.now() - started,
             inputChars: agent.getInputCounter(),
             outputChars: agent.getOutputCounter(),
+            callLog: agent.getCallLog?.() || [],
             steps: stepResults,
             error: error?.message || String(error),
         };
@@ -561,6 +565,15 @@ async function main() {
                     durationMs: result.sop.durationMs,
                     inputTokens: charsToTokens(result.sop.inputChars),
                     outputTokens: charsToTokens(result.sop.outputChars),
+                    llmCalls: result.sop.callLog?.length || 0,
+                    callLog: (result.sop.callLog || []).map(c => ({
+                        inputTok: charsToTokens(c.inputChars),
+                        outputTok: charsToTokens(c.outputChars),
+                        model: c.model,
+                        tier: c.tier,
+                        ms: c.durationMs,
+                        intent: c.intent,
+                    })),
                     error: result.sop.error || null,
                 },
                 loop: {
@@ -568,6 +581,15 @@ async function main() {
                     durationMs: result.loop.durationMs,
                     inputTokens: charsToTokens(result.loop.inputChars),
                     outputTokens: charsToTokens(result.loop.outputChars),
+                    llmCalls: result.loop.callLog?.length || 0,
+                    callLog: (result.loop.callLog || []).map(c => ({
+                        inputTok: charsToTokens(c.inputChars),
+                        outputTok: charsToTokens(c.outputChars),
+                        model: c.model,
+                        tier: c.tier,
+                        ms: c.durationMs,
+                        intent: c.intent,
+                    })),
                     error: result.loop.error || null,
                 },
             });

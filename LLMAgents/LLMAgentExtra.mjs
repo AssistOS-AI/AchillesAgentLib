@@ -131,13 +131,26 @@ ${prompt}`
             || model
             || 'auto';
         const loggedMode = responseMetadata?.tier || tier;
+        const callDurationMs = Date.now() - startedAt;
         logLLMInteraction({
             prompt: loggedPrompt,
             response: finalResponse,
             model: loggedModel,
             tier: loggedMode,
-            durationMs: Date.now() - startedAt,
+            durationMs: callDurationMs,
         });
+
+        // Per-call tracking
+        if (agent._callLog) {
+            agent._callLog.push({
+                inputChars: inputCharacters,
+                outputChars: outputCharacters,
+                model: loggedModel,
+                tier: loggedMode,
+                durationMs: callDurationMs,
+                intent: context?.intent || null,
+            });
+        }
 
         // Complete the action reporter action
         if (llmAction && actionReporter) {
