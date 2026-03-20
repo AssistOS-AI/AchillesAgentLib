@@ -61,7 +61,7 @@ describe('envConfigLoader', () => {
             const result = parseModelDefinition('myproxy/gpt-4-turbo|deep|5|15|128k');
             assert.strictEqual(result.provider, 'myproxy');
             assert.strictEqual(result.name, 'gpt-4-turbo');
-            assert.strictEqual(result.mode, 'deep');
+            assert.strictEqual(result.tier, 'deep');
             assert.strictEqual(result.inputPrice, 5);
             assert.strictEqual(result.outputPrice, 15);
             assert.strictEqual(result.context, '128k');
@@ -71,7 +71,7 @@ describe('envConfigLoader', () => {
             const result = parseModelDefinition('myproxy/gpt-4-turbo|fast');
             assert.strictEqual(result.provider, 'myproxy');
             assert.strictEqual(result.name, 'gpt-4-turbo');
-            assert.strictEqual(result.mode, 'fast');
+            assert.strictEqual(result.tier, 'fast');
             assert.strictEqual(result.inputPrice, 0);
             assert.strictEqual(result.outputPrice, 0);
         });
@@ -141,9 +141,9 @@ describe('envConfigLoader', () => {
             assert.strictEqual(config.models.length, 2);
             assert.strictEqual(config.models[0].name, 'gpt-4-turbo');
             assert.strictEqual(config.models[0].provider, 'myproxy');
-            assert.strictEqual(config.models[0].mode, 'deep');
+            assert.strictEqual(config.models[0].tier, 'deep');
             assert.strictEqual(config.models[1].name, 'gpt-4o-mini');
-            assert.strictEqual(config.models[1].mode, 'fast');
+            assert.strictEqual(config.models[1].tier, 'fast');
         });
     });
 });

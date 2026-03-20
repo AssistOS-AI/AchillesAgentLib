@@ -90,7 +90,7 @@ export class CodeSkillsSubsystem {
   async extractArguments(userPrompt, specifications) {
     debugLog('Extracting arguments with LLM.');
     const prompt = buildArgumentExtractionPrompt(userPrompt, specifications.inputFormat);
-    const response = await this.llmAgent.executePrompt(prompt, { responseShape: 'json', mode: 'fast' });
+    const response = await this.llmAgent.executePrompt(prompt, { responseShape: 'json', tier: 'fast' });
     if (response.error || !response.args) {
       throw new Error(`Argument extraction failed: ${response.error || 'LLM did not return an "args" object.'}`);
     }

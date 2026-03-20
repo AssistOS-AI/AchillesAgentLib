@@ -127,7 +127,7 @@ export class LightSOPLangInterpreter {
         this.llmAgent = options.llmAgent ?? null;
         this.llmMode = typeof options.llmMode === 'string'
             ? options.llmMode
-            : (typeof options.mode === 'string' ? options.mode : null);
+            : (typeof options.tier === 'string' ? options.tier : typeof options.mode === 'string' ? options.mode : null);
         this.maxLlmaRounds = Number.isFinite(options.maxLlmaRounds) ? options.maxLlmaRounds : 5;
         this.executionMonitor = ensureExecutionMonitor(options.executionMonitor ?? new DefaultExecutionMonitor());
         const registryHeuristic = typeof this.commandsRegistry.cancelHeuristic === 'function'

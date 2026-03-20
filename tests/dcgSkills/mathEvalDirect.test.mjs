@@ -32,7 +32,7 @@ test('mathEval action executes generated code', async (t) => {
     const llmAgent = createAgent();
 
     try {
-        await llmAgent.executePrompt('Return OK', { mode: 'fast' });
+        await llmAgent.executePrompt('Return OK', { tier: 'fast' });
     } catch (error) {
         const message = error?.message ? String(error.message) : 'Unknown LLM error';
         console.error(`[mathEvalDirect.test] LLM unavailable: ${message}`);

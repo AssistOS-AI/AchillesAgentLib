@@ -332,7 +332,7 @@ export class MCPSkillsSubsystem {
         let rawPlan;
         try {
             rawPlan = await this.llmAgent.executePrompt(prompt, {
-                mode: 'fast',
+                tier: 'fast',
                 context: {
                     intent: 'mcp-skill-plan',
                     skillName: skillRecord.name,

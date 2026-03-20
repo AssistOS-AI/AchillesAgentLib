@@ -60,7 +60,7 @@ const TOOL_IMPLEMENTATIONS = {
 
         const raw = await agent.complete({
             prompt: instruction,
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'tool-math-structured' },
         });
 
@@ -138,7 +138,7 @@ const TOOL_IMPLEMENTATIONS = {
 
         const result = await agent.complete({
             prompt: instruction,
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'tool-text' },
         });
 
@@ -155,7 +155,7 @@ const TOOL_IMPLEMENTATIONS = {
 
         const result = await agent.complete({
             prompt: instruction,
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'tool-email' },
         });
 
@@ -197,7 +197,7 @@ const TOOL_IMPLEMENTATIONS = {
 
         const result = await agent.complete({
             prompt: instruction,
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'tool-shell' },
         });
 
@@ -238,7 +238,7 @@ async function checkShellCommandEquivalence(agent, expected, actual, description
     try {
         const response = await agent.complete({
             prompt,
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'eval-shell-equivalence' },
         });
         const normalized = String(response).trim().toUpperCase();

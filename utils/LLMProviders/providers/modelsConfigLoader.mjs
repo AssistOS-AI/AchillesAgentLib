@@ -110,7 +110,7 @@ export function normalizeConfig(rawConfig, options = {}) {
         const model = models.get(defaultFastModel);
         if (!model) {
             issues.warnings.push(`Default fast model "${defaultFastModel}" is not defined in ${DEFAULT_CONFIG_FILENAME}.`);
-        } else if (model.mode !== 'fast') {
+        } else if (model.tier !== 'fast') {
             issues.warnings.push(`Default fast model "${defaultFastModel}" is not configured as a fast model.`);
         } else {
             validatedDefaults.defaultFastModel = defaultFastModel;
@@ -120,7 +120,7 @@ export function normalizeConfig(rawConfig, options = {}) {
         const model = models.get(defaultDeepModel);
         if (!model) {
             issues.warnings.push(`Default deep model "${defaultDeepModel}" is not defined in ${DEFAULT_CONFIG_FILENAME}.`);
-        } else if (model.mode !== 'deep') {
+        } else if (model.tier !== 'deep') {
             issues.warnings.push(`Default deep model "${defaultDeepModel}" is not configured as a deep model.`);
         } else {
             validatedDefaults.defaultDeepModel = defaultDeepModel;
@@ -199,8 +199,8 @@ function normalizeModelPriorityArray(rawPriority, models, expectedMode, issues, 
             issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority is not defined.`);
             continue;
         }
-        if (model.mode !== expectedMode) {
-            issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority has mode "${model.mode}" instead of "${expectedMode}".`);
+        if (model.tier !== expectedMode) {
+            issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority has tier "${model.tier}" instead of "${expectedMode}".`);
         }
         validated.push(resolvedKey);
     }
@@ -240,7 +240,7 @@ function normalizeProvider(providerKey, entry, issues, options) {
 function normalizeModel(entry, providers, issues, options) {
     const modelName = selectString(entry && typeof entry === 'object' ? entry.name : null, null);
     let providerKey = null;
-    let mode = 'fast';
+    let tier = 'fast';
     let apiKeyEnvOverride = null;
     let baseURLOverride = null;
 
@@ -251,7 +251,7 @@ function normalizeModel(entry, providers, issues, options) {
 
     if (entry && typeof entry === 'object') {
         providerKey = entry.provider || entry.providerKey || null;
-        mode = normalizeMode(entry.mode ?? entry.modes, issues, `model "${modelName}"`);
+        tier = normalizeTier(entry.tier ?? entry.mode ?? entry.modes, issues, `model "${modelName}"`);
         apiKeyEnvOverride = selectString(entry.apiKeyEnv, null);
         baseURLOverride = selectString(entry.baseURL, null);
     } else {
@@ -271,43 +271,43 @@ function normalizeModel(entry, providers, issues, options) {
     return {
         name: modelName,
         providerKey,
-        mode,
+        tier,
         apiKeyEnv: apiKeyEnvOverride,
         baseURL: baseURLOverride,
     };
 }
 
-function normalizeMode(rawMode, issues, context) {
-    if (rawMode === undefined || rawMode === null) {
+function normalizeTier(rawTier, issues, context) {
+    if (rawTier === undefined || rawTier === null) {
         return 'fast';
     }
 
-    if (Array.isArray(rawMode)) {
-        const normalized = rawMode
+    if (Array.isArray(rawTier)) {
+        const normalized = rawTier
             .filter(value => typeof value === 'string')
             .map(value => value.toLowerCase())
             .filter(value => VALID_MODES.has(value));
 
         if (normalized.length > 1) {
-            issues.warnings.push(`Model configuration for ${context} lists multiple modes; using "${normalized[0]}".`);
+            issues.warnings.push(`Model configuration for ${context} lists multiple tiers; using "${normalized[0]}".`);
         }
 
         if (normalized.length) {
             return normalized[0];
         }
 
-        issues.warnings.push(`No valid mode found for ${context}; defaulting to 'fast'.`);
+        issues.warnings.push(`No valid tier found for ${context}; defaulting to 'fast'.`);
         return 'fast';
     }
 
-    if (typeof rawMode === 'string') {
-        const lower = rawMode.toLowerCase();
+    if (typeof rawTier === 'string') {
+        const lower = rawTier.toLowerCase();
         if (VALID_MODES.has(lower)) {
             return lower;
         }
     }
 
-    issues.warnings.push(`Invalid mode value for ${context}; defaulting to 'fast'.`);
+    issues.warnings.push(`Invalid tier value for ${context}; defaulting to 'fast'.`);
     return 'fast';
 }
 
@@ -506,7 +506,7 @@ async function discoverGatewayModels(normalized) {
             const modelDescriptor = {
                 name: dm.name,
                 providerKey: dm.providerKey,
-                mode: dm.mode,
+                tier: dm.tier,
                 isFree: dm.isFree || false,
                 fromGateway: true,
             };
@@ -564,11 +564,11 @@ async function discoverGatewayModels(normalized) {
         // Collect all gateway models with their sort order
         const allDiscovered = results.flatMap(r => r.models);
         const fastPriority = allDiscovered
-            .filter(m => m.mode === 'fast' && models.has(m.name))
+            .filter(m => m.tier === 'fast' && models.has(m.name))
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map(m => m.name);
         const deepPriority = allDiscovered
-            .filter(m => m.mode === 'deep' && models.has(m.name))
+            .filter(m => m.tier === 'deep' && models.has(m.name))
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map(m => m.name);
 

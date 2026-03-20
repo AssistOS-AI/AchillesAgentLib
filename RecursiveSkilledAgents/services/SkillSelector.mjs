@@ -221,7 +221,7 @@ export class SkillSelector {
 
         try {
             const response = await this.llmAgent.executePrompt(prompt.join('\n'), {
-                mode: 'fast',
+                tier: 'fast',
                 context: { intent: 'recursive-skill-selection' },
             });
 

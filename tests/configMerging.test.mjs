@@ -217,9 +217,9 @@ describe('Config Merging: .env and LLMConfig.json', () => {
                 const model = config.models.get(config.defaultFastModel);
                 assert.ok(model, `Default fast model "${config.defaultFastModel}" should exist`);
                 assert.strictEqual(
-                    model.mode, 
-                    'fast', 
-                    `Default fast model should have mode "fast"`
+                    model.tier,
+                    'fast',
+                    `Default fast model should have tier "fast"`
                 );
             }
         });
@@ -231,9 +231,9 @@ describe('Config Merging: .env and LLMConfig.json', () => {
                 const model = config.models.get(config.defaultDeepModel);
                 assert.ok(model, `Default deep model "${config.defaultDeepModel}" should exist`);
                 assert.strictEqual(
-                    model.mode, 
-                    'deep', 
-                    `Default deep model should have mode "deep"`
+                    model.tier,
+                    'deep',
+                    `Default deep model should have tier "deep"`
                 );
             }
         });
@@ -246,9 +246,9 @@ describe('Config Merging: .env and LLMConfig.json', () => {
                     const model = config.models.get(modelName);
                     assert.ok(model, `Priority model "${modelName}" should exist`);
                     assert.strictEqual(
-                        model.mode, 
-                        'fast', 
-                        `Fast priority model "${modelName}" should have mode "fast"`
+                        model.tier,
+                        'fast',
+                        `Fast priority model "${modelName}" should have tier "fast"`
                     );
                 }
             }
@@ -262,9 +262,9 @@ describe('Config Merging: .env and LLMConfig.json', () => {
                     const model = config.models.get(modelName);
                     assert.ok(model, `Priority model "${modelName}" should exist`);
                     assert.strictEqual(
-                        model.mode, 
-                        'deep', 
-                        `Deep priority model "${modelName}" should have mode "deep"`
+                        model.tier,
+                        'deep',
+                        `Deep priority model "${modelName}" should have tier "deep"`
                     );
                 }
             }

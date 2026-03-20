@@ -285,7 +285,7 @@ async function loadTestCases(caseRange, difficulties = null) {
 
 /**
  * Get available deep models from configuration.
- * When no requestedModels are specified, filters to only deep-mode models.
+ * When no requestedModels are specified, filters to only deep-tier models.
  * 
  * @param {Object} modelsConfig - The loaded models configuration
  * @param {string[]|null} requestedModels - Explicitly requested model names
@@ -321,7 +321,7 @@ function getAvailableModels(modelsConfig, requestedModels) {
             if (!matchesSimple && !matchesQualified) continue;
         } else {
             // When no models are explicitly requested, only include deep models
-            if (descriptor.mode !== 'deep') continue;
+            if (descriptor.tier !== 'deep') continue;
         }
 
         // Use qualified name in output to support provider/model format
@@ -330,7 +330,7 @@ function getAvailableModels(modelsConfig, requestedModels) {
         available.push({
             name: displayName,
             provider: descriptor.providerKey,
-            mode: descriptor.mode || 'deep',
+            tier: descriptor.tier || 'deep',
             apiKeyEnv,
         });
     }
@@ -509,7 +509,7 @@ Do they describe essentially the same action? Answer ONLY "YES" or "NO".`;
 
         const response = await agent.complete({
             prompt,
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'deep-benchmark-semantic-check' },
         });
 
@@ -685,7 +685,7 @@ async function main() {
         console.log('Make sure API keys are set in environment variables.');
         console.log('\nConfigured deep models and their API key requirements:');
         for (const [name, descriptor] of modelsConfig.models.entries()) {
-            if (descriptor.mode !== 'deep') continue;
+            if (descriptor.tier !== 'deep') continue;
             const providerConfig = modelsConfig.providers.get(descriptor.providerKey);
             const apiKeyEnv = descriptor.apiKeyEnv || providerConfig?.apiKeyEnv || 'N/A';
             const hasKey = apiKeyEnv !== 'N/A' && process.env[apiKeyEnv] ? '✓' : '✗';
@@ -695,7 +695,7 @@ async function main() {
     }
 
     console.log(`${COLORS.CYAN}Deep models to test:${COLORS.RESET} ${availableModels.length}`);
-    availableModels.forEach(m => console.log(`  - ${m.name} (${m.provider}, mode: ${m.mode})`));
+    availableModels.forEach(m => console.log(`  - ${m.name} (${m.provider}, tier: ${m.tier})`));
     console.log(`${COLORS.CYAN}Test cases:${COLORS.RESET} ${testCases.length}`);
     console.log(`${COLORS.CYAN}Runs per case:${COLORS.RESET} ${config.runs}`);
     console.log(`${COLORS.CYAN}Semantic matching:${COLORS.RESET} ${config.skipSemantic ? 'disabled' : 'enabled (default for deep models)'}`);

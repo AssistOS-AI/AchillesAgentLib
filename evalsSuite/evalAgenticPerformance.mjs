@@ -263,7 +263,7 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }, sopMode = 
         }
         const commandsRegistry = createSOPCommandsRegistry(agent);
         const sessionOpts = { commandsRegistry, systemPrompt: testCase.systemPrompt };
-        if (sopMode) sessionOpts.mode = sopMode;
+        if (sopMode) sessionOpts.tier = sopMode;
         const session = await agent.startSOPLangAgentSession(
             SOP_SKILL_DESCRIPTIONS,
             steps[0].prompt + cacheBustNonce(),
@@ -503,7 +503,7 @@ async function main() {
         // eslint-disable-next-line no-console
         console.log('Hint: run with --help to see available options.');
     }
-    const modeLabel = sopMode ? ` | SOP mode: ${sopMode}` : '';
+    const modeLabel = sopMode ? ` | SOP tier: ${sopMode}` : '';
     // eslint-disable-next-line no-console
     console.log(`[AgenticPerformance] Runs per case: ${times}${caseNum ? ` | Case: ${caseNum}` : ''}${modeLabel}`);
 

@@ -332,7 +332,7 @@ function getAvailableModels(modelsConfig, requestedModels, { freeOnly = false } 
         available.push({
             name: displayName,
             provider: descriptor.providerKey,
-            mode: descriptor.mode || 'fast',
+            tier: descriptor.tier || 'fast',
             apiKeyEnv,
         });
     }
@@ -511,7 +511,7 @@ Do they describe essentially the same action? Answer ONLY "YES" or "NO".`;
 
         const response = await agent.complete({
             prompt,
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'benchmark-semantic-check' },
         });
 

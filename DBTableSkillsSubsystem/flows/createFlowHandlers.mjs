@@ -32,7 +32,7 @@ export async function extractCreateDataFromInput(controller, prompt, pending) {
     );
 
     const extracted = await controller.llmAgent.executePrompt(extractionPrompt, {
-        mode: 'fast',
+        tier: 'fast',
         responseShape: 'json',
     });
 

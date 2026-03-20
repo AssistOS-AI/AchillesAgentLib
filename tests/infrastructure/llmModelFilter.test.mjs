@@ -12,8 +12,8 @@ async function loadModelNames() {
     const raw = await fs.readFile(configPath, 'utf-8');
     const config = JSON.parse(raw);
     const models = Array.isArray(config.models) ? config.models : [];
-    const fast = models.find((model) => model?.mode === 'fast')?.name || null;
-    const deep = models.find((model) => model?.mode === 'deep')?.name || null;
+    const fast = models.find((model) => model?.tier === 'fast')?.name || null;
+    const deep = models.find((model) => model?.tier === 'deep')?.name || null;
     return { fast, deep };
 }
 

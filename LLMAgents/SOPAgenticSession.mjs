@@ -225,7 +225,7 @@ class SOPAgenticSession {
         const planOnlyFlag = options.planOnly ?? options.generatePlanOnly ?? false;
         this.options = {
             ...options,
-            mode: options.mode || 'plan',
+            tier: options.tier || options.mode || 'plan',
             model: options.model || null,
             planOnly: planOnlyFlag,
         };
@@ -330,7 +330,7 @@ class SOPAgenticSession {
                 agent: this.agent,
                 skillsDescription: preparationSkillsDescription,
                 commandsRegistry: preparationCommandsRegistry,
-                options: { mode: this.options.mode },
+                options: { tier: this.options.tier },
                 preparationText: this.preparation.text,
                 userPrompt,
                 retries: this.preparation.retries ?? 1,
@@ -495,7 +495,7 @@ class SOPAgenticSession {
             interpreterOptions.llmAgent = this.agent;
         }
         if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmMode')) {
-            interpreterOptions.llmMode = this.options.mode;
+            interpreterOptions.llmMode = this.options.tier;
         }
         this._lastFinalAnswer = null;
         let interpreter;
@@ -688,7 +688,7 @@ ${trimmed}`;
             },
         };
         if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmMode')) {
-            planOptions.llmMode = this.options.mode;
+            planOptions.llmMode = this.options.tier;
         }
         const interpreter = new LightSOPLangInterpreter(
             englishSource,

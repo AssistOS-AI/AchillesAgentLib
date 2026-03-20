@@ -259,7 +259,7 @@ export class OrchestratorSkillsSubsystem {
 
             const sessionOptions = {
                 systemPrompt: baseSystemPrompt,
-                mode: options?.mode || 'plan',
+                tier: options?.tier || options?.mode || 'plan',
                 maxStepsPerTurn: 20,
                 preparation,
             };
@@ -308,7 +308,7 @@ export class OrchestratorSkillsSubsystem {
 
         const sessionOptions = {
             systemPrompt: skillRecord.preparedConfig?.instructions || 'Plan and execute skills to satisfy the user request.',
-            mode: options?.mode || 'plan',
+            tier: options?.tier || options?.mode || 'plan',
             planOnly: false,
             commandsRegistry,
             preparation,

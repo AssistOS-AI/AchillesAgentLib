@@ -79,7 +79,7 @@ export async function handleValidationCorrections(controller, prompt, pending, s
 
     try {
         const result = await controller.llmAgent.executePrompt(correctionPrompt, {
-            mode: 'fast',
+            tier: 'fast',
             responseShape: 'json',
         });
         const extractedCorrections = controller.filterKnownFields(result?.correctedData || {});

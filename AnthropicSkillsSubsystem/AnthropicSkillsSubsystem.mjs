@@ -99,7 +99,7 @@ export class AnthropicSkillsSubsystem {
             const projectRoot = process.cwd();
             const systemPrompt = `${skillBody}\n\nProject root: ${projectRoot}`.trim();
             const sessionOptions = {
-                mode: options?.mode || 'plan',
+                tier: options?.tier || options?.mode || 'plan',
                 systemPrompt: systemPrompt || undefined,
             };
             session = await this.llmAgent.startLoopAgentSession(tools, promptText, sessionOptions);

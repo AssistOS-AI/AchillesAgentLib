@@ -14,8 +14,8 @@ async function extraComplete(agent, options = {}) {
     const {
         prompt,
         history = [],
-        tier = null,
-        mode = 'fast',
+        tier = 'fast',
+        mode = null,
         model = null,
         context = {},
         ...invokerExtras
@@ -70,7 +70,7 @@ ${prompt}`
     let llmAction = null;
     if (actionReporter) {
         const purpose = context?.intent || 'Processing';
-        const modelName = model || mode || 'auto';
+        const modelName = model || tier || 'auto';
         llmAction = actionReporter.llmCall(modelName, purpose);
     }
 
@@ -79,7 +79,7 @@ ${prompt}`
         const conversation = Array.isArray(history) ? history.slice() : [];
         emit({
             phase: 'request',
-            mode,
+            tier,
             model,
             prompt,
             history: conversation,
@@ -130,12 +130,12 @@ ${prompt}`
             || agent.invokerStrategy?.getLastInvocationDetails?.()?.model
             || model
             || 'auto';
-        const loggedMode = responseMetadata?.mode || mode;
+        const loggedMode = responseMetadata?.tier || tier;
         logLLMInteraction({
             prompt: loggedPrompt,
             response: finalResponse,
             model: loggedModel,
-            mode: loggedMode,
+            tier: loggedMode,
             durationMs: Date.now() - startedAt,
         });
 
@@ -165,12 +165,12 @@ ${prompt}`
         }
         const lastInvocation = agent.invokerStrategy?.getLastInvocationDetails?.() || null;
         const loggedModel = lastInvocation?.model || responseMetadata?.model || model || 'auto';
-        const loggedMode = lastInvocation?.mode || responseMetadata?.mode || mode;
+        const loggedMode = lastInvocation?.tier || responseMetadata?.tier || tier;
         logLLMInteraction({
             prompt: loggedPrompt,
             response: error?.message || '',
             model: loggedModel,
-            mode: loggedMode,
+            tier: loggedMode,
             durationMs: Date.now() - startedAt,
         });
         throw error;
@@ -179,8 +179,8 @@ ${prompt}`
 
 async function extraDoTask(agent, agentContext, description, options = {}) {
     const {
-        tier = null,
-        mode = 'fast',
+        tier = 'fast',
+        mode = null,
         model = null,
         outputSchema = null,
         ...rest
@@ -204,8 +204,8 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
 
 async function extraDoTaskWithReview(agent, agentContext, description, options = {}) {
     const {
-        tier = null,
-        mode = 'plan',
+        tier = 'plan',
+        mode = null,
         maxIterations = 3,
         model = null,
         ...rest

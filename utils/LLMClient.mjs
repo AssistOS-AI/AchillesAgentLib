@@ -17,13 +17,13 @@ function createAgentModelRecord(modelDescriptor, providerConfig) {
     if (!modelDescriptor || !providerConfig) {
         return null;
     }
-    const mode = modelDescriptor.mode === 'deep' ? 'deep' : 'fast';
+    const tier = modelDescriptor.tier === 'deep' ? 'deep' : 'fast';
     return {
         name: modelDescriptor.name,
         providerKey: modelDescriptor.providerKey,
         apiKeyEnv: modelDescriptor.apiKeyEnv || providerConfig.apiKeyEnv || null,
         baseURL: modelDescriptor.baseURL || providerConfig.baseURL || null,
-        mode,
+        tier,
     };
 }
 
@@ -108,7 +108,7 @@ function buildModelCaches() {
 
         record.qualifiedName = `${record.providerKey}/${record.name}`;
         recordMap.set(name, record);
-        if (record.mode === 'deep') {
+        if (record.tier === 'deep') {
             deep.push(name);
         } else {
             fast.push(name);
@@ -155,14 +155,14 @@ function buildModelCaches() {
 
     if (!fastModelPriority && defaultFastModel && recordMap.has(defaultFastModel)) {
         const record = recordMap.get(defaultFastModel);
-        if (record.mode === 'fast') {
+        if (record.tier === 'fast') {
             prioritizeDefault(fast, defaultFastModel);
         }
     }
 
     if (!deepModelPriority && defaultDeepModel && recordMap.has(defaultDeepModel)) {
         const record = recordMap.get(defaultDeepModel);
-        if (record.mode === 'deep') {
+        if (record.tier === 'deep') {
             prioritizeDefault(deep, defaultDeepModel);
         }
     }
@@ -466,7 +466,7 @@ export function __resetCallLLMWithModelForTests() {
 export function createDefaultLLMInvokerStrategy() {
     const supportedTiers = getSupportedTiersFromCache();
     const cachedModels = listModelsFromCache();
-    let lastInvocationDetails = { model: null, mode: null };
+    let lastInvocationDetails = { model: null, tier: null };
 
     const invokerStrategy = async function defaultLLMInvokerStrategy(invocation = {}) {
         const {
@@ -498,7 +498,7 @@ export function createDefaultLLMInvokerStrategy() {
             tier: effectiveTier,
             modelName: normalizedPreferences.modelName || null,
         };
-        lastInvocationDetails = { model: null, mode: effectiveTier };
+        lastInvocationDetails = { model: null, tier: effectiveTier };
 
         const prioritized = Array.isArray(modelCandidates) && modelCandidates.length
             ? modelCandidates
@@ -520,7 +520,7 @@ export function createDefaultLLMInvokerStrategy() {
             ...invocationOptions,
             params: { ...(invocationOptions.params || {}), ...params },
             headers: mergedHeaders,
-            mode: effectiveTier,
+            tier: effectiveTier,
         };
 
         if (invocation.providerKey) {
@@ -556,19 +556,19 @@ export function createDefaultLLMInvokerStrategy() {
 
             try {
                 const attemptHistory = Array.isArray(history) ? history.slice() : [];
-                const effectiveMode = record.mode;
+                const effectiveTier = record.tier;
                 if (DEBUG_ENABLED) {
-                    console.info(`[AchillesAgentsLib] LLM call -> provider: ${record.providerKey}, model: ${candidate}, mode: ${effectiveMode}`);
+                    console.info(`[AchillesAgentsLib] LLM call -> provider: ${record.providerKey}, model: ${candidate}, tier: ${effectiveTier}`);
                 }
                 const output = await callLLMWithModel(candidate, attemptHistory, prompt, invocationConfig);
                 if (typeof responseValidator === 'function') {
                     responseValidator(output);
                 }
-                lastInvocationDetails = { model: candidate, mode: effectiveMode };
+                lastInvocationDetails = { model: candidate, tier: effectiveTier };
                 return {
                     output,
                     model: candidate,
-                    mode: effectiveMode,
+                    tier: effectiveTier,
                 };
             } catch (error) {
                 console.warn(`[AchillesAgentsLib] LLM cascade fail -> provider: ${record.providerKey}, model: ${candidate}, error: ${error?.message || error}`);
@@ -585,11 +585,12 @@ export function createDefaultLLMInvokerStrategy() {
         aggregatedError.tier = effectiveTier;
         aggregatedError.modelsTried = prioritized.slice();
         aggregatedError.configurationPath = modelsConfiguration.path || null;
-        lastInvocationDetails = { model: null, mode: effectiveTier };
+        lastInvocationDetails = { model: null, tier: effectiveTier };
         throw aggregatedError;
     };
 
     invokerStrategy.getSupportedModes = () => supportedTiers.slice();
+    invokerStrategy.getSupportedTiers = invokerStrategy.getSupportedModes;
     invokerStrategy.listAvailableModels = () => ({
         fast: cachedModels.fast.map(record => ({ ...record })),
         deep: cachedModels.deep.map(record => ({ ...record })),

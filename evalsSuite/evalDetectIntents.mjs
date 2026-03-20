@@ -249,7 +249,7 @@ Respond with exactly "YES" or "NO" and  a reason if "NO".`;
     try {
         const response = await agent.complete({
             prompt,
-            mode: null,
+            tier: null,
             context: { intent: 'eval-semantic-match' }
         });
         const trimmed = response.trim();

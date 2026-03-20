@@ -76,8 +76,8 @@ async function main() {
     console.log(`  defaultDeepModel: ${config.defaultDeepModel || '(not set)'}`);
     
     // Show active models by mode
-    printSection('FAST Models (mode: fast)', models.fast, config.defaultFastModel);
-    printSection('DEEP Models (mode: deep)', models.deep, config.defaultDeepModel);
+    printSection('FAST Models (tier: fast)', models.fast, config.defaultFastModel);
+    printSection('DEEP Models (tier: deep)', models.deep, config.defaultDeepModel);
     
     // Show tiers
     const tiers = listTiersFromCache();

@@ -28,7 +28,7 @@ async function initializeRecursiveAgent() {
 
     const llmAgent = createTestLLMAgent();
     try {
-        await llmAgent.executePrompt('Return OK', { mode: 'fast' });
+        await llmAgent.executePrompt('Return OK', { tier: 'fast' });
     } catch (error) {
         const attempts = Array.isArray(error?.attempts) ? error.attempts : [];
         const onlyMissingKeys = attempts.length > 0

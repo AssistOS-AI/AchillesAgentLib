@@ -253,7 +253,7 @@ class LoopAgentSession {
                 ? options.maxStepsPerTurn
                 : 8,
             maxErrors: Number.isFinite(options.maxErrors) ? options.maxErrors : 5,
-            mode: options.mode || 'plan',
+            tier: options.tier || options.mode || 'plan',
             model: options.model || null,
             maxRetriesPerTurn: Number.isFinite(options.maxRetriesPerTurn)
                 ? options.maxRetriesPerTurn
@@ -296,7 +296,7 @@ class LoopAgentSession {
             const prepResult = await LoopAgentSession.runPreparation({
                 agent: this.agent,
                 tools: preparationTools,
-                options: { mode: this.options.mode, maxStepsPerTurn: this.options.maxStepsPerTurn },
+                options: { tier: this.options.tier, maxStepsPerTurn: this.options.maxStepsPerTurn },
                 preparationText: this.preparation.text,
                 userPrompt,
                 retries: this.preparation.retries ?? 1,
@@ -435,7 +435,7 @@ class LoopAgentSession {
             prompt: userPrompt,
             maxStepsPerTurn,
             maxErrors,
-            mode: this.options.mode,
+            tier: this.options.tier,
         });
 
         for (let stepIndex = 0; stepIndex < maxStepsPerTurn; stepIndex += 1) {
@@ -746,7 +746,7 @@ class LoopAgentSession {
 
         const raw = await this.agent.complete({
             prompt: plannerPrompt,
-            mode: this.options.mode,
+            tier: this.options.tier,
             model: this.options.model,
             context: {
                 intent: 'agentic-session-planner',
