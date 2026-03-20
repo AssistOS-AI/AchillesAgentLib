@@ -153,7 +153,7 @@ export class OrchestratorSkillsSubsystem {
         });
     }
 
-    async buildSkillsAsTools(allowedSkills, recursiveAgent, options, originalPrompt = null) {
+    async buildSkillsAsTools(allowedSkills, recursiveAgent, options) {
         const tools = {};
         // Forward context (sessionMemory, user, etc.) from the orchestrator's options
         const forwardedContext = options?.context || {};
@@ -170,20 +170,13 @@ export class OrchestratorSkillsSubsystem {
                     ? promptText
                     : (promptText != null ? JSON.stringify(promptText) : '');
 
-                // Append original user request so the inner skill has full context,
-                // even if the outer planner simplified/rewrote the prompt
-                let fullPrompt = safePrompt;
-                if (originalPrompt && safePrompt !== originalPrompt) {
-                    fullPrompt = `${safePrompt}\n\nOriginal user request:\n${originalPrompt}`;
-                }
-
                 const execOptions = {
                     skillName: skillRecord.name,
                     context: forwardedContext,
                     sessionMemory: forwardedContext.sessionMemory || null,
                 };
                 if (skillTier) execOptions.mode = skillTier;
-                const executionResult = await recursiveAgent.executePrompt(fullPrompt, execOptions);
+                const executionResult = await recursiveAgent.executePrompt(safePrompt, execOptions);
                 // Serialize non-string results so downstream tools receive valid text
                 const result = executionResult?.result;
                 if (result == null) return '';
@@ -311,10 +304,10 @@ export class OrchestratorSkillsSubsystem {
     async executeSOPAgentSession({skillRecord, recursiveAgent, promptText, options}) {
         const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
         const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, recursiveAgent, allowedSkills);
-        const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options, promptText);
+        const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
         const skillsDescription = this.buildToolDescriptions(allowedSkills);
         const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools);
-        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, recursiveAgent, options, promptText);
+        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, recursiveAgent, options);
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
         const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools);
 
