@@ -59,9 +59,9 @@ export async function action(context) {
 
     log('prompt-ready', `promptLength=${guidance.length}`);
 
-    log('llm-call', `mode=${llmMode}`);
+    log('llm-call', `tier=${llmMode}`);
     const llmResponse = await llmAgent.executePrompt(guidance, {
-        mode: llmMode,
+        tier: llmMode,
         context: { intent: 'code-synthesis', skillName },
         responseShape: 'json-code',
         sessionMemory,

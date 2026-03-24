@@ -23,20 +23,20 @@ test('LLMAgent delegates completions to the invokerStrategy', async () => {
     const calls = [];
     const agent = new LLMAgent({
         name: 'MockAgent',
-        invokerStrategy: async ({ prompt, mode, agent }) => {
-            calls.push({ prompt, mode, agentName: agent.name });
-            return `response:${mode}`;
+        invokerStrategy: async ({ prompt, tier, agent }) => {
+            calls.push({ prompt, tier, agentName: agent.name });
+            return `response:${tier}`;
         },
     });
 
-    const fast = await agent.complete({ prompt: 'Hello world', mode: 'fast' });
+    const fast = await agent.complete({ prompt: 'Hello world', tier: 'fast' });
     assert.equal(fast, 'response:fast');
 
-    const deep = await agent.complete({ prompt: 'Deep dive', mode: 'deep' });
+    const deep = await agent.complete({ prompt: 'Deep dive', tier: 'deep' });
     assert.equal(deep, 'response:deep');
 
     assert.equal(calls.length, 2);
-    assert.deepEqual(calls.map(call => call.mode), ['fast', 'deep']);
+    assert.deepEqual(calls.map(call => call.tier), ['fast', 'deep']);
     assert.deepEqual(calls.map(call => call.agentName), ['MockAgent', 'MockAgent']);
 });
 

@@ -1,0 +1,21 @@
+{
+    "id": "case_20_email_pipeline",
+    "systemPrompt": "Multi-step email processing pipelines",
+    "steps": [
+        {
+            "id": "extract_domain_upper",
+            "prompt": "Extract the email from 'Send feedback to user@widgets.io please', then get the domain, then convert it to uppercase. Answer only with the final text.",
+            "expected": "WIDGETS.IO"
+        },
+        {
+            "id": "domain_contains_check",
+            "prompt": "Extract the email from 'Report to ops@data-center.net', get the domain, then check if the domain contains 'center'. Answer only true or false.",
+            "expected": "true"
+        },
+        {
+            "id": "email_length_even",
+            "prompt": "Extract the email from 'Write to hi@ab.cd for info', then get the length of the email, then check if that length is even. Answer only true or false.",
+            "expected": "true"
+        }
+    ]
+}

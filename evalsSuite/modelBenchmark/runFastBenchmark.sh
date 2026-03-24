@@ -9,4 +9,4 @@ if [ -f ~/work/.env ]; then
 fi
 export AGENT_NAME=benchmarking
 
-exec node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --soul-gateway --healthy --quick "$@"
+exec node evalsSuite/modelBenchmark/evalFastModelsBenchmark.mjs --soul-gateway --healthy --quick "$@"

@@ -46,7 +46,7 @@ async function repairGeneratedFile(
     });
 
     const response = await llmAgent.executePrompt(prompt, {
-        mode: 'code',
+        tier: 'code',
         responseShape: 'text',
         context: { intent },
         responseValidator: createCodeResponseValidator(),
@@ -174,7 +174,7 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
             });
 
             const response = await llmAgent.executePrompt(prompt, {
-                mode: 'code',
+                tier: 'code',
                 responseShape: 'text',
                 context: { intent: 'generate-single-file-code-from-spec' },
                 responseValidator: createCodeResponseValidator(),

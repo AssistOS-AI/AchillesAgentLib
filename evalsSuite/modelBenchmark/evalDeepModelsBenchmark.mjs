@@ -64,9 +64,22 @@ const CONFIG = {
 // ============================================================================
 
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function loadWorkingModels() {
+    const files = fsSync.readdirSync(__dirname)
+        .filter(f => f.startsWith('model-health-') && f.endsWith('.json'))
+        .sort().reverse();
+    if (!files.length) return null;
+    try {
+        const data = JSON.parse(fsSync.readFileSync(path.join(__dirname, files[0]), 'utf8'));
+        console.log(`Loaded health check: ${files[0]} (${data.working?.length || 0} working models)`);
+        return new Set(data.working || []);
+    } catch { return null; }
+}
 const SKILLS_PATH = path.join(__dirname, 'skillsForBenchmark.json');
 const CASES_DIR = path.join(__dirname, 'cases');
 
@@ -127,6 +140,9 @@ function parseArgs() {
         skipSemantic: CONFIG.skipSemanticByDefault,
         useProductionPrompt: CONFIG.useProductionPrompt,
         help: false,
+        soulGateway: false,
+        healthy: false,
+        quick: false,
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -141,6 +157,13 @@ function parseArgs() {
             options.models = args[++i]?.split(',').map(m => m.trim()).filter(Boolean) || null;
         } else if (arg === '--all-models') {
             options.models = null; // Test all available deep models
+        } else if (arg === '--soul-gateway') {
+            options.soulGateway = true;
+            options.models = null;
+        } else if (arg === '--healthy') {
+            options.healthy = true;
+        } else if (arg === '--quick') {
+            options.quick = true;
         } else if (arg === '--cases' || arg === '-c') {
             options.caseRange = args[++i];
         } else if (arg === '--difficulty' || arg === '-d') {
@@ -262,7 +285,7 @@ async function loadTestCases(caseRange, difficulties = null) {
 
 /**
  * Get available deep models from configuration.
- * When no requestedModels are specified, filters to only deep-mode models.
+ * When no requestedModels are specified, filters to only deep-tier models.
  * 
  * @param {Object} modelsConfig - The loaded models configuration
  * @param {string[]|null} requestedModels - Explicitly requested model names
@@ -270,7 +293,7 @@ async function loadTestCases(caseRange, difficulties = null) {
  */
 function getAvailableModels(modelsConfig, requestedModels) {
     const available = [];
-    
+
     for (const [name, descriptor] of modelsConfig.models.entries()) {
         // Skip excluded models
         if (CONFIG.excludeModels.includes(name)) continue;
@@ -279,9 +302,12 @@ function getAvailableModels(modelsConfig, requestedModels) {
         if (!providerConfig) continue;
 
         // Check if API key is available
-        const apiKeyEnv = descriptor.apiKeyEnv || providerConfig.apiKeyEnv;
+        // soul_gateway models use SOUL_GATEWAY_API_KEY
+        const apiKeyEnv = descriptor.providerKey === 'soul_gateway'
+            ? 'SOUL_GATEWAY_API_KEY'
+            : (descriptor.apiKeyEnv || providerConfig.apiKeyEnv);
         const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : null;
-        
+
         if (!apiKey) continue;
 
         // Build qualified name for matching (provider/model)
@@ -295,7 +321,7 @@ function getAvailableModels(modelsConfig, requestedModels) {
             if (!matchesSimple && !matchesQualified) continue;
         } else {
             // When no models are explicitly requested, only include deep models
-            if (descriptor.mode !== 'deep') continue;
+            if (descriptor.tier !== 'deep') continue;
         }
 
         // Use qualified name in output to support provider/model format
@@ -304,7 +330,7 @@ function getAvailableModels(modelsConfig, requestedModels) {
         available.push({
             name: displayName,
             provider: descriptor.providerKey,
-            mode: descriptor.mode || 'deep',
+            tier: descriptor.tier || 'deep',
             apiKeyEnv,
         });
     }
@@ -360,7 +386,6 @@ async function testModel(agent, modelName, skillsDescription, testCase, skipSema
         const response = await agent.complete({
             prompt,
             model: modelName,
-            mode: 'deep',
             context: { intent: 'deep-benchmark-skill-selection' },
         });
         
@@ -484,7 +509,7 @@ Do they describe essentially the same action? Answer ONLY "YES" or "NO".`;
 
         const response = await agent.complete({
             prompt,
-            mode: 'deep',
+            tier: 'fast',
             context: { intent: 'deep-benchmark-semantic-check' },
         });
 
@@ -631,15 +656,36 @@ async function main() {
     // Load configurations
     const modelsConfig = await loadModelsConfiguration();
     const skillsDescription = await loadSkillsDescription();
-    const testCases = await loadTestCases(config.caseRange, config.difficulties);
-    const availableModels = getAvailableModels(modelsConfig, config.models);
+    const QUICK_CASES = new Set([
+        'case_01', 'case_03', 'case_04', 'case_08', 'case_09',
+        'case_10', 'case_12', 'case_13', 'case_14', 'case_19',
+    ]);
+    let testCases = await loadTestCases(config.caseRange, config.difficulties);
+    if (config.quick) {
+        testCases = testCases.filter(c => {
+            const num = c.id?.match(/case_(\d+)/)?.[0];
+            return num && QUICK_CASES.has(num);
+        });
+    }
+    let availableModels = getAvailableModels(modelsConfig, config.models);
+    if (config.soulGateway) {
+        availableModels = availableModels.filter(m => m.provider === 'soul_gateway');
+    }
+    if (config.healthy) {
+        const working = loadWorkingModels();
+        if (working) {
+            availableModels = availableModels.filter(m => working.has(m.name));
+        } else {
+            console.log('No health check results found. Run checkModels.mjs first.');
+        }
+    }
 
     if (availableModels.length === 0) {
         console.log(`${COLORS.RED}No deep models available to test.${COLORS.RESET}`);
         console.log('Make sure API keys are set in environment variables.');
         console.log('\nConfigured deep models and their API key requirements:');
         for (const [name, descriptor] of modelsConfig.models.entries()) {
-            if (descriptor.mode !== 'deep') continue;
+            if (descriptor.tier !== 'deep') continue;
             const providerConfig = modelsConfig.providers.get(descriptor.providerKey);
             const apiKeyEnv = descriptor.apiKeyEnv || providerConfig?.apiKeyEnv || 'N/A';
             const hasKey = apiKeyEnv !== 'N/A' && process.env[apiKeyEnv] ? '✓' : '✗';
@@ -649,7 +695,7 @@ async function main() {
     }
 
     console.log(`${COLORS.CYAN}Deep models to test:${COLORS.RESET} ${availableModels.length}`);
-    availableModels.forEach(m => console.log(`  - ${m.name} (${m.provider}, mode: ${m.mode})`));
+    availableModels.forEach(m => console.log(`  - ${m.name} (${m.provider}, tier: ${m.tier})`));
     console.log(`${COLORS.CYAN}Test cases:${COLORS.RESET} ${testCases.length}`);
     console.log(`${COLORS.CYAN}Runs per case:${COLORS.RESET} ${config.runs}`);
     console.log(`${COLORS.CYAN}Semantic matching:${COLORS.RESET} ${config.skipSemantic ? 'disabled' : 'enabled (default for deep models)'}`);
@@ -665,8 +711,11 @@ async function main() {
 
     for (const modelInfo of availableModels) {
         allResults[modelInfo.name] = [];
+        let consecutiveErrors = 0;
+        let skipped = false;
 
         for (const testCase of testCases) {
+            if (skipped) break;
             for (let run = 0; run < config.runs; run++) {
                 completedTests++;
                 printProgress(completedTests, totalTests, modelInfo.name, testCase.id);
@@ -686,6 +735,18 @@ async function main() {
                     difficulty: testCase.difficulty,
                     ...result,
                 });
+
+                if (result.error) {
+                    consecutiveErrors++;
+                    if (consecutiveErrors >= 3) {
+                        clearProgress();
+                        console.log(`${COLORS.RED}  Skipping ${modelInfo.name} — ${consecutiveErrors} consecutive errors${COLORS.RESET}`);
+                        skipped = true;
+                        break;
+                    }
+                } else {
+                    consecutiveErrors = 0;
+                }
             }
         }
     }

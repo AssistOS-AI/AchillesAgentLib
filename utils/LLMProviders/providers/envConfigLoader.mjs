@@ -14,7 +14,7 @@
  *   ANTHROPIC_<PROVIDER>_KEY_ENV=<env_var> - Env var name containing key
  * 
  * Model format:
- *   LLM_MODEL_<NN>=<provider>/<model>|<mode>|<inputPrice>|<outputPrice>|<context>
+ *   LLM_MODEL_<NN>=<provider>/<model>|<tier>|<inputPrice>|<outputPrice>|<context>
  *   
  *   Examples:
  *   LLM_MODEL_01=myproxy/gpt-4-turbo|deep|5|15|128k
@@ -33,7 +33,7 @@ const ANTHROPIC_MODULE = './utils/LLMProviders/providers/anthropic.mjs';
 
 /**
  * Parse a model definition string.
- * Format: provider/model|mode|inputPrice|outputPrice|context
+ * Format: provider/model|tier|inputPrice|outputPrice|context
  * 
  * @param {string} value - The model definition string
  * @returns {object|null} Parsed model object or null if invalid
@@ -62,7 +62,7 @@ function parseModelDefinition(value) {
         return null;
     }
 
-    const mode = parts[1]?.toLowerCase() || 'fast';
+    const tier = parts[1]?.toLowerCase() || 'fast';
     const inputPrice = parts[2] ? parseFloat(parts[2]) : 0;
     const outputPrice = parts[3] ? parseFloat(parts[3]) : 0;
     const context = parts[4] || 'N/A';
@@ -71,7 +71,7 @@ function parseModelDefinition(value) {
         name: modelName,
         provider,
         providerKey: provider,
-        mode: mode === 'deep' ? 'deep' : 'fast',
+        tier: tier === 'deep' ? 'deep' : 'fast',
         inputPrice: isNaN(inputPrice) ? 0 : inputPrice,
         outputPrice: isNaN(outputPrice) ? 0 : outputPrice,
         context,
@@ -179,7 +179,7 @@ function parseProvidersFromEnv() {
 
 /**
  * Extract model definitions from environment variables.
- * Looks for patterns like LLM_MODEL_<NN>=provider/model|mode|...
+ * Looks for patterns like LLM_MODEL_<NN>=provider/model|tier|...
  * 
  * @returns {Array<object>} Array of model definitions in order
  */

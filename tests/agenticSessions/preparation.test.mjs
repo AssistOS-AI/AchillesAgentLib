@@ -79,7 +79,7 @@ test('LoopAgentSession.runPreparation parses @context_ variables from output', a
     const result = await LoopAgentSession.runPreparation({
         agent,
         tools,
-        options: { mode: 'fast', maxStepsPerTurn: 5 },
+        options: { tier: 'fast', maxStepsPerTurn: 5 },
         preparationText: 'Load user context',
         userPrompt: 'do something',
         retries: 0,
@@ -104,7 +104,7 @@ test('LoopAgentSession.runPreparation returns empty when no @context_ in output'
     const result = await LoopAgentSession.runPreparation({
         agent,
         tools: {},
-        options: { mode: 'fast', maxStepsPerTurn: 5 },
+        options: { tier: 'fast', maxStepsPerTurn: 5 },
         preparationText: 'Load context',
         userPrompt: 'test',
         retries: 0,
@@ -151,7 +151,7 @@ test('LoopAgentSession.runPreparation retries on failure', async () => {
     const result = await LoopAgentSession.runPreparation({
         agent,
         tools: {},
-        options: { mode: 'fast', maxStepsPerTurn: 2, maxErrors: 1 },
+        options: { tier: 'fast', maxStepsPerTurn: 2, maxErrors: 1 },
         preparationText: 'Load context',
         userPrompt: 'test',
         retries: 1,
@@ -197,7 +197,7 @@ test('SOPAgenticSession.runPreparation parses @context_ variables from SOP outpu
         agent,
         skillsDescription,
         commandsRegistry,
-        options: { mode: 'deep' },
+        options: { tier: 'deep' },
         preparationText: 'Load data context',
         userPrompt: 'process data',
         retries: 0,
@@ -286,7 +286,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
         skillRecord,
         recursiveAgent,
         promptText: 'Do something',
-        options: { mode: 'fast' },
+        options: { tier: 'fast' },
     });
 
     assert.equal(result.session, 'loop');
@@ -328,7 +328,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
         skillRecord,
         recursiveAgent,
         promptText: 'Process data',
-        options: { mode: 'deep' },
+        options: { tier: 'deep' },
     });
 
     assert.equal(result.session, 'sop');
@@ -398,7 +398,7 @@ test('context parsing handles various formats', async () => {
     const result = await LoopAgentSession.runPreparation({
         agent,
         tools: {},
-        options: { mode: 'fast', maxStepsPerTurn: 5 },
+        options: { tier: 'fast', maxStepsPerTurn: 5 },
         preparationText: 'Parse formats',
         userPrompt: 'test',
         retries: 0,

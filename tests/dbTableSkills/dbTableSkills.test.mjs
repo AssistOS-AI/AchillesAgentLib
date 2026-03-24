@@ -123,7 +123,7 @@ async function initializeShared() {
     try {
         const llmAgent = new LLMAgent();
         // Test if we can make LLM calls
-        await llmAgent.executePrompt('Return OK', { mode: 'fast' });
+        await llmAgent.executePrompt('Return OK', { tier: 'fast' });
         shared.llmAgent = llmAgent;
     } catch (error) {
         const attempts = Array.isArray(error?.attempts) ? error.attempts : [];

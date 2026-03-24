@@ -174,15 +174,15 @@ try {
         }
     }
 
-    // ── Test 6: mode:'fast' and mode:'deep' backward compat ──────────
-    console.log(`\n${COLORS.BOLD}Test 6: Backward compatibility — mode maps to tier${COLORS.RESET}`);
+    // ── Test 6: mode (legacy alias) maps to tier ─────────────────────
+    console.log(`\n${COLORS.BOLD}Test 6: Backward compatibility — legacy mode alias maps to tier${COLORS.RESET}`);
 
     if (tiers.fast) {
         callLog.length = 0;
         try {
             await defaultLLMInvokerStrategy({ prompt: 'test compat', mode: 'fast' });
         } catch (err) {
-            assertDeepEqual(callLog, tiers.fast, `mode:"fast" cascades through tier "fast" models`);
+            assertDeepEqual(callLog, tiers.fast, `legacy mode:"fast" cascades through tier "fast" models`);
         }
     }
 
@@ -191,7 +191,7 @@ try {
         try {
             await defaultLLMInvokerStrategy({ prompt: 'test compat', mode: 'deep' });
         } catch (err) {
-            assertDeepEqual(callLog, tiers.deep, `mode:"deep" cascades through tier "deep" models`);
+            assertDeepEqual(callLog, tiers.deep, `legacy mode:"deep" cascades through tier "deep" models`);
         }
     }
 

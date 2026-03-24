@@ -44,6 +44,7 @@ class LLMAgent {
         this._debugCounter = 0;
         this._inputCounter = 0;
         this._outputCounter = 0;
+        this._callLog = []; // Per-call tracking: { inputChars, outputChars, model, tier, durationMs, context }
         this._actionReporter = null;
         this._inputReader = null;
         this._outputWriter = null;
@@ -129,7 +130,7 @@ class LLMAgent {
         const raw = await this.complete({
             prompt,
             history: [{ role: 'user', message }],
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'classify-message', expectedIntents: intents },
         });
 
@@ -163,7 +164,7 @@ class LLMAgent {
         };
     }
 
-    async resolveConfirmation(userInput, { actionContext = null, mode = 'fast' } = {}) {
+    async resolveConfirmation(userInput, { actionContext = null, tier = 'fast' } = {}) {
         if (!userInput || typeof userInput !== 'string') {
             return { decision: 'unclear', confidence: 0 };
         }
@@ -190,7 +191,7 @@ class LLMAgent {
         try {
             const response = await this.complete({
                 prompt,
-                mode,
+                tier,
                 context: { intent: 'resolve-confirmation' },
             });
 
@@ -246,12 +247,25 @@ class LLMAgent {
         return ['fast'];
     }
 
+    getSupportedTiers() {
+        return this.getSupportedModes();
+    }
+
     getInputCounter() {
         return this._inputCounter;
     }
 
     getOutputCounter() {
         return this._outputCounter;
+    }
+
+    /**
+     * Get per-call log entries.
+     * Each entry: { inputChars, outputChars, model, tier, durationMs, intent }
+     * @returns {Array}
+     */
+    getCallLog() {
+        return this._callLog;
     }
 
     _recordInputChars(count = 0) {
@@ -289,8 +303,8 @@ class LLMAgent {
         }
 
         const {
-            tier = null,
-            mode = 'fast',
+            tier = 'fast',
+            mode = null,
             model = null,
             responseShape = null,
             globalMemory = null,
@@ -369,7 +383,7 @@ ${promptText}`
 
     async detectIntents(skillsDescription, userPrompt, options = {}) {
         const {
-            mode = null,
+            tier = null,
             model = null,
             ...rest
         } = options;
@@ -378,7 +392,7 @@ ${promptText}`
 
         const result = await this.complete({
             prompt,
-            mode: mode ?? undefined,
+            tier: tier ?? undefined,
             model,
             context: { intent: 'detect-intents' },
             ...rest,

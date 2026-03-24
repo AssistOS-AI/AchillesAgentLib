@@ -138,10 +138,17 @@ function parseArgs() {
     }
 
     let caseNum = null;
+    let sopMode = null;
+    let jsonOutput = false;
 
     for (let i = 0; i < args.length; i += 1) {
         const arg = args[i];
-        if (arg === '--runs' || arg === '-r' || arg === '--times' || arg === '-t') {
+        if (arg === '--json') {
+            jsonOutput = true;
+        } else if (arg === '--mode' || arg === '-m') {
+            const next = args[i + 1];
+            if (next) { sopMode = next; i += 1; }
+        } else if (arg === '--runs' || arg === '-r' || arg === '--times' || arg === '-t') {
             const next = args[i + 1];
             const parsed = Number.parseInt(next, 10);
             if (Number.isFinite(parsed) && parsed > 0) {
@@ -163,7 +170,7 @@ function parseArgs() {
         }
     }
 
-    return { times, caseNum };
+    return { times, caseNum, sopMode, jsonOutput };
 }
 
 async function loadPerformanceCaseFromFile(filePath) {
@@ -240,7 +247,11 @@ async function evaluateSOPStep(session, step) {
     };
 }
 
-async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
+function cacheBustNonce() {
+    return `\n<!-- [bench-${Date.now()}-${Math.random().toString(36).slice(2, 8)}] -->`;
+}
+
+async function runSOPCase(testCase, runIndex, onProgress = () => { }, sopMode = null) {
     const started = Date.now();
     const agent = new LLMAgent({ name: `SOP-${testCase.id}-run${runIndex + 1}` });
     const stepResults = [];
@@ -251,10 +262,12 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
             throw new Error('No steps defined for case.');
         }
         const commandsRegistry = createSOPCommandsRegistry(agent);
+        const sessionOpts = { commandsRegistry, systemPrompt: testCase.systemPrompt };
+        if (sopMode) sessionOpts.tier = sopMode;
         const session = await agent.startSOPLangAgentSession(
             SOP_SKILL_DESCRIPTIONS,
-            steps[0].prompt,
-            { commandsRegistry, systemPrompt: testCase.systemPrompt },
+            steps[0].prompt + cacheBustNonce(),
+            sessionOpts,
         );
 
         onProgress(`SOP: ${steps[0].id || 'step1'}`);
@@ -264,7 +277,7 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
         for (let i = 1; i < steps.length; i += 1) {
             onProgress(`SOP: ${steps[i].id || `step${i + 1}`}`);
             // eslint-disable-next-line no-await-in-loop
-            await session.newPrompt(steps[i].prompt);
+            await session.newPrompt(steps[i].prompt + cacheBustNonce());
             // eslint-disable-next-line no-await-in-loop
             stepResults.push(await evaluateSOPStep(session, steps[i]));
         }
@@ -275,6 +288,7 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
             durationMs: Date.now() - started,
             inputChars: agent.getInputCounter(),
             outputChars: agent.getOutputCounter(),
+            callLog: agent.getCallLog?.() || [],
             steps: stepResults,
             error: null,
         };
@@ -284,6 +298,7 @@ async function runSOPCase(testCase, runIndex, onProgress = () => { }) {
             durationMs: Date.now() - started,
             inputChars: agent.getInputCounter(),
             outputChars: agent.getOutputCounter(),
+            callLog: agent.getCallLog?.() || [],
             steps: stepResults,
             error: error?.message || String(error),
         };
@@ -313,7 +328,7 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
         if (!steps.length) {
             throw new Error('No steps defined for case.');
         }
-        const session = await agent.startLoopAgentSession(PERFORMANCE_TOOLS, steps[0].prompt, {
+        const session = await agent.startLoopAgentSession(PERFORMANCE_TOOLS, steps[0].prompt + cacheBustNonce(), {
             systemPrompt: testCase.systemPrompt,
             initialExpected: steps[0].expected,
         });
@@ -325,7 +340,7 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
         for (let i = 1; i < steps.length; i += 1) {
             onProgress(`Loop: ${steps[i].id || `step${i + 1}`}`);
             // eslint-disable-next-line no-await-in-loop
-            await session.newPrompt(steps[i].prompt, {
+            await session.newPrompt(steps[i].prompt + cacheBustNonce(), {
                 expected: steps[i].expected,
             });
             // eslint-disable-next-line no-await-in-loop
@@ -342,6 +357,7 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
             durationMs: Date.now() - started,
             inputChars: agent.getInputCounter(),
             outputChars: agent.getOutputCounter(),
+            callLog: agent.getCallLog?.() || [],
             steps: stepResults,
             error: null,
         };
@@ -351,6 +367,7 @@ async function runLoopCase(testCase, runIndex, onProgress = () => { }) {
             durationMs: Date.now() - started,
             inputChars: agent.getInputCounter(),
             outputChars: agent.getOutputCounter(),
+            callLog: agent.getCallLog?.() || [],
             steps: stepResults,
             error: error?.message || String(error),
         };
@@ -372,7 +389,7 @@ async function runWorker() {
             }
         };
 
-        const sopResult = await runSOPCase(testCase, runIndex, sendProgress);
+        const sopResult = await runSOPCase(testCase, runIndex, sendProgress, process.env.AGENTIC_SOP_MODE || null);
         const loopResult = await runLoopCase(testCase, runIndex, sendProgress);
 
         const payload = {
@@ -484,11 +501,15 @@ async function main() {
         return;
     }
 
-    const { times, caseNum } = parseArgs();
+    const { times, caseNum, sopMode, jsonOutput } = parseArgs();
+    if (sopMode) process.env.AGENTIC_SOP_MODE = sopMode;
+    if (!jsonOutput) {
+        // eslint-disable-next-line no-console
+        console.log('Hint: run with --help to see available options.');
+    }
+    const modeLabel = sopMode ? ` | SOP tier: ${sopMode}` : '';
     // eslint-disable-next-line no-console
-    console.log('Hint: run with --help to see available options.');
-    // eslint-disable-next-line no-console
-    console.log(`[AgenticPerformance] Runs per case: ${times}${caseNum ? ` | Case: ${caseNum}` : ''}`);
+    console.log(`[AgenticPerformance] Runs per case: ${times}${caseNum ? ` | Case: ${caseNum}` : ''}${modeLabel}`);
 
     let cases = await loadPerformanceCases();
     if (caseNum) {
@@ -508,6 +529,7 @@ async function main() {
         sop: { runs: 0, failures: 0, durationMs: 0, inputChars: 0, outputChars: 0 },
         loop: { runs: 0, failures: 0, durationMs: 0, inputChars: 0, outputChars: 0 },
     };
+    const perCase = [];
 
     for (const testCase of cases) {
         for (let runIndex = 0; runIndex < times; runIndex += 1) {
@@ -535,10 +557,73 @@ async function main() {
             if (!result.loop.ok) {
                 totals.loop.failures += 1;
             }
+
+            perCase.push({
+                caseId: result.caseId,
+                sop: {
+                    ok: result.sop.ok,
+                    durationMs: result.sop.durationMs,
+                    inputTokens: charsToTokens(result.sop.inputChars),
+                    outputTokens: charsToTokens(result.sop.outputChars),
+                    llmCalls: result.sop.callLog?.length || 0,
+                    callLog: (result.sop.callLog || []).map(c => ({
+                        inputTok: charsToTokens(c.inputChars),
+                        outputTok: charsToTokens(c.outputChars),
+                        model: c.model,
+                        tier: c.tier,
+                        ms: c.durationMs,
+                        intent: c.intent,
+                    })),
+                    error: result.sop.error || null,
+                },
+                loop: {
+                    ok: result.loop.ok,
+                    durationMs: result.loop.durationMs,
+                    inputTokens: charsToTokens(result.loop.inputChars),
+                    outputTokens: charsToTokens(result.loop.outputChars),
+                    llmCalls: result.loop.callLog?.length || 0,
+                    callLog: (result.loop.callLog || []).map(c => ({
+                        inputTok: charsToTokens(c.inputChars),
+                        outputTok: charsToTokens(c.outputChars),
+                        model: c.model,
+                        tier: c.tier,
+                        ms: c.durationMs,
+                        intent: c.intent,
+                    })),
+                    error: result.loop.error || null,
+                },
+            });
         }
     }
 
     printSummary(totals);
+
+    if (jsonOutput) {
+        const jsonResult = {
+            model: sopMode || 'default',
+            timestamp: new Date().toISOString(),
+            sop: {
+                runs: totals.sop.runs,
+                passed: totals.sop.runs - totals.sop.failures,
+                failures: totals.sop.failures,
+                passRate: totals.sop.runs > 0 ? Math.round(((totals.sop.runs - totals.sop.failures) / totals.sop.runs) * 100) : 0,
+                durationMs: totals.sop.durationMs,
+                inputChars: totals.sop.inputChars,
+                outputChars: totals.sop.outputChars,
+            },
+            loop: {
+                runs: totals.loop.runs,
+                passed: totals.loop.runs - totals.loop.failures,
+                failures: totals.loop.failures,
+                passRate: totals.loop.runs > 0 ? Math.round(((totals.loop.runs - totals.loop.failures) / totals.loop.runs) * 100) : 0,
+                durationMs: totals.loop.durationMs,
+                inputChars: totals.loop.inputChars,
+                outputChars: totals.loop.outputChars,
+            },
+            cases: perCase,
+        };
+        console.log('__JSON_RESULT__' + JSON.stringify(jsonResult));
+    }
 }
 
 main().catch((err) => {

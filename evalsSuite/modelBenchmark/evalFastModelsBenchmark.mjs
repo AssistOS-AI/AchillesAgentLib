@@ -58,11 +58,37 @@ const CONFIG = {
 // ============================================================================
 
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILLS_PATH = path.join(__dirname, 'skillsForBenchmark.json');
 const CASES_DIR = path.join(__dirname, 'cases');
+
+function loadWorkingModels(maxLatencyMs = null) {
+    const files = fsSync.readdirSync(__dirname)
+        .filter(f => f.startsWith('model-health-') && f.endsWith('.json'))
+        .sort().reverse();
+    if (!files.length) return null;
+    try {
+        const raw = JSON.parse(fsSync.readFileSync(path.join(__dirname, files[0]), 'utf8'));
+        // The full health check JSON has working[] as names, but we need latencies.
+        // Re-read the full results to get latencies if available.
+        let working = new Set(raw.working || []);
+
+        if (maxLatencyMs && raw.workingDetails) {
+            working = new Set(
+                raw.workingDetails
+                    .filter(m => m.latency <= maxLatencyMs)
+                    .map(m => m.model)
+            );
+        }
+
+        const label = maxLatencyMs ? `${working.size} models under ${maxLatencyMs}ms` : `${working.size} working models`;
+        console.log(`${COLORS.GRAY}Loaded health check: ${files[0]} (${label})${COLORS.RESET}`);
+        return working;
+    } catch { return null; }
+}
 
 // Dynamically import after env config
 const { LLMAgent } = await import('../../LLMAgents/LLMAgent.mjs');
@@ -121,6 +147,10 @@ function parseArgs() {
         skipSemantic: CONFIG.skipSemanticByDefault,
         useProductionPrompt: CONFIG.useProductionPrompt,
         help: false,
+        soulGateway: false,
+        freeOnly: false,
+        healthy: false,
+        quick: false,
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -135,6 +165,16 @@ function parseArgs() {
             options.models = args[++i]?.split(',').map(m => m.trim()).filter(Boolean) || null;
         } else if (arg === '--all-models') {
             options.models = null; // Test all available models
+        } else if (arg === '--soul-gateway') {
+            options.soulGateway = true;
+            options.models = null;
+        } else if (arg === '--free') {
+            options.freeOnly = true;
+            options.models = null;
+        } else if (arg === '--healthy') {
+            options.healthy = true;
+        } else if (arg === '--quick') {
+            options.quick = true;
         } else if (arg === '--cases' || arg === '-c') {
             options.caseRange = args[++i];
         } else if (arg === '--difficulty' || arg === '-d') {
@@ -253,25 +293,31 @@ async function loadTestCases(caseRange, difficulties = null) {
     return cases;
 }
 
-function getAvailableModels(modelsConfig, requestedModels) {
+function getAvailableModels(modelsConfig, requestedModels, { freeOnly = false } = {}) {
     const available = [];
-    
+
     for (const [name, descriptor] of modelsConfig.models.entries()) {
         // Skip excluded models
         if (CONFIG.excludeModels.includes(name)) continue;
+
+        // Free-only filter: soul_gateway models discovered from gateway are free if marked
+        if (freeOnly && descriptor.providerKey === 'soul_gateway' && !descriptor.isFree) continue;
 
         const providerConfig = modelsConfig.providers.get(descriptor.providerKey);
         if (!providerConfig) continue;
 
         // Check if API key is available
-        const apiKeyEnv = descriptor.apiKeyEnv || providerConfig.apiKeyEnv;
+        // soul_gateway models use SOUL_GATEWAY_API_KEY
+        const apiKeyEnv = descriptor.providerKey === 'soul_gateway'
+            ? 'SOUL_GATEWAY_API_KEY'
+            : (descriptor.apiKeyEnv || providerConfig.apiKeyEnv);
         const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : null;
-        
+
         if (!apiKey) continue;
 
         // Build qualified name for matching (provider/model)
         const qualifiedName = `${descriptor.providerKey}/${name}`;
-        
+
         // Filter by requested models if specified
         // Support both simple name and qualified name (provider/model)
         if (requestedModels) {
@@ -282,11 +328,11 @@ function getAvailableModels(modelsConfig, requestedModels) {
 
         // Use qualified name in output to support provider/model format
         const displayName = requestedModels?.includes(qualifiedName) ? qualifiedName : name;
-        
+
         available.push({
             name: displayName,
             provider: descriptor.providerKey,
-            mode: descriptor.mode || 'fast',
+            tier: descriptor.tier || 'fast',
             apiKeyEnv,
         });
     }
@@ -342,7 +388,6 @@ async function testModel(agent, modelName, skillsDescription, testCase, skipSema
         const response = await agent.complete({
             prompt,
             model: modelName,
-            mode: 'fast',
             context: { intent: 'benchmark-skill-selection' },
         });
         
@@ -466,7 +511,7 @@ Do they describe essentially the same action? Answer ONLY "YES" or "NO".`;
 
         const response = await agent.complete({
             prompt,
-            mode: 'fast',
+            tier: 'fast',
             context: { intent: 'benchmark-semantic-check' },
         });
 
@@ -605,8 +650,30 @@ async function main() {
     // Load configurations
     const modelsConfig = await loadModelsConfiguration();
     const skillsDescription = await loadSkillsDescription();
-    const testCases = await loadTestCases(config.caseRange, config.difficulties);
-    const availableModels = getAvailableModels(modelsConfig, config.models);
+    // Quick mode: 10 essential cases covering all skills × difficulties
+    const QUICK_CASES = new Set([
+        'case_01', 'case_03', 'case_04', 'case_08', 'case_09',
+        'case_10', 'case_12', 'case_13', 'case_14', 'case_19',
+    ]);
+    let testCases = await loadTestCases(config.caseRange, config.difficulties);
+    if (config.quick) {
+        testCases = testCases.filter(c => {
+            const num = c.id?.match(/case_(\d+)/)?.[0];
+            return num && QUICK_CASES.has(num);
+        });
+    }
+    let availableModels = getAvailableModels(modelsConfig, config.models, { freeOnly: config.freeOnly });
+    if (config.soulGateway) {
+        availableModels = availableModels.filter(m => m.provider === 'soul_gateway');
+    }
+    if (config.healthy) {
+        const working = loadWorkingModels(3000);
+        if (working) {
+            availableModels = availableModels.filter(m => working.has(m.name));
+        } else {
+            console.log(`${COLORS.YELLOW}No health check results found. Run checkModels.mjs first.${COLORS.RESET}`);
+        }
+    }
 
     if (availableModels.length === 0) {
         console.log(`${COLORS.RED}No models available to test.${COLORS.RESET}`);
@@ -637,8 +704,11 @@ async function main() {
 
     for (const modelInfo of availableModels) {
         allResults[modelInfo.name] = [];
+        let consecutiveErrors = 0;
+        let skipped = false;
 
         for (const testCase of testCases) {
+            if (skipped) break;
             for (let run = 0; run < config.runs; run++) {
                 completedTests++;
                 printProgress(completedTests, totalTests, modelInfo.name, testCase.id);
@@ -658,6 +728,19 @@ async function main() {
                     difficulty: testCase.difficulty,
                     ...result,
                 });
+
+                // Skip remaining cases if model has 3 consecutive errors
+                if (result.error) {
+                    consecutiveErrors++;
+                    if (consecutiveErrors >= 3) {
+                        clearProgress();
+                        console.log(`${COLORS.RED}  Skipping ${modelInfo.name} — ${consecutiveErrors} consecutive errors${COLORS.RESET}`);
+                        skipped = true;
+                        break;
+                    }
+                } else {
+                    consecutiveErrors = 0;
+                }
             }
         }
     }

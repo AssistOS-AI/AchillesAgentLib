@@ -62,9 +62,10 @@ function buildLoopSystemPrompt(skillRecord) {
 }
 
 export class OrchestratorSkillsSubsystem {
-    constructor({ llmAgent = null } = {}) {
+    constructor({ llmAgent = null, tierConfig = null } = {}) {
         this.type = 'orchestrator';
         this.llmAgent = llmAgent;
+        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 
@@ -156,18 +157,31 @@ export class OrchestratorSkillsSubsystem {
         const tools = {};
         // Forward context (sessionMemory, user, etc.) from the orchestrator's options
         const forwardedContext = options?.context || {};
+        // Use skillPlan tier for inner skill calls (falls back to execution tier)
+        const skillTier = this.tierConfig?.skillPlan || this.tierConfig?.execution || options?.mode || null;
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
             // Return a standard function that calls the skill via RecursiveSkilledAgent
             // This allows each subsystem to access any skill uniformly
             tools[toolName] = async (agent, promptText) => {
-                const executionResult = await recursiveAgent.executePrompt(promptText, {
+                // Coerce promptText to string — planner may pass objects from previous tool results
+                const safePrompt = typeof promptText === 'string'
+                    ? promptText
+                    : (promptText != null ? JSON.stringify(promptText) : '');
+
+                const execOptions = {
                     skillName: skillRecord.name,
                     context: forwardedContext,
                     sessionMemory: forwardedContext.sessionMemory || null,
-                });
-                return executionResult?.result;
+                };
+                if (skillTier) execOptions.mode = skillTier;
+                const executionResult = await recursiveAgent.executePrompt(safePrompt, execOptions);
+                // Serialize non-string results so downstream tools receive valid text
+                const result = executionResult?.result;
+                if (result == null) return '';
+                if (typeof result === 'string') return result;
+                try { return JSON.stringify(result); } catch { return String(result); }
             };
         }
 
@@ -259,7 +273,7 @@ export class OrchestratorSkillsSubsystem {
 
             const sessionOptions = {
                 systemPrompt: baseSystemPrompt,
-                mode: options?.mode || 'plan',
+                tier: options?.tier || options?.mode || this.tierConfig.plan || 'plan',
                 maxStepsPerTurn: 20,
                 preparation,
             };
@@ -308,10 +322,16 @@ export class OrchestratorSkillsSubsystem {
 
         const sessionOptions = {
             systemPrompt: skillRecord.preparedConfig?.instructions || 'Plan and execute skills to satisfy the user request.',
-            mode: options?.mode || 'plan',
+            tier: options?.tier || options?.mode || this.tierConfig.plan || 'plan',
             planOnly: false,
             commandsRegistry,
             preparation,
+            planGeneratorOptions: {
+                llmMode: options?.planTier || this.tierConfig.plan || 'plan',
+            },
+            interpreterOptions: {
+                llmMode: options?.executionTier || this.tierConfig.execution || 'fast',
+            },
         };
 
         const session = await this.llmAgent.startSOPLangAgentSession(skillsDescription, promptText, sessionOptions);

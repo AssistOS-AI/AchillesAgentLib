@@ -7,6 +7,6 @@ cd "$SCRIPT_DIR/../.."
 if [ -f ~/work/.env ]; then
     export $(grep -v '^#' ~/work/.env | xargs)
 fi
-export AGENT_NAME=benchmarking
+export AGENT_NAME=health-check
 
-exec node evalsSuite/modelBenchmark/evalDeepModelsBenchmark.mjs --soul-gateway --healthy --quick "$@"
+exec node evalsSuite/modelBenchmark/checkModels.mjs "$@"

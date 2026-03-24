@@ -1,0 +1,21 @@
+{
+    "id": "case_21_nlp_pipeline",
+    "systemPrompt": "NLP tool chains: translate, sentiment, summarize, classify",
+    "steps": [
+        {
+            "id": "translate_then_sentiment",
+            "prompt": "Translate 'I love this product, it is amazing!' to Spanish, then analyze the sentiment of the translation. Answer only with the sentiment label.",
+            "expected": "POSITIVE"
+        },
+        {
+            "id": "summarize_then_classify",
+            "prompt": "Summarize the following text into one sentence: 'The stock market rallied sharply today as investors cheered strong earnings reports from major tech companies. The S&P 500 gained 2.3% while the Nasdaq surged 3.1%.'. Then classify the summary. Answer only with the topic.",
+            "expected": "Finance"
+        },
+        {
+            "id": "extract_names_upper",
+            "prompt": "Extract person names from 'Alice met Bob and Charlie at the cafe'. Then convert the result to uppercase. Answer only with the text.",
+            "expected": "ALICE, BOB, CHARLIE"
+        }
+    ]
+}

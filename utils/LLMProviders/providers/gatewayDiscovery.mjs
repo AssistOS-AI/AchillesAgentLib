@@ -71,11 +71,12 @@ export async function discoverModels(providerConfig) {
             .map(m => ({
                 name: m.id,
                 providerKey,
-                mode: m.mode || 'deep',
+                tier: m.tier || m.mode || 'deep',
                 inputPrice: parseFloat(m.input_price) || 0,
                 outputPrice: parseFloat(m.output_price) || 0,
                 context: m.context_window || null,
                 sortOrder: m.sort_order ?? 100,
+                isFree: Boolean(m.is_free),
                 fromGateway: true,
             }))
             .sort((a, b) => a.sortOrder - b.sortOrder);

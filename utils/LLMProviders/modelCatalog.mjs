@@ -50,14 +50,14 @@ function createAgentModelRecord(providerConfig, modelDescriptor) {
 
     const apiKeyEnv = modelDescriptor.apiKeyEnv || providerConfig.apiKeyEnv || null;
     const baseURL = modelDescriptor.baseURL || providerConfig.baseURL || null;
-    const mode = modelDescriptor.mode || 'fast';
+    const tier = modelDescriptor.tier || modelDescriptor.mode || 'fast';
 
     return {
         name: modelDescriptor.name,
         providerKey: modelDescriptor.providerKey,
         apiKeyEnv,
         baseURL,
-        mode,
+        tier,
     };
 }
 
@@ -67,7 +67,7 @@ function cloneAgentModelRecord(record) {
         providerKey: record.providerKey,
         apiKeyEnv: record.apiKeyEnv,
         baseURL: record.baseURL,
-        mode: record.mode || 'fast',
+        tier: record.tier || 'fast',
     };
 }
 
@@ -78,18 +78,18 @@ function normalizeModePreference(value) {
 
 function normalizeInvocationRequest(input) {
     if (typeof input === 'string') {
-        return { mode: normalizeModePreference(input), modelName: null };
+        return { tier: normalizeModePreference(input), modelName: null };
     }
 
     if (!input || typeof input !== 'object') {
-        return { mode: null, modelName: null };
+        return { tier: null, modelName: null };
     }
 
-    const mode = normalizeModePreference(input.mode || input.preferredMode || input.modePreference);
+    const tier = normalizeModePreference(input.tier || input.mode || input.preferredMode || input.modePreference);
     const modelRaw = input.modelName || input.model || input.preferredModel;
     const modelName = typeof modelRaw === 'string' && modelRaw.trim() ? modelRaw.trim() : null;
 
-    return { mode, modelName };
+    return { tier, modelName };
 }
 
 function getOrderedModelNames() {
@@ -107,7 +107,7 @@ function categorizeModelsByMode(modelNames) {
         if (!descriptor) {
             continue;
         }
-        if (descriptor.mode === 'deep') {
+        if (descriptor.tier === 'deep') {
             deep.push(name);
         } else {
             fast.push(name);

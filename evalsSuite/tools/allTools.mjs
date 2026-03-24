@@ -84,7 +84,7 @@ async function resolveArguments(agent, prompt, instruction, schema, regexPattern
 
     const result = await agent.complete({
         prompt: extractionPrompt,
-        mode: 'fast',
+        tier: 'fast',
         context: { intent: 'perf-tool-extract-args' },
     });
 
@@ -323,7 +323,7 @@ const BASE_PERFORMANCE_TOOLS = {
             ].join('\n');
             const result = await agent.complete({
                 prompt: instruction,
-                mode: 'fast',
+                tier: 'fast',
                 context: { intent: 'perf-tool-sentiment' },
             });
             return String(result).trim();
@@ -358,7 +358,7 @@ const BASE_PERFORMANCE_TOOLS = {
             ].join('\n');
             const result = await agent.complete({
                 prompt: instruction,
-                mode: 'fast',
+                tier: 'fast',
                 context: { intent: 'perf-tool-translate' },
             });
             return String(result).trim();
@@ -376,7 +376,7 @@ const BASE_PERFORMANCE_TOOLS = {
             ].join('\n');
             const result = await agent.complete({
                 prompt: instruction,
-                mode: 'fast',
+                tier: 'fast',
                 context: { intent: 'perf-tool-classify' },
             });
             return String(result).trim();
@@ -395,7 +395,7 @@ const BASE_PERFORMANCE_TOOLS = {
             ].join('\n');
             const result = await agent.complete({
                 prompt: instruction,
-                mode: 'fast',
+                tier: 'fast',
                 context: { intent: 'perf-tool-extract-names' },
             });
             return String(result).trim();
@@ -413,7 +413,7 @@ const BASE_PERFORMANCE_TOOLS = {
             ].join('\n');
             const result = await agent.complete({
                 prompt: instruction,
-                mode: 'fast',
+                tier: 'fast',
                 context: { intent: 'perf-tool-summarize' },
             });
             return String(result).trim();

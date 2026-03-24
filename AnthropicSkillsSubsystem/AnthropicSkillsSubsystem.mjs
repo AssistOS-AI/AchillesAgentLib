@@ -37,9 +37,10 @@ function listFiles(rootDir, baseDir) {
 
 
 export class AnthropicSkillsSubsystem {
-    constructor({ llmAgent = null } = {}) {
+    constructor({ llmAgent = null, tierConfig = null } = {}) {
         this.type = 'anthropic';
         this.llmAgent = llmAgent;
+        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
     }
 
     parseSkillDescriptor({ filePath }) {
@@ -99,7 +100,7 @@ export class AnthropicSkillsSubsystem {
             const projectRoot = process.cwd();
             const systemPrompt = `${skillBody}\n\nProject root: ${projectRoot}`.trim();
             const sessionOptions = {
-                mode: options?.mode || 'plan',
+                tier: options?.tier || options?.mode || this.tierConfig.plan || 'plan',
                 systemPrompt: systemPrompt || undefined,
             };
             session = await this.llmAgent.startLoopAgentSession(tools, promptText, sessionOptions);

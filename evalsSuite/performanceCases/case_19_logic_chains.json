@@ -1,0 +1,26 @@
+{
+    "id": "case_19_logic_chains",
+    "systemPrompt": "Boolean logic chains with isEven, invert, logicalAnd, logicalOr",
+    "steps": [
+        {
+            "id": "even_and_even",
+            "prompt": "Check if 8 is even and check if 12 is even, then return the logical AND of both results. Answer only true or false.",
+            "expected": "true"
+        },
+        {
+            "id": "even_or_odd",
+            "prompt": "Check if 7 is even and check if 10 is even, then return the logical OR of both results. Answer only true or false.",
+            "expected": "true"
+        },
+        {
+            "id": "invert_chain",
+            "prompt": "Check if 5 is even, then invert the result, then invert it again. Answer only true or false.",
+            "expected": "false"
+        },
+        {
+            "id": "complex_logic",
+            "prompt": "Check if 4 is even, check if 9 is even, compute the logical AND of those two, then invert the result. Answer only true or false.",
+            "expected": "true"
+        }
+    ]
+}

@@ -4,3 +4,4 @@ tests/.tmp/
 package-lock.json
 /.idea/
 .DS_Store
+CLAUDE.md

@@ -30,9 +30,10 @@ export class SubsystemFactory {
      * @param {Object} [options.llmAgent] - LLM agent instance for subsystems that require it
      * @param {Object} [options.dbAdapter] - Database adapter for DBTableSkillsSubsystem
      */
-    constructor({ llmAgent = null, dbAdapter = null } = {}) {
+    constructor({ llmAgent = null, dbAdapter = null, tierConfig = null } = {}) {
         this.llmAgent = llmAgent;
         this.dbAdapter = dbAdapter;
+        this.tierConfig = tierConfig;
         this.instances = new Map();
     }
 
@@ -71,14 +72,15 @@ export class SubsystemFactory {
             return new SubsystemClass({
                 llmAgent: this.llmAgent,
                 dbAdapter: this.dbAdapter,
+                tierConfig: this.tierConfig,
             });
         }
 
         if (type === 'anthropic') {
-            return new SubsystemClass();
+            return new SubsystemClass({ tierConfig: this.tierConfig });
         }
 
-        return new SubsystemClass({ llmAgent: this.llmAgent });
+        return new SubsystemClass({ llmAgent: this.llmAgent, tierConfig: this.tierConfig });
     }
 
     /**
