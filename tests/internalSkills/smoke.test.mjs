@@ -96,6 +96,26 @@ test('write skill: writes JSON payload', async () => {
     assert.equal(saved, content);
 });
 
+test('write skill: supports multiline backtick content', async () => {
+    const writeAction = await loadSkill('write');
+    const filePath = path.join(tempDir, 'write-multiline.txt');
+    const promptText = `file_path: ${filePath}\ncontent: \`Line one\nLine two with : and , characters\nLine three\``;
+
+    await writeAction({ promptText });
+    const saved = await fs.readFile(filePath, 'utf8');
+    assert.equal(saved, 'Line one\nLine two with : and , characters\nLine three');
+});
+
+test('write skill: supports escaped backtick in content', async () => {
+    const writeAction = await loadSkill('write');
+    const filePath = path.join(tempDir, 'write-escaped-backtick.txt');
+    const promptText = `file_path: ${filePath}\ncontent: \`Line with \\\`backtick\\\` inside\``;
+
+    await writeAction({ promptText });
+    const saved = await fs.readFile(filePath, 'utf8');
+    assert.equal(saved, 'Line with `backtick` inside');
+});
+
 test('edit skill: replaces single occurrence', async () => {
     const editAction = await loadSkill('edit');
     const filePath = path.join(tempDir, 'edit-single.txt');
@@ -114,6 +134,17 @@ test('edit skill: replaces all occurrences', async () => {
     await editAction({ promptText: `file_path: ${filePath}\nold_string: x\nnew_string: y\nreplace_all: true` });
     const saved = await fs.readFile(filePath, 'utf8');
     assert.equal(saved, 'y y y');
+});
+
+test('edit skill: supports multiline backtick values', async () => {
+    const editAction = await loadSkill('edit');
+    const filePath = path.join(tempDir, 'edit-multiline.txt');
+    await writeFile(filePath, 'line1\nline2\nline3');
+    const promptText = `file_path: ${filePath}\nold_string: \`line1\nline2\`\nnew_string: \`line1\nline2 updated\``;
+
+    await editAction({ promptText });
+    const saved = await fs.readFile(filePath, 'utf8');
+    assert.equal(saved, 'line1\nline2 updated\nline3');
 });
 
 test('edit skill: errors on missing string', async () => {
@@ -190,6 +221,17 @@ test('grep skill: no matches returns empty', async () => {
     assert.equal(result, '');
 });
 
+test('grep skill: supports multiline backtick pattern', async () => {
+    const grepAction = await loadSkill('grep');
+    const filePath = path.join(tempDir, 'grep-multiline.txt');
+    await writeFile(filePath, 'alpha\nbeta\ngamma');
+
+    const result = await grepAction({
+        promptText: `pattern: \`alpha\nbeta\`\npath: ${tempDir}\noutput_mode: files_with_matches\nmultiline: true`,
+    });
+    assert.ok(result.includes(filePath));
+});
+
 test('bash skill: runs command', async () => {
     const bashAction = await loadSkill('bash');
     const result = await bashAction({ promptText: 'command: printf "ok"' });
@@ -207,6 +249,13 @@ test('bash skill: includes exit code', async () => {
     const bashAction = await loadSkill('bash');
     const result = await bashAction({ promptText: 'command: exit 2' });
     assert.ok(result.includes('[exitCode] 2'));
+});
+
+test('bash skill: supports multiline backtick command', async () => {
+    const bashAction = await loadSkill('bash');
+    const promptText = 'command: `printf "one"\nprintf "two"`';
+    const result = await bashAction({ promptText });
+    assert.equal(result, 'onetwo');
 });
 
 test('webfetch skill: strips HTML', async () => {
@@ -243,6 +292,28 @@ test('webfetch skill: returns plain text', async () => {
             promptText: 'url: https://example.com\nprompt: summarize',
             llmAgent });
         assert.equal(result, 'Hello World');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('webfetch skill: supports multiline backtick prompt', async () => {
+    const webfetchAction = await loadSkill('webfetch');
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+        headers: { get: () => 'text/plain' },
+        text: async () => 'plain text',
+    });
+    const llmAgent = {
+        executePrompt: async (prompt) => prompt,
+    };
+    try {
+        const result = await webfetchAction({
+            promptText: 'url: https://example.com\nprompt: `Line one\nLine two`',
+            llmAgent,
+        });
+        assert.ok(result.includes('Line one'));
+        assert.ok(result.includes('Line two'));
     } finally {
         globalThis.fetch = originalFetch;
     }

@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { isProbablyText, parseKeyValueInput, resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
+import { isProbablyText, parseKeyValueInput, resolvePath, stripDependsOn, unwrapBacktickLiteral } from '../../../utils/internalSkillsUtils.mjs';
 
 function extractMultilineBlock(promptText, key, stopKeys) {
     const lines = String(promptText ?? '').split(/\r?\n/);
@@ -33,8 +33,12 @@ export async function action(context) {
     const stopKeys = ['file_path', 'old_string', 'new_string', 'replace_all'];
     const multilineOld = extractMultilineBlock(sanitizedPrompt, 'old_string', stopKeys);
     const multilineNew = extractMultilineBlock(sanitizedPrompt, 'new_string', stopKeys);
-    const oldString = typeof multilineOld === 'string' ? multilineOld : data.old_string;
-    const newString = typeof multilineNew === 'string' ? multilineNew : data.new_string;
+    const oldString = typeof multilineOld === 'string'
+        ? unwrapBacktickLiteral(multilineOld)
+        : data.old_string;
+    const newString = typeof multilineNew === 'string'
+        ? unwrapBacktickLiteral(multilineNew)
+        : data.new_string;
     const replaceAll = Boolean(data.replace_all);
 
     if (typeof oldString !== 'string' || typeof newString !== 'string') {

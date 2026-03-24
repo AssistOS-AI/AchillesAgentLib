@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseKeyValueInput, resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
+import { parseKeyValueInput, resolvePath, stripDependsOn, unwrapBacktickLiteral } from '../../../utils/internalSkillsUtils.mjs';
 
 function extractMultilineAfterKey(promptText, key) {
     const lines = String(promptText ?? '').split(/\r?\n/);
@@ -26,7 +26,9 @@ export async function action(context) {
     }
     const filePath = resolvePath(data.file_path, 'file_path');
     const multilineContent = extractMultilineAfterKey(sanitizedPrompt, 'content');
-    const content = typeof multilineContent === 'string' ? multilineContent : data.content;
+    const content = typeof multilineContent === 'string'
+        ? unwrapBacktickLiteral(multilineContent)
+        : data.content;
     if (typeof content !== 'string') {
         throw new Error('Write requires string content.');
     }

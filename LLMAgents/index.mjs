@@ -45,9 +45,7 @@ try {
             if (description.configPath) {
                 console.info(`[AchillesAgentsLib]   Config file: ${description.configPath}`);
             }
-            console.info(`[AchillesAgentsLib]   Supported modes: ${modes}`);
-            console.info(`[AchillesAgentsLib]   Fast models: ${fastModels}`);
-            console.info(`[AchillesAgentsLib]   Deep models: ${deepModels}`);
+            console.info(`[AchillesAgentsLib]   Supported tiers: ${modes}`);
         }
     }
 } catch (error) {

@@ -94,36 +94,131 @@ function runBashCommand(command, cwd, timeout) {
     });
 }
 
+function splitKeyValueSegments(text) {
+    const segments = [];
+    let buffer = '';
+    let inBacktick = false;
+    let escaping = false;
+
+    const pushBuffer = () => {
+        const trimmed = buffer.trim();
+        if (trimmed) {
+            segments.push(trimmed);
+        }
+        buffer = '';
+    };
+
+    for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+
+        if (inBacktick) {
+            if (escaping) {
+                buffer += char;
+                escaping = false;
+                continue;
+            }
+            if (char === '\\') {
+                buffer += char;
+                escaping = true;
+                continue;
+            }
+            if (char === '`') {
+                buffer += char;
+                inBacktick = false;
+                continue;
+            }
+            buffer += char;
+            continue;
+        }
+
+        if (char === '`') {
+            buffer += char;
+            inBacktick = true;
+            continue;
+        }
+
+        if (char === '\r' || char === '\n') {
+            if (char === '\r' && text[i + 1] === '\n') {
+                i += 1;
+            }
+            pushBuffer();
+            continue;
+        }
+
+        if (char === ',') {
+            let j = i + 1;
+            while (j < text.length && /\s/.test(text[j])) {
+                j += 1;
+            }
+            let keyStart = j;
+            while (j < text.length && /[A-Za-z0-9_.-]/.test(text[j])) {
+                j += 1;
+            }
+            if (j > keyStart && text[j] === ':') {
+                pushBuffer();
+                continue;
+            }
+        }
+
+        buffer += char;
+    }
+
+    pushBuffer();
+    return segments;
+}
+
+function unescapeBacktickValue(value) {
+    return value.replace(/\\`/g, '`').replace(/\\\\/g, '\\');
+}
+
+function unwrapBacktickLiteral(value) {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    if (!value.startsWith('`')) {
+        return value;
+    }
+    if (value.length === 1) {
+        return '';
+    }
+    if (!value.endsWith('`')) {
+        return unescapeBacktickValue(value.slice(1));
+    }
+    return unescapeBacktickValue(value.slice(1, -1));
+}
+
 function parseKeyValueInput(promptText) {
     const text = String(promptText ?? '').trim();
     if (!text) {
         return { data: {}, raw: '', hasPairs: false };
     }
-    const segments = text
-        .split(/\r?\n/)
-        .flatMap((line) => line.split(/,(?=\s*[^,]+:)/))
-        .map((part) => part.trim())
-        .filter(Boolean);
+    const segments = splitKeyValueSegments(text);
 
     const data = {};
     let hasPairs = false;
 
     for (const segment of segments) {
-        const match = segment.match(/^([A-Za-z0-9_.-]+)\s*:\s*(.+)$/);
+        const match = segment.match(/^([A-Za-z0-9_.-]+)\s*:\s*([\s\S]*)$/);
         if (!match) {
             continue;
         }
         hasPairs = true;
         const key = match[1];
         let value = match[2].trim();
-        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        let isLiteral = false;
+
+        if (value.startsWith('`')) {
+            isLiteral = true;
+            value = unwrapBacktickLiteral(value);
+        } else if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
             value = value.slice(1, -1);
         }
-        if (/^(true|false)$/i.test(value)) {
+
+        if (!isLiteral && /^(true|false)$/i.test(value)) {
             data[key] = value.toLowerCase() === 'true';
             continue;
         }
-        if (/^-?\d+(\.\d+)?$/.test(value)) {
+        if (!isLiteral && /^-?\d+(\.\d+)?$/.test(value)) {
             data[key] = Number(value);
             continue;
         }
@@ -165,5 +260,6 @@ export {
     parseKeyValueInput,
     stripDependsOn,
     resolvePath,
+    unwrapBacktickLiteral,
     runBashCommand,
 };

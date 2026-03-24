@@ -16,10 +16,18 @@ Search file contents using regex patterns. Supports multiple output modes and co
   - `-B` (optional): Context lines before matches
   - `multiline` (optional): Enable multiline/dotall mode
   - `head_limit` (optional): Limit number of output lines
+  - Any value can be wrapped in backticks for multiline input.
 
 Examples:
 - `pattern: TODO\n  path: /abs/project\n  output_mode: files_with_matches`
 - `pattern: function\\s+\\w+\n  glob: *.js\n  output_mode: content\n  -n: true`
+- Multiline pattern (backticks):
+
+```text
+pattern: `console\.log\(\n.+\)`
+path: /abs/project
+multiline: true
+```
 
 ## Output Format
 - **Type**: `string`
