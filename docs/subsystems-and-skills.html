@@ -61,6 +61,33 @@
         </section>
 
         <section>
+            <h2>Skill Registration Requirements</h2>
+            <p>
+                A skill is only registered if it has a descriptor file in Markdown. Each skill type has its own descriptor file name and its own
+                set of sections, but the pattern is consistent: a skill is a structured document first, and an executable component second. This
+                is why skills are discoverable and why they can be reasoned about by the agent.
+            </p>
+            <p>
+                Skills that execute code must expose an <code>action</code> function as the entry point. The subsystem loads that function and
+                calls it with a shared execution context.
+            </p>
+        </section>
+
+        <section>
+            <h2>Input Model and Shared Context</h2>
+            <p>
+                Every skill receives its primary input as a natural‑language <code>promptText</code> string, not as a strict JSON object. This is
+                intentional. Skills are intelligent components, not static utilities, so they need room to interpret, clarify, and reason about
+                imperfect inputs. The skill’s descriptor defines the expected structure, but the runtime always starts from plain language.
+            </p>
+            <p>
+                Each skill also receives the shared <a href="llm-agent.html">LLMAgent</a> so it can interact with the model using the same
+                configuration as the rest of the system. This makes skill execution feel like one agent handing off instructions to another
+                specialized agent, rather than calling a rigid tool.
+            </p>
+        </section>
+
+        <section>
             <h2>Skill Categories and Their Subsystems</h2>
             <p>
                 Each skill type has its own subsystem with a distinct contract. The detailed behavior is documented on the dedicated pages for

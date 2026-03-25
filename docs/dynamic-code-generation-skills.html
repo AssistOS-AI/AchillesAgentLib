@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Code Generation Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Dynamic Code Generation Skills"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Dynamic Code Generation Skills</h1>
+            <p>Adaptive skills that generate and execute code on the fly for precise, context‑aware work.</p>
+        </section>
+
+        <section>
+            <h2>Vision</h2>
+            <p>
+                Dynamic code generation skills exist for situations where a precise computation is required and a static skill would be too rigid.
+                This is the same motivation behind LLMs that run a temporary script to compute an exact result. The skill remains intelligent and
+                context‑aware, but it can produce code when code is the safest way to reach the answer.
+            </p>
+            <p>
+                The descriptor constrains what the skill should do, while still leaving room to adapt based on context. That “wiggle room” is
+                essential for tasks whose exact computation depends on the situation at runtime.
+            </p>
+        </section>
+
+        <section>
+            <h2>How It Works</h2>
+            <p>
+                The subsystem asks the model whether to respond directly or to generate code. When code is generated, it is executed immediately
+                using <code>eval</code> and the result is returned. Nothing is persisted to disk; the generated code is temporary and discarded
+                after execution.
+            </p>
+            <p>
+                This is different from Code Skills, where code is generated from specifications and stored under <code>src/</code>. Dynamic
+                code generation is intentionally ephemeral.
+            </p>
+            <p>
+                The primary mode is dynamic generation. If a skill already ships with a module on disk, the subsystem will execute that module
+                instead, which saves time for stable cases while keeping the dynamic option available when needed.
+            </p>
+        </section>
+
+        <section>
+            <h2>Folder Structure</h2>
+            <p>
+                A dynamic code generation skill can be descriptor‑only, or it can include a module that will be executed directly.
+            </p>
+            <pre><code>skills/
+└── math-evaluator/
+    ├── dcgskill.md
+    └── math-evaluator.mjs</code></pre>
+        </section>
+
+        <section>
+            <h2>dcgskill.md Sections</h2>
+            <p>
+                The descriptor is minimal but explicit. It defines the prompt, the input argument, and how the model should behave.
+            </p>
+            <ul>
+                <li><code>Prompt</code> explains the decision logic and the intended behavior.</li>
+                <li><code>Argument</code> defines the primary input label.</li>
+                <li><code>LLM-Mode</code> sets whether the skill runs in fast or code mode.</li>
+            </ul>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

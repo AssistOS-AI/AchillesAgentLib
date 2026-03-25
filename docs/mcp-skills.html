@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"MCP Skills"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>MCP Skills</h1>
+            <p>Skills that integrate Model Context Protocol servers as an execution backend.</p>
+        </section>
+
+        <section>
+            <h2>Vision</h2>
+            <p>
+                MCP skills exist to connect the skill system to external MCP servers. When a server exposes tools that can fulfill a user
+                request, an MCP skill can plan a sequence of calls and optionally execute them. This keeps external integrations inside the same
+                skill‑driven model rather than as ad‑hoc tool calls.
+            </p>
+            <p>
+                The flow is lighter than a full agentic session. It generates a compact plan and executes it with minimal overhead, while still
+                using the same skill allowlist and safety boundaries.
+            </p>
+        </section>
+
+        <section>
+            <h2>How It Works</h2>
+            <p>
+                An MCP skill can operate in two modes. If a LightSOPLang script is present, the script builds the plan. Otherwise the subsystem
+                asks the LLM to generate a plan from the allowed tools. In both cases the result is a list of tool calls with arguments.
+            </p>
+            <p>
+                Execution is optional. If an MCP client is configured, the subsystem will call the MCP server for each step. If no client is
+                provided, it returns the plan only.
+            </p>
+        </section>
+
+        <section>
+            <h2>Usage</h2>
+            <p>
+                MCP skills are used when you want to route a request through a server‑side MCP toolchain. They are useful for connecting to
+                external systems that already expose MCP tools without rewriting them as internal skills.
+            </p>
+        </section>
+
+        <section>
+            <h2>Folder Structure</h2>
+            <p>
+                MCP skills live in their own folder and are defined by a single <code>mskill.md</code> descriptor file.
+            </p>
+            <pre><code>skills/
+└── mcp-file-manager/
+    └── mskill.md</code></pre>
+        </section>
+
+        <section>
+            <h2>mskill.md Sections</h2>
+            <p>
+                MCP skill descriptors control how plans are generated and which MCP tools are allowed.
+            </p>
+            <ul>
+                <li><code>Instructions</code> provides guidance for planning or scripting.</li>
+                <li><code>Allowed-Tools</code> restricts the MCP tools that can be used.</li>
+                <li><code>Light-SOP-Lang</code> optionally provides a script to build the plan directly.</li>
+            </ul>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

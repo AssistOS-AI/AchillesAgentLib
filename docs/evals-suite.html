@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evals Suite · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Evals Suite"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Evals Suite</h1>
+            <p>A testing environment designed for LLM‑driven components with non‑deterministic behavior.</p>
+        </section>
+
+        <section>
+            <h2>Vision</h2>
+            <p>
+                The Evals Suite exists because LLM behavior is not deterministic. Traditional tests assume fixed outputs, but LLM‑based systems
+                can vary between runs even when the inputs are identical. The suite embraces that reality and evaluates reliability at scale
+                rather than single‑run perfection.
+            </p>
+            <p>
+                A test suite is considered successful when at least 95% of its cases pass. This threshold recognizes natural variance while still
+                enforcing a high standard of correctness.
+            </p>
+        </section>
+
+        <section>
+            <h2>What It Tests</h2>
+            <p>
+                The suite focuses on agentic workflows and model behaviors that are most sensitive to variability. It runs dozens of cases for
+                each component, compares outputs against expected results, and aggregates pass rates across runs.
+            </p>
+            <ul>
+                <li>Loop agentic session behavior and execution quality.</li>
+                <li>Soplang session planning and deterministic execution.</li>
+                <li>Comparative evaluation between Loop and Soplang sessions.</li>
+                <li>Mirror code generation performance and correctness.</li>
+                <li><code>detectIntents</code> behavior in <a href="llm-agent.html">LLMAgent</a>.</li>
+                <li>Model benchmark comparisons across configured providers.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>How It Works</h2>
+            <p>
+                Each suite is driven by JSON test cases that define a prompt, any required context, and an expected outcome. The evaluation
+                harness runs the cases, captures outputs, and scores them against the expected results. A suite passes when at least 95% of cases
+                match the expected behavior.
+            </p>
+        </section>
+
+        <section>
+            <h2>Folder Structure</h2>
+            <p>
+                The evaluation harness and its suites live under <code>evalsSuite/</code>.
+            </p>
+            <pre><code>evalsSuite/
+├── planning/
+├── mirror-code-gen/
+├── modelBenchmark/
+├── evalAgenticPerformance.mjs
+└── runMainSuites.js</code></pre>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>
