@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecursiveSkilledAgent · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"RecursiveSkilledAgent"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>RecursiveSkilledAgent</h1>
+            <p>The primary entry point for running structured, skill-bound work without drifting into open-ended guessing.</p>
+        </section>
+
+        <section>
+            <h2>Vision</h2>
+            <p>
+                RecursiveSkilledAgent is a task-focused agent that exists to execute repeatable work through explicit skills, not to behave like a
+                universal assistant. It treats skill definitions as the source of truth and keeps the model inside those boundaries, which reduces
+                hallucination risk and keeps outputs predictable. Instead of opportunistically deciding when to use external help, it assumes that
+                work is already captured as skills and coordinates those skills directly.
+            </p>
+            <p>
+                This framing matters for production systems. When a task is repeated, it should be captured as a skill and executed in a controlled
+                loop, not re-invented on every prompt. The agent therefore optimizes for consistency and auditability rather than broad, speculative
+                knowledge.
+            </p>
+        </section>
+
+        <section>
+            <h2>What It Does</h2>
+            <p>
+                At runtime the agent discovers skills on disk, registers them, and routes a user request to the most appropriate skill or
+                orchestration flow. When a request requires multiple steps, it delegates to orchestration skills that run an agentic loop
+                (ReAct-style or Soplang-based planning) and decide which skill to execute next until the user goal is satisfied. You can
+                learn how those sessions work in the <a href="agentic-sessions.html">Agentic Sessions</a> page.
+            </p>
+            <p>
+                This means the agent remains lightweight and deterministic in the core, while complex, multi-step reasoning lives inside
+                purpose-built skills and session types. You keep the flexibility of an LLM with the guardrails of an explicit workflow.
+            </p>
+        </section>
+
+        <section>
+            <h2>Discovery Model</h2>
+            <p>
+                Skill discovery is filesystem-driven. The agent scans for <code>skills/</code> directories, parses skill descriptors, and
+                registers them with a canonical name. It can search upwards from a starting directory (default) or search downwards by locating
+                a <code>repos</code> root when configured to scan in that direction.
+            </p>
+            <pre><code>workspace/
+├── skills/
+│   ├── reporting/
+│   │   └── daily-summary/
+│   │       └── oskill.md
+│   ├── inventory/
+│   │   └── equipment/
+│   │       └── tskill.md
+│   └── tools/
+│       └── data-normalizer/
+│           └── cskill.md
+└── app/
+    └── src/</code></pre>
+            <p>
+                The agent also includes built-in skills shipped with the library and can register additional skill roots you provide. Internal
+                skills are marked as built-in and can be hidden from LLM selection while remaining callable by name. The organization and
+                taxonomy of skills is explained in <a href="subsystems-and-skills.html">Subsystems and Skills</a>.
+            </p>
+        </section>
+
+        <section>
+            <h2>Execution Philosophy</h2>
+            <p>
+                The agent does not attempt to answer arbitrary questions. It is intentionally constrained to what your skills can do.
+                If a request is ambiguous or outside the skill boundary, the system expects either a specialized skill or an explicit escalation
+                path, not a speculative free-form answer.
+            </p>
+            <p>
+                This is also why it supports recursive execution: a skill can call other skills, which can then call further skills.
+                The recursion is governed by the agent’s registry and by allowlists in orchestration or MCP skills, so it remains bounded.
+            </p>
+        </section>
+
+        <section>
+            <h2>Key Responsibilities</h2>
+            <p>
+                RecursiveSkilledAgent coordinates a small set of specialized services rather than doing everything itself. Skill discovery,
+                selection, and execution are delegated to dedicated modules so the agent can remain a stable entry point while the system evolves.
+            </p>
+            <ul>
+                <li>Discovers skills and registers canonical names, aliases, and metadata.</li>
+                <li>Routes requests to subsystems based on skill type.</li>
+                <li>Injects session memory and I/O adapters into execution context.</li>
+                <li>Manages lifecycle callbacks and cancellation signals.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Session Memory and Safety</h2>
+            <p>
+                The agent owns session memory because state is essential for iterative workflows. It maintains a default session for CLI usage
+                and supports multiple session IDs for webchat or multi-tenant contexts. Session memory is injected automatically into calls unless
+                you override it explicitly, which keeps skill implementations clean and deterministic.
+            </p>
+            <p>
+                Session storage is guarded by configurable TTL and LRU eviction. A background cleanup timer can evict idle sessions, and the agent
+                exposes helpers for manual cleanup and graceful shutdown.
+            </p>
+        </section>
+
+        <section>
+            <h2>Built-In Skill Handling</h2>
+            <p>
+                The agent always registers built-in skills from the package’s internal <code>skills/</code> directory. It also ensures that
+                <code>mirror-code-generator</code> is registered first, because it is used to generate executable code for code skills. When a
+                <code>cskill</code> is discovered, the agent schedules a generation pass through <code>mirror-code-generator</code> automatically.
+                The details of built-in skills are documented in <a href="built-in-skills.html">Built In Skills</a>.
+            </p>
+        </section>
+
+        <section>
+            <h2>Configuration Surface</h2>
+            <p>
+                RecursiveSkilledAgent can be configured to fit strict production environments or exploratory development. It accepts an existing
+                <a href="llm-agent.html">LLMAgent</a> or creates one for you, allows you to control search boundaries, and wires in I/O and reporting
+                adapters for interactive runtimes.
+            </p>
+            <pre><code>const agent = new RecursiveSkilledAgent({
+    startDir: process.cwd(),
+    searchUpwards: true,
+    additionalSkillRoots: ['./team-skills'],
+    exposeInternalSkills: false,
+    tierConfig: { plan: 'plan', execution: 'fast', code: 'code' },
+    sessionConfig: { maxSessions: 1000, sessionTTL: 7_200_000, cleanupInterval: 300_000 },
+});</code></pre>
+            <p>
+                The <code>tierConfig</code> is intentionally explicit. Planning and execution are treated as distinct tiers, and the agent can
+                override skill-level tiers for internal orchestration, which is essential when you want fast decision-making but deeper execution
+                for specific skill families.
+            </p>
+        </section>
+
+        <section>
+            <h2>Canonical Execution Flow</h2>
+            <pre><code>user prompt
+   ↓
+RecursiveSkilledAgent
+   ├─ discover & register skills
+   ├─ select orchestrator or direct skill
+   ├─ inject session memory & IO
+   └─ delegate to subsystem
+          ↓
+     skill execution / agentic session
+          ↓
+       final response</code></pre>
+            <p>
+                The central promise is that every decision and action routes through a named skill. The agent’s job is not to be omniscient,
+                but to be reliable and explainable.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

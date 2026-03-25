@@ -12,89 +12,41 @@
     <main class="content">
         <section class="lead">
             <h1>Achilles Agents Library</h1>
-            <p>Select a guide to explore Achilles Agents Library from architecture to hands-on tutorials.</p>
+            <p>This documentation explains how to build reliable, skill-driven agents that execute repeatable work with clear boundaries.</p>
         </section>
         <section>
             <h2>Documentation Map</h2>
-            <p>Use the links below to explore the major skill guides. Each page provides conceptual background, public API documentation, and practical guidance.</p>
+            <p>Follow the pages in order. They introduce the core agents first, then subsystems, skills, and the supporting infrastructure.</p>
             <div class="grid">
                 <article>
-                    <h3><a href="overview.html">Skill System Overview</a></h3>
-                    <p>Learn how the new skill model decouples orchestration, execution, and evaluation while remaining LLM-friendly.</p>
+                    <h3><a href="recursive-skilled-agent.html">RecursiveSkilledAgent</a></h3>
+                    <p>The main entry point for skill-driven execution and bounded task orchestration.</p>
                 </article>
                 <article>
-                    <h3><a href="backlog-manager.html">Backlog Manager</a></h3>
-                    <p>Manage backlog files, task lifecycles, approvals, and history moves with the BacklogManager API.</p>
+                    <h3><a href="llm-agent.html">LLMAgent</a></h3>
+                    <p>The LLM interface that powers planning, execution, and agentic sessions.</p>
                 </article>
                 <article>
-                    <h3><a href="agent-runtime.html">Agent Runtime</a></h3>
-                    <p>Understand how <code>LLMAgent</code> and <code>RecursiveSkilledAgent</code> collaborate to supervise multi-step plans.</p>
-                </article>
-                <article>
-                    <h3><a href="agentic-sessions.html">Agentic Sessions</a></h3>
-                    <p>Deep dive into <code>LoopAgentSession</code> and <code>SOPAgenticSession</code> for stateful, multi-turn agent workflows.</p>
+                    <h3><a href="subsystems-and-skills.html">Subsystems and Skills</a></h3>
+                    <p>How skill families map to execution subsystems and why that separation matters.</p>
                 </article>
                 <article>
                     <h3><a href="orchestration-skills.html">Orchestration Skills</a></h3>
-                    <p>See how orchestration skills build loop/SOP agentic sessions, apply intent taxonomies, and monitor downstream execution.</p>
-                </article>
-                <article>
-                    <h3><a href="light-sop-lang.html">LightSOPLang</a></h3>
-                    <p>Detailed syntax, semantics, and command mapping rules for the scripting language that powers agent plans.</p>
-                </article>
-                <article>
-                    <h3><a href="light-sop-lang-monitoring.html">LightSOPLang Monitoring</a></h3>
-                    <p>Understand default execution limits, monitoring hooks, and how to build custom observability for scripts.</p>
+                    <p>Plan and coordinate multi-step workflows through agentic sessions.</p>
                 </article>
                 <article>
                     <h3><a href="dbtable-skills.html">DBTable Skills</a></h3>
-                    <p>See how table descriptors become CRUD workflows that plan operations, collect fields, and persist records.</p>
-                </article>
-                <article>
-                    <h3><a href="tutorials.html">Hands-on Tutorials</a></h3>
-                    <p>Step-by-step guides showing how to define skills, configure orchestration sessions, and integrate MCP tools.</p>
-                </article>
-                <article>
-                    <h3><a href="mcp-skills.html">MCP Skills</a></h3>
-                    <p>Discover how MCP-hosted toolchains are planned, scripted, and executed through the Agent runtime.</p>
-                </article>
-                <article>
-                    <h3><a href="dynamic-code-generation-skills.html">Dynamic Code Generation Skills</a></h3>
-                    <p>Dive into sandboxed code evaluation, safety filters, and developer productivity patterns.</p>
+                    <p>Table-driven CRUD workflows with schema-aware validation.</p>
                 </article>
                 <article>
                     <h3><a href="code-skills.html">Code Skills</a></h3>
-                    <p>Generate executable code from detailed specifications and execute it safely.</p>
-                </article>
-                <article>
-                    <h3><a href="mirror-code-generator.html">Mirror Code Generator</a></h3>
-                    <p>Understand regeneration rules, test generation, and repair workflows for spec-driven code.</p>
-                </article>
-                <article>
-                    <h3><a href="specs-manager.html">SpecsManager</a></h3>
-                    <p>Learn how DS/FDS specs are parsed, updated, and structured across generators.</p>
+                    <p>Spec-driven code generation and execution for deterministic logic.</p>
                 </article>
                 <article>
                     <h3><a href="anthropic-skills.html">Anthropic Skills</a></h3>
-                    <p>Review static descriptors that surface skill summaries and bodies without running LLM actions.</p>
-                </article>
-                <article>
-                    <h3><a href="internal-skills.html">Internal Skills</a></h3>
-                    <p>Explore built-in code skills for file operations, shell commands, web fetching, and user interaction.</p>
+                    <p>Integrate the Anthropic skill standard as static descriptors and guidance.</p>
                 </article>
             </div>
-        </section>
-
-        <section>
-            <h2>Development Checklist</h2>
-            <ol>
-                <li>Follow ES module semantics (<code>import</code>/<code>export</code> only).</li>
-                <li>Use 4-space indentation, single quotes, trailing commas, terminated statements.</li>
-                <li>Document public methods with JSDoc. Prefer descriptive error messages.</li>
-                <li>Pair every change with tests. Run <code>npm test</code> before committing.</li>
-                <li>Avoid destructive Git commands; preserve the user worktree.</li>
-                <li>Read <code>SKILLEDAGENT-ARCHITECTURE.md</code> to align with existing patterns.</li>
-            </ol>
         </section>
     </main>
 

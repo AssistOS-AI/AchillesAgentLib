@@ -10,282 +10,131 @@
     <div id="site-header"
         data-breadcrumb='[
             {"label":"Home","href":"index.html"},
-            {"label":"Skill System Overview","href":"overview.html"},
             {"label":"Code Skills"}
         ]'></div>
 
     <main class="content">
         <section class="lead">
             <h1>Code Skills</h1>
-            <p>
-                Code skills generate executable JavaScript code from detailed specifications and execute it safely. 
-                This subsystem is designed for skills that require dynamic code generation based on comprehensive functional 
-                and technical specifications, enabling complex logic without manual coding.
-            </p>
-            <nav class="page-links" aria-label="Skill families">
-                <a href="anthropic-skills.html">Anthropic Skills</a>
-                <a href="dbtable-skills.html">DBTable Skills</a>
-                <a href="orchestration-skills.html">Orchestration Skills</a>
-                <a href="mcp-skills.html">MCP Skills</a>
-                <a href="dynamic-code-generation-skills.html">Dynamic Code Generation Skills</a>
-                <a href="code-skills.html" aria-current="page">Code Skills</a>
-                <a href="agentic-sessions.html">Agentic Sessions</a>
-            </nav>
+            <p>Specification-driven skills that execute stable code generated from explicit requirements.</p>
         </section>
 
         <section>
-            <h2>Descriptor Snapshot</h2>
+            <h2>Vision</h2>
             <p>
-                Every code skill lives in <code>skills/&lt;domain&gt;/&lt;skill_name&gt;/cskill.md</code>. 
-                The descriptor defines the skill's purpose, input/output formats, and references the specifications folder:
+                Code skills exist to prove the library’s commitment to specification‑driven development. Before any code is generated, the
+                behavior is written down as a specification. That specification becomes the contract, and the generated code becomes the
+                implementation. This is how you keep the LLM aligned with the system’s intent.
             </p>
-            <pre><code># User Profile Formatter
+            <p>
+                The goal is not to avoid the LLM, but to give it a precise plan so it does not drift. A code skill is therefore stable by design,
+                yet still part of the skill system because it is invoked, scoped, and composed like any other skill.
+            </p>
+        </section>
 
-Formats a user's data into a readable string based on external functional specifications.
+        <section>
+            <h2>How It Works</h2>
+            <p>
+                A code skill is defined by <code>cskill.md</code> and a set of specification files stored under <code>specs/</code>. When a spec
+                file changes, the system regenerates the corresponding code and writes it under <code>src/</code>. The skill then executes that
+                generated code through the Code Skills subsystem.
+            </p>
+            <p>
+                Code generation is handled by the built‑in <code>mirror-code-generator</code> skill. It translates specifications into files and
+                performs syntax validation and repair loops when necessary. Details are documented in <a href="built-in-skills.html">Built In Skills</a>.
+            </p>
+        </section>
 
-## Description
-Formats a user's data into a readable string based on external functional specifications.
+        <section>
+            <h2>Why It Is a Skill</h2>
+            <p>
+                Even though the execution is deterministic, code skills still benefit from the skill model. They receive the shared
+                <a href="llm-agent.html">LLMAgent</a> and consistent execution context, which keeps behavior aligned across the system and enables
+                the same orchestration patterns used for other skill types.
+            </p>
+        </section>
+
+        <section>
+            <h2>Folder Structure</h2>
+            <p>
+                Code skills include a descriptor plus a specs directory that feeds the generator. The generated implementation is stored under
+                <code>src/</code> and should not be edited directly.
+            </p>
+            <pre><code>skills/
+└── file-system/
+    ├── cskill.md
+    ├── specs/
+    │   └── index.mds
+    └── src/
+        └── index.mjs</code></pre>
+        </section>
+
+        <section>
+            <h2>cskill.md Sections</h2>
+            <p>
+                A code skill descriptor is short but strict. These sections define how the skill is invoked and how its output should be
+                interpreted.
+            </p>
+            <ul>
+                <li><code>Summary</code> explains the skill’s purpose at a glance.</li>
+                <li><code>Input Format</code> defines the required arguments and parsing rules.</li>
+                <li><code>Output Format</code> specifies how results are returned to callers.</li>
+                <li><code>Constraints</code> lists boundaries such as path rules, allowed operations, or environment assumptions.</li>
+            </ul>
+            <p>
+                The subsystem expects an <code>Input Format</code> section. If it is missing, the skill is treated as unprepared and will not
+                execute.
+            </p>
+        </section>
+
+        <section>
+            <h2>Example cskill.md</h2>
+            <p>
+                This example defines a file-system skill with a strict input format and explicit constraints.
+            </p>
+            <pre><code># file-system
+Executes file system operations (read, write, delete, copy, list) using nodeJS functions.
+
+## Summary
+Executes file system operations (read, write, delete, copy, list) using nodeJS functions. Input must use strict
+`operation path` with optional `options:` key-value pairs.
 
 ## Input Format
-- **user**: An object representing the user.
-  - `firstName` (string): The user's first name.
-  - `lastName` (string): The user's last name.
-  - `age` (number): The user's age.
+- **operation** (string): Operation type (readFile, writeFile, appendFile, deleteFile, createDirectory,
+  listDirectory, fileExists, copyFile, moveFile).
+- **path** (string): Target file or directory path.
+- **options** (key-value list, optional): `options:` followed by `key: value` pairs.
+- **dependsOn** (string, optional): Dependency markers to enforce ordering; ignored by this skill.
+
+Rules:
+- First token is always the operation.
+- Second token is always the path.
+- Optional parameters must be provided after `options:` as `key: value` pairs.
+- Values with spaces or newlines must be wrapped in quotes.
+- Exception: `content` may be unquoted and may span multiple lines; when unquoted it consumes the rest of the input
+  until `dependsOn:` or end of input.
+- Supported option keys: `content`, `destination`.
+- `dependsOn:` can list multiple refs and is ignored by the parser.
+
+Examples:
+- createDirectory ./docs
+- writeFile ./test.txt options: content: "hello world"
+- writeFile ./specs.md options: content: ## Vision\nLine 1\nLine 2
+- readFile ./package.json
+- copyFile ./src/file.js options: destination: ./backup/file.js
+- writeFile ./specs.md options: content: "..." dependsOn: "$createDir"
 
 ## Output Format
 - **Type**: `string`
-- **Success Example**: "Full Name: Jane Doe, Age: 25 (Adult)"
-- **Error Example**: "Error: Incomplete user data provided."
+- **Success Example**: "File written successfully" or "{\"exists\":true}" or "[\"file1.txt\",\"file2.txt\"]"
+- **Error Example**: "Error: File not found."
 
 ## Constraints
-- The generated code must handle cases where the 'user' object or its properties are null or undefined.</code></pre>
-            <p>
-                The <code>cskill.md</code> file focuses on the high-level interface while detailed implementation 
-                specifications are kept in the <code>specs/</code> folder.
-            </p>
-            <div class="note">
-                <strong>Note</strong>: Code skills receive only the raw prompt text at runtime. The <code>Input Format</code>
-                section documents the expected structure, but the skill must parse any structured data from the prompt text itself.
-            </div>
-        </section>
-
-         <section>
-             <h2>Repository Layout</h2>
-             <p>
-                 Code skills mirror the <code>specs/</code> tree into runnable code under <code>src/</code>:
-             </p>
-             <pre><code>my-cskill/
- ├── cskill.md           # Main skill definition
- ├── specs/              # Specification files
- │   ├── index.mjs.md     # Spec for index.mjs (main entrypoint)
-  │   ├── core.js.md       # Spec for core.js (core logic)
-  │   └── utils.js.md      # Spec for utils.js (utility functions)
-  ├── tests/
-  │   ├── test-cases.json  # Generated test cases
-  │   └── run-tests.mjs    # Generated test runner
-  └── src/
-      ├── index.mjs       # Generated entrypoint (from specs/index.mjs.md)
-      ├── core.js         # Generated core module (from specs/core.js.md)
-      └── utils.js        # Generated utility module (from specs/utils.js.md)</code></pre>
-             <p>
-                 <strong>Key conventions:</strong>
-             </p>
-             <ul>
-                 <li><code>specs/</code> folder contains specification files named after the JavaScript files they describe</li>
-                 <li>Spec files use <code>.md</code> extension (e.g., <code>index.mjs.md</code> → generates <code>index.mjs</code>)</li>
-                 <li>Generated files live under <code>src/</code> in the skill directory</li>
-                 <li>Do not manually edit generated files; update <code>specs/</code> and regenerate</li>
-             </ul>
-         </section>
-
-
-        <section>
-            <h2>Specification Files</h2>
-            <p>
-                Specification files in the <code>specs/</code> folder describe the code to be generated. Each file 
-                corresponds to a JavaScript module and uses a structured format. Specifications should contain 
-                <strong>only descriptions, requirements, and examples</strong> - not actual implementation code.
-            </p>
-            <pre><code># Specification for index.js
-
-## Function: action(context)
-
-### Description
-Formats a user object into a standardized string.
-
-### Input
-- promptText: Natural language instruction containing the user data
-
-### Processing Logic
-1. Parse the user data from promptText
-2. Validate that the required fields are present
-3. If validation fails, return error string
-4. If validation succeeds, process data and return formatted result
-
-### Example
-```javascript
-// Input:
-"Format user data for Jane Doe, age 25"
-
-// Output:
-"Full Name: Jane Doe, Age: 25 (Adult)"
-```</code></pre>
-            <p>
-                The LLM uses these specifications to generate complete, self-contained JavaScript modules. 
-                The specification describes <strong>what</strong> the code should do, not <strong>how</strong> to do it.
-            </p>
-            <div class="note">
-                <strong>Important</strong>: Specification files should never contain actual JavaScript 
-                implementation code. They should only describe requirements, logic, and provide examples 
-                of expected inputs and outputs.
-            </div>
-        </section>
-
-        <section>
-             <h2>Code Generation Lifecycle</h2>
-             <p>
-                 Code skills follow a two-phase lifecycle that separates code generation from execution:
-             </p>
-             <h3>Phase 1: Code Generation</h3>
-             <p>
-                 When <code>RecursiveSkilledAgent</code> discovers a code skill (<code>cskill.md</code>), it automatically generates
-                 the executable code from your specifications using the <a href="mirror-code-generator.html">mirror code generator</a>
-                 and writes it under <code>src/</code> in the skill directory.
-             </p>
-             <ul>
-                 <li>All <code>.md</code> files from the <code>specs/</code> folder are read recursively</li>
-                 <li>The generator focuses on specs and no longer depends on <code>cskill.md</code> sections</li>
-                 <li>Everything is combined in a single LLM prompt for code generation</li>
-                 <li>Generated files mirror the <code>specs/</code> paths under <code>src/</code> (e.g., <code>specs/utils/foo.mjs.md</code> → <code>src/utils/foo.mjs</code>)</li>
-                 <li>Code regenerates automatically when specs are newer than the oldest expected target or any target is missing</li>
-             </ul>
-             <p>
-                 For detailed information about how <code>RecursiveSkilledAgent</code> handles code skill discovery and generation,
-                 see the <a href="agent-runtime.html#code-skills-handling">Agent Runtime documentation</a>.
-             </p>
-
-            <h3>Phase 2: Skill Execution</h3>
-            <p>
-                When you execute a code skill, the subsystem:
-            </p>
-            <ol>
-                <li>Passes the raw prompt text directly to the skill action</li>
-                <li>Dynamically imports and executes <code>src/index.mjs</code> by default</li>
-                <li>Wraps primitive results in <code>{ result: value }</code> format</li>
-                <li>Returns the execution result</li>
-            </ol>
-            <p>
-                The generated <code>action</code> receives an object with <code>promptText</code>, plus injected
-                <code>llmAgent</code> and <code>recursiveAgent</code> references for advanced workflows.
-            </p>
-
-
-            <div class="note">
-                <strong>Key Features</strong>:
-                <ul>
-                    <li><strong>Automatic generation</strong>: Code is generated automatically during skill discovery</li>
-                    <li><strong>Single-step generation</strong>: All specs and sections combined in one LLM prompt</li>
-                    <li><strong>Timestamp-based caching</strong>: Only regenerates when specs change</li>
-                    <li><strong>Multi-file support</strong>: Can generate multiple modules from multiple spec files</li>
-                    <li><strong>Primitive result wrapping</strong>: Ensures consistent return format</li>
-                </ul>
-            </div>
-        </section>
-
-        <section>
-            <h2>Public API</h2>
-
-             <h3><code>prepareSkill(skillRecord)</code></h3>
-             <p>Prepares the skill by generating code from specifications if needed.</p>
-             <ul>
-                 <li><strong>Parameters</strong>: <code>skillRecord</code> - Skill record object with descriptor and paths</li>
-                 <li><strong>Returns</strong>: Promise that resolves when preparation is complete</li>
-                 <li><strong>Side effects</strong>: Generates code files under <code>src/</code></li>
-             </ul>
-
-
-            <h3><code>executeSkillPrompt(options)</code></h3>
-            <p>Executes the pre-generated code with the prompt text.</p>
-            <ul>
-                <li><strong>Parameters</strong>:
-                    <ul>
-                        <li><code>skillRecord</code>: Skill record object</li>
-                        <li><code>recursiveAgent</code>: Agent with LLM access</li>
-                        <li><code>promptText</code>: User's natural language prompt</li>
-                        <li><code>options</code>: Additional execution options</li>
-                    </ul>
-                </li>
-                <li><strong>Returns</strong>: Promise that resolves with execution result (primitives wrapped in <code>{ result: value }</code>)</li>
-                <li><strong>Side effects</strong>: None (uses pre-generated code)</li>
-            </ul>
-            <p><strong>Example</strong>:</p>
-            <pre><code>await subsystem.executeSkillPrompt({
-    skillRecord,
-    recursiveAgent,
-    promptText: 'Format user data for John Doe, age 30'
-});</code></pre>
-
-             <h3><code>checkIfRegenerationNeeded(skillRecord, currentSignature)</code></h3>
-             <p>Determines if code regeneration is needed based on current state.</p>
-             <ul>
-                 <li><strong>Parameters</strong>:
-                     <ul>
-                         <li><code>skillRecord</code>: Skill record with cached signature</li>
-                         <li><code>currentSignature</code>: Current specs signature</li>
-                     </ul>
-                 </li>
-                 <li><strong>Returns</strong>: Promise that resolves to boolean</li>
-                 <li><strong>Logic</strong>: Compares newest spec to oldest expected target (mirroring <code>specs/</code> paths) and triggers regeneration when any target is missing or stale</li>
-             </ul>
-
-        </section>
-
-        <section>
-            <h2>Error Handling</h2>
-            <p>
-                The subsystem handles various error conditions gracefully:
-            </p>
-            <ul>
-                <li><strong>Missing specs folder</strong>: Warns and skips code generation</li>
-                <li><strong>Code generation failure</strong>: Throws error with details</li>
-                <li><strong>Execution failure</strong>: Throws error with process output</li>
-                <li><strong>Invalid arguments</strong>: Returns structured error messages</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>When to Use Code Skills</h2>
-            <p>
-                Code skills are ideal for:
-            </p>
-            <ul>
-                <li><strong>Complex business logic</strong>: Multi-step processing with validation</li>
-                <li><strong>Data transformation</strong>: Converting between formats and structures</li>
-                <li><strong>Algorithm implementation</strong>: Custom algorithms described in natural language</li>
-                <li><strong>Integration layers</strong>: Adapters between different systems</li>
-                <li><strong>Domain-specific processing</strong>: Industry-specific calculations and rules</li>
-            </ul>
-            <p>
-                Consider other skill types for:
-            </p>
-            <ul>
-                <li><strong>Simple responses</strong>: Use Anthropic skills</li>
-                <li><strong>Database operations</strong>: Use DBTable skills</li>
-                <li><strong>Tool orchestration</strong>: Use MCP or Orchestration skills</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>See Also</h2>
-            <ul>
-                <li><a href="tutorials-code.html">Code Skills Tutorial</a> - Hands-on guide with examples</li>
-                <li><a href="overview.html">Skill System Overview</a> - Architecture and design principles</li>
-                <li><a href="agent-runtime.html">Agent Runtime</a> - How agents execute skills</li>
-                <li><a href="dynamic-code-generation-skills.html">Dynamic Code Generation Skills</a> - Comparison with dynamic code generation skills</li>
-            </ul>
+- All paths must be relative to project root.</code></pre>
         </section>
     </main>
 
+    <div id="site-footer"></div>
     <script src="partials-loader.js"></script>
 </body>
 </html>

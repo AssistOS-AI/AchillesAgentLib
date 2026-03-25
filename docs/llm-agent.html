@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLMAgent · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"LLMAgent"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>LLMAgent</h1>
+            <p>The foundational interface for all LLM communication and agentic session orchestration.</p>
+        </section>
+
+        <section>
+            <h2>Vision</h2>
+            <p>
+                LLMAgent is the single, consistent gateway to a language model. It exists so every skill, subsystem, and agent uses the same
+                execution surface, which keeps model behavior uniform across the library. Instead of allowing each skill to implement its own LLM
+                calls, LLMAgent provides a shared interface for prompts, structured responses, and session-based planning.
+            </p>
+            <p>
+                This design keeps LLM access explicit and measurable. It becomes clear when, why, and how a model is invoked, and that clarity is
+                essential when you want predictable behavior rather than ad‑hoc experimentation.
+            </p>
+        </section>
+
+        <section>
+            <h2>What It Does</h2>
+            <p>
+                LLMAgent exposes a small set of core methods for direct prompt execution and for starting agentic sessions. It can return plain
+                text, structured JSON, or code payloads, and it normalizes these response types so skills do not re-implement parsing logic.
+                The same instance is reused by the <a href="recursive-skilled-agent.html">RecursiveSkilledAgent</a> and by every skill, ensuring
+                uniform model behavior across the entire system.
+            </p>
+        </section>
+
+        <section>
+            <h2>Direct Prompt Interface</h2>
+            <p>
+                The direct prompt API is intentionally minimal. It accepts a prompt string and options for tier selection, response shape, and
+                execution context. This keeps the interface raw and composable, which is important for skills that need precise control over how
+                the model is used.
+            </p>
+            <pre><code>const result = await llmAgent.executePrompt('Summarize the report', {
+    tier: 'fast',
+    responseShape: 'text',
+    context: { intent: 'summarize-report' },
+});</code></pre>
+            <p>
+                When the response shape is JSON or code, LLMAgent validates and normalizes the output so the caller can rely on a consistent
+                structure. This is a key reason the library recommends that all LLM interactions go through this class.
+            </p>
+        </section>
+
+        <section>
+            <h2>Core APIs and How They Differ</h2>
+            <p>
+                LLMAgent exposes a small number of methods so every skill interacts with the model the same way. The differences are intentional
+                and map to distinct interaction patterns rather than to different model providers.
+            </p>
+            <ul>
+                <li><code>executePrompt(promptText, options)</code> is the primary, structured entry point. It supports response shaping (text, JSON, code) and is the default for skill execution.</li>
+                <li><code>complete(options)</code> is a lower-level completion helper used internally or for advanced flows. It provides fewer guarantees about response shape.</li>
+                <li><code>startLoopAgentSession(tools, initialPrompt, options)</code> starts a ReAct-style loop session for iterative multi-step reasoning.</li>
+                <li><code>startSOPLangAgentSession(skillsDescription, initialPrompt, options)</code> starts a Soplang session that generates and executes a deterministic plan.</li>
+                <li><code>detectIntents(skillsDescription, userPrompt, options)</code> performs intent classification against a provided skill list.</li>
+                <li><code>cancel()</code> stops in-flight requests and clears the current processing callbacks.</li>
+                <li><code>getCallLog()</code> returns per-call telemetry such as tier, model, and latency.</li>
+            </ul>
+            <p>
+                In practice, <code>executePrompt</code> is the method most skills use. The session APIs are reserved for orchestration skills or
+                for custom flows where planning and execution need to be separated.
+            </p>
+        </section>
+
+        <section>
+            <h2>Agentic Sessions</h2>
+            <p>
+                LLMAgent is also responsible for creating and running agentic sessions. A Loop session is used for ReAct-style iteration, while
+                a Soplang session produces and executes a deterministic plan. These session types are described in depth on the
+                <a href="agentic-sessions.html">Agentic Sessions</a> page and the <a href="soplang-plan.html">Soplang Plan</a> page.
+            </p>
+            <pre><code>const loopSession = await llmAgent.startLoopAgentSession(skills, 'Start the workflow');
+
+const sopSession = await llmAgent.startSOPLangAgentSession(skillDescriptions, 'Run the plan', {
+    planOnly: false,
+});</code></pre>
+        </section>
+
+        <section>
+            <h2>Uniformity Across Skills</h2>
+            <p>
+                A single LLMAgent instance is shared throughout the system. This is deliberate: it ensures that all skills inherit the same
+                configuration, rate limits, and logging behavior. Skills are not expected to create their own model clients or bypass the agent.
+                That uniformity is what keeps orchestration behavior stable across subsystems.
+            </p>
+        </section>
+
+        <section>
+            <h2>Response Shapes and Validation</h2>
+            <p>
+                LLMAgent supports multiple response shapes to keep parsing decisions centralized. When the caller requests JSON, the agent parses
+                and validates the output. When the caller requests code, the agent strips fences and returns executable text. This single location
+                for parsing logic reduces fragile patterns in skills and keeps the system consistent.
+            </p>
+        </section>
+
+        <section>
+            <h2>Where It Fits</h2>
+            <p>
+                LLMAgent is the underlying engine for the entire library, but it is not the product-facing entry point. In most cases, users
+                interact with <a href="recursive-skilled-agent.html">RecursiveSkilledAgent</a>, which then uses the LLMAgent internally. You still
+                interact with LLMAgent directly when building custom skills or session workflows that require raw access to the model.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>
