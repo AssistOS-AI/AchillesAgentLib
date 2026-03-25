@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backlog Manager · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Backlog Manager"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Backlog Manager</h1>
+            <p>A generic subsystem for managing backlog files that coordinate multi-agent work.</p>
+        </section>
+
+        <section>
+            <h2>Vision</h2>
+            <p>
+                Backlog Manager exists because LLM agents perform better when tasks are written down with explicit status, just as human teams
+                do. By keeping a durable backlog of tasks, the system reduces hallucinations, improves continuity, and makes progress visible.
+            </p>
+            <p>
+                The manager is generic by design. It supports any number of backlog types so teams can maintain separate backlogs for
+                specifications, documentation, operations, or any other domain that benefits from structured task tracking.
+            </p>
+        </section>
+
+        <section>
+            <h2>What It Does</h2>
+            <p>
+                Backlog Manager provides APIs for reading, updating, and organizing backlog files. It treats each backlog as a structured list of
+                tasks with statuses, enabling agents to coordinate through a shared source of truth rather than ad‑hoc memory.
+            </p>
+        </section>
+
+        <section>
+            <h2>Usage</h2>
+            <p>
+                Use Backlog Manager whenever you need persistent task coordination across skills or sessions. It is especially effective in
+                workflows where tasks are discovered over time and need to be tracked across multiple agent runs.
+            </p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>
