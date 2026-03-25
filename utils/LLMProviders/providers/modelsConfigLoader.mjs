@@ -7,6 +7,50 @@ import { discoverModels, discoverTiers } from './gatewayDiscovery.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Walk up from startDir to filesystem root looking for a .env file.
+ * When found, parse KEY=VALUE lines and populate process.env
+ * (without overwriting existing variables).
+ */
+function loadDotEnvWalkUp(startDir) {
+    let dir = path.resolve(startDir);
+    const { root } = path.parse(dir);
+
+    while (true) {
+        const candidate = path.join(dir, '.env');
+        if (fs.existsSync(candidate)) {
+            try {
+                const content = fs.readFileSync(candidate, 'utf8');
+                for (const rawLine of content.split('\n')) {
+                    let trimmed = rawLine.trim();
+                    if (!trimmed || trimmed.startsWith('#')) continue;
+                    if (trimmed.startsWith('export ')) trimmed = trimmed.slice(7).trim();
+                    const eq = trimmed.indexOf('=');
+                    if (eq === -1) continue;
+                    const key = trimmed.slice(0, eq).trim();
+                    let val = trimmed.slice(eq + 1).trim();
+                    if ((val.startsWith('"') && val.endsWith('"')) ||
+                        (val.startsWith("'") && val.endsWith("'"))) {
+                        val = val.slice(1, -1);
+                    }
+                    if (key && !process.env[key]) {
+                        process.env[key] = val;
+                    }
+                }
+            } catch {
+                // silently ignore read errors
+            }
+            return;
+        }
+        if (dir === root) return;
+        dir = path.dirname(dir);
+    }
+}
+
+// Auto-load .env on module initialization so API keys are available
+// before any configuration loading happens.
+loadDotEnvWalkUp(process.cwd());
+
 const VALID_MODES = new Set(['fast', 'deep']);
 const DEFAULT_CONFIG_FILENAME = 'LLMConfig.json';
 const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../../', DEFAULT_CONFIG_FILENAME);
