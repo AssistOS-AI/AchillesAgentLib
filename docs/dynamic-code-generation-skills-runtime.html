@@ -51,16 +51,47 @@
                     <h2>Input and Result Semantics</h2>
                     <p>The operative input field for this subsystem is always <code>input</code>. If the caller supplies <code>options.args.input</code>, the subsystem uses that string. Otherwise it falls back to the user prompt text. An empty input is rejected before either executor runs.</p>
                     <p>The result semantics are similar across the two paths. String results are returned as they are. Null or undefined values become an empty string. Other values are serialized to JSON when possible and converted to string otherwise. In the default executor, the subsystem also attempts to append the user input and the produced output to session memory when such memory is available. In the module executor, that persistence depends on the module implementation itself.</p>
-                    <pre><code>dcgskill.md
-  ↓ prepareSkill
-if folder-name module exists
-  ↓
-import module and call action/default export
-else
-  ↓
-LLM returns { mode, text/code }
-  ↓
-return text or execute temporary snippet</code></pre>
+                    <figure class="pipeline-svg" aria-label="Dynamic code generation runtime pipeline">
+                        <svg viewBox="0 0 980 170" role="img" aria-hidden="true">
+                            <defs>
+                                <marker id="pipeline-arrow-dcg-runtime" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                                    <path d="M0,0 L10,5 L0,10 Z"></path>
+                                </marker>
+                            </defs>
+                            <path class="pipeline-svg__line" d="M220 85 H260" marker-end="url(#pipeline-arrow-dcg-runtime)"></path>
+                            <path class="pipeline-svg__line" d="M470 85 H510" marker-end="url(#pipeline-arrow-dcg-runtime)"></path>
+                            <path class="pipeline-svg__line" d="M720 85 H760" marker-end="url(#pipeline-arrow-dcg-runtime)"></path>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--source">
+                                <rect x="20" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="40" y="62" class="pipeline-svg__label">dcgskill.md</text>
+                                <text x="40" y="90" class="pipeline-svg__text">Prepared skill and</text>
+                                <text x="40" y="110" class="pipeline-svg__text">resolved input</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--spec">
+                                <rect x="270" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="290" y="62" class="pipeline-svg__label">Branch</text>
+                                <text x="290" y="90" class="pipeline-svg__text">Folder module exists</text>
+                                <text x="290" y="110" class="pipeline-svg__text">or default executor</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--runtime">
+                                <rect x="520" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="540" y="62" class="pipeline-svg__label">Execution</text>
+                                <text x="540" y="90" class="pipeline-svg__text">Import module or ask</text>
+                                <text x="540" y="110" class="pipeline-svg__text">LLM for text/code JSON</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--live">
+                                <rect x="770" y="30" width="190" height="110" rx="16"></rect>
+                                <text x="790" y="62" class="pipeline-svg__label">Output</text>
+                                <text x="790" y="90" class="pipeline-svg__text">Return text or execute</text>
+                                <text x="790" y="110" class="pipeline-svg__text">temporary snippet</text>
+                            </g>
+                        </svg>
+                        <figcaption>The runtime branches between a local module executor and a temporary LLM-driven execution path.</figcaption>
+                    </figure>
                 </section>
             </div>
         </div>

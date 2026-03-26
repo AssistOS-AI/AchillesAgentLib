@@ -40,14 +40,50 @@
                 <section>
                     <h2>Module Loading Contract</h2>
                     <p>At execution time, the subsystem searches for <code>src/index.mjs</code> first and then for <code>src/index.js</code>. If neither file exists, execution fails. If one of them exists, the subsystem imports it dynamically and checks for an exported <code>action</code> function. If that function is missing, execution fails again. The runtime contract is therefore narrow and inspectable: the module must exist, and it must export <code>action(args)</code>.</p>
-                    <pre><code>cskill.md
-  ↓ discovery
-automatic generation request
-  ↓
-src/index.mjs or src/index.js
-  ↓ dynamic import
-export async function action(args)
-  ↓ runtime result</code></pre>
+                    <figure class="pipeline-svg" aria-label="Code skill runtime pipeline">
+                        <svg viewBox="0 0 980 170" role="img" aria-hidden="true">
+                            <defs>
+                                <marker id="pipeline-arrow-code-runtime" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                                    <path d="M0,0 L10,5 L0,10 Z"></path>
+                                </marker>
+                            </defs>
+                            <path class="pipeline-svg__line" d="M220 85 H260" marker-end="url(#pipeline-arrow-code-runtime)"></path>
+                            <path class="pipeline-svg__line" d="M470 85 H510" marker-end="url(#pipeline-arrow-code-runtime)"></path>
+                            <path class="pipeline-svg__line" d="M720 85 H760" marker-end="url(#pipeline-arrow-code-runtime)"></path>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--source">
+                                <rect x="20" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="40" y="62" class="pipeline-svg__label">cskill.md</text>
+                                <text x="40" y="90" class="pipeline-svg__text">Discovered skill</text>
+                                <text x="40" y="110" class="pipeline-svg__text">descriptor</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--spec">
+                                <rect x="270" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="290" y="62" class="pipeline-svg__label">Automatic</text>
+                                <text x="290" y="84" class="pipeline-svg__label">generation request</text>
+                                <text x="290" y="108" class="pipeline-svg__text">Preparation may refresh</text>
+                                <text x="290" y="128" class="pipeline-svg__text">derived code</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--runtime">
+                                <rect x="520" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="540" y="62" class="pipeline-svg__label">src/index.mjs</text>
+                                <text x="540" y="82" class="pipeline-svg__label">or src/index.js</text>
+                                <text x="540" y="108" class="pipeline-svg__text">Dynamic import and</text>
+                                <text x="540" y="128" class="pipeline-svg__text">required action(args)</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--live">
+                                <rect x="770" y="30" width="190" height="110" rx="16"></rect>
+                                <text x="790" y="62" class="pipeline-svg__label">Runtime</text>
+                                <text x="790" y="84" class="pipeline-svg__label">result</text>
+                                <text x="790" y="108" class="pipeline-svg__text">Module executes</text>
+                                <text x="790" y="128" class="pipeline-svg__text">with injected args</text>
+                            </g>
+                        </svg>
+                        <figcaption>The runtime always depends on a loadable module under <code>src/</code> and an exported <code>action(args)</code> function.</figcaption>
+                    </figure>
                     <div class="doc-callout doc-callout--important">
                         <span class="doc-callout__label">Important</span>
                         <p>The subsystem does not execute <code>cskill.md</code>. It executes the imported module from <code>src/</code>. The descriptor remains part of the public contract, but the executable artifact is the module loaded from disk.</p>

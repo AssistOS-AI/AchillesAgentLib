@@ -45,13 +45,48 @@
                     <p>The workflow begins with a <code>tskill.md</code> document that describes the table purpose, the available fields, and the optional behavioral constraints associated with those fields. This specification is parsed into a structured representation that the subsystem can validate and transform. From that point onward, the skill ceases to be mere documentation and becomes an executable contract for downstream code generation and runtime behavior. The practical rules for writing that source file, together with minimal and extended examples, are described in <a href="dbtable-skills-authoring.html">Authoring</a>.</p>
                     <p>When the skill is prepared, the subsystem parses the specification, validates the resulting structure, generates a spec file for the code-generation stage, and loads the generated runtime module. During execution, the conversational controller interprets the incoming request, decides which table operation is being attempted, applies the relevant preparation and validation functions, and maintains pending confirmation or correction state when the interaction requires multiple steps. The result is a controlled path from user request to record-level operation rather than an unrestricted conversational guess.</p>
                     <p>The central technical distinction is therefore the distinction between source specification and executable artifact. A human maintainer edits <code>tskill.md</code>. The subsystem derives <code>specs/tskill.generated.mjs.md</code> from that source and then produces <code>src/tskill.generated.mjs</code> through code generation. At runtime, the subsystem imports and calls the generated module under <code>src/</code>. The markdown file remains authoritative, but it is not the file that is executed when a record operation takes place. The transformation path and runtime role of the generated module are examined in greater detail in <a href="dbtable-skills-runtime.html">Runtime</a>.</p>
-                    <pre><code>tskill.md
-  ↓ parse and validate
-specs/tskill.generated.mjs.md
-  ↓ mirror-code-generator
-src/tskill.generated.mjs
-  ↓ imported by DBTableSkillsSubsystem
-runtime execution</code></pre>
+                    <figure class="pipeline-svg" aria-label="DBTable generation and runtime pipeline">
+                        <svg viewBox="0 0 980 170" role="img" aria-hidden="true">
+                            <defs>
+                                <marker id="pipeline-arrow-overview" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                                    <path d="M0,0 L10,5 L0,10 Z"></path>
+                                </marker>
+                            </defs>
+                            <path class="pipeline-svg__line" d="M220 85 H260" marker-end="url(#pipeline-arrow-overview)"></path>
+                            <path class="pipeline-svg__line" d="M470 85 H510" marker-end="url(#pipeline-arrow-overview)"></path>
+                            <path class="pipeline-svg__line" d="M720 85 H760" marker-end="url(#pipeline-arrow-overview)"></path>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--source">
+                                <rect x="20" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="40" y="62" class="pipeline-svg__label">tskill.md</text>
+                                <text x="40" y="90" class="pipeline-svg__text">Maintained source</text>
+                                <text x="40" y="110" class="pipeline-svg__text">specification</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--spec">
+                                <rect x="270" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="290" y="62" class="pipeline-svg__label">specs/</text>
+                                <text x="370" y="92" class="pipeline-svg__filename" text-anchor="middle" textLength="150" lengthAdjust="spacingAndGlyphs">tskill.generated.mjs.md</text>
+                                <text x="290" y="124" class="pipeline-svg__text">Generator specification</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--runtime">
+                                <rect x="520" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="540" y="62" class="pipeline-svg__label">src/</text>
+                                <text x="620" y="92" class="pipeline-svg__filename" text-anchor="middle" textLength="135" lengthAdjust="spacingAndGlyphs">tskill.generated.mjs</text>
+                                <text x="540" y="124" class="pipeline-svg__text">Executable module</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--live">
+                                <rect x="770" y="30" width="190" height="110" rx="16"></rect>
+                                <text x="790" y="62" class="pipeline-svg__label">Runtime</text>
+                                <text x="790" y="84" class="pipeline-svg__label">execution</text>
+                                <text x="790" y="108" class="pipeline-svg__text">Subsystem imports</text>
+                                <text x="790" y="128" class="pipeline-svg__text">generated logic</text>
+                            </g>
+                        </svg>
+                        <figcaption>The maintained file is <code>tskill.md</code>, but the executable artifact used during live record operations is <code>src/tskill.generated.mjs</code>.</figcaption>
+                    </figure>
                     <div class="doc-callout doc-callout--important">
                         <span class="doc-callout__label">Important</span>
                         <p>The file under <code>src/</code> is the executable artifact used at runtime, but it is not the file that should be maintained by hand. The intended maintenance path is to update <code>tskill.md</code> and regenerate the derived files.</p>

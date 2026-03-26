@@ -41,18 +41,48 @@
                     <h2>How the Subsystem Works in Practice</h2>
                     <p>An MCP Skill is discovered through <code>mskill.md</code>. During preparation, the subsystem records the planning instructions, normalizes the allowlisted tool names, and optionally stores a script section. If a script is present, the runtime uses the script path. If no script is present, the runtime uses the LLM planning path. The authoring consequences of these two forms are described in <a href="mcp-skills-authoring.html">Authoring</a>.</p>
                     <p>The second practical distinction is between planning and execution. The subsystem can always return a plan. Actual MCP tool execution is optional and happens only when the runtime is configured with MCP client access. In that case, each planned step is sent to the MCP server through the client wrapper. The plan-generation path, the execution path, and the exact return structure are described in <a href="mcp-skills-runtime.html">Runtime</a>.</p>
-                    <pre><code>mskill.md
-  ↓ parse and prepare
-if LightSOPLang script exists
-  ↓
-build plan through script interpreter
-else
-  ↓
-ask LLM for bounded tool plan
-  ↓
-return plan
-  ↓ optional
-execute planned steps through MCP client</code></pre>
+                    <figure class="pipeline-svg" aria-label="MCP skill planning and execution pipeline">
+                        <svg viewBox="0 0 980 170" role="img" aria-hidden="true">
+                            <defs>
+                                <marker id="pipeline-arrow-mcp-overview" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                                    <path d="M0,0 L10,5 L0,10 Z"></path>
+                                </marker>
+                            </defs>
+                            <path class="pipeline-svg__line" d="M220 85 H260" marker-end="url(#pipeline-arrow-mcp-overview)"></path>
+                            <path class="pipeline-svg__line" d="M470 85 H510" marker-end="url(#pipeline-arrow-mcp-overview)"></path>
+                            <path class="pipeline-svg__line" d="M720 85 H760" marker-end="url(#pipeline-arrow-mcp-overview)"></path>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--source">
+                                <rect x="20" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="40" y="62" class="pipeline-svg__label">mskill.md</text>
+                                <text x="40" y="90" class="pipeline-svg__text">Descriptor with</text>
+                                <text x="40" y="110" class="pipeline-svg__text">tool allowlist</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--spec">
+                                <rect x="270" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="290" y="62" class="pipeline-svg__label">Planning path</text>
+                                <text x="290" y="90" class="pipeline-svg__text">LightSOPLang script</text>
+                                <text x="290" y="110" class="pipeline-svg__text">or bounded LLM plan</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--runtime">
+                                <rect x="520" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="540" y="62" class="pipeline-svg__label">Plan</text>
+                                <text x="540" y="90" class="pipeline-svg__text">Structured MCP steps</text>
+                                <text x="540" y="110" class="pipeline-svg__text">within allowlist</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--live">
+                                <rect x="770" y="30" width="190" height="110" rx="16"></rect>
+                                <text x="790" y="62" class="pipeline-svg__label">Optional</text>
+                                <text x="790" y="84" class="pipeline-svg__label">execution</text>
+                                <text x="790" y="108" class="pipeline-svg__text">Run plan through</text>
+                                <text x="790" y="128" class="pipeline-svg__text">MCP client</text>
+                            </g>
+                        </svg>
+                        <figcaption>MCP Skills always produce a bounded plan and may optionally execute that plan through an MCP client.</figcaption>
+                    </figure>
                 </section>
             </div>
         </div>

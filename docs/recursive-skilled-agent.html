@@ -51,17 +51,48 @@
             <p>The execution path begins from one of two situations. If the caller provides an explicit skill name, the agent resolves that skill from the registry, injects default arguments when the skill family declares one, and delegates execution directly to the subsystem that owns the skill. If the caller does not provide a skill name, the runtime first tries to select a registered orchestrator through the selector service. If such an orchestrator exists, the request is delegated there. If not, the executor can synthesize an ad hoc orchestrator over the available non-orchestrator skills so that routing still remains bounded rather than collapsing into open-ended prompting. The session styles used by orchestrators are described separately in <a href="agentic-sessions.html">Agentic Sessions</a>.</p>
             <p>Shared execution context is injected before that delegation happens. If the caller has not already provided <code>context.sessionMemory</code>, the agent creates or retrieves the appropriate session map by checking <code>context.sessionId</code>, then <code>context.user.sessionId</code>, then <code>context.user.sessionToken</code>, and otherwise falling back to the default session. If the agent has configured I/O services, those are also injected into <code>context.io</code>. This keeps session handling and runtime I/O as shared concerns rather than forcing each skill family to rebuild them independently.</p>
             <p>Session management itself is part of the runtime contract. The agent supports a default session for CLI-like use, additional named sessions for multi-user or webchat-style flows, manual clearing and deletion, TTL-based cleanup, LRU-style eviction when <code>maxSessions</code> is exceeded, and graceful shutdown through <code>shutdown()</code>. When <code>enableSummary</code> is active, top-level executions can also update a rolling conversation summary inside session memory after each completed turn.</p>
-            <pre><code>user prompt
-   ↓
-RecursiveSkilledAgent
-   ├─ discover and register skills
-   ├─ inject session memory and I/O context
-   ├─ select orchestrator or direct skill
-   └─ delegate to family-specific subsystem
-          ↓
-     skill execution / agentic session
-          ↓
-       final response</code></pre>
+            <figure class="pipeline-svg" aria-label="RecursiveSkilledAgent execution pipeline">
+                <svg viewBox="0 0 980 170" role="img" aria-hidden="true">
+                    <defs>
+                        <marker id="pipeline-arrow-rsa" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                            <path d="M0,0 L10,5 L0,10 Z"></path>
+                        </marker>
+                    </defs>
+                    <path class="pipeline-svg__line" d="M220 85 H260" marker-end="url(#pipeline-arrow-rsa)"></path>
+                    <path class="pipeline-svg__line" d="M470 85 H510" marker-end="url(#pipeline-arrow-rsa)"></path>
+                    <path class="pipeline-svg__line" d="M720 85 H760" marker-end="url(#pipeline-arrow-rsa)"></path>
+
+                    <g class="pipeline-svg__card pipeline-svg__card--source">
+                        <rect x="20" y="30" width="200" height="110" rx="16"></rect>
+                        <text x="40" y="62" class="pipeline-svg__label">User prompt</text>
+                        <text x="40" y="90" class="pipeline-svg__text">Entry point into the</text>
+                        <text x="40" y="110" class="pipeline-svg__text">skill runtime</text>
+                    </g>
+
+                    <g class="pipeline-svg__card pipeline-svg__card--spec">
+                        <rect x="270" y="30" width="200" height="110" rx="16"></rect>
+                        <text x="290" y="62" class="pipeline-svg__label">Recursive</text>
+                        <text x="290" y="82" class="pipeline-svg__label">SkilledAgent</text>
+                        <text x="290" y="108" class="pipeline-svg__text">Selects skill or</text>
+                        <text x="290" y="128" class="pipeline-svg__text">orchestrator path</text>
+                    </g>
+
+                    <g class="pipeline-svg__card pipeline-svg__card--runtime">
+                        <rect x="520" y="30" width="200" height="110" rx="16"></rect>
+                        <text x="540" y="62" class="pipeline-svg__label">Shared context</text>
+                        <text x="540" y="90" class="pipeline-svg__text">Inject session memory</text>
+                        <text x="540" y="110" class="pipeline-svg__text">and I/O services</text>
+                    </g>
+
+                    <g class="pipeline-svg__card pipeline-svg__card--live">
+                        <rect x="770" y="30" width="190" height="110" rx="16"></rect>
+                        <text x="790" y="62" class="pipeline-svg__label">Delegation</text>
+                        <text x="790" y="90" class="pipeline-svg__text">Family subsystem or</text>
+                        <text x="790" y="110" class="pipeline-svg__text">agentic session returns</text>
+                    </g>
+                </svg>
+                <figcaption>The top-level agent discovers and routes skills, injects shared runtime state, and then delegates execution to the subsystem that owns the selected capability.</figcaption>
+            </figure>
             <p>A representative configuration therefore looks as follows.</p>
             <pre><code>const agent = new RecursiveSkilledAgent({
     startDir: process.cwd(),

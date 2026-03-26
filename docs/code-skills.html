@@ -41,14 +41,50 @@
                     <h2>How Code Skills Operate in Practice</h2>
                     <p>A Code Skill is discovered through <code>cskill.md</code>. When the skill is registered, <code>RecursiveSkilledAgent</code> automatically requests a generation pass through the internal <code>mirror-code-generator</code> skill. If the skill directory contains a <code>specs/</code> folder, that generation pass can produce or refresh files under <code>src/</code>. If no such specifications exist, the runtime can still execute a maintained module directly from <code>src/</code>, provided that the required entrypoint is present. The authoring patterns for these two cases are described in <a href="code-skills-authoring.html">Authoring</a>.</p>
                     <p>The execution contract is stricter than the current page previously suggested. The subsystem looks for <code>src/index.mjs</code> first and then for <code>src/index.js</code>. It imports the located module dynamically and requires it to export an <code>action(args)</code> function. The user prompt is passed through as <code>args.promptText</code>, together with the shared runtime references such as <code>llmAgent</code>, <code>recursiveAgent</code>, <code>context</code>, <code>sessionMemory</code>, <code>user</code>, and attachments. The subsystem therefore loads and executes code from disk; it does not execute the descriptor itself. The exact loading and argument rules are documented in <a href="code-skills-runtime.html">Runtime</a>.</p>
-                    <pre><code>cskill.md
-  ↓ skill discovery and registration
-optional generation pass through mirror-code-generator
-  ↓
-src/index.mjs or src/index.js
-  ↓ dynamic import by CodeSkillsSubsystem
-exported action(args)
-  ↓ runtime result</code></pre>
+                    <figure class="pipeline-svg" aria-label="Code skill execution pipeline">
+                        <svg viewBox="0 0 980 170" role="img" aria-hidden="true">
+                            <defs>
+                                <marker id="pipeline-arrow-code-overview" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                                    <path d="M0,0 L10,5 L0,10 Z"></path>
+                                </marker>
+                            </defs>
+                            <path class="pipeline-svg__line" d="M220 85 H260" marker-end="url(#pipeline-arrow-code-overview)"></path>
+                            <path class="pipeline-svg__line" d="M470 85 H510" marker-end="url(#pipeline-arrow-code-overview)"></path>
+                            <path class="pipeline-svg__line" d="M720 85 H760" marker-end="url(#pipeline-arrow-code-overview)"></path>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--source">
+                                <rect x="20" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="40" y="62" class="pipeline-svg__label">cskill.md</text>
+                                <text x="40" y="90" class="pipeline-svg__text">Descriptor for discovery</text>
+                                <text x="40" y="110" class="pipeline-svg__text">and registration</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--spec">
+                                <rect x="270" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="290" y="62" class="pipeline-svg__label">mirror-code-</text>
+                                <text x="290" y="82" class="pipeline-svg__label">generator</text>
+                                <text x="290" y="108" class="pipeline-svg__text">Optional preparation pass</text>
+                                <text x="290" y="128" class="pipeline-svg__text">from specs/ to src/</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--runtime">
+                                <rect x="520" y="30" width="200" height="110" rx="16"></rect>
+                                <text x="540" y="62" class="pipeline-svg__label">src/index.mjs</text>
+                                <text x="540" y="82" class="pipeline-svg__label">or src/index.js</text>
+                                <text x="540" y="108" class="pipeline-svg__text">Imported module with</text>
+                                <text x="540" y="128" class="pipeline-svg__text">action(args)</text>
+                            </g>
+
+                            <g class="pipeline-svg__card pipeline-svg__card--live">
+                                <rect x="770" y="30" width="190" height="110" rx="16"></rect>
+                                <text x="790" y="62" class="pipeline-svg__label">Runtime</text>
+                                <text x="790" y="84" class="pipeline-svg__label">result</text>
+                                <text x="790" y="108" class="pipeline-svg__text">Subsystem calls</text>
+                                <text x="790" y="128" class="pipeline-svg__text">exported action</text>
+                            </g>
+                        </svg>
+                        <figcaption>The descriptor supports discovery, but the executable artifact is the imported module under <code>src/</code>.</figcaption>
+                    </figure>
                     <div class="doc-callout doc-callout--important">
                         <span class="doc-callout__label">Important</span>
                         <p>If a skill relies on specification-driven generation, the maintained source is the descriptor and the files under <code>specs/</code>. The executable code under <code>src/</code> should be treated as a derived artifact unless the skill is intentionally maintained as direct handwritten code.</p>

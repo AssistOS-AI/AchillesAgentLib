@@ -672,6 +672,169 @@ ol {
     line-height: 1.6;
 }
 
+.pipeline-diagram {
+    margin: 24px 0;
+    padding: 22px 22px 18px;
+    border: 1px solid #d7e0ee;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 10px 28px rgba(15, 37, 87, 0.06);
+}
+
+.pipeline-diagram__intro {
+    margin-bottom: 16px;
+}
+
+.pipeline-diagram__intro p {
+    margin: 0;
+    color: #4b5563;
+}
+
+.pipeline-diagram__steps {
+    display: grid;
+    gap: 10px;
+}
+
+.pipeline-step {
+    position: relative;
+    padding: 14px 16px 14px 48px;
+    border-radius: 12px;
+    border: 1px solid #dbe5f2;
+    background: #ffffff;
+    box-shadow: 0 6px 18px rgba(15, 37, 87, 0.04);
+}
+
+.pipeline-step::before {
+    content: "";
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #1c4f9c;
+    transform: translateY(-50%);
+    box-shadow: 0 0 0 5px rgba(28, 79, 156, 0.12);
+}
+
+.pipeline-step::after {
+    content: "";
+    position: absolute;
+    left: 25px;
+    top: calc(100% + 2px);
+    width: 2px;
+    height: 10px;
+    background: #bfd0ea;
+}
+
+.pipeline-step:last-child::after {
+    display: none;
+}
+
+.pipeline-step__title {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0f2557;
+}
+
+.pipeline-step__detail {
+    margin: 0;
+    color: #4b5563;
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+.pipeline-step__transition {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #eef4ff;
+    color: #1c4f9c;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.pipeline-svg {
+    margin: 22px 0;
+}
+
+.pipeline-svg svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.pipeline-svg figcaption {
+    margin-top: 10px;
+    font-size: 0.94rem;
+    line-height: 1.55;
+    color: #4b5563;
+}
+
+.pipeline-svg__line {
+    fill: none;
+    stroke: #8da9d4;
+    stroke-width: 3;
+}
+
+.pipeline-svg marker path {
+    fill: #8da9d4;
+}
+
+.pipeline-svg__card rect {
+    stroke-width: 1.5;
+}
+
+.pipeline-svg__card--source rect {
+    fill: #f8fbff;
+    stroke: #cfe0ff;
+}
+
+.pipeline-svg__card--spec rect {
+    fill: #fbfcff;
+    stroke: #d8dff2;
+}
+
+.pipeline-svg__card--runtime rect {
+    fill: #eef4ff;
+    stroke: #bfd0ea;
+}
+
+.pipeline-svg__card--live rect {
+    fill: #0f2557;
+    stroke: #0f2557;
+}
+
+.pipeline-svg__label {
+    font-size: 15px;
+    font-weight: 700;
+    fill: #0f2557;
+}
+
+.pipeline-svg__label--small {
+    font-size: 13px;
+}
+
+.pipeline-svg__filename {
+    font-size: 12px;
+    font-weight: 700;
+    fill: #0f2557;
+}
+
+.pipeline-svg__text {
+    font-size: 13px;
+    fill: #4b5563;
+}
+
+.pipeline-svg__card--live .pipeline-svg__label,
+.pipeline-svg__card--live .pipeline-svg__text {
+    fill: #ffffff;
+}
+
 .site-footer {
     background: #0a1c3d;
     color: #e5ecfe;
@@ -751,6 +914,25 @@ ol {
     }
     .session-branch::before {
         display: none;
+    }
+    .pipeline-diagram {
+        padding: 18px 18px 14px;
+    }
+    .pipeline-step {
+        padding: 12px 14px 12px 42px;
+    }
+    .pipeline-step::before {
+        left: 16px;
+    }
+    .pipeline-step::after {
+        left: 21px;
+    }
+    .pipeline-svg {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .pipeline-svg svg {
+        min-width: 920px;
     }
     .grid {
         gap: 12px;
