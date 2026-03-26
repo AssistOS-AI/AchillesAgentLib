@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseKeyValueInput, resolvePath, stripDependsOn, unwrapBacktickLiteral } from '../../../utils/internalSkillsUtils.mjs';
+import { parseKeyValueInput, resolvePathFromContext, stripDependsOn, unwrapBacktickLiteral } from '../../../utils/internalSkillsUtils.mjs';
 
 function extractMultilineAfterKey(promptText, key) {
     const lines = String(promptText ?? '').split(/\r?\n/);
@@ -24,7 +24,7 @@ export async function action(context) {
     if (!data || typeof data !== 'object' || !Object.keys(data).length) {
         throw new Error('Write requires input with file_path and content.');
     }
-    const filePath = resolvePath(data.file_path, 'file_path');
+    const filePath = resolvePathFromContext(data.file_path, 'file_path', context);
     const multilineContent = extractMultilineAfterKey(sanitizedPrompt, 'content');
     const content = typeof multilineContent === 'string'
         ? unwrapBacktickLiteral(multilineContent)

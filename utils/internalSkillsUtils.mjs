@@ -248,6 +248,31 @@ function resolvePath(targetPath, label = 'path') {
     return path.resolve(process.cwd(), normalized);
 }
 
+function getSopDocBaseDir(context) {
+    const sopDocFilePath = context?.sopDocFilePath;
+    if (!sopDocFilePath) {
+        return null;
+    }
+    return path.dirname(sopDocFilePath);
+}
+
+function resolvePathWithBase(targetPath, label = 'path', baseDir) {
+    const normalized = String(targetPath || '').trim();
+    if (!normalized) {
+        throw new Error(`${label} is required.`);
+    }
+    if (path.isAbsolute(normalized)) {
+        return normalized;
+    }
+    const resolvedBase = baseDir || process.cwd();
+    return path.resolve(resolvedBase, normalized);
+}
+
+function resolvePathFromContext(targetPath, label = 'path', context) {
+    const baseDir = getSopDocBaseDir(context);
+    return resolvePathWithBase(targetPath, label, baseDir || process.cwd());
+}
+
 function normalizePathSeparators(targetPath) {
     return String(targetPath || '').split(path.sep).join('/');
 }
@@ -260,6 +285,9 @@ export {
     parseKeyValueInput,
     stripDependsOn,
     resolvePath,
+    resolvePathFromContext,
+    resolvePathWithBase,
+    getSopDocBaseDir,
     unwrapBacktickLiteral,
     runBashCommand,
 };
