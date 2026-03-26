@@ -16,64 +16,285 @@
     <main class="content">
         <section class="lead">
             <h1>DBTable Skills</h1>
-            <p>Structured skills for data-centric workflows where consistency matters more than improvisation.</p>
+            <p>DBTable Skills provide a structured mechanism for modelling table-oriented operations in contexts where free-form model behavior would otherwise introduce ambiguity, inconsistency, or violations of business rules. Their purpose is to constrain data-facing interactions through explicit field descriptions, validation contracts, and runtime conventions that remain inspectable across generation, execution, and maintenance stages.</p>
         </section>
 
         <section>
-            <h2>Vision</h2>
-            <p>
-                DBTable skills exist to make data operations predictable and auditable. When your task revolves around records, fields, and
-                constraints, you want the model to follow a strict schema rather than inventing data formats on the fly. DBTable skills formalize
-                that schema so the system can reason about inputs and outputs without ambiguity.
-            </p>
-            <p>
-                This gives you a consistent contract for CRUD-style work. The skill file defines the table structure and business rules, while the
-                subsystem translates user requests into validated operations.
-            </p>
+            <h2>Why Structured Table Skills Matter</h2>
+            <p>Structured table skills are necessary whenever the operational domain contains records, fields, identifiers, relations, and constraints that must remain stable across repeated interactions. An inventory system, for example, may include stock-keeping unit (SKU) codes, prices, stock levels, and supplier references. In such a setting, an unconstrained model may produce values in the wrong format, omit required fields, or ignore relations that are necessary for downstream consistency. These failures are not merely stylistic. They propagate into storage, reporting, and later processing stages.</p>
+
+            <p>DBTable Skills address this problem by introducing an explicit specification layer between natural-language interaction and runtime table operations. The specification does not remove model flexibility entirely. Instead, it redistributes responsibility. The language model remains useful for interpretation and interaction, while the skill definition provides the structural commitments that determine how records are normalised, validated, presented, and constrained.</p>
         </section>
 
         <section>
-            <h2>What It Does</h2>
-            <p>
-                A DBTable skill is defined in <code>tskill.md</code>. The subsystem parses that definition, builds validation and presentation
-                logic, and then uses the shared <a href="llm-agent.html">LLMAgent</a> to guide the interaction. The result is a structured flow
-                that can collect missing fields, validate inputs, and call the underlying database adapter with confidence.
-            </p>
+            <h2>What DBTable Skills Provide</h2>
+            <p>DBTable Skills provide a common structure for create, read, update, and delete operations, so that repeated interactions are evaluated against the same validation logic and field semantics. They also centralize business rules in the skill definition itself, which reduces the risk that ad hoc prompts or local patches bypass the intended data contract. At interaction level, they support guided correction flows and confirmation stages, while at implementation level they reduce repetition by deriving runtime code from the same declarative source.</p>
         </section>
 
         <section>
-            <h2>Spec-Driven Code Generation</h2>
-            <p>
-                DBTable skills are not only descriptive; they can generate stable code. The subsystem converts the table definition into a spec
-                file, then invokes the built-in <code>mirror-code-generator</code> to produce a generated module. This keeps behavior consistent
-                across runs while still letting the schema evolve in a controlled way.
-            </p>
-            <p>
-                The code generation flow is part of the broader built-in skills system, which is documented in
-                <a href="built-in-skills.html">Built In Skills</a>.
-            </p>
+            <h2>How DBTable Skills Work</h2>
+            <p>The workflow begins with a <code>tskill.md</code> document that describes the table purpose, the available fields, and the optional behavioral constraints associated with those fields. This specification is parsed into a structured representation that the subsystem can validate and transform. From that point onward, the skill ceases to be mere documentation and becomes an executable contract for downstream code generation and runtime behavior.</p>
+
+            <p>When the skill is prepared, the subsystem parses the specification, validates the resulting structure, generates a spec file for the code-generation stage, and loads the generated runtime module. During execution, the conversational controller interprets the incoming request, decides which table operation is being attempted, applies the relevant preparation and validation functions, and maintains pending confirmation or correction state when the interaction requires multiple steps. The result is a controlled path from user request to record-level operation rather than an unrestricted conversational guess.</p>
         </section>
 
         <section>
-            <h2>Why It Is a Skill</h2>
-            <p>
-                DBTable skills are still skills, not static data utilities. They receive the shared LLMAgent so they can interpret user intent,
-                gather missing data, and resolve ambiguous inputs. That flexibility is critical for real-world usage, but it remains bounded by
-                the table definition so outputs stay deterministic and safe.
-            </p>
+            <h2>What Is Required and What Is Optional</h2>
+            <p>The parser expects the document title to follow the form <code># SomeName Skill</code>. The validator rejects the file if no field is defined, so the document must also contain a <code>## Fields</code> section with at least one <code>### field_name</code> subsection. These conditions determine whether the document can be treated as a DBTable skill at all.</p>
+
+            <p>The table purpose is not mandatory, but the validator emits a warning when it is absent. The primary key is also not mandatory at validation time, but its absence produces a warning because record-oriented operations are easier to stabilise when a persistent identifier has been declared explicitly. In operational terms, a production skill should normally define both sections even though the parser can proceed without them.</p>
+
+            <p>Sections such as <code>## Business Rules</code>, <code>## Relationships</code>, <code>## Role Access Policy</code>, <code>## Delete Guard</code>, <code>## Interactive Fields</code>, and <code>## List Extra Fields</code> are optional. Field-level subsections such as aliases, presenters, resolvers, validators, enumerators, derivators, default values, and labels are optional as well. These sections become necessary only when the intended runtime behavior depends on them.</p>
         </section>
 
         <section>
-            <h2>Folder Structure</h2>
-            <p>
-                A DBTable skill lives in its own folder with a <code>tskill.md</code> descriptor. The generated code is created by the subsystem
-                and should not be edited directly.
-            </p>
+            <h2>Example: Product Management</h2>
+            <p>The contrast below illustrates why the additional structure matters in practice. The example is intentionally simple, but it represents the kinds of failures that commonly appear when record-oriented work is handled without an explicit schema and without skill-level validation contracts.</p>
+            
+            <div class="highlight-box">
+                <p><strong>Without DBTable Skills:</strong> A user may enter a value such as <code>$25.99</code> into a field that expects a numeric representation. If that value is stored without normalisation or validation, the record becomes inconsistent with the intended model. The immediate interaction may appear successful, but later reporting, aggregation, or integration steps can fail because the stored value no longer conforms to the expected type.</p>
+            </div>
+            
+            <div class="highlight-box">
+                <p><strong>With DBTable Skills:</strong> The same input is examined against the field contract before persistence occurs. The interaction can therefore request a corrected numeric value, enforce uniqueness constraints on the stock-keeping unit identifier, and continue only when the resulting record satisfies the declared rules. The main difference is not cosmetic. Validation and correction occur before the state transition, not after corruption has already entered the dataset.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>From Specification to Runtime Code</h2>
+            <p>The <code>tskill.md</code> document functions as the primary specification artifact for the subsystem. Once the specification has been parsed and validated, it is converted into an intermediate spec file and then into a runtime module. The same source document therefore influences both the human-readable description of the table and the executable logic used during preparation and validation.</p>
+
+            <p>This arrangement reduces divergence between documentation and implementation. Changes made in the specification can propagate through the generation path without requiring separate manual updates to field-level runtime helpers. In practice, this does not eliminate the need for review or testing, but it does establish a clearer dependency chain between declarative description and generated operational code.</p>
+        </section>
+
+        <section>
+            <h2>Minimal tskill.md Template</h2>
+            <p>The template below is intentionally compact. Its purpose is to provide a starting point that is immediately usable while still remaining aligned with the validator and the runtime assumptions of the subsystem. The structure includes the sections that are most useful in practice, even though the formal minimum accepted by the validator is slightly smaller.</p>
+
+            <pre><code># Inventory Skill
+
+## Table Purpose
+Store inventory records for equipment and materials.
+
+## Fields
+
+### inventory_id
+
+#### Description
+Unique integer identifier for each inventory record.
+
+#### PrimaryKey
+Auto-increment starting from 1
+
+### name
+
+#### Description
+Human-readable name of the inventory item.
+
+#### Field Value Is Required
+Always required.
+
+#### Field Value Validator
+Must be between 2 and 200 characters.
+</code></pre>
+        </section>
+
+        <section>
+            <h2>Extended Example</h2>
+            <p>The next example illustrates a more realistic specification. It shows how aliases, presentation rules, normalization rules, validation rules, and derived fields can coexist in a single skill definition. This degree of detail becomes useful when a table skill is intended to support conversational create, read, update, and delete operations over a non-trivial record model.</p>
+
+            <pre><code># Customers Skill
+
+## Table Purpose
+Manage customer records including contact information and status.
+
+## Fields
+
+### customer_id
+
+#### Description
+Unique integer identifier for each customer.
+
+#### PrimaryKey
+Auto-increment starting from 1
+
+### name
+
+#### Description
+Full name of the customer.
+
+#### Aliases
+["customer_name", "full_name"]
+
+#### Field Value Presenter
+Display the name in Title Case format.
+
+#### Field Value Resolver
+Trim whitespace and convert the value to Title Case.
+
+#### Field Value Validator
+Must be between 2 and 200 characters and must contain alphabetic characters.
+
+#### Field Value Is Required
+Always required.
+
+### email
+
+#### Description
+Primary email address for customer contact.
+
+#### Field Value Resolver
+Convert to lowercase and trim whitespace.
+
+#### Field Value Validator
+Must be a valid email format.
+
+#### Field Value Is Required
+Always required.
+
+### display_name
+
+#### Description
+Computed label used in lists and confirmation messages.
+
+#### Field Value Derivator
+Combine the customer name and status in a single display string.
+
+## Business Rules
+
+- Email addresses must be unique across all customer records.
+</code></pre>
+        </section>
+
+        <section>
+            <h2>Development Workflow</h2>
+            <p>The development process is normally iterative. The specification is written first, the generated code is inspected next, and the resulting behavior is then exercised through targeted tests and integration-level checks.</p>
+            
+            <h3>1. Create Skill Definition</h3>
+            <p>Start with your <code>tskill.md</code> file defining fields, validation rules, and business logic.</p>
+            
+            <h3>2. Write Tests</h3>
+            <div class="doc-callout doc-callout--important">
+                <span class="doc-callout__label">Important</span>
+                <p>The DBTable generation flow does <strong>not</strong> automatically create <code>.test.mjs</code> files. You should write tests manually for your skill and import the generated functions from <code>src/tskill.generated.mjs</code>.</p>
+            </div>
+            <p>The generated spec file may include testing guidance sections for downstream tooling, but the DBTable subsystem itself only generates the spec and the runtime code module.</p>
+            
+            <p>The test suite should cover missing required values, type mismatches, format violations, business-rule enforcement, and boundary cases. The objective is not only to confirm that valid inputs pass, but also to demonstrate that invalid inputs are rejected in a predictable and inspectable manner.</p>
+            
+            <h3>3. Test Generation</h3>
+            <p>Generate code from your skill definition using the subsystem:</p>
+            <pre><code class="language-javascript">import { tskillToSpecs } from './DBTableSkillsSubsystem/tskillToSpecs.mjs';
+import { parseSkillMarkdown } from './DBTableSkillsSubsystem/SkillParser.mjs';
+
+const parsed = parseSkillMarkdown(skillContent);
+const specPath = await tskillToSpecs(skillDir, parsed); // Returns path to generated spec file
+
+// The subsystem will then use mirror-code-generator to create src/tskill.generated.mjs</code></pre>
+            
+            <h3>4. Validate Generated Code</h3>
+            <p>Test the generated validators, presenters, and resolvers to ensure they work as expected.</p>
+            
+            <h3>5. Integration Testing</h3>
+            <p>Test the complete skill with the DBTableSkillsSubsystem to verify end-to-end functionality.</p>
+        </section>
+
+        <section>
+            <h2>Technical Reference</h2>
+            
+            <h3>Purpose</h3>
+            <p>DBTable skills exist to make data operations predictable and auditable. When your task revolves around records, fields, and constraints, you want the model to follow a strict schema rather than inventing data formats on the fly. DBTable skills formalize that schema so the system can reason about inputs and outputs without ambiguity.</p>
+            
+            <h3>Main Components</h3>
+            <p>The subsystem can be understood in terms of three functional layers. The parser reads and normalizes the <code>tskill.md</code> document. The generation layer derives a spec file and then a runtime module from that normalized representation. The runtime layer executes the resulting functions together with conversational control logic for validation, confirmation, and record-oriented interaction.</p>
+
+            <h3>Specification Format</h3>
+            <p>The <code>tskill.md</code> file uses a structured Markdown format in which table metadata, field definitions, validation descriptions, presentation rules, business rules, relationships, and access constraints can be expressed in named sections. The format remains intentionally textual, but the parser interprets those sections into a normalised internal structure that can later drive code generation and runtime enforcement.</p>
+
+            <h3>Code Generation Pipeline</h3>
+            <p>The subsystem follows a clear pipeline:</p>
+            <pre><code>tskill.md → parseSkillMarkdown() → tskillToSpecs() → specs/tskill.generated.mjs.md
+                                                                  ↓
+                                                    mirror-code-generator
+                                                                  ↓
+                                                    src/tskill.generated.mjs</code></pre>
+            <p>The generated module includes validation functions, presentation logic, and data transformation functions—all optimized for performance and reliability. Database operations are injected at runtime through the execution context.</p>
+
+            <h3>Integration Points</h3>
+            <p>DBTable Skills integrate with <code>LLMAgent</code> for interpretation and conversational handling, with the configured database adapter for record access and mutation, and with the internal code-generation path based on <code>mirror-code-generator</code>. The integration is therefore not limited to parsing alone. It spans specification handling, generated runtime code, and the execution context in which table operations are finally performed.</p>
+
+            <h3>Folder Structure</h3>
+            <p>A typical DBTable skill lives in its own folder:</p>
             <pre><code>skills/
 └── inventory/
-    ├── tskill.md
-    └── tskill.generated.mjs</code></pre>
+    ├── tskill.md                    # Your specification
+    ├── specs/
+    │   └── tskill.generated.mjs.md   # Auto-generated spec
+    ├── src/
+    │   └── tskill.generated.mjs      # Auto-generated runtime code
+    └── tests/
+        └── inventory.test.mjs        # Manual tests (recommended)</code></pre>
+            <div class="doc-callout doc-callout--important">
+                <span class="doc-callout__label">Important</span>
+                <p>The generated files should not be edited directly, as changes will be overwritten when the specification is updated.</p>
+            </div>
         </section>
+
+        <section>
+            <h2>Testing Your Skills</h2>
+            <p>DBTable Skills includes comprehensive testing support to ensure your skills work correctly. The testing framework validates everything from parsing to execution.</p>
+
+            <h3>Unit Tests</h3>
+            <p>Each skill should define unit tests for validators, presenters, resolvers, and any business-rule behavior that has been encoded in the generated functions. The purpose of these tests is to verify that the generated module preserves the intended semantics of the specification at field level as well as at record level.</p>
+
+            <h3>Test Structure</h3>
+            <p>Tests follow this structure:</p>
+            <pre><code>skills/
+└── your-skill/
+    ├── tskill.md                    # Skill definition
+    ├── specs/
+    │   └── tskill.generated.mjs.md   # Generated spec file
+    ├── src/
+    │   └── tskill.generated.mjs       # Generated code
+    └── tests/
+        └── your-skill.test.mjs      # Unit tests</code></pre>
+
+            <h3>Example Test</h3>
+            <p>The following example illustrates the expected validation test pattern:</p>
+            <pre><code class="language-javascript">// Test required field validation
+addResult(
+  { field: 'customer_id', error: 'customer_id is required', value: null },
+  JSON.parse(validator_customer_id(null, {}))
+);
+
+// Test valid input
+addResult('', validator_customer_id(5, {}));
+
+// Test invalid format
+addResult(
+  { field: 'customer_id', error: 'customer_id must be a valid integer', value: 1.2 },
+  JSON.parse(validator_customer_id(1.2, {}))
+);</code></pre>
+            <div class="doc-callout doc-callout--important">
+                <span class="doc-callout__label">Important</span>
+                <p>Validators return JSON (JavaScript Object Notation) strings, not objects. Use <code>JSON.parse()</code> to compare results.</p>
+            </div>
+
+            <h3>Running Tests</h3>
+            <p>Execute tests with the standard Node.js test runner:</p>
+            <pre><code># Run all DBTable integration tests
+node --test tests/dbTableSkills/dbTableSkills.test.mjs
+
+# Run specific test
+node --test tests/dbTableSkills/dbTableSkills.test.mjs --test-name-pattern "Parse tskill.md"
+
+# Run with verbose output
+node --test tests/dbTableSkills/dbTableSkills.test.mjs --test-reporter spec</code></pre>
+
+            <h3>Integration Tests</h3>
+            <p>Integration testing should cover the complete path from <code>tskill.md</code> parsing to validation, spec generation, code generation, and runtime execution against controlled data. The objective is to confirm that the specification remains coherent across the entire preparation and execution pipeline rather than only at the level of isolated helper functions.</p>
+        </section>
+
     </main>
 
     <div id="site-footer"></div>
