@@ -28,36 +28,11 @@ import { resolvePathFromContext, stripDependsOn } from '../../../utils/internalS
 export async function action(context) {
     const { promptText, recursiveAgent, llmAgent, logger = console } = context;
     const targetDirRaw = stripDependsOn(promptText)?.trim();
-    const sopDocFilePath = context?.sopDocFilePath ?? null;
-
-    if (sopDocFilePath) {
-        try {
-            const markerName = `mirror-code-generator-input-${Date.now()}-${Math.random().toString(36).slice(2)}.log`;
-            const markerPath = path.join(process.cwd(), markerName);
-            await fs.writeFile(markerPath, JSON.stringify({
-                promptText,
-                targetDirRaw,
-                sopDocFilePath,
-                hasRecursiveAgent: Boolean(recursiveAgent),
-                hasLlmAgent: Boolean(llmAgent),
-                cwd: process.cwd(),
-                pid: process.pid
-            }, null, 2), 'utf8');
-        } catch (_) {}
-    }
 
     if (!targetDirRaw) {
         throw new Error('mirror-code-generator requires a skill directory path as input.');
     }
     const targetDir = resolvePathFromContext(targetDirRaw, 'skill directory path', context);
-
-    if (sopDocFilePath) {
-        try {
-            const markerName = `mirror-code-generator-resolved-${Date.now()}-${Math.random().toString(36).slice(2)}.log`;
-            const markerPath = path.join(process.cwd(), markerName);
-            await fs.writeFile(markerPath, JSON.stringify({ targetDir, sopDocFilePath, cwd: process.cwd(), pid: process.pid }, null, 2), 'utf8');
-        } catch (_) {}
-    }
 
     const agent = llmAgent || recursiveAgent?.llmAgent;
     if (!agent) {
