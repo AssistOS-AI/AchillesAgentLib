@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DBTable Skills Runtime · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"DBTable Skills","href":"dbtable-skills.html"},
+            {"label":"Runtime"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="DBTable chapter navigation">
+                <p class="doc-sidebar__title">DBTable Chapters</p>
+                <nav>
+                    <a href="dbtable-skills.html">Overview</a>
+                    <a href="dbtable-skills-authoring.html">Authoring</a>
+                    <a href="dbtable-skills-runtime.html" aria-current="page">Runtime</a>
+                    <a href="dbtable-skills-testing.html">Testing</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Runtime Behavior of DBTable Skills</h1>
+                    <p>This chapter explains how a DBTable specification becomes executable code and clarifies which file is actually used when the subsystem handles a record at runtime.</p>
+                </section>
+
+                <section>
+                    <h2>1. From Source Specification to Generated Module</h2>
+                    <p>The execution path begins with a human-authored <code>tskill.md</code> document. This file is the source specification. It is not itself executed during create, read, update, or delete operations. When the subsystem prepares the skill, it parses the markdown file, validates the resulting structure, writes an intermediate specification file to <code>specs/tskill.generated.mjs.md</code>, and then invokes <code>mirror-code-generator</code> in order to produce the runtime module <code>src/tskill.generated.mjs</code>.</p>
+                    <p>This sequence matters because it separates three distinct concerns. The markdown file captures human intent. The intermediate specification formalizes that intent in a generator-oriented representation. The generated module finally exposes executable JavaScript functions that can be imported by the subsystem. The process is therefore specification-driven from beginning to end.</p>
+
+                    <pre><code>tskill.md
+  ↓ parse and validate
+specs/tskill.generated.mjs.md
+  ↓ mirror-code-generator
+src/tskill.generated.mjs
+  ↓ imported by DBTableSkillsSubsystem
+runtime execution</code></pre>
+                </section>
+
+                <section>
+                    <h2>2. What the Subsystem Actually Calls at Runtime</h2>
+                    <div class="doc-callout doc-callout--important">
+                        <span class="doc-callout__label">Important</span>
+                        <p>At runtime, the subsystem imports and calls the generated functions from <code>src/tskill.generated.mjs</code>. The markdown file remains the source specification, but the executable logic used during record preparation, validation, presentation, and delete checks comes from the generated module under <code>src/</code>.</p>
+                    </div>
+
+                    <p>In operational terms, the generated module exports functions such as <code>prepareRecord</code>, <code>validateRecord</code>, <code>validateDelete</code>, and <code>presentRecord</code>. The subsystem loads these functions and combines them with the surrounding execution context. That context includes the conversational controller, which interprets the user request as a create, update, select, or delete operation, and the database adapter, which performs the actual persistence work. The generated code therefore does not contain the database adapter itself. Instead, it contributes field-level and record-level logic, while the subsystem supplies the runtime services through which records are read, inserted, updated, or removed.</p>
+                    <p>For a non-technical reader, the simplest interpretation is the following. A human writes rules in <code>tskill.md</code>. The system turns those rules into JavaScript. When the application later works with a record, it executes the JavaScript from <code>src/tskill.generated.mjs</code>, not the markdown file. The markdown file remains the authoritative source because future regeneration begins from it.</p>
+
+                    <div class="doc-callout doc-callout--important">
+                        <span class="doc-callout__label">Important</span>
+                        <p>The generated files under <code>src/</code> should not be edited directly, because later generation passes can overwrite them. The intended maintenance path is to update <code>tskill.md</code> and then regenerate the runtime module.</p>
+                    </div>
+                    <p>The practical implication of this design is that authoring, generation, and execution remain distinct phases. This distinction is what makes the subsystem inspectable. A reader can examine the source specification, the intermediate generated specification, and the runtime module as separate artifacts, each with a different role in the pipeline.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

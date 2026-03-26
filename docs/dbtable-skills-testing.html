@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DBTable Skills Testing · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"DBTable Skills","href":"dbtable-skills.html"},
+            {"label":"Testing"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="DBTable chapter navigation">
+                <p class="doc-sidebar__title">DBTable Chapters</p>
+                <nav>
+                    <a href="dbtable-skills.html">Overview</a>
+                    <a href="dbtable-skills-authoring.html">Authoring</a>
+                    <a href="dbtable-skills-runtime.html">Runtime</a>
+                    <a href="dbtable-skills-testing.html" aria-current="page">Testing</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Testing DBTable Skills</h1>
+                    <p>This chapter explains how the generated runtime module should be verified and how that verification relates to the human-authored source specification.</p>
+                </section>
+
+                <section>
+                    <h2>1. Why Tests Remain a Separate Human Task</h2>
+                    <p>The development process is normally iterative. The specification is written first, the generated code is inspected next, and the resulting behavior is then exercised through targeted tests and integration-level checks. In this workflow, the generated code should be treated as a derived artifact, while the editable source remains <code>tskill.md</code>. Testing therefore serves as an independent confirmation that the generated behavior matches the intent expressed in the source specification.</p>
+
+                    <div class="doc-callout doc-callout--important">
+                        <span class="doc-callout__label">Important</span>
+                        <p>The DBTable generation flow does not automatically create <code>.test.mjs</code> files. The subsystem generates the intermediate specification and the runtime module, but the test files themselves should be written manually and should import the generated functions from <code>src/tskill.generated.mjs</code>.</p>
+                    </div>
+                    <p>This distinction is deliberate. Generation can produce validators, presenters, derivators, and record-level helpers, but it does not know in advance which boundary cases, business assumptions, or regression scenarios matter most in the surrounding application. Those concerns remain the responsibility of the person maintaining the skill.</p>
+                </section>
+
+                <section>
+                    <h2>2. What Should Be Verified</h2>
+                    <p>The test suite should cover missing required values, type mismatches, format violations, business-rule enforcement, and boundary cases. The objective is not only to confirm that valid inputs pass, but also to demonstrate that invalid inputs are rejected in a predictable and inspectable manner. The generated specification file may contain testing guidance for downstream tooling, but that guidance is not equivalent to an automatically generated test suite.</p>
+                    <p>A typical skill directory therefore contains the source specification, the intermediate generated specification, the generated runtime module, and a manually maintained test file. A representative layout is shown below.</p>
+
+                    <pre><code>skills/
+└── your-skill/
+    ├── tskill.md
+    ├── specs/
+    │   └── tskill.generated.mjs.md
+    ├── src/
+    │   └── tskill.generated.mjs
+    └── tests/
+        └── your-skill.test.mjs</code></pre>
+                    <p>The following example illustrates a common validation test pattern. It focuses on the behavior of a generated validator and shows the distinction between successful validation and error-returning validation.</p>
+
+                    <pre><code class="language-javascript">// Test required field validation
+addResult(
+  { field: 'customer_id', error: 'customer_id is required', value: null },
+  JSON.parse(validator_customer_id(null, {}))
+);
+
+// Test valid input
+addResult('', validator_customer_id(5, {}));
+
+// Test invalid format
+addResult(
+  { field: 'customer_id', error: 'customer_id must be a valid integer', value: 1.2 },
+  JSON.parse(validator_customer_id(1.2, {}))
+);</code></pre>
+
+                    <div class="doc-callout doc-callout--important">
+                        <span class="doc-callout__label">Important</span>
+                        <p>Validators return JSON (JavaScript Object Notation) strings, not objects. Test code should therefore use <code>JSON.parse()</code> when it compares error results.</p>
+                    </div>
+                    <p>Integration testing should cover the complete path from <code>tskill.md</code> parsing to validation, specification generation, code generation, and runtime execution against controlled data. This is the level at which the coherence of the full pipeline can be evaluated. The standard Node.js commands used in this repository are shown below.</p>
+
+                    <pre><code># Run all DBTable integration tests
+node --test tests/dbTableSkills/dbTableSkills.test.mjs
+
+# Run a specific test
+node --test tests/dbTableSkills/dbTableSkills.test.mjs --test-name-pattern "Parse tskill.md"
+
+# Run with verbose output
+node --test tests/dbTableSkills/dbTableSkills.test.mjs --test-reporter spec</code></pre>
+                    <p>From a maintenance perspective, the most important principle is consistency of direction. The test file should be updated when the intended behavior changes. The generated module should be regenerated from <code>tskill.md</code>. Direct manual edits to generated files should be avoided because they break the traceable path between specification, generation, and verification.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

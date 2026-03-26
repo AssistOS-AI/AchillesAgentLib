@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DBTable Skills Authoring · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"DBTable Skills","href":"dbtable-skills.html"},
+            {"label":"Authoring"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="DBTable chapter navigation">
+                <p class="doc-sidebar__title">DBTable Chapters</p>
+                <nav>
+                    <a href="dbtable-skills.html">Overview</a>
+                    <a href="dbtable-skills-authoring.html" aria-current="page">Authoring</a>
+                    <a href="dbtable-skills-runtime.html">Runtime</a>
+                    <a href="dbtable-skills-testing.html">Testing</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Authoring DBTable Skills</h1>
+                    <p>This chapter explains how a human-authored <code>tskill.md</code> file should be structured. The objective is not merely syntactic validity. The document should express enough information for the subsystem to generate stable runtime behavior.</p>
+                </section>
+
+                <section>
+                    <h2>1. Structural Requirements</h2>
+                    <p>The parser expects the document title to follow the form <code># SomeName Skill</code>. It also expects a <code>## Fields</code> section containing at least one field subsection written as <code>### field_name</code>. If these elements are absent, the document cannot be treated as a valid DBTable skill because the subsystem has no stable basis on which to derive record-level behavior.</p>
+                    <p>The sections <code>## Table Purpose</code> and a declaration of a primary key are not strictly mandatory for the parser to proceed, but their absence produces warnings. This distinction is important. A file can remain syntactically acceptable while still being incomplete from an operational perspective. In practice, a maintainable production skill should normally include both, because the table purpose clarifies the semantics of the entity and the primary key stabilizes record identity across create, update, select, and delete operations.</p>
+                    <p>Additional sections such as <code>## Business Rules</code>, <code>## Relationships</code>, <code>## Role Access Policy</code>, <code>## Delete Guard</code>, <code>## Interactive Fields</code>, and <code>## List Extra Fields</code> are optional. The same applies to field-level subsections such as aliases, presenters, resolvers, validators, enumerators, derivators, default values, and labels. These elements should be introduced only when the intended runtime behavior depends on them. Their purpose is not ornamental. Each optional section adds executable meaning to the generated module.</p>
+                </section>
+
+                <section>
+                    <h2>2. Minimum Example and Extended Example</h2>
+                    <p>The first example provides the smallest useful document that remains aligned with the validator and with the runtime assumptions of the subsystem. It is appropriate when the goal is to establish a simple table with a stable identifier and a required human-readable field.</p>
+
+                    <pre><code># Inventory Skill
+
+## Table Purpose
+Store inventory records for equipment and materials.
+
+## Fields
+
+### inventory_id
+
+#### Description
+Unique integer identifier for each inventory record.
+
+#### PrimaryKey
+Auto-increment starting from 1
+
+### name
+
+#### Description
+Human-readable name of the inventory item.
+
+#### Field Value Is Required
+Always required.
+
+#### Field Value Validator
+Must be between 2 and 200 characters.
+</code></pre>
+                    <p>A more detailed skill may add aliases, normalization rules, presentation rules, and derived values. The second example is closer to a production-oriented skill intended to support conversational create, read, update, and delete operations over a non-trivial entity.</p>
+
+                    <pre><code># Customers Skill
+
+## Table Purpose
+Manage customer records including contact information and status.
+
+## Fields
+
+### customer_id
+
+#### Description
+Unique integer identifier for each customer.
+
+#### PrimaryKey
+Auto-increment starting from 1
+
+### name
+
+#### Description
+Full name of the customer.
+
+#### Aliases
+["customer_name", "full_name"]
+
+#### Field Value Presenter
+Display the name in Title Case format.
+
+#### Field Value Resolver
+Trim whitespace and convert the value to Title Case.
+
+#### Field Value Validator
+Must be between 2 and 200 characters and must contain alphabetic characters.
+
+#### Field Value Is Required
+Always required.
+
+### email
+
+#### Description
+Primary email address for customer contact.
+
+#### Field Value Resolver
+Convert to lowercase and trim whitespace.
+
+#### Field Value Validator
+Must be a valid email format.
+
+#### Field Value Is Required
+Always required.
+
+### display_name
+
+#### Description
+Computed label used in lists and confirmation messages.
+
+#### Field Value Derivator
+Combine the customer name and status in a single display string.
+
+## Business Rules
+
+- Email addresses must be unique across all customer records.
+</code></pre>
+                    <p>The difference between the two examples is not one of style but of operational depth. The first document is sufficient for a simple entity. The second expresses richer normalization and presentation behavior and therefore produces a more capable runtime module. The next chapter, <a href="dbtable-skills-runtime.html">Runtime</a>, explains how these textual declarations are transformed into executable code.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>
