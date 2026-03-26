@@ -1,4 +1,6 @@
 import { generateMirrorCode } from './codegen.mjs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 export const shortName = 'mirror-code-generator';
 export const skillType = 'cskill';

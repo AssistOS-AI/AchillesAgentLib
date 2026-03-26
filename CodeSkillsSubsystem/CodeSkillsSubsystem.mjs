@@ -58,11 +58,13 @@ export class CodeSkillsSubsystem {
     args.llmAgent = this.llmAgent;
     args.recursiveAgent = recursiveAgent;
     
-    // Pass through context, sessionMemory, user, and attachments from options
-    args.context = options?.context || {};
-    args.sessionMemory = options?.context?.sessionMemory || null;
-    args.user = options?.context?.user || null;
-    args.attachments = options?.context?.attachments || [];
+    // Pass through context, sessionMemory, user, and attachments from options.
+    const executionContext = options?.context || {};
+    Object.assign(args, executionContext);
+    args.context = executionContext;
+    args.sessionMemory = executionContext.sessionMemory || null;
+    args.user = executionContext.user || null;
+    args.attachments = executionContext.attachments || [];
 
     // Execute the already generated code from disk
     const outputPath = skillRecord.skillDir;
