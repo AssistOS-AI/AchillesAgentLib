@@ -29,19 +29,60 @@
         <section>
             <h2>Discovery, Registration, and Preparation</h2>
             <p>Skill discovery is filesystem-driven. The agent starts from its configured roots, asks the discovery service to scan for descriptor filenames such as <code>SKILL.md</code>, <code>dcgskill.md</code>, <code>cskill.md</code>, <code>mskill.md</code>, <code>oskill.md</code>, and <code>tskill.md</code>, and constructs a skill record for each discovered bundle. If a directory already contains one of those descriptor files, that directory is treated as a concrete skill bundle. If not, discovery recurses into nested directories until such a descriptor is found.</p>
-            <pre><code>workspace/
-├── skills/
-│   ├── reporting/
-│   │   └── daily-summary/
-│   │       └── oskill.md
-│   ├── inventory/
-│   │   └── equipment/
-│   │       └── tskill.md
-│   └── tools/
-│       └── data-normalizer/
-│           └── cskill.md
-└── app/
-    └── src/</code></pre>
+            <div class="tree-diagram" aria-label="Example workspace tree">
+                <p class="tree-diagram__title">Example workspace tree</p>
+                <ul class="tree-diagram__root">
+                    <li>
+                        <span class="tree-node tree-node--folder">workspace/</span>
+                        <ul>
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">reporting/</span>
+                                        <ul>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">daily-summary/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">oskill.md</span></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">inventory/</span>
+                                        <ul>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">equipment/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">tskill.md</span></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">tools/</span>
+                                        <ul>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">data-normalizer/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">cskill.md</span></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <span class="tree-node tree-node--folder">app/</span>
+                                <ul>
+                                    <li><span class="tree-node tree-node--folder">src/</span></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
             <p>After discovery, the agent registers each skill under a canonical name derived from the parsed descriptor name or the folder short name, together with a set of aliases used later for lookup. Registration does not stop at metadata. The matching subsystem is immediately asked to parse the descriptor and, when that subsystem supports it, to prepare the skill for execution. This is also the stage at which built-in skills from the package’s internal <code>skills/</code> directory are brought into the registry.</p>
             <p>There is one important special case. The internal skill <code>mirror-code-generator</code> is registered first, and when a skill of type <code>cskill</code> is later discovered, the agent automatically schedules a preparation call through <code>mirror-code-generator</code>. This means that generation for Code Skills is initiated by the top-level agent during registration rather than by the Code Skills subsystem itself. The resulting preparation promises are tracked in <code>pendingPreparations</code> and awaited before normal execution unless the caller explicitly bypasses that wait.</p>
         </section>

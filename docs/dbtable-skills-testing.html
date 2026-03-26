@@ -48,15 +48,40 @@
                     <p>The test suite should cover missing required values, type mismatches, format violations, business-rule enforcement, and boundary cases. The objective is not only to confirm that valid inputs pass, but also to demonstrate that invalid inputs are rejected in a predictable and inspectable manner. The generated specification file may contain testing guidance for downstream tooling, but that guidance is not equivalent to an automatically generated test suite.</p>
                     <p>A typical skill directory therefore contains the source specification, the intermediate generated specification, the generated runtime module, and a manually maintained test file. A representative layout is shown below.</p>
 
-                    <pre><code>skills/
-└── your-skill/
-    ├── tskill.md
-    ├── specs/
-    │   └── tskill.generated.mjs.md
-    ├── src/
-    │   └── tskill.generated.mjs
-    └── tests/
-        └── your-skill.test.mjs</code></pre>
+                    <div class="tree-diagram" aria-label="Representative DBTable skill test layout">
+                        <p class="tree-diagram__title">Representative test layout</p>
+                        <ul class="tree-diagram__root">
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">your-skill/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">tskill.md</span></li>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">specs/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">tskill.generated.mjs.md</span></li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">src/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">tskill.generated.mjs</span></li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">tests/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">your-skill.test.mjs</span></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                     <p>The following example illustrates a common validation test pattern. It focuses on the behavior of a generated validator and shows the distinction between successful validation and error-returning validation.</p>
 
                     <pre><code class="language-javascript">// Test required field validation

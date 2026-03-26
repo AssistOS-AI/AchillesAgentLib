@@ -835,6 +835,92 @@ ol {
     fill: #ffffff;
 }
 
+.tree-diagram {
+    margin: 22px 0;
+    padding: 18px 20px;
+    border: 1px solid #d7e0ee;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 10px 28px rgba(15, 37, 87, 0.06);
+    overflow-x: auto;
+}
+
+.tree-diagram__title {
+    margin: 0 0 14px;
+    font-size: 0.94rem;
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.tree-diagram ul {
+    list-style: none;
+    margin: 0;
+    padding-left: 24px;
+    position: relative;
+}
+
+.tree-diagram__root {
+    padding-left: 0;
+}
+
+.tree-diagram li {
+    position: relative;
+    margin: 0;
+    padding: 6px 0 0 22px;
+}
+
+.tree-diagram li::before {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #cbd8ea;
+}
+
+.tree-diagram li::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 18px;
+    width: 12px;
+    height: 1px;
+    background: #cbd8ea;
+}
+
+.tree-diagram > .tree-diagram__root > li::before,
+.tree-diagram > .tree-diagram__root > li::after {
+    display: none;
+}
+
+.tree-diagram li:last-child::before {
+    bottom: auto;
+    height: 18px;
+}
+
+.tree-node {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 0.88rem;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+.tree-node--folder {
+    background: #eef4ff;
+    color: #0f2557;
+    border: 1px solid #d5e2f8;
+}
+
+.tree-node--file {
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #dbe5f2;
+}
+
 .site-footer {
     background: #0a1c3d;
     color: #e5ecfe;
@@ -933,6 +1019,18 @@ ol {
     }
     .pipeline-svg svg {
         min-width: 920px;
+    }
+    .tree-diagram {
+        padding: 16px;
+    }
+    .tree-diagram ul {
+        padding-left: 20px;
+    }
+    .tree-diagram li {
+        padding-left: 18px;
+    }
+    .tree-node {
+        white-space: normal;
     }
     .grid {
         gap: 12px;

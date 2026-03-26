@@ -41,11 +41,24 @@
                 <section>
                     <h2>Optional Helper Folders</h2>
                     <p>The current subsystem recognizes <code>scripts/</code> and <code>resources/</code>. Files under <code>scripts/</code> are discoverable through the runtime tool <code>run-script</code>. Files under <code>resources/</code> are discoverable through the runtime tool <code>get-resource</code>. These two folders are therefore part of the prepared skill surface.</p>
-                    <pre><code>skills/
-└── pdf-lite/
-    ├── SKILL.md
-    ├── scripts/
-    └── resources/</code></pre>
+                    <div class="tree-diagram" aria-label="Anthropic skill helper folders">
+                        <p class="tree-diagram__title">Minimal Anthropic skill layout</p>
+                        <ul class="tree-diagram__root">
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">pdf-lite/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">SKILL.md</span></li>
+                                            <li><span class="tree-node tree-node--folder">scripts/</span></li>
+                                            <li><span class="tree-node tree-node--folder">resources/</span></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                     <p>The older page mentioned <code>assets/</code> as though it were part of the subsystem contract. In the current implementation, that folder is not prepared or exposed by the Anthropic subsystem itself. It may still exist as ordinary repository content, but it is not one of the active runtime surfaces described by this chapter.</p>
                 </section>
 

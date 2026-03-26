@@ -42,9 +42,22 @@
                     <p>At execution time, the subsystem resolves the downstream skills admitted by the descriptor, wraps them through the shared <code>RecursiveSkilledAgent</code>, and starts either a loop session or a SOP session. The orchestration skill therefore does not perform the domain work directly. It establishes the controlled execution environment within which other skills may be invoked.</p>
                     <p>The session choice is deliberately narrow. If the resolved session value is <code>loop</code>, the subsystem starts a loop-based agentic session. In every other case, it falls back to a SOP session. When a preparation section exists, it becomes a bounded context-building stage for that session. The runtime path, the tool wrapping model, the allowlist behavior, and the loop-specific session persistence model are examined in <a href="orchestration-skills-runtime.html">Runtime</a>.</p>
                     <p>The filesystem footprint for this skill family remains minimal. Discovery only requires a directory containing <code>oskill.md</code>. The governing behavior resides in the descriptor and in the orchestration subsystem rather than in a generated runtime file.</p>
-                    <pre><code>skills/
-└── documentation-orchestrator/
-    └── oskill.md</code></pre>
+                    <div class="tree-diagram" aria-label="Minimal orchestration skill layout">
+                        <p class="tree-diagram__title">Minimal orchestration layout</p>
+                        <ul class="tree-diagram__root">
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">documentation-orchestrator/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">oskill.md</span></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                     <div class="doc-callout doc-callout--note">
                         <span class="doc-callout__label">Note</span>
                         <p>Unlike DBTable Skills, orchestration skills do not rely on a family-specific generation pipeline. Their operational behavior is derived directly from the parsed descriptor and from the subsystem that executes it.</p>

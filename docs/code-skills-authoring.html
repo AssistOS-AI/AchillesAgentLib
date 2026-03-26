@@ -41,19 +41,57 @@
                 <section>
                     <h2>Two Valid Layouts</h2>
                     <p>The first valid layout is the specification-driven layout. In this form, the skill contains <code>cskill.md</code>, a <code>specs/</code> directory, and the generated or regenerated runtime module under <code>src/</code>.</p>
-                    <pre><code>skills/
-└── file-system/
-    ├── cskill.md
-    ├── specs/
-    │   └── index.mjs.md
-    └── src/
-        └── index.mjs</code></pre>
+                    <div class="tree-diagram" aria-label="Specification-driven code skill layout">
+                        <p class="tree-diagram__title">Specification-driven layout</p>
+                        <ul class="tree-diagram__root">
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">file-system/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">cskill.md</span></li>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">specs/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">index.mjs.md</span></li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">src/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">index.mjs</span></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                     <p>The second valid layout is a maintained runtime layout in which the module under <code>src/</code> already exists and is intentionally maintained directly. In that case, the skill may still be executed as a Code Skill even if the generation pass has nothing to produce.</p>
-                    <pre><code>skills/
-└── local-formatter/
-    ├── cskill.md
-    └── src/
-        └── index.mjs</code></pre>
+                    <div class="tree-diagram" aria-label="Directly maintained code skill layout">
+                        <p class="tree-diagram__title">Direct runtime layout</p>
+                        <ul class="tree-diagram__root">
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">local-formatter/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">cskill.md</span></li>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">src/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">index.mjs</span></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                     <p>The practical distinction is therefore not whether the subsystem can load the module. It can do so in either case. The distinction is where maintainers are expected to apply changes: in <code>specs/</code> for generation-driven skills, or in <code>src/</code> for intentionally maintained direct modules.</p>
                 </section>
 

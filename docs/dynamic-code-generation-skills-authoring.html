@@ -41,14 +41,40 @@
                 <section>
                     <h2>Two Valid Layouts</h2>
                     <p>The first valid layout is descriptor-only. In this form, the subsystem prepares the default executor and lets the LLM decide at runtime whether the request should be answered directly or through temporary code.</p>
-                    <pre><code>skills/
-└── bigMultiply/
-    └── dcgskill.md</code></pre>
+                    <div class="tree-diagram" aria-label="Descriptor-only dynamic code generation layout">
+                        <p class="tree-diagram__title">Descriptor-only layout</p>
+                        <ul class="tree-diagram__root">
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">bigMultiply/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">dcgskill.md</span></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                     <p>The second valid layout adds a local module whose filename matches the skill folder name. In that case, the subsystem prepares a module executor instead of the default decision-based executor.</p>
-                    <pre><code>skills/
-└── mathEval/
-    ├── dcgskill.md
-    └── mathEval.js</code></pre>
+                    <div class="tree-diagram" aria-label="Module-based dynamic code generation layout">
+                        <p class="tree-diagram__title">Module-based layout</p>
+                        <ul class="tree-diagram__root">
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">mathEval/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">dcgskill.md</span></li>
+                                            <li><span class="tree-node tree-node--file">mathEval.js</span></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                     <p>This distinction is operational. It is not merely a documentation convention. If the module exists under the expected name, the runtime will prefer it. If it does not exist, the fallback path remains the default dynamic executor.</p>
                 </section>
 

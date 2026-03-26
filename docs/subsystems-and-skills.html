@@ -47,21 +47,58 @@
                     <p>Each current skill family should be understood through the execution contract implemented by its subsystem rather than through a generic slogan. <a href="orchestration-skills.html">Orchestration Skills</a> coordinate other skills through structured sessions. <a href="dbtable-skills.html">DBTable Skills</a> model table-oriented workflows and derive runtime behavior from <code>tskill.md</code>. <a href="code-skills.html">Code Skills</a> execute generated or maintained modules from <code>src/index.mjs</code> or <code>src/index.js</code>, and in that case an exported <code>action()</code> function is required by the code-loading subsystem. <a href="dynamic-code-generation-skills.html">Dynamic Code Generation Skills</a> use a different contract, centered on dynamic generation or module-based execution rather than the <code>cskill</code> entrypoint rules. <a href="mcp-skills.html">MCP Skills</a> structure MCP tool access through allowlists, scripts, and plan execution. <a href="anthropic-skills.html">Anthropic Skills</a> use their descriptor content together with discovered scripts and resources to build a loop-session runtime surface.</p>
                     <p>This means that a skill is not simply “a smarter tool” in one uniform sense. In this library, a skill is a registered unit whose runtime semantics depend on its descriptor type. Some skills expose generated code, some expose orchestration guidance, some expose structured table definitions, and some expose tool-planning constraints. The commonality is not identical internal behavior. The commonality is that all of them can be discovered, registered, selected, and executed through the same top-level agent while preserving the execution discipline appropriate to their own family.</p>
                     <p>The filesystem structure reflects this arrangement. Skill discovery begins from directories named <code>skills</code>, and each concrete skill is recognized by the presence of one of the supported descriptor filenames. A minimal illustrative layout is shown below.</p>
-                    <pre><code>skills/
-├── my-orchestrator/
-│   └── oskill.md
-├── my-db-skill/
-│   └── tskill.md
-├── my-code-skill/
-│   ├── cskill.md
-│   └── src/
-│       └── index.mjs
-├── my-dynamic-code-skill/
-│   └── dcgskill.md
-├── my-mcp-skill/
-│   └── mskill.md
-└── my-anthropic-skill/
-    └── SKILL.md</code></pre>
+                    <div class="tree-diagram" aria-label="Minimal layout for the current skill families">
+                        <p class="tree-diagram__title">Minimal skill-family layout</p>
+                        <ul class="tree-diagram__root">
+                            <li>
+                                <span class="tree-node tree-node--folder">skills/</span>
+                                <ul>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">my-orchestrator/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">oskill.md</span></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">my-db-skill/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">tskill.md</span></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">my-code-skill/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">cskill.md</span></li>
+                                            <li>
+                                                <span class="tree-node tree-node--folder">src/</span>
+                                                <ul>
+                                                    <li><span class="tree-node tree-node--file">index.mjs</span></li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">my-dynamic-code-skill/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">dcgskill.md</span></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">my-mcp-skill/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">mskill.md</span></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <span class="tree-node tree-node--folder">my-anthropic-skill/</span>
+                                        <ul>
+                                            <li><span class="tree-node tree-node--file">SKILL.md</span></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                     <p>This example should be read as a type-oriented sketch rather than as a claim that every family has the same companion files. The actual runtime details belong to the dedicated pages for each subsystem. The function of the present page is to establish the governing principle: skill categories are first-class runtime categories, and subsystems are the mechanism that makes those categories executable without collapsing them into one misleading abstraction.</p>
                 </section>
             </div>

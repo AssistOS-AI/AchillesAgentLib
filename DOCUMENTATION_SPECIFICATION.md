@@ -96,6 +96,11 @@ Sidebar navigation should be added only for a real family of related pages.
 - Links in prose must remain visibly identifiable without hover.
 - Avoid UI patterns that look like application dashboards unless they solve a real documentation problem.
 - On mobile and tablet, layouts must collapse before text becomes cramped.
+- When a page needs to explain a runtime flow or generation pipeline, prefer a compact visual diagram over an ASCII block inside `<pre><code>`.
+- Such diagrams should remain technically exact, visually restrained, and readable on mobile.
+- If SVG is used, long labels must be shortened, wrapped, or fitted so that no text escapes its visual container.
+- When a page needs to show a representative directory layout, prefer a visual tree component over an ASCII directory dump inside `<pre><code>`.
+- Tree layouts should preserve the real file and folder names, but they should be easier to scan than raw terminal output.
 
 ## 10. Working Procedure
 
