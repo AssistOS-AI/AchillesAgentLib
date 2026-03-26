@@ -542,6 +542,14 @@ export function createDefaultLLMInvokerStrategy() {
         const attempts = [];
         for (const candidate of prioritized) {
             const record = modelRecordMap.get(candidate) || null;
+
+            // Skip models whose provider requires an API key that isn't set
+            const keyEnv = record?.apiKeyEnv
+                || modelsConfiguration.providers.get(record?.providerKey)?.apiKeyEnv;
+            if (keyEnv && !process.env[keyEnv]) {
+                continue;
+            }
+
             const invocationConfig = { ...baseOptions };
 
             if (!invocationConfig.providerKey && record?.providerKey) {
