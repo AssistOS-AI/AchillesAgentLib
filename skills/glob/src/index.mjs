@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { normalizePathSeparators, parseKeyValueInput, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
+import { getSopDocBaseDir, normalizePathSeparators, parseKeyValueInput, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 function escapeRegex(text) {
     return text.replace(/[.+^$|(){}\\]/g, '\\$&');
@@ -101,10 +101,11 @@ export async function action(context) {
     if (!pattern) {
         throw new Error('Glob requires a pattern.');
     }
-    const baseDirRaw = input.path ? String(input.path) : process.cwd();
+    const sopBaseDir = getSopDocBaseDir(context) || process.cwd();
+    const baseDirRaw = input.path ? String(input.path) : sopBaseDir;
     const baseDir = path.isAbsolute(baseDirRaw)
         ? baseDirRaw
-        : path.resolve(process.cwd(), baseDirRaw);
+        : path.resolve(sopBaseDir, baseDirRaw);
     const regex = globToRegex(normalizePathSeparators(pattern));
     const allFiles = await listFiles(baseDir);
 

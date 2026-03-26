@@ -80,6 +80,19 @@ describe('envConfigLoader', () => {
             const result = parseModelDefinition('gpt-4-turbo'); // No provider
             assert.strictEqual(result, null);
         });
+
+        it('should parse tags from model definition', () => {
+            const result = parseModelDefinition('myproxy/gpt-4-turbo|deep|5|15|128k|coding,fast,agentic');
+            assert.strictEqual(result.provider, 'myproxy');
+            assert.strictEqual(result.name, 'gpt-4-turbo');
+            assert.strictEqual(result.tier, 'deep');
+            assert.deepStrictEqual(result.tags, ['coding', 'fast', 'agentic']);
+        });
+
+        it('should return empty tags when not specified', () => {
+            const result = parseModelDefinition('myproxy/gpt-4-turbo|deep|5|15|128k');
+            assert.deepStrictEqual(result.tags, []);
+        });
     });
 
     describe('loadEnvConfig with providers', () => {

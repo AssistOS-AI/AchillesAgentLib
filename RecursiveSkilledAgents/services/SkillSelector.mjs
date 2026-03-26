@@ -31,11 +31,11 @@ export class SkillSelector {
      * @param {Object} [options.logger] - Logger instance (defaults to console)
      * @param {Object} [options.debugLogger] - Debug logger instance
      */
-    constructor({ llmAgent = null, logger = console, debugLogger = null, tierConfig = null } = {}) {
+    constructor({ llmAgent = null, logger = console, debugLogger = null, tierConfig = null, modelConfig = null } = {}) {
         this.llmAgent = llmAgent;
         this.logger = logger;
         this.debugLogger = debugLogger;
-        this.tierConfig = tierConfig;
+        this.tierConfig = modelConfig || tierConfig;
     }
 
     /**

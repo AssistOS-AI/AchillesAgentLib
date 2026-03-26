@@ -33,9 +33,9 @@ function camelCaseKeys(obj) {
 }
 
 export class CodeSkillsSubsystem {
-  constructor({ llmAgent, tierConfig = null }) {
+  constructor({ llmAgent, tierConfig = null, modelConfig = null }) {
     this.llmAgent = llmAgent;
-    this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
+    this.tierConfig = modelConfig || tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
   }
 
   parseSkillDescriptor({ filePath }) {

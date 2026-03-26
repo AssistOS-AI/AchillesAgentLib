@@ -264,9 +264,9 @@ async function executeCodeSnippet({ skillName, code }) {
 } ``
 
 export class DynamicCodeGenerationSubsystem {
-    constructor({ llmAgent, tierConfig = null }) {
+    constructor({ llmAgent, tierConfig = null, modelConfig = null }) {
         this.llmAgent = llmAgent;
-        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
+        this.tierConfig = modelConfig || tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.executors = new Map();
     }
 

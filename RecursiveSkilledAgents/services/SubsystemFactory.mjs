@@ -30,10 +30,10 @@ export class SubsystemFactory {
      * @param {Object} [options.llmAgent] - LLM agent instance for subsystems that require it
      * @param {Object} [options.dbAdapter] - Database adapter for DBTableSkillsSubsystem
      */
-    constructor({ llmAgent = null, dbAdapter = null, tierConfig = null } = {}) {
+    constructor({ llmAgent = null, dbAdapter = null, tierConfig = null, modelConfig = null } = {}) {
         this.llmAgent = llmAgent;
         this.dbAdapter = dbAdapter;
-        this.tierConfig = tierConfig;
+        this.tierConfig = modelConfig || tierConfig;
         this.instances = new Map();
     }
 

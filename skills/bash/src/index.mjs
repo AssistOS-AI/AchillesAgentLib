@@ -1,4 +1,4 @@
-import { parseKeyValueInput, runBashCommand, stripDependsOn, unwrapBacktickLiteral } from '../../../utils/internalSkillsUtils.mjs';
+import { getSopDocBaseDir, parseKeyValueInput, runBashCommand, stripDependsOn, unwrapBacktickLiteral } from '../../../utils/internalSkillsUtils.mjs';
 
 function extractMultilineAfterKey(promptText, key) {
     const lines = String(promptText ?? '').split(/\r?\n/);
@@ -27,7 +27,8 @@ export async function action(context) {
         throw new Error('Bash requires a command string.');
     }
     const timeout = input.timeout ? Number(input.timeout) : undefined;
-    const output = await runBashCommand(command, process.cwd(), timeout);
+    const baseDir = getSopDocBaseDir(context) || process.cwd();
+    const output = await runBashCommand(command, baseDir, timeout);
     const stderrText = output.stderr ? `\n[stderr]\n${output.stderr}` : '';
     const exitCodeText = output.exitCode ? `\n[exitCode] ${output.exitCode}` : '';
     const timeoutText = output.timedOut ? '\n[timedOut] true' : '';

@@ -66,12 +66,15 @@ function parseModelDefinition(value) {
     const inputPrice = parts[2] ? parseFloat(parts[2]) : 0;
     const outputPrice = parts[3] ? parseFloat(parts[3]) : 0;
     const context = parts[4] || 'N/A';
+    const rawTags = parts[5] || '';
+    const tags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : [];
 
     return {
         name: modelName,
         provider,
         providerKey: provider,
         tier: tier === 'deep' ? 'deep' : 'fast',
+        tags,
         inputPrice: isNaN(inputPrice) ? 0 : inputPrice,
         outputPrice: isNaN(outputPrice) ? 0 : outputPrice,
         context,

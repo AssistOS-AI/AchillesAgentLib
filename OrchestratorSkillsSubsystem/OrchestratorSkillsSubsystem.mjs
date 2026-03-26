@@ -62,10 +62,10 @@ function buildLoopSystemPrompt(skillRecord) {
 }
 
 export class OrchestratorSkillsSubsystem {
-    constructor({ llmAgent = null, tierConfig = null } = {}) {
+    constructor({ llmAgent = null, tierConfig = null, modelConfig = null } = {}) {
         this.type = 'orchestrator';
         this.llmAgent = llmAgent;
-        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
+        this.tierConfig = modelConfig || tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 
@@ -175,7 +175,7 @@ export class OrchestratorSkillsSubsystem {
                     context: forwardedContext,
                     sessionMemory: forwardedContext.sessionMemory || null,
                 };
-                if (skillTier) execOptions.mode = skillTier;
+                if (skillTier) execOptions.tier = skillTier;
                 const executionResult = await recursiveAgent.executePrompt(safePrompt, execOptions);
                 // Serialize non-string results so downstream tools receive valid text
                 const result = executionResult?.result;

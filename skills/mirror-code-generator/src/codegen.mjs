@@ -83,6 +83,14 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
     const sourceName = path.basename(sourcePath);
 
     try {
+        const sourceDirExists = await fs.stat(sourcePath).then(stat => stat.isDirectory()).catch(() => false);
+        if (!sourceDirExists) {
+            debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'Source directory not found.' });
+            return {
+                message: `Skipped: source directory not found for "${sourceName}".`,
+                generatedFiles: [],
+            };
+        }
         const specsDirExists = await fs.stat(specsDir).then(stat => stat.isDirectory()).catch(() => false);
         if (!specsDirExists) {
             debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'No specs directory found.' });
