@@ -14,6 +14,10 @@ const INTERNAL_SKILLS = {
     // Future internal skills: just add the module path here
 };
 
+const CONVERSATION_SUMMARY_KEY = '__conversation_summary__';
+const CONVERSATION_TURN_KEY = '__conversation_turn__';
+const MAX_RESULT_CHARS_FOR_SUMMARY = 800;
+
 const SKILL_TYPE_TO_FILENAME = Object.entries(SKILL_FILE_TYPES).reduce((acc, [filename, descriptor]) => {
     acc[descriptor.type] = filename;
     return acc;
@@ -45,13 +49,16 @@ export class SkillExecutor {
         debugLogger = null,
         callbacks = {},
         tierConfig = null,
+        modelConfig = null,
+        enableSummary = false,
     } = {}) {
         this.registry = registry;
         this.subsystemFactory = subsystemFactory;
         this.selector = selector;
         this.logger = logger;
         this.debugLogger = debugLogger;
-        this.tierConfig = tierConfig;
+        this.tierConfig = modelConfig || tierConfig;
+        this.enableSummary = enableSummary;
         this.callbacks = {
             onBegin: typeof callbacks.onBegin === 'function' ? callbacks.onBegin : null,
             onProgress: typeof callbacks.onProgress === 'function' ? callbacks.onProgress : null,
@@ -298,15 +305,34 @@ export class SkillExecutor {
                 await this.awaitPendingPreparations();
             }
 
+            // Inject conversation summary into context if available
+            const sessionMemory = forward.context?.sessionMemory || null;
+            let enrichedDescription = taskDescription;
+            if (isTopLevel && sessionMemory) {
+                const previousSummary = sessionMemory.get(CONVERSATION_SUMMARY_KEY);
+                if (previousSummary) {
+                    enrichedDescription = `Conversation context:\n${previousSummary}\n\nCurrent request:\n${taskDescription}`;
+                    this.debugLogger?.log('SkillExecutor:injectSummary', {
+                        summaryLength: previousSummary.length,
+                    });
+                }
+            }
+
             if (!skillName) {
                 // Report that we're routing/planning
                 if (actionReporter && isTopLevel) {
                     actionReporter.routing(taskDescription?.slice(0, 50) || 'request');
                 }
-                const result = await this.executeWithoutExplicitSkill(taskDescription, forward, reviewMode, recursiveAgent);
+                const result = await this.executeWithoutExplicitSkill(enrichedDescription, forward, reviewMode, recursiveAgent);
                 if (actionReporter && isTopLevel) {
                     actionReporter.completeAction();
                 }
+
+                // Generate conversation summary after top-level execution
+                if (isTopLevel && this.enableSummary && sessionMemory) {
+                    await this._updateConversationSummary(sessionMemory, taskDescription, result, null, recursiveAgent);
+                }
+
                 return result;
             }
 
@@ -327,7 +353,7 @@ export class SkillExecutor {
             const hasOwn = (name) => Object.prototype.hasOwnProperty.call(args, name);
             const injectArg = (name) => {
                 if (typeof name === 'string' && name && !hasOwn(name)) {
-                    args[name] = taskDescription;
+                    args[name] = enrichedDescription;
                 }
             };
 
@@ -336,13 +362,13 @@ export class SkillExecutor {
             }
 
             if (!Object.keys(args).length) {
-                args.input = taskDescription;
+                args.input = enrichedDescription;
             }
 
             const execution = await subsystem.executeSkillPrompt({
                 skillRecord,
                 recursiveAgent,
-                promptText: taskDescription,
+                promptText: enrichedDescription,
                 options: {
                     ...forward,
                     args,
@@ -357,19 +383,16 @@ export class SkillExecutor {
             // If execution result is a primitive or null, wrap it in a result property
             // to avoid spread operator issues (e.g., spreading a string creates { "0": "H", "1": "e", ... })
             const isPrimitive = execution === null || typeof execution !== 'object';
-            if (isPrimitive) {
-                return {
-                    result: execution,
-                    reviewMode,
-                    subsystem: skillRecord.type,
-                };
+            const finalResult = isPrimitive
+                ? { result: execution, reviewMode, subsystem: skillRecord.type }
+                : { ...execution, reviewMode, subsystem: skillRecord.type };
+
+            // Generate conversation summary after top-level execution
+            if (isTopLevel && this.enableSummary && sessionMemory) {
+                await this._updateConversationSummary(sessionMemory, taskDescription, finalResult, skillRecord.shortName || skillName, recursiveAgent);
             }
 
-            return {
-                ...execution,
-                reviewMode,
-                subsystem: skillRecord.type,
-            };
+            return finalResult;
         } catch (error) {
             // Report skill failure
             if (skillAction && actionReporter) {
@@ -382,6 +405,67 @@ export class SkillExecutor {
                 this._invokeEnd();
                 this._isProcessing = false;
             }
+        }
+    }
+
+    /**
+     * Generate/update rolling conversation summary after a top-level execution.
+     * @private
+     */
+    async _updateConversationSummary(sessionMemory, userPrompt, executionResult, skillName, recursiveAgent) {
+        try {
+            const llmAgent = recursiveAgent?.llmAgent;
+            if (!llmAgent || typeof llmAgent.executePrompt !== 'function') return;
+
+            const previousSummary = sessionMemory.get(CONVERSATION_SUMMARY_KEY) || '';
+            const turnNumber = (sessionMemory.get(CONVERSATION_TURN_KEY) || 0) + 1;
+
+            // Extract result text, truncate safely
+            const rawResult = executionResult?.result;
+            let resultText = '';
+            if (typeof rawResult === 'string') {
+                resultText = rawResult;
+            } else if (rawResult != null) {
+                try { resultText = JSON.stringify(rawResult); } catch { resultText = String(rawResult); }
+            }
+            if (resultText.length > MAX_RESULT_CHARS_FOR_SUMMARY) {
+                resultText = resultText.slice(0, MAX_RESULT_CHARS_FOR_SUMMARY) + '…';
+            }
+
+            const summaryPrompt = [
+                'Generate a concise conversation summary (under 150 words).',
+                '',
+                previousSummary ? `Previous summary: ${previousSummary}` : '',
+                '',
+                `Turn ${turnNumber}:`,
+                `User asked: ${userPrompt}`,
+                skillName ? `Skill used: ${skillName}` : '',
+                `Result: ${resultText || '(no result)'}`,
+                '',
+                'Instructions:',
+                '- Incorporate previous summary and new turn into one rolling summary.',
+                '- Include: what the user requested, which skill was used, key outcomes.',
+                '- Be factual and terse. No preamble, no markdown.',
+                '- Output ONLY the summary text.',
+            ].filter(Boolean).join('\n');
+
+            const summaryTier = this.tierConfig?.summary || this.tierConfig?.execution || 'fast';
+            const summary = await llmAgent.executePrompt(summaryPrompt, {
+                tier: summaryTier,
+                context: { intent: 'conversation-summary' },
+            });
+
+            if (typeof summary === 'string' && summary.trim()) {
+                sessionMemory.set(CONVERSATION_SUMMARY_KEY, summary.trim());
+                sessionMemory.set(CONVERSATION_TURN_KEY, turnNumber);
+                this.debugLogger?.log('SkillExecutor:summaryGenerated', {
+                    turnNumber,
+                    summaryLength: summary.trim().length,
+                });
+            }
+        } catch (error) {
+            // Non-fatal — summary generation should never block execution
+            this.logger?.warn?.(`[SkillExecutor] Summary generation failed: ${error.message}`);
         }
     }
 

@@ -37,10 +37,10 @@ function listFiles(rootDir, baseDir) {
 
 
 export class AnthropicSkillsSubsystem {
-    constructor({ llmAgent = null, tierConfig = null } = {}) {
+    constructor({ llmAgent = null, tierConfig = null, modelConfig = null } = {}) {
         this.type = 'anthropic';
         this.llmAgent = llmAgent;
-        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
+        this.tierConfig = modelConfig || tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
     }
 
     parseSkillDescriptor({ filePath }) {

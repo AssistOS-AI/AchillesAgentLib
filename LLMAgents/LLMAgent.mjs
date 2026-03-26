@@ -306,6 +306,7 @@ class LLMAgent {
             tier = 'fast',
             mode = null,
             model = null,
+            tags = null,
             responseShape = null,
             globalMemory = null,
             userMemory = null,
@@ -346,6 +347,7 @@ ${promptText}`
             tier,
             mode,
             model,
+            tags,
             ...rest,
         });
 

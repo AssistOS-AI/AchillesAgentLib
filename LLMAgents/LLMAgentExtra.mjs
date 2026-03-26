@@ -17,6 +17,7 @@ async function extraComplete(agent, options = {}) {
         tier = 'fast',
         mode = null,
         model = null,
+        tags = null,
         context = {},
         ...invokerExtras
     } = options;
@@ -92,6 +93,7 @@ ${prompt}`
             tier,
             mode,
             model,
+            tags,
             agent,
             context,
             ...invokerExtras,
@@ -195,6 +197,7 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
         tier = 'fast',
         mode = null,
         model = null,
+        tags = null,
         outputSchema = null,
         ...rest
     } = options;
@@ -210,6 +213,7 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
         tier,
         mode,
         model,
+        tags,
         context: { intent: 'task-execution' },
         ...rest,
     });
@@ -221,6 +225,7 @@ async function extraDoTaskWithReview(agent, agentContext, description, options =
         mode = null,
         maxIterations = 3,
         model = null,
+        tags = null,
         ...rest
     } = options;
 
@@ -235,6 +240,7 @@ async function extraDoTaskWithReview(agent, agentContext, description, options =
         tier,
         mode,
         model,
+        tags,
         context: { intent: 'task-review', maxIterations },
         ...rest,
     });

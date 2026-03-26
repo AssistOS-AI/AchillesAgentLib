@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnvConfig, parseModelReference } from './envConfigLoader.mjs';
-import { discoverModels, discoverTiers } from './gatewayDiscovery.mjs';
+import { discoverModels } from './gatewayDiscovery.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -171,31 +171,12 @@ export function normalizeConfig(rawConfig, options = {}) {
         }
     }
 
-    // Parse and validate priority arrays
-    const fastModelPriority = normalizeModelPriorityArray(
-        rawConfig?.fastModelPriority,
-        models,
-        'fast',
-        issues,
-        qualifiedModels,
-    );
-    const deepModelPriority = normalizeModelPriorityArray(
-        rawConfig?.deepModelPriority,
-        models,
-        'deep',
-        issues,
-        qualifiedModels,
-    );
-
-    // Parse static tiers from config (fallback when Soul Gateway doesn't provide tiers)
-    const tiers = new Map();
-    if (rawConfig?.tiers && typeof rawConfig.tiers === 'object') {
-        for (const [name, def] of Object.entries(rawConfig.tiers)) {
-            if (def && Array.isArray(def.models)) {
-                tiers.set(name, {
-                    models: def.models.filter(m => typeof m === 'string'),
-                    fallback: typeof def.fallback === 'string' ? def.fallback : null,
-                });
+    // Parse defaults map (intent name → model name)
+    const defaults = new Map();
+    if (rawConfig?.defaults && typeof rawConfig.defaults === 'object') {
+        for (const [name, modelName] of Object.entries(rawConfig.defaults)) {
+            if (typeof modelName === 'string' && modelName.trim()) {
+                defaults.set(name, modelName.trim());
             }
         }
     }
@@ -208,47 +189,9 @@ export function normalizeConfig(rawConfig, options = {}) {
         issues,
         raw: rawConfig,
         orderedModels: orderedModelNames,
-        fastModelPriority,
-        deepModelPriority,
-        tiers,
+        defaults,
         ...validatedDefaults,
     };
-}
-
-function normalizeModelPriorityArray(rawPriority, models, expectedMode, issues, qualifiedModels) {
-    if (!Array.isArray(rawPriority) || rawPriority.length === 0) {
-        return null;
-    }
-
-    const validated = [];
-    for (const modelName of rawPriority) {
-        if (typeof modelName !== 'string' || !modelName.trim()) {
-            continue;
-        }
-        const trimmed = modelName.trim();
-
-        // Try direct lookup first, then resolve via qualified names
-        let resolvedKey = trimmed;
-        let model = models.get(trimmed);
-
-        if (!model && qualifiedModels) {
-            const resolved = resolveModelName(trimmed, models, qualifiedModels);
-            if (resolved) {
-                resolvedKey = resolved;
-                model = models.get(resolvedKey);
-            }
-        }
-
-        if (!model) {
-            issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority is not defined.`);
-            continue;
-        }
-        if (model.tier !== expectedMode) {
-            issues.warnings.push(`Priority model "${trimmed}" in ${expectedMode}ModelPriority has tier "${model.tier}" instead of "${expectedMode}".`);
-        }
-        validated.push(resolvedKey);
-    }
-    return validated.length > 0 ? validated : null;
 }
 
 function normalizeProvider(providerKey, entry, issues, options) {
@@ -312,10 +255,13 @@ function normalizeModel(entry, providers, issues, options) {
         issues.warnings.push(`Model "${modelName}" references unknown provider "${providerKey}".`);
     }
 
+    const tags = Array.isArray(entry.tags) ? entry.tags.filter(t => typeof t === 'string') : [];
+
     return {
         name: modelName,
         providerKey,
         tier,
+        tags,
         apiKeyEnv: apiKeyEnvOverride,
         baseURL: baseURLOverride,
     };
@@ -532,11 +478,8 @@ async function discoverGatewayModels(normalized) {
 
     if (!discoveryProviders.length) return;
 
-    // Run discovery for all auto-discover providers in parallel
-    const [results, tierResults] = await Promise.all([
-        Promise.all(discoveryProviders.map(p => discoverModels(p))),
-        Promise.all(discoveryProviders.map(p => discoverTiers(p))),
-    ]);
+    // Discover models from providers
+    const results = await Promise.all(discoveryProviders.map(p => discoverModels(p)));
 
     const gatewayModelNames = [];
 
@@ -551,7 +494,10 @@ async function discoverGatewayModels(normalized) {
                 name: dm.name,
                 providerKey: dm.providerKey,
                 tier: dm.tier,
+                tags: dm.tags || [],
+                sortOrder: dm.sortOrder ?? 100,
                 isFree: dm.isFree || false,
+                billingType: dm.billingType || 'api_key',
                 fromGateway: true,
             };
 
@@ -590,35 +536,6 @@ async function discoverGatewayModels(normalized) {
     // Append gateway models at the end of the ordered list
     normalized.orderedModels = [...orderedModels, ...gatewayModelNames];
 
-    // Merge discovered tiers (gateway tiers override static config tiers)
-    for (const { tiers: discoveredTiers, issues: tierIssues } of tierResults) {
-        issues.warnings.push(...tierIssues.warnings);
-        issues.errors.push(...tierIssues.errors);
-
-        for (const tier of discoveredTiers) {
-            normalized.tiers.set(tier.name, {
-                models: tier.models,
-                fallback: tier.fallback,
-            });
-        }
-    }
-
-    // Build priority arrays from sort_order when not already set by config/env
-    if (!normalized.fastModelPriority && !normalized.deepModelPriority) {
-        // Collect all gateway models with their sort order
-        const allDiscovered = results.flatMap(r => r.models);
-        const fastPriority = allDiscovered
-            .filter(m => m.tier === 'fast' && models.has(m.name))
-            .sort((a, b) => a.sortOrder - b.sortOrder)
-            .map(m => m.name);
-        const deepPriority = allDiscovered
-            .filter(m => m.tier === 'deep' && models.has(m.name))
-            .sort((a, b) => a.sortOrder - b.sortOrder)
-            .map(m => m.name);
-
-        if (fastPriority.length) normalized.fastModelPriority = fastPriority;
-        if (deepPriority.length) normalized.deepModelPriority = deepPriority;
-    }
 }
 
 export async function loadModelsConfiguration(options = {}) {

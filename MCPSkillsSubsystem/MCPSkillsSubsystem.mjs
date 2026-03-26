@@ -111,10 +111,10 @@ function normaliseTools(tools = []) {
 }
 
 export class MCPSkillsSubsystem {
-    constructor({ llmAgent = null, tierConfig = null } = {}) {
+    constructor({ llmAgent = null, tierConfig = null, modelConfig = null } = {}) {
         this.type = 'mcp';
         this.llmAgent = llmAgent;
-        this.tierConfig = tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
+        this.tierConfig = modelConfig || tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 

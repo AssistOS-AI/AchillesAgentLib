@@ -145,7 +145,7 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             assert.ok(config.providers.has('google'), 'google provider from JSON should exist');
         });
 
-        it('should include both env and JSON models', async () => {
+        it('should include both env and gateway-discovered models', async () => {
             setEnvVar('OPENAI_ENVPROVIDER_URL', 'https://envprovider.example.com/v1/chat/completions');
             setEnvVar('OPENAI_ENVPROVIDER_KEY', 'sk-env-key');
             setEnvVar('LLM_MODEL_TEST01', 'envprovider/env-only-model|fast|0.1|0.5|64k');
@@ -155,10 +155,14 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             // Env model should exist
             assert.ok(config.models.has('env-only-model'), 'env-only-model should exist');
 
-            // JSON models should still exist
-            assert.ok(config.models.has('gpt-5.2-codex') || config.qualifiedModels.has('opencode_responses/gpt-5.2-codex'), 'gpt-5.2-codex from JSON should exist');
-            assert.ok(config.models.has('claude-opus-4-5') || config.qualifiedModels.has('opencode_anthropic/claude-opus-4-5'), 'claude-opus-4-5 from JSON should exist');
-            assert.ok(config.models.has('axiologic-fast') || config.qualifiedModels.has('soul_gateway/axiologic-fast'), 'axiologic-fast from JSON should exist');
+            // Gateway-discovered models should also exist (if gateway is available)
+            if (config.models.size > 1) {
+                let hasGatewayModel = false;
+                for (const [, desc] of config.models) {
+                    if (desc.fromGateway) { hasGatewayModel = true; break; }
+                }
+                assert.ok(hasGatewayModel, 'gateway-discovered models should coexist with env models');
+            }
         });
 
         it('should build qualified models map for provider/model lookups', async () => {
@@ -238,33 +242,18 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should have valid fastModelPriority array', async () => {
+        it('should have valid defaults map', async () => {
             const config = await loadModelsConfiguration();
 
-            if (config.fastModelPriority) {
-                for (const modelName of config.fastModelPriority) {
-                    const model = config.models.get(modelName);
-                    assert.ok(model, `Priority model "${modelName}" should exist`);
-                    assert.strictEqual(
-                        model.tier,
-                        'fast',
-                        `Fast priority model "${modelName}" should have tier "fast"`
+            if (config.defaults && config.defaults.size > 0) {
+                for (const [intentName, modelName] of config.defaults) {
+                    assert.ok(
+                        typeof intentName === 'string' && intentName.length > 0,
+                        `Intent name should be a non-empty string`
                     );
-                }
-            }
-        });
-
-        it('should have valid deepModelPriority array', async () => {
-            const config = await loadModelsConfiguration();
-
-            if (config.deepModelPriority) {
-                for (const modelName of config.deepModelPriority) {
-                    const model = config.models.get(modelName);
-                    assert.ok(model, `Priority model "${modelName}" should exist`);
-                    assert.strictEqual(
-                        model.tier,
-                        'deep',
-                        `Deep priority model "${modelName}" should have tier "deep"`
+                    assert.ok(
+                        typeof modelName === 'string' && modelName.length > 0,
+                        `Default model for "${intentName}" should be a non-empty string`
                     );
                 }
             }

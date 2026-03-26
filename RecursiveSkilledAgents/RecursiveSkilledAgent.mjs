@@ -65,7 +65,9 @@ export class RecursiveSkilledAgent {
         outputWriter = null,
         exposeInternalSkills = true,
         tierConfig = {},
+        modelConfig = {},
         fallbackSessionType = 'loop',
+        enableSummary = false,
     } = {}) {
         if (llmAgent && !(llmAgent instanceof LLMAgent)) {
             throw new TypeError('RecursiveSkilledAgent requires an LLMAgent instance.');
@@ -76,15 +78,17 @@ export class RecursiveSkilledAgent {
         this.dbAdapter = dbAdapter;
         this.searchUpwards = Boolean(searchUpwards);
         this.exposeInternalSkills = Boolean(exposeInternalSkills);
-        const baseTierConfig = { plan: 'plan', execution: 'fast', code: 'code', ...tierConfig };
+        const effectiveConfig = { ...tierConfig, ...modelConfig };
+        const baseTierConfig = { plan: 'plan', execution: 'fast', code: 'code', ...effectiveConfig };
         // Expanded tier config: orchestrator and skill levels
         // Backwards compatible: skillPlan/skillExec fall back to plan/execution
         this.tierConfig = {
             ...baseTierConfig,
-            skillPlan: baseTierConfig.skillPlan || baseTierConfig.execution || 'fast',
+            skillPlan: baseTierConfig.skillPlan || baseTierConfig.plan || 'plan',
             skillExec: baseTierConfig.skillExec || baseTierConfig.execution || 'fast',
         };
         this.fallbackSessionType = fallbackSessionType === 'sop' ? 'sop' : 'loop';
+        this.enableSummary = Boolean(enableSummary);
 
         // Add internal skills directory to additionalSkillRoots
         const packageRoot = path.resolve(new URL('.', import.meta.url).pathname, '..');
@@ -117,6 +121,7 @@ export class RecursiveSkilledAgent {
             onProcessingProgress,
             onProcessingEnd,
             tierConfig: this.tierConfig,
+            enableSummary: this.enableSummary,
         });
 
         // ActionReporter for real-time feedback
@@ -145,7 +150,7 @@ export class RecursiveSkilledAgent {
      * Initialize all internal services.
      * @private
      */
-    _initializeServices({ skillFilter, onProcessingBegin, onProcessingProgress, onProcessingEnd, tierConfig }) {
+    _initializeServices({ skillFilter, onProcessingBegin, onProcessingProgress, onProcessingEnd, tierConfig, enableSummary }) {
         // Skill registry
         this.registry = new SkillRegistry({
             skillFilter,
@@ -187,6 +192,7 @@ export class RecursiveSkilledAgent {
                 onEnd: onProcessingEnd,
             },
             tierConfig,
+            enableSummary,
         });
 
         // Legacy compatibility properties
