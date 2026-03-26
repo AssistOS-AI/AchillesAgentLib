@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Skills Runtime · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Code Skills","href":"code-skills.html"},
+            {"label":"Runtime"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Code skill chapter navigation">
+                <p class="doc-sidebar__title">Code Skill Chapters</p>
+                <nav>
+                    <a href="code-skills.html">Overview</a>
+                    <a href="code-skills-authoring.html">Authoring</a>
+                    <a href="code-skills-runtime.html" aria-current="page">Runtime</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Runtime Behavior of Code Skills</h1>
+                    <p>This chapter explains how Code Skills are prepared and executed after discovery and clarifies which files and exports the subsystem actually requires at runtime.</p>
+                </section>
+
+                <section>
+                    <h2>Registration and Generation</h2>
+                    <p>When <code>RecursiveSkilledAgent</code> registers a skill of type <code>cskill</code>, it immediately schedules a preparation step through the internal <code>mirror-code-generator</code> skill. That generation request is issued automatically with the skill directory as input. If the directory contains usable files under <code>specs/</code>, the generator can produce or refresh matching files under <code>src/</code>. If the directory does not contain specifications, the generation step may complete without producing code.</p>
+                    <p>This means that the Code Skills runtime should not be described as though generation and execution were the same phase. Generation is an earlier preparation step initiated by the top-level agent. Execution happens later inside the Code Skills subsystem, which simply loads the module that exists on disk at that point.</p>
+                </section>
+
+                <section>
+                    <h2>Module Loading Contract</h2>
+                    <p>At execution time, the subsystem searches for <code>src/index.mjs</code> first and then for <code>src/index.js</code>. If neither file exists, execution fails. If one of them exists, the subsystem imports it dynamically and checks for an exported <code>action</code> function. If that function is missing, execution fails again. The runtime contract is therefore narrow and inspectable: the module must exist, and it must export <code>action(args)</code>.</p>
+                    <pre><code>cskill.md
+  ↓ discovery
+automatic generation request
+  ↓
+src/index.mjs or src/index.js
+  ↓ dynamic import
+export async function action(args)
+  ↓ runtime result</code></pre>
+                    <div class="doc-callout doc-callout--important">
+                        <span class="doc-callout__label">Important</span>
+                        <p>The subsystem does not execute <code>cskill.md</code>. It executes the imported module from <code>src/</code>. The descriptor remains part of the public contract, but the executable artifact is the module loaded from disk.</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Execution Arguments</h2>
+                    <p>The current runtime path passes the incoming user prompt directly into the module as <code>args.promptText</code>. It also injects the shared runtime references <code>llmAgent</code> and <code>recursiveAgent</code>, together with <code>context</code>, <code>sessionMemory</code>, <code>user</code>, and attachments. The subsystem therefore exposes both the raw prompt and the surrounding agent context to the module.</p>
+                    <p>This detail is important because the current subsystem does not perform structured argument extraction before loading the module. The helper for LLM-based extraction exists in the file, but the active execution path passes the prompt through unchanged. A Code Skill should therefore be written with the expectation that its <code>action(args)</code> function receives the raw prompt text unless a higher-level caller has already provided some richer context.</p>
+                    <p>In practical terms, the generated or maintained module is responsible for turning that prompt and context into the local behavior of the skill. That is why the descriptor and any source specifications should describe the intended interface clearly, but the executable semantics are ultimately determined by the module under <code>src/</code>.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

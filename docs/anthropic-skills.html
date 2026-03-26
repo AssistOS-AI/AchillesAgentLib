@@ -13,73 +13,46 @@
             {"label":"Anthropic Skills"}
         ]'></div>
 
-    <main class="content">
-        <section class="lead">
-            <h1>Anthropic Skills</h1>
-            <p>Integration of the Anthropic skill standard for structured, reusable guidance.</p>
-        </section>
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Anthropic chapter navigation">
+                <p class="doc-sidebar__title">Anthropic Chapters</p>
+                <nav>
+                    <a href="anthropic-skills.html" aria-current="page">Overview</a>
+                    <a href="anthropic-skills-authoring.html">Authoring</a>
+                    <a href="anthropic-skills-runtime.html">Runtime</a>
+                </nav>
+            </aside>
 
-        <section>
-            <h2>Vision</h2>
-            <p>
-                Anthropic skills exist to integrate a widely used standard into this system. The standard provides a predictable structure for
-                describing skills, and that structure is valuable even when the skill itself does not execute logic. By adopting it, we make
-                cross‑team collaboration easier and keep skill definitions portable.
-            </p>
-            <p>
-                For reference, the standard is described here:
-                <a href="https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview">Anthropic Skill Overview</a>.
-            </p>
-        </section>
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Anthropic Skills</h1>
+                    <p>Anthropic Skills are the family through which AchillesAgentLib supports the external <code>SKILL.md</code>-centered model of reusable skill bundles while placing those bundles inside the library’s own loop-based runtime.</p>
+                </section>
 
-        <section>
-            <h2>How They Behave Here</h2>
-            <p>
-                In this library, Anthropic skills are treated like orchestration skills that do not execute directly. They contribute structured
-                guidance and resources to an agentic session, but the execution happens elsewhere through other skills. This keeps them aligned
-                with the system’s “skills, not tools” model while preserving the intent of the Anthropic format.
-            </p>
-            <p>
-                At execution time, the system starts a Loop agentic session and uses it to run built-in skills that match the tools
-                described in <code>SKILL.md</code>. The Anthropic skill itself does not execute; it guides the selection and invocation of those
-                built-in skills.
-            </p>
-            <p>
-                Unlike a standard orchestration skill, an Anthropic skill can optionally include supporting folders for scripts, resources, and
-                assets. These add context or supporting logic without breaking the static nature of the descriptor itself.
-            </p>
-        </section>
+                <section>
+                    <h2>Structured Skill Bundles as a Local Runtime Surface</h2>
+                    <p>Anthropic-style skills are valuable because they package reusable operational guidance in a folder that can be inspected, shared, and maintained as a coherent unit. The practical benefit is not merely stylistic consistency. It is that instructions, supporting files, and limited local procedures can be kept together under one stable skill boundary.</p>
+                    <p>In AchillesAgentLib, this family aligns with that external standard but is not treated as a passive documentation bundle. The descriptor under <code>SKILL.md</code> becomes the main behavioral surface for a loop session. The skill body is therefore not only descriptive text. It functions as live session guidance inside the runtime.</p>
+                    <p>This is why Anthropic Skills matter architecturally. They show that even an apparently simple instruction bundle already behaves like a localized interpreter of task intent. The library preserves the external packaging intuition while making the execution path explicit and stateful inside its own session model.</p>
+                </section>
 
-        <section>
-            <h2>Folder Structure</h2>
-            <p>
-                An Anthropic skill lives in its own directory and can include optional folders used by the surrounding system.
-            </p>
-            <pre><code>skills/
-└── my-anthropic-skill/
-    ├── skill.md
-    ├── scripts/
-    ├── resources/
-    └── assets/</code></pre>
-            <p>
-                <code>scripts/</code> can contain executable helpers, <code>resources/</code> holds files that should be injected into agentic
-                session context, and <code>assets/</code> stores supporting files that are used indirectly by code but are not injected into the
-                context directly.
-            </p>
-        </section>
-
-        <section>
-            <h2>skill.md Sections</h2>
-            <p>
-                The descriptor follows the Anthropic skill format. At minimum it includes a title and summary, and can include detailed body
-                content that provides guidance, constraints, or examples.
-            </p>
-            <ul>
-                <li><code>Title</code> (the first heading) names the skill.</li>
-                <li><code>Summary</code> provides a short statement of purpose.</li>
-                <li>Body content describes the skill in narrative form.</li>
-            </ul>
-        </section>
+                <section>
+                    <h2>How the Subsystem Works in Practice</h2>
+                    <p>An Anthropic Skill is discovered through <code>SKILL.md</code>, not <code>skill.md</code>. During preparation, the subsystem records the parsed descriptor together with the files found under <code>scripts/</code> and <code>resources/</code>. At execution time, it starts or resumes a loop session whose system prompt is derived from the raw skill body and the current project root. The authoring implications of this descriptor format, including frontmatter support and optional helper folders, are described in <a href="anthropic-skills-authoring.html">Authoring</a>.</p>
+                    <p>The runtime tool surface is then built from a bounded set of internal skills and from two optional filesystem-backed tools: <code>run-script</code> when <code>scripts/</code> exists, and <code>get-resource</code> when <code>resources/</code> exists. The subsystem therefore does not expose an arbitrary local execution surface. It constructs a limited tool environment around the skill bundle and lets the loop session use that environment over multiple turns. The exact runtime behavior is described in <a href="anthropic-skills-runtime.html">Runtime</a>.</p>
+                    <pre><code>SKILL.md
+  ↓ parse and prepare
+discover scripts/ and resources/
+  ↓ build loop-session tool surface
+system prompt = skill body + project root
+  ↓
+loop session executes with bounded tools
+  ↓ optional
+session resumes through sessionMemory</code></pre>
+                </section>
+            </div>
+        </div>
     </main>
 
     <div id="site-footer"></div>

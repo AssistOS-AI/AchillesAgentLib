@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loop Sessions · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Agentic Sessions","href":"agentic-sessions.html"},
+            {"label":"Loop Sessions"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Agentic session chapter navigation">
+                <p class="doc-sidebar__title">Session Chapters</p>
+                <nav>
+                    <a href="agentic-sessions.html">Overview</a>
+                    <a href="agentic-sessions-loop.html" aria-current="page">Loop Sessions</a>
+                    <a href="agentic-sessions-sop.html">SOP Sessions</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Loop Sessions</h1>
+                    <p>The loop-based regime implements a bounded reasoning-and-action pattern in which the model repeatedly selects the next admissible tool, observes the result, and continues until the task reaches a completion signal, an interactive pause, or a configured failure boundary.</p>
+                </section>
+
+                <section>
+                    <h2>Deliberative Step Contract</h2>
+                    <p><code>LoopAgentSession</code> is defined in <code>LLMAgents/AgenticSession.mjs</code>. It is initialized over a tools object whose entries expose both a description and a handler. During construction, the runtime rejects any attempt to use the reserved names <code>final_answer</code> or <code>cannot_complete</code> as ordinary tool names and then injects those completion tools into the active tool surface automatically. The session also normalizes its execution options, including bounded defaults for maximum steps per turn, maximum error count, and retry count for expected-value validation.</p>
+                    <p>When <code>newPrompt()</code> is called, the session may first run an optional preparation stage. That preparation stage is itself executed through a bounded loop session and may inject derived context into both the system prompt and the working user prompt before the main turn starts. The core turn is then created with explicit state for prompt text, final answer, retry count, used tools, and step history. The session appends the incoming prompt to its history and enters the running state.</p>
+                    <p>From there, the runtime repeatedly builds a planner prompt through <code>buildAgenticSessionPlannerPrompt()</code> and asks the model for the next structured decision. The returned payload must resolve to a JSON object naming the next tool and the prompt that should be passed to that tool. The session therefore does not let arbitrary prose directly drive execution. Planning remains explicit at each step, even though the regime is adaptive rather than plan-first.</p>
+                </section>
+
+                <section>
+                    <h2>Intermediate Results and Interactive Continuation</h2>
+                    <p>The loop regime is more structured than a naive chat loop because every tool result is stored under a generated symbolic reference. Later tool prompts may reuse those earlier results through <code>$$variable</code> syntax, which is resolved immediately before the tool handler is called. This allows the planner to depend on explicit prior outputs without inlining large results back into the prompt. The session also records each tool call, the result reference associated with that call, and the evolving execution history.</p>
+                    <p>Tool execution itself is mediated. Before a tool handler runs, the session temporarily sets <code>agent.currentSession</code> so the handler can access the live session when needed. After the call returns, the result is normalized for storage and written into the internal variable map. This temporary attachment is part of the runtime behavior, not merely a debugging convenience.</p>
+                    <p>Interactive continuation is handled explicitly. If a tool result is a structured payload containing <code>requiresConfirmation</code> or <code>requiresInput</code>, the session moves into <code>awaiting_input</code> state, records the pending tool in history, and returns the interaction message. On the next prompt, the session first checks whether the new user message should continue that pending interaction. To do so, it uses <code>interpretMessage()</code> with the bounded intents <code>accept</code>, <code>cancel</code>, and <code>update</code>, together with a fresh-instruction heuristic. If the new message still belongs to the pending interaction, the session routes it back to the same tool rather than opening a new planner turn.</p>
+                    <div class="doc-callout doc-callout--note">
+                        <span class="doc-callout__label">Note</span>
+                        <p>This pending-input behavior is what makes loop sessions usable as multi-turn governed workflows. In loop-based orchestration and Anthropic Skills, the surrounding subsystem may store the paused session in <code>sessionMemory</code> and resume it on the next user prompt.</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Execution Bounds and Return Surface</h2>
+                    <p>The loop regime includes several independent stopping and recovery mechanisms. If a tool returns one of the reserved completion wrappers, the session converts that wrapper into the effective final answer. If the caller supplied an <code>expected</code> value for the turn, the session compares the returned completion against that expectation and may retry within a bounded number of attempts. If a tool repeats the same effective invocation and result several times in a row, the session stops rather than allowing trivial loops to continue. If tool errors or planner errors exceed the configured error budget, the session fails explicitly. If the step budget is exhausted, it returns a bounded failure response instead of continuing indefinitely.</p>
+                    <p>The return surface is intentionally compact. <code>getLastResult()</code> returns the current last answer. <code>getVariables()</code> returns a small state object containing <code>lastAnswer</code>, the current <code>status</code>, and the number of failed turns. The session also exposes <code>finalizeFailures()</code>, which attempts to convert accumulated failed turns into a <code>cannot_complete</code> result through the reserved completion tool. The regime is therefore adaptive, but its externally visible surface remains narrow.</p>
+                    <pre><code>const session = await llmAgent.startLoopAgentSession(tools, 'Investigate the request', {
+    tier: 'plan',
+    maxStepsPerTurn: 8,
+    maxRetriesPerTurn: 3,
+});
+
+const answer = session.getLastResult();
+const state = await session.getVariables();</code></pre>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

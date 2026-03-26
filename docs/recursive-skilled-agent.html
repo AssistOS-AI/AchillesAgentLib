@@ -16,45 +16,19 @@
     <main class="content">
         <section class="lead">
             <h1>RecursiveSkilledAgent</h1>
-            <p>The primary entry point for running structured, skill-bound work without drifting into open-ended guessing.</p>
+            <p>RecursiveSkilledAgent is the main runtime entry point through which skill-based execution begins. It is the layer that discovers skill bundles, registers them, selects or receives a skill for a request, preserves shared execution context, and forwards execution into the correct subsystem.</p>
         </section>
 
         <section>
-            <h2>Vision</h2>
-            <p>
-                RecursiveSkilledAgent is a task-focused agent that exists to execute repeatable work through explicit skills, not to behave like a
-                universal assistant. It treats skill definitions as the source of truth and keeps the model inside those boundaries, which reduces
-                hallucination risk and keeps outputs predictable. Instead of opportunistically deciding when to use external help, it assumes that
-                work is already captured as skills and coordinates those skills directly.
-            </p>
-            <p>
-                This framing matters for production systems. When a task is repeated, it should be captured as a skill and executed in a controlled
-                loop, not re-invented on every prompt. The agent therefore optimizes for consistency and auditability rather than broad, speculative
-                knowledge.
-            </p>
+            <h2>Runtime Entry Surface</h2>
+            <p>If <a href="llm-agent.html">LLMAgent</a> is the general mediation layer for model calls, RecursiveSkilledAgent is the runtime coordinator that turns those calls into bounded skill execution. Its role is not to reimplement the logic of every skill family. It is to keep discovery, routing, context injection, and delegation under one explicit entry surface so that the actual execution discipline can remain family-specific.</p>
+            <p>This distinction matters architecturally. The agent does not flatten DBTable skills, orchestration skills, MCP skills, Anthropic skills, dynamic code generation skills, and code skills into one generic behavior. It discovers which family a skill belongs to from the descriptor filename, asks the matching subsystem to parse and prepare the skill, and later delegates execution back to that subsystem. The result is a unified runtime entry point without a monolithic execution model. The taxonomy behind those families is documented in <a href="subsystems-and-skills.html">Subsystems and Skills</a>.</p>
+            <p>The word recursive is therefore literal rather than decorative. A prompt handled by RecursiveSkilledAgent may invoke an orchestrator, that orchestrator may invoke other skills, and those skills may in turn open further bounded execution paths. The agent remains the shared coordinator of registration, selection, and context, while the lower-level behavior stays inside the subsystem that owns it.</p>
         </section>
 
         <section>
-            <h2>What It Does</h2>
-            <p>
-                At runtime the agent discovers skills on disk, registers them, and routes a user request to the most appropriate skill or
-                orchestration flow. When a request requires multiple steps, it delegates to orchestration skills that run an agentic loop
-                (ReAct-style or Soplang-based planning) and decide which skill to execute next until the user goal is satisfied. You can
-                learn how those sessions work in the <a href="agentic-sessions.html">Agentic Sessions</a> page.
-            </p>
-            <p>
-                This means the agent remains lightweight and deterministic in the core, while complex, multi-step reasoning lives inside
-                purpose-built skills and session types. You keep the flexibility of an LLM with the guardrails of an explicit workflow.
-            </p>
-        </section>
-
-        <section>
-            <h2>Discovery Model</h2>
-            <p>
-                Skill discovery is filesystem-driven. The agent scans for <code>skills/</code> directories, parses skill descriptors, and
-                registers them with a canonical name. It can search upwards from a starting directory (default) or search downwards by locating
-                a <code>repos</code> root when configured to scan in that direction.
-            </p>
+            <h2>Discovery, Registration, and Preparation</h2>
+            <p>Skill discovery is filesystem-driven. The agent starts from its configured roots, asks the discovery service to scan for descriptor filenames such as <code>SKILL.md</code>, <code>dcgskill.md</code>, <code>cskill.md</code>, <code>mskill.md</code>, <code>oskill.md</code>, and <code>tskill.md</code>, and constructs a skill record for each discovered bundle. If a directory already contains one of those descriptor files, that directory is treated as a concrete skill bundle. If not, discovery recurses into nested directories until such a descriptor is found.</p>
             <pre><code>workspace/
 ├── skills/
 │   ├── reporting/
@@ -68,70 +42,27 @@
 │           └── cskill.md
 └── app/
     └── src/</code></pre>
-            <p>
-                The agent also includes built-in skills shipped with the library and can register additional skill roots you provide. Internal
-                skills are marked as built-in and can be hidden from LLM selection while remaining callable by name. The organization and
-                taxonomy of skills is explained in <a href="subsystems-and-skills.html">Subsystems and Skills</a>.
-            </p>
+            <p>After discovery, the agent registers each skill under a canonical name derived from the parsed descriptor name or the folder short name, together with a set of aliases used later for lookup. Registration does not stop at metadata. The matching subsystem is immediately asked to parse the descriptor and, when that subsystem supports it, to prepare the skill for execution. This is also the stage at which built-in skills from the package’s internal <code>skills/</code> directory are brought into the registry.</p>
+            <p>There is one important special case. The internal skill <code>mirror-code-generator</code> is registered first, and when a skill of type <code>cskill</code> is later discovered, the agent automatically schedules a preparation call through <code>mirror-code-generator</code>. This means that generation for Code Skills is initiated by the top-level agent during registration rather than by the Code Skills subsystem itself. The resulting preparation promises are tracked in <code>pendingPreparations</code> and awaited before normal execution unless the caller explicitly bypasses that wait.</p>
         </section>
 
         <section>
-            <h2>Execution Philosophy</h2>
-            <p>
-                The agent does not attempt to answer arbitrary questions. It is intentionally constrained to what your skills can do.
-                If a request is ambiguous or outside the skill boundary, the system expects either a specialized skill or an explicit escalation
-                path, not a speculative free-form answer.
-            </p>
-            <p>
-                This is also why it supports recursive execution: a skill can call other skills, which can then call further skills.
-                The recursion is governed by the agent’s registry and by allowlists in orchestration or MCP skills, so it remains bounded.
-            </p>
-        </section>
-
-        <section>
-            <h2>Key Responsibilities</h2>
-            <p>
-                RecursiveSkilledAgent coordinates a small set of specialized services rather than doing everything itself. Skill discovery,
-                selection, and execution are delegated to dedicated modules so the agent can remain a stable entry point while the system evolves.
-            </p>
-            <ul>
-                <li>Discovers skills and registers canonical names, aliases, and metadata.</li>
-                <li>Routes requests to subsystems based on skill type.</li>
-                <li>Injects session memory and I/O adapters into execution context.</li>
-                <li>Manages lifecycle callbacks and cancellation signals.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>Session Memory and Safety</h2>
-            <p>
-                The agent owns session memory because state is essential for iterative workflows. It maintains a default session for CLI usage
-                and supports multiple session IDs for webchat or multi-tenant contexts. Session memory is injected automatically into calls unless
-                you override it explicitly, which keeps skill implementations clean and deterministic.
-            </p>
-            <p>
-                Session storage is guarded by configurable TTL and LRU eviction. A background cleanup timer can evict idle sessions, and the agent
-                exposes helpers for manual cleanup and graceful shutdown.
-            </p>
-        </section>
-
-        <section>
-            <h2>Built-In Skill Handling</h2>
-            <p>
-                The agent always registers built-in skills from the package’s internal <code>skills/</code> directory. It also ensures that
-                <code>mirror-code-generator</code> is registered first, because it is used to generate executable code for code skills. When a
-                <code>cskill</code> is discovered, the agent schedules a generation pass through <code>mirror-code-generator</code> automatically.
-                The details of built-in skills are documented in <a href="built-in-skills.html">Built In Skills</a>.
-            </p>
-        </section>
-
-        <section>
-            <h2>Configuration Surface</h2>
-            <p>
-                RecursiveSkilledAgent can be configured to fit strict production environments or exploratory development. It accepts an existing
-                <a href="llm-agent.html">LLMAgent</a> or creates one for you, allows you to control search boundaries, and wires in I/O and reporting
-                adapters for interactive runtimes.
-            </p>
+            <h2>Routing, Execution, and Session State</h2>
+            <p>The execution path begins from one of two situations. If the caller provides an explicit skill name, the agent resolves that skill from the registry, injects default arguments when the skill family declares one, and delegates execution directly to the subsystem that owns the skill. If the caller does not provide a skill name, the runtime first tries to select a registered orchestrator through the selector service. If such an orchestrator exists, the request is delegated there. If not, the executor can synthesize an ad hoc orchestrator over the available non-orchestrator skills so that routing still remains bounded rather than collapsing into open-ended prompting. The session styles used by orchestrators are described separately in <a href="agentic-sessions.html">Agentic Sessions</a>.</p>
+            <p>Shared execution context is injected before that delegation happens. If the caller has not already provided <code>context.sessionMemory</code>, the agent creates or retrieves the appropriate session map by checking <code>context.sessionId</code>, then <code>context.user.sessionId</code>, then <code>context.user.sessionToken</code>, and otherwise falling back to the default session. If the agent has configured I/O services, those are also injected into <code>context.io</code>. This keeps session handling and runtime I/O as shared concerns rather than forcing each skill family to rebuild them independently.</p>
+            <p>Session management itself is part of the runtime contract. The agent supports a default session for CLI-like use, additional named sessions for multi-user or webchat-style flows, manual clearing and deletion, TTL-based cleanup, LRU-style eviction when <code>maxSessions</code> is exceeded, and graceful shutdown through <code>shutdown()</code>. When <code>enableSummary</code> is active, top-level executions can also update a rolling conversation summary inside session memory after each completed turn.</p>
+            <pre><code>user prompt
+   ↓
+RecursiveSkilledAgent
+   ├─ discover and register skills
+   ├─ inject session memory and I/O context
+   ├─ select orchestrator or direct skill
+   └─ delegate to family-specific subsystem
+          ↓
+     skill execution / agentic session
+          ↓
+       final response</code></pre>
+            <p>A representative configuration therefore looks as follows.</p>
             <pre><code>const agent = new RecursiveSkilledAgent({
     startDir: process.cwd(),
     searchUpwards: true,
@@ -139,31 +70,10 @@
     exposeInternalSkills: false,
     tierConfig: { plan: 'plan', execution: 'fast', code: 'code' },
     sessionConfig: { maxSessions: 1000, sessionTTL: 7_200_000, cleanupInterval: 300_000 },
+    fallbackSessionType: 'loop',
+    enableSummary: false,
 });</code></pre>
-            <p>
-                The <code>tierConfig</code> is intentionally explicit. Planning and execution are treated as distinct tiers, and the agent can
-                override skill-level tiers for internal orchestration, which is essential when you want fast decision-making but deeper execution
-                for specific skill families.
-            </p>
-        </section>
-
-        <section>
-            <h2>Canonical Execution Flow</h2>
-            <pre><code>user prompt
-   ↓
-RecursiveSkilledAgent
-   ├─ discover & register skills
-   ├─ select orchestrator or direct skill
-   ├─ inject session memory & IO
-   └─ delegate to subsystem
-          ↓
-     skill execution / agentic session
-          ↓
-       final response</code></pre>
-            <p>
-                The central promise is that every decision and action routes through a named skill. The agent’s job is not to be omniscient,
-                but to be reliable and explainable.
-            </p>
+            <p>The practical meaning of that configuration is straightforward. The agent scans for skills, preserves session state, can hide internal skills from LLM-based selection, and delegates planning and execution to the tiers appropriate for the selected skill family. Its purpose is not to behave like a universal assistant. Its purpose is to make skill-based execution repeatable, bounded, and inspectable at the entry level of the runtime.</p>
         </section>
     </main>
 

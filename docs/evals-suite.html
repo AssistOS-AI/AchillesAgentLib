@@ -16,58 +16,44 @@
     <main class="content">
         <section class="lead">
             <h1>Evals Suite</h1>
-            <p>A testing environment designed for LLM‑driven components with non‑deterministic behavior.</p>
+            <p>The <code>evalsSuite/</code> directory is the evaluation harness used to test probabilistic runtime behavior in AchillesAgentLib. Its role is different from that of ordinary deterministic unit tests. Instead of checking only fixed software outputs, it evaluates whether LLM-mediated planning, routing, generation, and session behavior remain sufficiently reliable across defined case sets and model configurations.</p>
         </section>
 
         <section>
-            <h2>Vision</h2>
-            <p>
-                The Evals Suite exists because LLM behavior is not deterministic. Traditional tests assume fixed outputs, but LLM‑based systems
-                can vary between runs even when the inputs are identical. The suite embraces that reality and evaluates reliability at scale
-                rather than single‑run perfection.
-            </p>
-            <p>
-                A test suite is considered successful when at least 95% of its cases pass. This threshold recognizes natural variance while still
-                enforcing a high standard of correctness.
-            </p>
+            <h2>Evaluation Rather Than Ordinary Testing</h2>
+            <p>The distinction matters because the target of evaluation is not a purely deterministic function. In this repository, the evaluated behaviors often involve model-mediated decisions such as intent classification, step planning, code generation, or comparative performance across different models. The purpose of <code>evalsSuite</code> is therefore not to impose one universal reproducibility rule. It is to establish disciplined confidence about recurring behavior under controlled case sets, prompts, and runtimes.</p>
+            <p>This is also why the suite should not be described through one global success threshold. Different scripts report success in different ways. Some count passing cases directly. Some compare expected variables against observed session state. Some generate benchmark tables across many models. Some support repeated runs, semantic comparison, or filtered reruns of failed cases. The common principle is methodological, not the enforcement of one fixed pass-rate number across the whole directory.</p>
         </section>
 
         <section>
-            <h2>What It Tests</h2>
-            <p>
-                The suite focuses on agentic workflows and model behaviors that are most sensitive to variability. It runs dozens of cases for
-                each component, compares outputs against expected results, and aggregates pass rates across runs.
-            </p>
-            <ul>
-                <li>Loop agentic session behavior and execution quality.</li>
-                <li>Soplang session planning and deterministic execution.</li>
-                <li>Comparative evaluation between Loop and Soplang sessions.</li>
-                <li>Mirror code generation performance and correctness.</li>
-                <li><code>detectIntents</code> behavior in <a href="llm-agent.html">LLMAgent</a>.</li>
-                <li>Model benchmark comparisons across configured providers.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>How It Works</h2>
-            <p>
-                Each suite is driven by JSON test cases that define a prompt, any required context, and an expected outcome. The evaluation
-                harness runs the cases, captures outputs, and scores them against the expected results. A suite passes when at least 95% of cases
-                match the expected behavior.
-            </p>
-        </section>
-
-        <section>
-            <h2>Folder Structure</h2>
-            <p>
-                The evaluation harness and its suites live under <code>evalsSuite/</code>.
-            </p>
+            <h2>Current Evaluation Surfaces</h2>
+            <p>The current evaluation tree covers several distinct runtime surfaces. The planning directory contains full session-level evaluations for both <code>startLoopAgentSession</code> and <code>startSOPLangAgentSession</code>. The detect-intents evaluator measures skill detection and semantic parameter accuracy against JSON case files and a declared skill-description space. The mirror-code-generation evaluator generates code for benchmark skills and then executes behavior-oriented checks against the generated artifacts. The model-benchmark scripts compare configured models under different scenarios, including fast-model benchmarks, deep-model benchmarks, SOP-versus-loop sweeps, ad hoc orchestrator evaluation, and code-generation benchmarks. The tree also includes Anthropic Skill evaluations and a separate agentic-performance evaluator that compares loop and SOP behavior over the same performance cases.</p>
             <pre><code>evalsSuite/
 ├── planning/
+├── detectIntents/
 ├── mirror-code-gen/
 ├── modelBenchmark/
+├── anthropic-skills/
+├── performanceCases/
+├── evalDetectIntents.mjs
 ├── evalAgenticPerformance.mjs
 └── runMainSuites.js</code></pre>
+            <div class="doc-callout doc-callout--note">
+                <span class="doc-callout__label">Note</span>
+                <p><code>runMainSuites.js</code> is not a universal runner for the entire directory. In the current implementation it runs the two planning-related suites only: <code>startSOPLangAgentSession</code> and <code>startLoopAgentSession</code>.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>How Cases Are Represented</h2>
+            <p>Most evaluators operate over explicit case files or explicit benchmark configurations. The <code>detectIntents</code> evaluator reads JSON cases from <code>evalsSuite/detectIntents/</code> together with a shared <code>skillsDescription.json</code>. The planning evaluators load JSON cases from <code>evalsSuite/planning/startLoopAgentSession/</code> and <code>evalsSuite/planning/startSOPLangAgentSession/</code>. The agentic-performance evaluator reads structured performance cases from <code>evalsSuite/performanceCases/</code>. The model-benchmark scripts combine case collections, model configuration, CLI options, and reporting logic in order to compare families of providers or named models under the same evaluation program.</p>
+            <p>The scoring logic is correspondingly local to each script. For example, <code>evalDetectIntents.mjs</code> distinguishes between key detection and semantic parameter matching. <code>evalSOPLangPlanning.mjs</code> validates expected output against session variables and <code>lastAnswer</code>. <code>evalAgenticPerformance.mjs</code> measures repeated loop and SOP execution over the same cases. The benchmark scripts in <code>modelBenchmark/</code> emphasize comparative metrics such as latency, token usage, pass rate, and model-to-model ranking rather than a single boolean pass condition.</p>
+        </section>
+
+        <section>
+            <h2>Operational Entry Points</h2>
+            <p>The most direct planning-oriented entry point is <code>node evalsSuite/runMainSuites.js</code>, which launches the two full session suites and summarizes failed cases. For intent evaluation, the relevant entry point is <code>node evalsSuite/evalDetectIntents.mjs</code>, which also supports rerunning only previously failed cases. For direct loop-versus-SOP comparison across the performance cases, the entry point is <code>node evalsSuite/evalAgenticPerformance.mjs</code>. For benchmark-oriented work, the entry points live under <code>evalsSuite/modelBenchmark/</code> and expose their own CLI options for model selection, difficulty filtering, run count, output files, and related controls.</p>
+            <p>The suite therefore behaves less like one monolithic application and more like an evaluation workspace with several specialized runners. This is consistent with the role described in the architectural material: evaluation is treated as a separate methodological layer around the runtime, not as a thin wrapper around ordinary unit tests.</p>
         </section>
     </main>
 

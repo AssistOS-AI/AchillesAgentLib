@@ -13,156 +13,86 @@
             {"label":"Agentic Sessions"}
         ]'></div>
 
-    <main class="content">
-        <section class="lead">
-            <h1>Agentic Sessions</h1>
-            <p>The execution core that holds context, chooses skills, and drives multi-step reasoning.</p>
-        </section>
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Agentic session chapter navigation">
+                <p class="doc-sidebar__title">Session Chapters</p>
+                <nav>
+                    <a href="agentic-sessions.html" aria-current="page">Overview</a>
+                    <a href="agentic-sessions-loop.html">Loop Sessions</a>
+                    <a href="agentic-sessions-sop.html">SOP Sessions</a>
+                </nav>
+            </aside>
 
-        <section>
-            <h2>Vision</h2>
-            <p>
-                Agentic sessions are the “brain” of the system. They are the mechanism by which an agent keeps context, selects skills, and
-                iterates until a user request is satisfied. They are not an optional layer; they are where the system actually reasons about
-                what to do next.
-            </p>
-            <p>
-                This is why skills exist at all. A session chooses which skill to call, records the result, and uses that result to decide the
-                next step. That loop is the core execution model for both adaptive and plan‑driven workflows.
-            </p>
-            <p>
-                Sessions are in‑memory only. They do not persist conversation state to disk; they keep a working history for the duration of the
-                execution and then end.
-            </p>
-        </section>
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Agentic Sessions</h1>
+                    <p>Agentic sessions are the bounded execution structures through which AchillesAgentLib carries multi-step work across planning, tool or skill invocation, intermediate state, and stopping conditions. In the current implementation, the runtime exposes two complementary session regimes: a loop-based mode for adaptive step-by-step deliberation and a SOP-based mode for plan-first execution through LightSOPLang.</p>
+                </section>
 
-        <section>
-            <h2>Two Session Types</h2>
-            <p>
-                The system exposes two agentic session types, each with a different tradeoff between flexibility and cost. Both use a skill
-                allowlist provided by the caller and both rely on the same reserved completion skills.
-            </p>
-            <ul>
-                <li>Loop session: dynamic, ReAct-style reasoning and execution.</li>
-                <li>Soplang session: plan-first execution using a deterministic script.</li>
-            </ul>
-        </section>
+                <section>
+                    <h2>Bounded Multi-Step Execution</h2>
+                    <p>In AchillesAgentLib, an agentic session is not a metaphorical “brain” and not a loose chat wrapper. It is a concrete runtime object with explicit state, explicit completion signals, and explicit execution boundaries. The two session classes, <code>LoopAgentSession</code> in <code>LLMAgents/AgenticSession.mjs</code> and <code>SOPAgenticSession</code> in <code>LLMAgents/SOPAgenticSession.mjs</code>, are created by <code>LLMAgent</code> through <code>startLoopAgentSession()</code> and <code>startSOPLangAgentSession()</code>. From that point onward, the session becomes the local structure that holds the evolving execution trace, the latest answer, the intermediate variables, and the current status.</p>
+                    <p>This distinction matters because the rest of the runtime builds on it directly. Orchestration skills use these sessions as their execution substrate, and Anthropic Skills rely on the loop-based variant as their operative runtime. The two regimes should therefore be understood as complementary orchestration styles over the same skill ecosystem rather than as unrelated mechanisms. One favors adaptive local replanning at each step. The other favors explicit plan compilation followed by structured execution.</p>
+                    <p>Both regimes also share a common stopping contract. They reserve the completion names <code>final_answer</code> and <code>cannot_complete</code> and add them to the active tool or command surface automatically. A session does not simply end when the text looks plausible. It ends when execution reaches one of these bounded completion signals, when an interactive pause is raised, or when the configured budgets and error conditions force termination.</p>
+                    <p>The session objects themselves are ordinary in-memory JavaScript structures, but loop-based subsystems may store them in <code>sessionMemory</code> when they pause in <code>awaiting_input</code> state and may resume them on the next user message. The important point is therefore not persistence to disk, but governed continuity of execution across turns.</p>
 
-        <section>
-            <h2>Loop Session</h2>
-            <p>
-                A Loop agentic session receives a list of skills and starts by choosing which skill is most likely to move the user request
-                forward. It executes that skill, records the result in context, and then repeats the decision for the next step. This continues
-                until the request is satisfied.
-            </p>
-            <p>
-                The Loop session is implemented in <code>LLMAgents/AgenticSession.mjs</code> as <code>LoopAgentSession</code>. Each step requires
-                a new LLM decision, which makes the session highly adaptive but also more expensive than plan‑first execution.
-            </p>
-            <p>
-                Loop sessions are used by orchestration skills when the descriptor explicitly requests a loop session, and they are also the
-                session type used by the Anthropic Skills subsystem.
-            </p>
-            <h3>Usage</h3>
-            <p>
-                Use Loop sessions when the workflow is uncertain, when intermediate results can change the path forward, or when you need to
-                handle user confirmation and interactive steps without pre‑computing a plan. In this system they are selected by orchestration
-                skills that opt into loop behavior and by the Anthropic Skills subsystem.
-            </p>
-            <p>
-                A Loop session is organized into turns. A turn represents a single user prompt and the chain of skill decisions that follow it.
-                During a turn, the session can execute multiple skill calls, record intermediate results, and decide when the request has been
-                satisfied. When the session ends, the turn is closed and its history remains available for the rest of the session.
-            </p>
-            <p>
-                Loop sessions include two reserved built‑in skills: <code>final_answer</code> and <code>cannot_complete</code>. The LLM can call
-                <code>final_answer</code> when it determines the goal is met, or <code>cannot_complete</code> when it determines the request cannot
-                be satisfied. Either call ends the session.
-            </p>
-            <p>
-                Results from each skill call are stored as variables. When a future skill needs a previous result, the LLM can reference it using
-                <code>$$variable</code>, which is replaced with the actual value at execution time. This avoids re‑typing large outputs and reduces
-                hallucination risk.
-            </p>
-            <p>
-                If a skill returns <code>requiresConfirmation</code> or <code>requiresInput</code>, the session pauses in an awaiting‑input state
-                and waits for the user to respond. The next prompt is interpreted as a continuation unless the user clearly signals a new task.
-            </p>
-            <p>
-                The loop has safeguards that prevent repeated execution of the same skill with the same parameters. Errors are recorded in the
-                session history and a failed call cannot be retried with the identical invocation.
-            </p>
-            <p>
-                The session also enforces execution limits such as maximum steps per turn and maximum errors. When these limits are reached, the
-                session ends with a failure response rather than looping indefinitely.
-            </p>
-            <h3>Perks</h3>
-            <p>
-                Loop sessions are more adaptive than generic agent loops because they operate over a strict skill allowlist and persist each
-                skill result as a variable that can be referenced safely. This reduces hallucination risk when outputs are large or structured.
-                They also support interactive pauses when a skill requires confirmation or input, which is crucial for operational workflows.
-            </p>
-            <p>
-                The tradeoff is cost and latency. Every step requires another LLM decision, so a long chain of skills results in multiple model
-                calls. That is acceptable when the workflow is dynamic, but it can be inefficient for predictable tasks where a plan can be
-                generated up front.
-            </p>
-        </section>
+                    <div class="session-diagram">
+                        <div class="session-diagram__intro">
+                            <p>The diagram below places the two execution regimes under the same runtime contract. The point of divergence is not the entry surface, but the way multi-step execution is governed after the session starts.</p>
+                        </div>
+                        <div class="session-diagram__entry">
+                            <strong>User prompt</strong><br>
+                            Request enters the runtime with current context and session state.
+                        </div>
+                        <div class="session-diagram__arrow" aria-hidden="true">↓</div>
+                        <div class="session-diagram__hub">
+                            <strong>LLMAgent session entry</strong><br>
+                            <code>startLoopAgentSession()</code> or <code>startSOPLangAgentSession()</code>
+                        </div>
+                        <div class="session-diagram__branches">
+                            <article class="session-branch session-branch--loop">
+                                <span class="session-branch__label">Loop Session</span>
+                                <h3>Adaptive execution path</h3>
+                                <div class="session-branch__flow">
+                                    <div class="session-step">optional preparation</div>
+                                    <div class="session-step">planner chooses next tool</div>
+                                    <div class="session-step">tool executes and stores result reference</div>
+                                    <div class="session-step">planner continues or stops</div>
+                                </div>
+                                <p class="session-branch__outcome"><strong>Outcomes:</strong> <code>final_answer</code>, <code>cannot_complete</code>, or <code>awaiting_input</code>. If paused, the session can be stored in <code>sessionMemory</code> and resumed later.</p>
+                            </article>
+                            <article class="session-branch session-branch--sop">
+                                <span class="session-branch__label">SOP Session</span>
+                                <h3>Plan-first execution path</h3>
+                                <div class="session-branch__flow">
+                                    <div class="session-step">optional preparation</div>
+                                    <div class="session-step">generate LightSOPLang plan</div>
+                                    <div class="session-step">execute plan through commands registry</div>
+                                    <div class="session-step">finish, repair, or resume pending command</div>
+                                </div>
+                                <p class="session-branch__outcome"><strong>Outcomes:</strong> final answer from the plan, bounded replanning on failure, or direct continuation of a pending command. In <code>planOnly</code>, execution stops after plan generation.</p>
+                            </article>
+                        </div>
+                        <div class="session-diagram__summary">
+                            <strong>Shared session contract.</strong>
+                            <ul>
+                                <li>Both regimes add <code>final_answer</code> and <code>cannot_complete</code> automatically.</li>
+                                <li>Both regimes maintain an explicit execution trace and expose <code>getLastResult()</code>.</li>
+                                <li>Both regimes can pause on interactive results instead of guessing past missing user input.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
 
-        <section>
-            <h2>Soplang Session</h2>
-            <p>
-                A Soplang session is plan‑first. It receives the allowed skills and asks the LLM to generate a Soplang plan that describes the
-                complete execution. Each command in the plan represents a skill invocation; results are stored in variables and referenced later
-                using <code>$varName</code>.
-            </p>
-            <p>
-                The Soplang session is implemented in <code>LLMAgents/SOPAgenticSession.mjs</code> as <code>SOPAgenticSession</code>. Planning
-                is performed once per attempt, and the resulting script is executed by the LightSOPLang interpreter.
-            </p>
-            <p>
-                Soplang sessions are the default execution mode for orchestration skills. They are selected when the orchestration descriptor
-                does not request a loop session.
-            </p>
-            <h3>Usage</h3>
-            <p>
-                Use Soplang sessions when the workflow is stable and repeatable, and when you want predictable cost and latency. In this system
-                they are the default for orchestration skills and are used whenever a skill descriptor does not explicitly request Loop behavior.
-            </p>
-            <p>
-                Once the plan is generated, it is executed deterministically. If execution succeeds, the session completes. The plan must invoke
-                <code>final_answer</code> to finish successfully, or <code>cannot_complete</code> if the request cannot be satisfied.
-            </p>
-            <p>
-                If execution fails, the session can replan a limited number of times. The captured errors are injected into the next planning
-                attempt so the LLM can repair the plan and retry.
-            </p>
-            <p>
-                Soplang sessions can also pause when a skill requires confirmation or input. In that case the session records the pending skill
-                and resumes with a direct plan that targets that skill once the user responds.
-            </p>
-            <h3>Perks</h3>
-            <p>
-                Soplang sessions are more cost‑predictable than generic agent loops because the plan is generated once and then executed without
-                repeated LLM decisions. The plan itself is explicit and inspectable, which makes it easier to audit and test. This matches the
-                system’s focus on repeatable, skill‑bound workflows.
-            </p>
-            <p>
-                The tradeoff is rigidity. Because the plan is fixed up front, it cannot handle true branching or iteration beyond what was
-                explicitly encoded. If the workflow needs to adapt to new information while running, a Loop session is usually the better fit.
-            </p>
-        </section>
-
-        <section>
-            <h2>Reserved Completion Skills</h2>
-            <p>
-                Both session types rely on two built‑in skills that mark the end of execution.
-            </p>
-            <ul>
-                <li><code>final_answer</code> signals that the request has been fully satisfied.</li>
-                <li><code>cannot_complete</code> signals that the request cannot be satisfied and includes a reason.</li>
-            </ul>
-        </section>
+                <section>
+                    <h2>Two Complementary Regimes</h2>
+                    <p>The most useful distinction is not between simple and complex sessions, but between two different ways of governing multi-step execution. In the loop regime, the runtime keeps deciding the next admissible action during execution and stores intermediate results under symbolic references. In the SOP regime, the runtime first compiles a LightSOPLang artifact and then executes that artifact under a bounded commands registry. The two approaches therefore differ in where deliberation occurs and how explicit the execution structure becomes before downstream work begins.</p>
+                    <p>The loop-specific contract, including result references, interactive continuation, execution limits, and the return surface of <code>LoopAgentSession</code>, is documented in <a href="agentic-sessions-loop.html">Loop Sessions</a>. The plan-first contract, including <code>skillsDescription</code>, <code>commandsRegistry</code>, <code>planOnly</code>, direct continuation of pending commands, and bounded replanning, is documented in <a href="agentic-sessions-sop.html">SOP Sessions</a>.</p>
+                    <p>This split is justified because the two session classes are not cosmetic variants of the same object. They expose different configuration surfaces, different state structures, and different operational failure modes. Keeping them under one overview page preserves the common architecture. Giving each regime its own chapter preserves technical precision.</p>
+                </section>
+            </div>
+        </div>
     </main>
 
     <div id="site-footer"></div>

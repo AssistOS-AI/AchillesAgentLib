@@ -13,125 +13,49 @@
             {"label":"Code Skills"}
         ]'></div>
 
-    <main class="content">
-        <section class="lead">
-            <h1>Code Skills</h1>
-            <p>Specification-driven skills that execute stable code generated from explicit requirements.</p>
-        </section>
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Code skill chapter navigation">
+                <p class="doc-sidebar__title">Code Skill Chapters</p>
+                <nav>
+                    <a href="code-skills.html" aria-current="page">Overview</a>
+                    <a href="code-skills-authoring.html">Authoring</a>
+                    <a href="code-skills-runtime.html">Runtime</a>
+                </nav>
+            </aside>
 
-        <section>
-            <h2>Vision</h2>
-            <p>
-                Code skills exist to prove the library’s commitment to specification‑driven development. Before any code is generated, the
-                behavior is written down as a specification. That specification becomes the contract, and the generated code becomes the
-                implementation. This is how you keep the LLM aligned with the system’s intent.
-            </p>
-            <p>
-                The goal is not to avoid the LLM, but to give it a precise plan so it does not drift. A code skill is therefore stable by design,
-                yet still part of the skill system because it is invoked, scoped, and composed like any other skill.
-            </p>
-        </section>
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Code Skills</h1>
+                    <p>Code Skills are the family used when a capability should execute as stable JavaScript rather than as an open-ended conversational routine. They make the relation between skill description, optional source specifications, and executable module explicit.</p>
+                </section>
 
-        <section>
-            <h2>How It Works</h2>
-            <p>
-                A code skill is defined by <code>cskill.md</code> and a set of specification files stored under <code>specs/</code>. When a spec
-                file changes, the system regenerates the corresponding code and writes it under <code>src/</code>. The skill then executes that
-                generated code through the Code Skills subsystem.
-            </p>
-            <p>
-                Code generation is handled by the built‑in <code>mirror-code-generator</code> skill. It translates specifications into files and
-                performs syntax validation and repair loops when necessary. Details are documented in <a href="built-in-skills.html">Built In Skills</a>.
-            </p>
-        </section>
+                <section>
+                    <h2>Stable Executable Capabilities</h2>
+                    <p>Some capabilities are not well served by repeated prompt-level improvisation. They benefit from an execution surface that remains inspectable, testable, and stable across runs. In such cases, the main problem is no longer how to obtain one plausible answer from a model, but how to preserve a bounded behavior that can be executed again without reinterpretation of the same local logic.</p>
+                    <p>Code Skills address this need by placing the operational center in a module under <code>src/</code>. The skill descriptor remains important because it defines the public contract of the capability, but the domain work is performed by executable code rather than by a free-form LLM session. This gives the library a family of skills whose runtime behavior is more explicit and more predictable than that of the more fluid skill types.</p>
+                    <p>In the broader architecture, this makes Code Skills a useful intermediate form between natural-language specification and stable execution. They still belong to the skill system, they are still discovered and routed by the shared agent runtime, and they can still be orchestrated by other skills. At the same time, their local behavior is delegated to a module that must satisfy a concrete entrypoint contract. In that sense, they are a more specialized and more bounded local interpretive regime.</p>
+                </section>
 
-        <section>
-            <h2>Why It Is a Skill</h2>
-            <p>
-                Even though the execution is deterministic, code skills still benefit from the skill model. They receive the shared
-                <a href="llm-agent.html">LLMAgent</a> and consistent execution context, which keeps behavior aligned across the system and enables
-                the same orchestration patterns used for other skill types.
-            </p>
-        </section>
-
-        <section>
-            <h2>Folder Structure</h2>
-            <p>
-                Code skills include a descriptor plus a specs directory that feeds the generator. The generated implementation is stored under
-                <code>src/</code> and should not be edited directly.
-            </p>
-            <pre><code>skills/
-└── file-system/
-    ├── cskill.md
-    ├── specs/
-    │   └── index.mds
-    └── src/
-        └── index.mjs</code></pre>
-        </section>
-
-        <section>
-            <h2>cskill.md Sections</h2>
-            <p>
-                A code skill descriptor is short but strict. These sections define how the skill is invoked and how its output should be
-                interpreted.
-            </p>
-            <ul>
-                <li><code>Summary</code> explains the skill’s purpose at a glance.</li>
-                <li><code>Input Format</code> defines the required arguments and parsing rules.</li>
-                <li><code>Output Format</code> specifies how results are returned to callers.</li>
-                <li><code>Constraints</code> lists boundaries such as path rules, allowed operations, or environment assumptions.</li>
-            </ul>
-            <p>
-                The subsystem expects an <code>Input Format</code> section. If it is missing, the skill is treated as unprepared and will not
-                execute.
-            </p>
-        </section>
-
-        <section>
-            <h2>Example cskill.md</h2>
-            <p>
-                This example defines a file-system skill with a strict input format and explicit constraints.
-            </p>
-            <pre><code># file-system
-Executes file system operations (read, write, delete, copy, list) using nodeJS functions.
-
-## Summary
-Executes file system operations (read, write, delete, copy, list) using nodeJS functions. Input must use strict
-`operation path` with optional `options:` key-value pairs.
-
-## Input Format
-- **operation** (string): Operation type (readFile, writeFile, appendFile, deleteFile, createDirectory,
-  listDirectory, fileExists, copyFile, moveFile).
-- **path** (string): Target file or directory path.
-- **options** (key-value list, optional): `options:` followed by `key: value` pairs.
-- **dependsOn** (string, optional): Dependency markers to enforce ordering; ignored by this skill.
-
-Rules:
-- First token is always the operation.
-- Second token is always the path.
-- Optional parameters must be provided after `options:` as `key: value` pairs.
-- Values with spaces or newlines must be wrapped in quotes.
-- Exception: `content` may be unquoted and may span multiple lines; when unquoted it consumes the rest of the input
-  until `dependsOn:` or end of input.
-- Supported option keys: `content`, `destination`.
-- `dependsOn:` can list multiple refs and is ignored by the parser.
-
-Examples:
-- createDirectory ./docs
-- writeFile ./test.txt options: content: "hello world"
-- writeFile ./specs.md options: content: ## Vision\nLine 1\nLine 2
-- readFile ./package.json
-- copyFile ./src/file.js options: destination: ./backup/file.js
-- writeFile ./specs.md options: content: "..." dependsOn: "$createDir"
-
-## Output Format
-- **Type**: `string`
-- **Success Example**: "File written successfully" or "{\"exists\":true}" or "[\"file1.txt\",\"file2.txt\"]"
-- **Error Example**: "Error: File not found."
-
-## Constraints
-- All paths must be relative to project root.</code></pre>
-        </section>
+                <section>
+                    <h2>How Code Skills Operate in Practice</h2>
+                    <p>A Code Skill is discovered through <code>cskill.md</code>. When the skill is registered, <code>RecursiveSkilledAgent</code> automatically requests a generation pass through the internal <code>mirror-code-generator</code> skill. If the skill directory contains a <code>specs/</code> folder, that generation pass can produce or refresh files under <code>src/</code>. If no such specifications exist, the runtime can still execute a maintained module directly from <code>src/</code>, provided that the required entrypoint is present. The authoring patterns for these two cases are described in <a href="code-skills-authoring.html">Authoring</a>.</p>
+                    <p>The execution contract is stricter than the current page previously suggested. The subsystem looks for <code>src/index.mjs</code> first and then for <code>src/index.js</code>. It imports the located module dynamically and requires it to export an <code>action(args)</code> function. The user prompt is passed through as <code>args.promptText</code>, together with the shared runtime references such as <code>llmAgent</code>, <code>recursiveAgent</code>, <code>context</code>, <code>sessionMemory</code>, <code>user</code>, and attachments. The subsystem therefore loads and executes code from disk; it does not execute the descriptor itself. The exact loading and argument rules are documented in <a href="code-skills-runtime.html">Runtime</a>.</p>
+                    <pre><code>cskill.md
+  ↓ skill discovery and registration
+optional generation pass through mirror-code-generator
+  ↓
+src/index.mjs or src/index.js
+  ↓ dynamic import by CodeSkillsSubsystem
+exported action(args)
+  ↓ runtime result</code></pre>
+                    <div class="doc-callout doc-callout--important">
+                        <span class="doc-callout__label">Important</span>
+                        <p>If a skill relies on specification-driven generation, the maintained source is the descriptor and the files under <code>specs/</code>. The executable code under <code>src/</code> should be treated as a derived artifact unless the skill is intentionally maintained as direct handwritten code.</p>
+                    </div>
+                </section>
+            </div>
+        </div>
     </main>
 
     <div id="site-footer"></div>

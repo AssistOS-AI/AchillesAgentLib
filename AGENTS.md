@@ -4,6 +4,10 @@
 
 AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powered task execution through specialized subsystems. The architecture follows a hierarchical pattern where a central `RecursiveSkilledAgent` discovers, registers, and orchestrates execution of various skill types.
 
+## Documentation Work
+
+For any work under `docs/`, follow `DOCUMENTATION_SPECIFICATION.md`. That file defines the current editorial and technical standard for documentation pages and should be treated as the authoritative guide for future documentation changes.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                        RecursiveSkilledAgent                            │

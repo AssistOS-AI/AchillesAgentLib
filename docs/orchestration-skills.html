@@ -13,134 +13,45 @@
             {"label":"Orchestration Skills"}
         ]'></div>
 
-    <main class="content">
-        <section class="lead">
-            <h1>Orchestration Skills</h1>
-            <p>Skills that define the flow of complex work without executing it directly.</p>
-        </section>
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Orchestration chapter navigation">
+                <p class="doc-sidebar__title">Orchestration Chapters</p>
+                <nav>
+                    <a href="orchestration-skills.html" aria-current="page">Overview</a>
+                    <a href="orchestration-skills-authoring.html">Authoring</a>
+                    <a href="orchestration-skills-runtime.html">Runtime</a>
+                </nav>
+            </aside>
 
-        <section>
-            <h2>Vision</h2>
-            <p>
-                Orchestration Skills exist to offload complex, multi-step coordination from the RecursiveSkilledAgent into explicit, reusable
-                workflows. They do not perform execution themselves. Instead, they describe how to break a task into smaller skills and how those
-                skills should be invoked to produce a complete result.
-            </p>
-            <p>
-                This makes complex work repeatable. A procedure such as producing software documentation is too large for a single skill, but it
-                becomes tractable when an orchestration skill defines the flow and delegates to focused skills that each do one thing well.
-            </p>
-        </section>
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Orchestration Skills</h1>
+                    <p>Orchestration Skills define the coordination layer through which a higher-level request is decomposed into bounded calls to other skills. Their role is to keep multi-step work inside an explicit execution contract rather than leaving decomposition, delegation, and session choice to ad hoc prompt behavior.</p>
+                </section>
 
-        <section>
-            <h2>How They Work</h2>
-            <p>
-                When an orchestration skill is selected, its subsystem launches an agentic session that plans and coordinates the smaller skills.
-                The orchestration skill defines the rules of the flow, while the session decides which step to execute next until the overall
-                request is satisfied. This keeps the RecursiveSkilledAgent lean while enabling sophisticated workflows.
-            </p>
-            <p>
-                The two agentic session styles are introduced on the <a href="agentic-sessions.html">Agentic Sessions</a> page. Orchestration
-                skills can trigger either style depending on their configuration.
-            </p>
-        </section>
+                <section>
+                    <h2>Structured Coordination of Reusable Skills</h2>
+                    <p>Some requests are not difficult because one local operation is complex, but because the work must be distributed across several capabilities under stable restrictions. In such cases, a single skill should not improvise the whole coordination path and the top-level agent should not repeatedly reconstruct the same workflow from scratch. The architectural need is therefore not only better prompting, but a governed coordination layer in which admissible downstream capabilities, preparation steps, and session discipline are made explicit.</p>
+                    <p>Orchestration Skills address this need by treating coordination as a separate runtime concern. In AchillesAgentLib, an orchestration skill is not a generic narrative about a workflow. It is a localized execution contract that specifies how bounded delegation should occur and which downstream skills may participate. This makes orchestration inspectable, reusable, and easier to stabilize across repeated runs.</p>
+                    <p>These skills are defined in <code>oskill.md</code>. The descriptor is the human-maintained source, but its role is operational rather than descriptive. When the subsystem prepares a skill, it extracts the recognized sections, normalizes the declared allowlists, and records the execution configuration that will govern the later session. The practical authoring rules, together with a minimal template and a fuller example, are discussed in <a href="orchestration-skills-authoring.html">Authoring</a>.</p>
+                </section>
 
-        <section>
-            <h2>Agentic Sessions Used by Orchestration Skills</h2>
-            <p>
-                Orchestration skills can launch one of two session types. The choice defines how planning and execution are carried out.
-            </p>
-            <ul>
-                <li>Loop sessions are ReAct-style iterations where the session chooses a skill, executes it, and repeats until done.</li>
-                <li>Soplang sessions generate a plan first and then execute it deterministically.</li>
-            </ul>
-            <p>
-                The session type is controlled by the <code>Session</code> section in the orchestration skill file. If it is set to <code>loop</code>,
-                the Loop session is used; otherwise the Soplang session is the default.
-            </p>
-        </section>
-
-        <section>
-            <h2>Oskill Sections</h2>
-            <p>
-                Orchestration skills are defined in <code>oskill.md</code>. The sections below control how the orchestrator behaves and which
-                skills it is allowed to call.
-            </p>
-            <ul>
-                <li><code>Instructions</code> defines the system guidance for the orchestrator.</li>
-                <li><code>Description</code> states the purpose and expected outcome.</li>
-                <li><code>Allowed-Skills</code> restricts which skills can be used during execution.</li>
-                <li><code>Allowed-Prep-Skills</code> optionally restricts which skills can run during preparation.</li>
-                <li><code>Preparation</code> defines a pre-execution context build step for Soplang sessions.</li>
-                <li><code>Session</code> chooses between <code>loop</code> or default Soplang behavior.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>Preparation Phase</h2>
-            <p>
-                Soplang sessions need a stable context before the plan is generated and executed, because the plan itself cannot absorb new
-                context on the fly. The <code>Preparation</code> section exists to solve this. It allows a short, controlled phase that gathers
-                or synthesizes context before the plan is produced.
-            </p>
-            <p>
-                Preparation uses a restricted set of skills defined by <code>Allowed-Prep-Skills</code>, so the context-building step remains
-                bounded and predictable. The result is a cleaner, more deterministic Soplang execution phase.
-            </p>
-        </section>
-
-        <section>
-            <h2>Folder Structure</h2>
-            <p>
-                Orchestration skills live in their own folder, with a single <code>oskill.md</code> descriptor file.
-            </p>
-            <pre><code>skills/
+                <section>
+                    <h2>How Orchestration Skills Execute in Practice</h2>
+                    <p>At execution time, the subsystem resolves the downstream skills admitted by the descriptor, wraps them through the shared <code>RecursiveSkilledAgent</code>, and starts either a loop session or a SOP session. The orchestration skill therefore does not perform the domain work directly. It establishes the controlled execution environment within which other skills may be invoked.</p>
+                    <p>The session choice is deliberately narrow. If the resolved session value is <code>loop</code>, the subsystem starts a loop-based agentic session. In every other case, it falls back to a SOP session. When a preparation section exists, it becomes a bounded context-building stage for that session. The runtime path, the tool wrapping model, the allowlist behavior, and the loop-specific session persistence model are examined in <a href="orchestration-skills-runtime.html">Runtime</a>.</p>
+                    <p>The filesystem footprint for this skill family remains minimal. Discovery only requires a directory containing <code>oskill.md</code>. The governing behavior resides in the descriptor and in the orchestration subsystem rather than in a generated runtime file.</p>
+                    <pre><code>skills/
 └── documentation-orchestrator/
     └── oskill.md</code></pre>
-        </section>
-
-        <section>
-            <h2>Example oskill.md</h2>
-            <p>
-                The example below shows a typical orchestration skill that uses a preparation phase and a restricted allowlist to coordinate
-                other skills.
-            </p>
-            <pre><code># review-specs
-
-## Intents
-The review-specs skill analyzes existing specification files for gaps,
-inconsistencies, errors, and areas needing improvement. It examines all
-markdown files under the project's specs directory, records findings as
-issues and proposed fixes in the specs backlog.
-
-## Preparation
-
-1. Load files that are mentioned in the user request. If none are mentioned,
-   load all spec files under `./docs/specs` (only .md files) using
-   context-loader.
-
-- Note: always load `./AGENTS.md`.
-
-## Allowed Preparation Skills
-- context-loader
-
-## Instructions
-
-1. Determine internally which files have problems.
-2. For each file that has problems, call backlog-expert once with the file
-   content and the detected problem to generate task descriptions.
-3. Add all generated tasks to the specs backlog using backlog-api
-   addTasksFromText.
-4. For each added task ID, call backlog-expert again with the task description
-   plus only the relevant spec file contents (planner decides which files are
-   relevant) to generate numbered options (1., 2., 3. only, no extra prose).
-5. Add the generated options to the task using backlog-api addOptionsFromText.
-
-## Allowed Skills
-- file-system
-- backlog-api
-- backlog-expert</code></pre>
-        </section>
+                    <div class="doc-callout doc-callout--note">
+                        <span class="doc-callout__label">Note</span>
+                        <p>Unlike DBTable Skills, orchestration skills do not rely on a family-specific generation pipeline. Their operational behavior is derived directly from the parsed descriptor and from the subsystem that executes it.</p>
+                    </div>
+                </section>
+            </div>
+        </div>
     </main>
 
     <div id="site-footer"></div>

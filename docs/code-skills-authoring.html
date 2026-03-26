@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Skills Authoring · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Code Skills","href":"code-skills.html"},
+            {"label":"Authoring"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Code skill chapter navigation">
+                <p class="doc-sidebar__title">Code Skill Chapters</p>
+                <nav>
+                    <a href="code-skills.html">Overview</a>
+                    <a href="code-skills-authoring.html" aria-current="page">Authoring</a>
+                    <a href="code-skills-runtime.html">Runtime</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Authoring Code Skills</h1>
+                    <p>This chapter explains how a <code>cskill</code> should be structured if the goal is to match the current discovery, generation, and execution contract of the Code Skills subsystem.</p>
+                </section>
+
+                <section>
+                    <h2>Descriptor Contract</h2>
+                    <p>The source descriptor for this family is <code>cskill.md</code>. It is parsed through the generic skill document parser, so ordinary markdown sections are preserved as descriptor sections. In the current Code Skills subsystem, the one section that is enforced directly at execution time is <code>Input Format</code>. If that section is missing, the subsystem throws an error and refuses to execute the skill.</p>
+                    <p>Other sections such as <code>Description</code>, <code>Summary</code>, <code>Output Format</code>, <code>Constraints</code>, or examples remain useful because they document the public contract of the capability and can also guide generation workflows. They should not, however, be presented as mandatory runtime switches unless the code actually enforces them. The subsystem itself does not currently require a fixed list beyond the presence of <code>Input Format</code>.</p>
+                    <p>This means that the descriptor should be written as an interface contract rather than as implementation prose. It should explain what the skill expects, what it returns, and which constraints the executable module is meant to respect.</p>
+                </section>
+
+                <section>
+                    <h2>Two Valid Layouts</h2>
+                    <p>The first valid layout is the specification-driven layout. In this form, the skill contains <code>cskill.md</code>, a <code>specs/</code> directory, and the generated or regenerated runtime module under <code>src/</code>.</p>
+                    <pre><code>skills/
+└── file-system/
+    ├── cskill.md
+    ├── specs/
+    │   └── index.mjs.md
+    └── src/
+        └── index.mjs</code></pre>
+                    <p>The second valid layout is a maintained runtime layout in which the module under <code>src/</code> already exists and is intentionally maintained directly. In that case, the skill may still be executed as a Code Skill even if the generation pass has nothing to produce.</p>
+                    <pre><code>skills/
+└── local-formatter/
+    ├── cskill.md
+    └── src/
+        └── index.mjs</code></pre>
+                    <p>The practical distinction is therefore not whether the subsystem can load the module. It can do so in either case. The distinction is where maintainers are expected to apply changes: in <code>specs/</code> for generation-driven skills, or in <code>src/</code> for intentionally maintained direct modules.</p>
+                </section>
+
+                <section>
+                    <h2>Minimal Descriptor Example</h2>
+                    <p>A minimal descriptor that satisfies the current execution checks is shown below.</p>
+                    <pre><code># file-system
+
+## Description
+Executes bounded file-system operations through a stable module.
+
+## Input Format
+- First token: operation name.
+- Second token: target path.
+- Remaining text: optional operation-specific parameters.
+
+## Output Format
+- Type: string or JSON string.
+
+## Constraints
+- Paths must remain inside the project workspace.</code></pre>
+                    <p>This is sufficient for discovery and for the Code Skills subsystem check that <code>Input Format</code> exists. A richer descriptor may add more examples or stronger constraints, but the entrypoint behavior is still defined by the runtime module under <code>src/</code>.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

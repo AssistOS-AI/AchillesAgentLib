@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orchestration Skills Authoring · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Orchestration Skills","href":"orchestration-skills.html"},
+            {"label":"Authoring"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Orchestration chapter navigation">
+                <p class="doc-sidebar__title">Orchestration Chapters</p>
+                <nav>
+                    <a href="orchestration-skills.html">Overview</a>
+                    <a href="orchestration-skills-authoring.html" aria-current="page">Authoring</a>
+                    <a href="orchestration-skills-runtime.html">Runtime</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Authoring Orchestration Skills</h1>
+                    <p>This chapter explains how an <code>oskill.md</code> descriptor should be written if the goal is to match the contract that the orchestration subsystem actually parses and executes.</p>
+                </section>
+
+                <section>
+                    <h2>Descriptor Surface</h2>
+                    <p>The source file for this skill family is <code>oskill.md</code>. The subsystem reads the descriptor through the generic skill document parser and then looks only for a bounded set of section families. In the current implementation, these section families are instructions, preparation, allowed skills, allowed preparation skills, description, and session type. Several aliases are accepted for some headings, but the underlying contract remains the same.</p>
+                    <p>Unlike DBTable Skills, this family does not derive a generated runtime module. The descriptor remains the central maintained artifact. For that reason, authoring quality matters directly. The headings should not be decorative. They should correspond to execution choices that the subsystem actually uses.</p>
+                    <p>The most important practical consequence concerns omission. If <code>Allowed Skills</code> is omitted or left empty, the subsystem does not block execution. Instead, it exposes all discovered skills except the orchestrator itself. If tighter control is intended, the allowlist should therefore be declared explicitly.</p>
+                    <p>The behavior of <code>Allowed-Prep-Skills</code> is more specific. If this section is absent, preparation falls back to the same allowlist used for normal execution. If the section exists but contains no entries, then no preparation skills are available. This distinction should be authored deliberately, because it changes the bounded capability surface of the preparation stage.</p>
+                </section>
+
+                <section>
+                    <h2>Minimal Template</h2>
+                    <p>A practical minimal template is shown below. It is intentionally short, but it already exercises the parser and the main orchestration contract in a disciplined way.</p>
+                    <pre><code># document-review
+
+## Instructions
+
+1. Determine which downstream skill should be used first.
+2. Keep the execution path bounded to the declared allowlist.
+3. Return a concise result after the delegated work is completed.
+
+## Allowed Skills
+- context-loader
+- spec-reviewer
+
+## Description
+Coordinate a small document-review workflow through a bounded set of skills.</code></pre>
+                    <p>This template does not declare a session type, so the subsystem will execute it through the SOP path. It also omits a preparation stage, so no separate preparation block will run before the main session starts.</p>
+                </section>
+
+                <section>
+                    <h2>Extended Example</h2>
+                    <p>When a workflow requires preparation and a loop-based session, the descriptor can be expanded as follows.</p>
+                    <pre><code># review-specs
+
+## Preparation
+
+1. Load files that are mentioned in the user request. If none are mentioned,
+   load all spec files under `./docs/specs` using context-loader.
+2. Always load `./AGENTS.md`.
+
+## Allowed-Prep-Skills
+- context-loader
+
+## Instructions
+
+1. Determine which specification files contain problems.
+2. For each problematic file, call backlog-expert to produce task text.
+3. Store the generated tasks through backlog-api.
+4. Enrich each task with bounded numbered options.
+
+## Description
+Analyze specification files, create backlog tasks for the detected problems,
+and enrich those tasks with bounded solution options.
+
+## Session
+loop
+
+## Allowed Skills
+- context-loader
+- backlog-api
+- backlog-expert</code></pre>
+                    <p>This version makes three operational choices explicit. The preparation stage is separated from the main session. The preparation stage is restricted to a narrower allowlist than the main workflow. The session type is fixed to <code>loop</code> rather than being left to the default SOP path.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

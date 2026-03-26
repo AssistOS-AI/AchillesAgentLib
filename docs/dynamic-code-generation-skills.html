@@ -13,64 +13,51 @@
             {"label":"Dynamic Code Generation Skills"}
         ]'></div>
 
-    <main class="content">
-        <section class="lead">
-            <h1>Dynamic Code Generation Skills</h1>
-            <p>Adaptive skills that generate and execute code on the fly for precise, context‑aware work.</p>
-        </section>
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Dynamic code generation chapter navigation">
+                <p class="doc-sidebar__title">DCG Chapters</p>
+                <nav>
+                    <a href="dynamic-code-generation-skills.html" aria-current="page">Overview</a>
+                    <a href="dynamic-code-generation-skills-authoring.html">Authoring</a>
+                    <a href="dynamic-code-generation-skills-runtime.html">Runtime</a>
+                </nav>
+            </aside>
 
-        <section>
-            <h2>Vision</h2>
-            <p>
-                Dynamic code generation skills exist for situations where a precise computation is required and a static skill would be too rigid.
-                This is the same motivation behind LLMs that run a temporary script to compute an exact result. The skill remains intelligent and
-                context‑aware, but it can produce code when code is the safest way to reach the answer.
-            </p>
-            <p>
-                The descriptor constrains what the skill should do, while still leaving room to adapt based on context. That “wiggle room” is
-                essential for tasks whose exact computation depends on the situation at runtime.
-            </p>
-        </section>
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Dynamic Code Generation Skills</h1>
+                    <p>Dynamic Code Generation Skills are the family used when the system must retain more local flexibility than a stable Code Skill can offer, while still allowing computation to become executable code when a textual answer would be less reliable.</p>
+                </section>
 
-        <section>
-            <h2>How It Works</h2>
-            <p>
-                The subsystem asks the model whether to respond directly or to generate code. When code is generated, it is executed immediately
-                using <code>eval</code> and the result is returned. Nothing is persisted to disk; the generated code is temporary and discarded
-                after execution.
-            </p>
-            <p>
-                This is different from Code Skills, where code is generated from specifications and stored under <code>src/</code>. Dynamic
-                code generation is intentionally ephemeral.
-            </p>
-            <p>
-                The primary mode is dynamic generation. If a skill already ships with a module on disk, the subsystem will execute that module
-                instead, which saves time for stable cases while keeping the dynamic option available when needed.
-            </p>
-        </section>
+                <section>
+                    <h2>Ephemeral Computation Under a Skill Contract</h2>
+                    <p>Some requests are too transient, too open-ended, or too context-dependent to justify a stable specification-driven module under <code>src/</code>. In such cases, the problem is not long-term maintainability of one fixed capability, but proportionality of effort. A useful subsystem should be able to answer directly when that is sufficient, yet still shift into executable computation when a precise local procedure is safer than free-form text.</p>
+                    <p>Dynamic Code Generation Skills address this need by combining a light descriptor contract with a runtime that can choose between direct textual output and temporary JavaScript execution. In this family, the skill remains bounded by its descriptor and by the subsystem’s execution path, but the local computational form is intentionally less fixed than in Code Skills. The result is a more flexible regime for short-lived or situational logic.</p>
+                    <p>This makes Dynamic Code Generation Skills appropriate when the capability should remain adaptive rather than crystallized into a maintained module family. They are still discovered, registered, and routed through the same top-level agent, but they preserve more room for local synthesis at execution time.</p>
+                </section>
 
-        <section>
-            <h2>Folder Structure</h2>
-            <p>
-                A dynamic code generation skill can be descriptor‑only, or it can include a module that will be executed directly.
-            </p>
-            <pre><code>skills/
-└── math-evaluator/
-    ├── dcgskill.md
-    └── math-evaluator.mjs</code></pre>
-        </section>
-
-        <section>
-            <h2>dcgskill.md Sections</h2>
-            <p>
-                The descriptor is minimal but explicit. It defines the prompt, the input argument, and how the model should behave.
-            </p>
-            <ul>
-                <li><code>Prompt</code> explains the decision logic and the intended behavior.</li>
-                <li><code>Argument</code> defines the primary input label.</li>
-                <li><code>LLM-Mode</code> sets whether the skill runs in fast or code mode.</li>
-            </ul>
-        </section>
+                <section>
+                    <h2>How the Subsystem Works in Practice</h2>
+                    <p>A skill of this family is discovered through <code>dcgskill.md</code>. During preparation, the subsystem reads the descriptor, records the prompt guidance, normalizes the declared LLM mode, and checks whether the skill directory also contains a local module whose filename matches the skill folder name. If such a module exists, the subsystem prepares a module-based executor. If it does not exist, the subsystem prepares the default dynamic executor. The authoring implications of these two cases are described in <a href="dynamic-code-generation-skills-authoring.html">Authoring</a>.</p>
+                    <p>The runtime distinction is therefore central. In the default path, the subsystem asks the LLM to choose between returning text directly and returning executable JavaScript. In the module path, it imports the local module and delegates execution to its exported function. Nothing in this family resembles the Code Skills generation pipeline. There is no automatic derivation into <code>src/</code>. The skill either executes ephemeral code produced for the current request or it executes a local module placed directly in the skill directory. The exact execution rules are described in <a href="dynamic-code-generation-skills-runtime.html">Runtime</a>.</p>
+                    <pre><code>dcgskill.md
+  ↓ parse and prepare
+if &lt;folder&gt;.mjs/.js exists
+  ↓
+module executor
+else
+  ↓
+LLM decides between text and code
+  ↓
+temporary code execution or direct text result</code></pre>
+                    <div class="doc-callout doc-callout--important">
+                        <span class="doc-callout__label">Important</span>
+                        <p>Dynamic Code Generation Skills do not use the <code>src/</code> entrypoint contract of Code Skills. Their local module, when present, lives directly in the skill directory and is named after that directory.</p>
+                    </div>
+                </section>
+            </div>
+        </div>
     </main>
 
     <div id="site-footer"></div>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Code Generation Skills Runtime · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Dynamic Code Generation Skills","href":"dynamic-code-generation-skills.html"},
+            {"label":"Runtime"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Dynamic code generation chapter navigation">
+                <p class="doc-sidebar__title">DCG Chapters</p>
+                <nav>
+                    <a href="dynamic-code-generation-skills.html">Overview</a>
+                    <a href="dynamic-code-generation-skills-authoring.html">Authoring</a>
+                    <a href="dynamic-code-generation-skills-runtime.html" aria-current="page">Runtime</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Runtime Behavior of Dynamic Code Generation Skills</h1>
+                    <p>This chapter explains the two execution paths of the subsystem and clarifies how temporary code execution differs from module-based execution.</p>
+                </section>
+
+                <section>
+                    <h2>Default Dynamic Executor</h2>
+                    <p>When no local module matching the skill folder name is present, the subsystem uses its default executor. In that path, the runtime builds a decision prompt from the descriptor guidance and from the current input. It asks the LLM for a JSON object that selects either <code>text</code> mode or <code>code</code> mode. If the result is text mode, the returned text becomes the skill output. If the result is code mode, the returned code snippet is executed immediately.</p>
+                    <p>The temporary code execution path is intentionally ephemeral. The subsystem wraps the generated snippet in an async function and executes it through <code>eval</code>. If the snippet returns <code>undefined</code>, the runtime performs one fallback attempt by detecting the last declared function name and calling it automatically. If the result remains undefined, execution fails with an explicit error asking for a final <code>return</code> value.</p>
+                    <div class="doc-callout doc-callout--important">
+                        <span class="doc-callout__label">Important</span>
+                        <p>In the default path, generated code is not written to disk. It is executed for the current request only and then discarded.</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Module Executor</h2>
+                    <p>When the skill directory contains a file whose name matches the folder name and whose extension is <code>.mjs</code> or <code>.js</code>, the subsystem prepares a module executor instead. In that case, the file is imported dynamically and the runtime looks first for an exported <code>action</code> function, then for a default function export. If no callable export is found, execution fails.</p>
+                    <p>The payload passed to that module includes <code>input</code>, <code>promptText</code>, <code>llmAgent</code>, <code>recursiveAgent</code>, <code>sessionMemory</code>, <code>context</code>, <code>user</code>, attachments, the normalized <code>llmMode</code>, the current tier configuration, and the skill name. This means that module-based DCG skills still operate inside the shared agent runtime even though their local logic is implemented directly in code.</p>
+                </section>
+
+                <section>
+                    <h2>Input and Result Semantics</h2>
+                    <p>The operative input field for this subsystem is always <code>input</code>. If the caller supplies <code>options.args.input</code>, the subsystem uses that string. Otherwise it falls back to the user prompt text. An empty input is rejected before either executor runs.</p>
+                    <p>The result semantics are similar across the two paths. String results are returned as they are. Null or undefined values become an empty string. Other values are serialized to JSON when possible and converted to string otherwise. In the default executor, the subsystem also attempts to append the user input and the produced output to session memory when such memory is available. In the module executor, that persistence depends on the module implementation itself.</p>
+                    <pre><code>dcgskill.md
+  ↓ prepareSkill
+if folder-name module exists
+  ↓
+import module and call action/default export
+else
+  ↓
+LLM returns { mode, text/code }
+  ↓
+return text or execute temporary snippet</code></pre>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

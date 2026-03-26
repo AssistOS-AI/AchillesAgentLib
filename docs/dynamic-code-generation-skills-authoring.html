@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Code Generation Skills Authoring · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Dynamic Code Generation Skills","href":"dynamic-code-generation-skills.html"},
+            {"label":"Authoring"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Dynamic code generation chapter navigation">
+                <p class="doc-sidebar__title">DCG Chapters</p>
+                <nav>
+                    <a href="dynamic-code-generation-skills.html">Overview</a>
+                    <a href="dynamic-code-generation-skills-authoring.html" aria-current="page">Authoring</a>
+                    <a href="dynamic-code-generation-skills-runtime.html">Runtime</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Authoring Dynamic Code Generation Skills</h1>
+                    <p>This chapter explains how a <code>dcgskill</code> should be structured if the goal is to match the current preparation rules of the Dynamic Code Generation subsystem.</p>
+                </section>
+
+                <section>
+                    <h2>Descriptor Surface</h2>
+                    <p>The source descriptor for this family is <code>dcgskill.md</code>. During preparation, the subsystem reads the descriptor through the generic skill document parser and then extracts a small set of sections: prompt guidance, argument description, and LLM mode. The recognized aliases are deliberately narrow. <code>Prompt</code> supplies the behavioral guidance. <code>Argument</code>, <code>Input</code>, or <code>Parameters</code> can supply a descriptive explanation of the expected input. <code>LLM Mode</code>, <code>LLM-Mode</code>, or <code>Mode</code> influence how the subsystem normalizes the execution tier.</p>
+                    <p>The important limitation is that the argument section does not redefine the runtime argument key. The subsystem always treats the operative argument name as <code>input</code>. The descriptor may describe that input more precisely, but it does not rename it. If a caller passes structured arguments explicitly, the subsystem looks for <code>args.input</code>; otherwise it falls back to the raw prompt text.</p>
+                    <p>The LLM mode field is also narrower than a casual reading might suggest. Internally, values that mention <code>deep</code> or <code>code</code> are normalized to <code>code</code>. Everything else becomes <code>fast</code>. The field therefore influences the runtime tier label rather than defining an arbitrary execution strategy vocabulary.</p>
+                </section>
+
+                <section>
+                    <h2>Two Valid Layouts</h2>
+                    <p>The first valid layout is descriptor-only. In this form, the subsystem prepares the default executor and lets the LLM decide at runtime whether the request should be answered directly or through temporary code.</p>
+                    <pre><code>skills/
+└── bigMultiply/
+    └── dcgskill.md</code></pre>
+                    <p>The second valid layout adds a local module whose filename matches the skill folder name. In that case, the subsystem prepares a module executor instead of the default decision-based executor.</p>
+                    <pre><code>skills/
+└── mathEval/
+    ├── dcgskill.md
+    └── mathEval.js</code></pre>
+                    <p>This distinction is operational. It is not merely a documentation convention. If the module exists under the expected name, the runtime will prefer it. If it does not exist, the fallback path remains the default dynamic executor.</p>
+                </section>
+
+                <section>
+                    <h2>Minimal Descriptor Example</h2>
+                    <p>A minimal descriptor for the default dynamic path may look as follows.</p>
+                    <pre><code># Big Integer Multiplier
+
+## Prompt
+Decide whether to answer directly or to generate JavaScript that computes an
+exact result. Prefer code when exact arithmetic is safer than free-form text.
+
+## Argument
+Primary natural-language instruction or text payload.
+
+## LLM Mode
+fast</code></pre>
+                    <p>This is enough for the subsystem to record prompt guidance, a human-readable argument description, and the normalized tier label. If no local module exists, the skill will execute through the default decision path.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

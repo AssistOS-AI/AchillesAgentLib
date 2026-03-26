@@ -13,131 +13,59 @@
             {"label":"Subsystems and Skills"}
         ]'></div>
 
-    <main class="content">
-        <section class="lead">
-            <h1>Subsystems and Skills</h1>
-            <p>Why skills are categorized, and how subsystems enforce consistent behavior for each category.</p>
-        </section>
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Skill family shortcuts">
+                <p class="doc-sidebar__title">Skill Shortcuts</p>
+                <nav>
+                    <a href="orchestration-skills.html">Orchestration</a>
+                    <a href="dbtable-skills.html">DBTable</a>
+                    <a href="code-skills.html">Code Skills</a>
+                    <a href="dynamic-code-generation-skills.html">Dynamic Code Gen</a>
+                    <a href="mcp-skills.html">MCP</a>
+                    <a href="anthropic-skills.html">Anthropic</a>
+                </nav>
+            </aside>
 
-        <section>
-            <h2>Vision</h2>
-            <p>
-                Skills in this library are not all the same. They represent different tradeoffs between flexibility and control, so we classify
-                them into categories with shared expectations. That classification is what makes behavior predictable across a large skill catalog.
-                Subsystems exist to encode those expectations so each skill is handled in the correct way.
-            </p>
-            <p>
-                A dynamic skill that generates code on the fly has very different safety and execution needs than a skill that executes stable,
-                pre-generated logic. Treating them the same would either add too many constraints to flexible skills or too much risk to stable
-                skills. Subsystems resolve that tension by giving each category its own handling path.
-            </p>
-        </section>
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Subsystems and Skills</h1>
+                    <p>This page explains why AchillesAgentLib classifies skills into multiple families and how those families are connected to distinct execution subsystems. The classification is not an editorial convenience. It is part of the runtime design through which discovery, preparation, and execution are kept consistent across materially different kinds of skills.</p>
+                </section>
 
-        <section>
-            <h2>Skills vs Tools</h2>
-            <p>
-                A tool is typically a static, deterministic function. A skill is intentionally more capable: it receives access to the shared
-                <a href="llm-agent.html">LLMAgent</a>, can reason with its own context, and can choose how to respond within the guardrails defined
-                in its skill file. This adds a controlled level of non-determinism that helps the system handle real-world variability without
-                becoming a generic agent.
-            </p>
-            <p>
-                In practice, a skill is a compromise between a fully open-ended agent and fixed code. It is specialized around a task, but it
-                retains just enough flexibility to cope with imperfect inputs and evolving requirements.
-            </p>
-        </section>
+                <section>
+                    <h2>Operational Taxonomy of Skill Families</h2>
+                    <p>Not all skills in the library behave in the same way. Some are primarily descriptor-driven interfaces to an LLM-guided workflow. Some plan tool use. Some load generated code from disk. Some model table-oriented data operations. If all of these were treated as though they shared one uniform runtime contract, either the more constrained skills would lose their determinism or the more flexible skills would be forced into an artificial structure that does not match their purpose.</p>
+                    <p>For this reason, the library does not treat a skill as a single generic abstraction with one universal execution path. It treats a skill as a filesystem-discovered unit whose descriptor filename determines its type, and whose type determines which subsystem will parse, prepare, and execute it. The category is therefore operational rather than merely descriptive.</p>
+                    <p><code>RecursiveSkilledAgent</code> delegates three distinct responsibilities to separate internal services. The discovery service locates <code>skills</code> directories and scans them for recognized descriptor filenames. The registry stores the discovered skill records together with aliases and canonical names. The subsystem factory then resolves each skill type to the subsystem that knows how that skill family should be handled. In the current implementation, the filename-to-type mapping is explicit: <code>SKILL.md</code> maps to <code>anthropic</code>, <code>dcgskill.md</code> to <code>dynamic-code-generation</code>, <code>cskill.md</code> to <code>cskill</code>, <code>mskill.md</code> to <code>mcp</code>, <code>oskill.md</code> to <code>orchestrator</code>, and <code>tskill.md</code> to <code>dbtable</code>.</p>
+                    <p>Once a skill has been discovered, the agent asks the matching subsystem to parse the descriptor if that subsystem exposes a descriptor parser. The skill is then registered, and the same subsystem may prepare it for execution. Preparation is not uniform across the system. A DBTable skill may parse and generate runtime helpers, an MCP skill may normalize its allowlisted tools and optional script, an Anthropic skill may collect scripts and resources, and a code skill may rely on generated files under <code>src/</code>. This is precisely why the subsystem boundary exists.</p>
+                    <p>Execution follows the same principle. When a request names a specific skill, the agent resolves the corresponding skill record and delegates execution to the subsystem associated with that record’s type. When no explicit skill is provided, the executor first tries to select a registered orchestrator. If no orchestrator is available, it falls back to ad hoc routing over the available non-orchestrator skills. The overall architecture therefore separates discovery, registration, and routing from subsystem-specific execution logic.</p>
+                </section>
 
-        <section>
-            <h2>What Subsystems Do</h2>
-            <p>
-                A subsystem is the runtime that knows how to interpret a skill file, prepare it, and execute it safely. When a skill is invoked,
-                the RecursiveSkilledAgent delegates execution to the subsystem that matches the skill’s type. That subsystem applies the right
-                preparation rules, execution flow, and safety checks for that category.
-            </p>
-            <p>
-                This design keeps the overall system stable. The agent does not need to understand every nuance of every skill type because each
-                subsystem encapsulates that complexity.
-            </p>
-        </section>
-
-        <section>
-            <h2>Skill Registration Requirements</h2>
-            <p>
-                A skill is only registered if it has a descriptor file in Markdown. Each skill type has its own descriptor file name and its own
-                set of sections, but the pattern is consistent: a skill is a structured document first, and an executable component second. This
-                is why skills are discoverable and why they can be reasoned about by the agent.
-            </p>
-            <p>
-                Skills that execute code must expose an <code>action</code> function as the entry point. The subsystem loads that function and
-                calls it with a shared execution context.
-            </p>
-        </section>
-
-        <section>
-            <h2>Input Model and Shared Context</h2>
-            <p>
-                Every skill receives its primary input as a natural‑language <code>promptText</code> string, not as a strict JSON object. This is
-                intentional. Skills are intelligent components, not static utilities, so they need room to interpret, clarify, and reason about
-                imperfect inputs. The skill’s descriptor defines the expected structure, but the runtime always starts from plain language.
-            </p>
-            <p>
-                Each skill also receives the shared <a href="llm-agent.html">LLMAgent</a> so it can interact with the model using the same
-                configuration as the rest of the system. This makes skill execution feel like one agent handing off instructions to another
-                specialized agent, rather than calling a rigid tool.
-            </p>
-        </section>
-
-        <section>
-            <h2>Skill Categories and Their Subsystems</h2>
-            <p>
-                Each skill type has its own subsystem with a distinct contract. The detailed behavior is documented on the dedicated pages for
-                each category.
-            </p>
-            <ul>
-                <li><a href="orchestration-skills.html">Orchestration Skills</a> coordinate multi-step workflows and agentic sessions.</li>
-                <li><a href="dbtable-skills.html">DBTable Skills</a> model data tables and structured CRUD flows.</li>
-                <li><a href="code-skills.html">Code Skills</a> execute stable, generated code from specifications.</li>
-                <li><a href="anthropic-skills.html">Anthropic Skills</a> integrate the Anthropic skill standard as static descriptors and guidance.</li>
-                <li><a href="dynamic-code-generation-skills.html">Dynamic Code Generation Skills</a> generate and run code at runtime for flexible logic.</li>
-                <li><a href="mcp-skills.html">MCP Skills</a> plan and optionally execute MCP toolchains as skill-driven workflows.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2>How Subsystems Shape Behavior</h2>
-            <p>
-                The differences between categories are not superficial. They affect how inputs are parsed, how execution is constrained, and how
-                results are normalized. A Code Skill emphasizes reproducibility; a Dynamic Code Generation Skill emphasizes adaptability; an
-                Orchestration Skill emphasizes planning and dependency management. Subsystems make those differences explicit and enforce them
-                consistently across the library.
-            </p>
-        </section>
-
-        <section>
-            <h2>Folder Structure for Skills</h2>
-            <p>
-                Skills are organized by type and stored in dedicated folders. The layout below shows the common structure users encounter when
-                building a skill catalog.
-            </p>
-            <pre><code>skills/
+                <section>
+                    <h2>Current Skill Families in Practice</h2>
+                    <p>Each current skill family should be understood through the execution contract implemented by its subsystem rather than through a generic slogan. <a href="orchestration-skills.html">Orchestration Skills</a> coordinate other skills through structured sessions. <a href="dbtable-skills.html">DBTable Skills</a> model table-oriented workflows and derive runtime behavior from <code>tskill.md</code>. <a href="code-skills.html">Code Skills</a> execute generated or maintained modules from <code>src/index.mjs</code> or <code>src/index.js</code>, and in that case an exported <code>action()</code> function is required by the code-loading subsystem. <a href="dynamic-code-generation-skills.html">Dynamic Code Generation Skills</a> use a different contract, centered on dynamic generation or module-based execution rather than the <code>cskill</code> entrypoint rules. <a href="mcp-skills.html">MCP Skills</a> structure MCP tool access through allowlists, scripts, and plan execution. <a href="anthropic-skills.html">Anthropic Skills</a> use their descriptor content together with discovered scripts and resources to build a loop-session runtime surface.</p>
+                    <p>This means that a skill is not simply “a smarter tool” in one uniform sense. In this library, a skill is a registered unit whose runtime semantics depend on its descriptor type. Some skills expose generated code, some expose orchestration guidance, some expose structured table definitions, and some expose tool-planning constraints. The commonality is not identical internal behavior. The commonality is that all of them can be discovered, registered, selected, and executed through the same top-level agent while preserving the execution discipline appropriate to their own family.</p>
+                    <p>The filesystem structure reflects this arrangement. Skill discovery begins from directories named <code>skills</code>, and each concrete skill is recognized by the presence of one of the supported descriptor filenames. A minimal illustrative layout is shown below.</p>
+                    <pre><code>skills/
 ├── my-orchestrator/
 │   └── oskill.md
 ├── my-db-skill/
 │   └── tskill.md
 ├── my-code-skill/
-│   └── cskill.md
+│   ├── cskill.md
+│   └── src/
+│       └── index.mjs
 ├── my-dynamic-code-skill/
-│   ├── dcgskill.md
-│   └── my-dynamic-code-skill.mjs
+│   └── dcgskill.md
 ├── my-mcp-skill/
 │   └── mskill.md
 └── my-anthropic-skill/
-    └── skill.md</code></pre>
-            <p>
-                The RecursiveSkilledAgent scans these directories, parses each skill file, and registers a skill record with its type. The
-                appropriate subsystem is then responsible for preparing and executing that skill.
-            </p>
-        </section>
+    └── SKILL.md</code></pre>
+                    <p>This example should be read as a type-oriented sketch rather than as a claim that every family has the same companion files. The actual runtime details belong to the dedicated pages for each subsystem. The function of the present page is to establish the governing principle: skill categories are first-class runtime categories, and subsystems are the mechanism that makes those categories executable without collapsing them into one misleading abstraction.</p>
+                </section>
+            </div>
+        </div>
     </main>
 
     <div id="site-footer"></div>
