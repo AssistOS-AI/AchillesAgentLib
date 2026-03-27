@@ -33,7 +33,7 @@
 
                 <section>
                     <h2>Descriptor Surface</h2>
-                    <p>The source descriptor for this family is <code>mskill.md</code>. During preparation, the subsystem reads the descriptor through the generic skill document parser and then extracts three bounded section families: planning instructions, allowed tools, and an optional script. Several aliases are accepted. <code>Instructions</code>, <code>Guidance</code>, <code>System-Prompt</code>, <code>Overview</code>, and <code>MCP-Guidance</code> all map to the same instruction surface. <code>Allowed-Tools</code>, <code>Tool-Allowlist</code>, <code>Tool-Allow-List</code>, and <code>Tools</code> all map to the allowlist. <code>Light-SOP-Lang</code>, <code>LightSOPLang</code>, <code>Script</code>, and <code>Plan-Script</code> all map to the optional script section.</p>
+                    <p>The source descriptor for this family is <code>mskill.md</code>. During preparation, the subsystem reads the descriptor through the generic skill document parser and then extracts three bounded section families: planning instructions, allowed tools, and an optional script. Several aliases are accepted. <code>Instructions</code>, <code>Guidance</code>, <code>System-Prompt</code>, <code>Overview</code>, and <code>MCP-Guidance</code> all map to the same instruction surface. <code>Allowed-Tools</code>, <code>Tool-Allowlist</code>, <code>Tool-Allow-List</code>, and <code>Tools</code> all map to the allowlist. <code>Plan SOPlang</code>, <code>Script</code>, and <code>Plan-Script</code> all map to the optional script section.</p>
                     <p>The practical role of these sections is narrower than general documentation prose might suggest. The instructions become planning guidance. The allowlist determines which MCP tools are admissible. The script section, when present, bypasses LLM planning and becomes the source of the plan itself. No broader hidden contract is inferred from the descriptor.</p>
                     <p>Tool names in the allowlist are normalized through the same name sanitization logic used elsewhere in the library. This means the descriptor should still use the real MCP tool names, but minor differences in punctuation or casing are normalized internally before matching.</p>
                 </section>
@@ -57,7 +57,7 @@
 
                 <section>
                     <h2>Script-Based Variant</h2>
-                    <p>When the planning path should be explicit rather than LLM-derived, the descriptor may add a LightSOPLang script section. In that case, the script becomes the source of the plan and the subsystem does not ask the LLM to propose tool steps.</p>
+                    <p>When the planning path should be explicit rather than LLM-derived, the descriptor may add a Plan SOPlang script section. In that case, the script becomes the source of the plan and the subsystem does not ask the LLM to propose tool steps.</p>
                     <pre><code># Metrics Retrieval
 
 ## Instructions
@@ -69,7 +69,7 @@ Use the declared MCP tools to collect the data required for downstream reporting
 - metricScanner
 - inventoryLookup
 
-## Light-SOP-Lang
+## Plan SOPlang
 @prompt prompt
 @scan metricScanner $prompt
 @lookup inventoryLookup $prompt</code></pre>

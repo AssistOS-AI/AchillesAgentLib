@@ -27,7 +27,7 @@
             <div class="doc-main">
                 <section class="lead">
                     <h1>Agentic Sessions</h1>
-                    <p>Agentic sessions are the bounded execution structures through which AchillesAgentLib carries multi-step work across planning, tool or skill invocation, intermediate state, and stopping conditions. In the current implementation, the runtime exposes two complementary session regimes: a loop-based mode for adaptive step-by-step deliberation and a SOP-based mode for plan-first execution through LightSOPLang.</p>
+                    <p>Agentic sessions are the bounded execution structures through which AchillesAgentLib carries multi-step work across planning, tool or skill invocation, intermediate state, and stopping conditions. In the current implementation, the runtime exposes two complementary session regimes: a loop-based mode for adaptive step-by-step deliberation and a SOP-based mode for plan-first execution through Plan SOPlang.</p>
                 </section>
 
                 <section>
@@ -67,7 +67,7 @@
                                 <h3>Plan-first execution path</h3>
                                 <div class="session-branch__flow">
                                     <div class="session-step">optional preparation</div>
-                                    <div class="session-step">generate LightSOPLang plan</div>
+                                    <div class="session-step">generate Plan SOPlang script</div>
                                     <div class="session-step">execute plan through commands registry</div>
                                     <div class="session-step">finish, repair, or resume pending command</div>
                                 </div>
@@ -87,7 +87,7 @@
 
                 <section>
                     <h2>Two Complementary Regimes</h2>
-                    <p>The most useful distinction is not between simple and complex sessions, but between two different ways of governing multi-step execution. In the loop regime, the runtime keeps deciding the next admissible action during execution and stores intermediate results under symbolic references. In the SOP regime, the runtime first compiles a LightSOPLang artifact and then executes that artifact under a bounded commands registry. The two approaches therefore differ in where deliberation occurs and how explicit the execution structure becomes before downstream work begins.</p>
+                    <p>The most useful distinction is not between simple and complex sessions, but between two different ways of governing multi-step execution. In the loop regime, the runtime keeps deciding the next admissible action during execution and stores intermediate results under symbolic references. In the SOP regime, the runtime first compiles a Plan SOPlang artifact and then executes that artifact under a bounded commands registry. The two approaches therefore differ in where deliberation occurs and how explicit the execution structure becomes before downstream work begins.</p>
                     <p>The loop-specific contract, including result references, interactive continuation, execution limits, and the return surface of <code>LoopAgentSession</code>, is documented in <a href="agentic-sessions-loop.html">Loop Sessions</a>. The plan-first contract, including <code>skillsDescription</code>, <code>commandsRegistry</code>, <code>planOnly</code>, direct continuation of pending commands, and bounded replanning, is documented in <a href="agentic-sessions-sop.html">SOP Sessions</a>.</p>
                     <p>This split is justified because the two session classes are not cosmetic variants of the same object. They expose different configuration surfaces, different state structures, and different operational failure modes. Keeping them under one overview page preserves the common architecture. Giving each regime its own chapter preserves technical precision.</p>
                 </section>

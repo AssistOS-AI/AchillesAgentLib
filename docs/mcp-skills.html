@@ -34,7 +34,7 @@
                     <h2>External Tool Access Under a Bounded Contract</h2>
                     <p>When a capability already exists behind an MCP server, it is often unnecessary to rewrite that capability as an internal skill. What is needed instead is a controlled way to expose that external tool surface to the skill system, so the request remains bounded by an explicit descriptor, an allowlist, and a planning path that can be inspected afterward.</p>
                     <p>MCP Skills address this need by treating MCP tools as a constrained external execution surface. The skill does not become the tool itself. It becomes the local planning and filtering layer through which MCP tools are selected, restricted, and optionally called. This keeps interoperability aligned with the same skill-oriented architecture used elsewhere in the library.</p>
-                    <p>In this family, the architectural value lies less in one complex local transformation and more in disciplined tool mediation. The descriptor establishes which tools are admissible and how planning should proceed. The subsystem then either derives a plan from a LightSOPLang script or asks the LLM to produce a short plan from the allowed tools. In both cases, the execution surface remains narrower than direct tool exposure.</p>
+                    <p>In this family, the architectural value lies less in one complex local transformation and more in disciplined tool mediation. The descriptor establishes which tools are admissible and how planning should proceed. The subsystem then either derives a plan from a Plan SOPlang script or asks the LLM to produce a short plan from the allowed tools. In both cases, the execution surface remains narrower than direct tool exposure.</p>
                 </section>
 
                 <section>
@@ -62,7 +62,7 @@
                             <g class="pipeline-svg__card pipeline-svg__card--spec">
                                 <rect x="270" y="30" width="200" height="110" rx="16"></rect>
                                 <text x="290" y="62" class="pipeline-svg__label">Planning path</text>
-                                <text x="290" y="90" class="pipeline-svg__text">LightSOPLang script</text>
+                                <text x="290" y="90" class="pipeline-svg__text">Plan SOPlang script</text>
                                 <text x="290" y="110" class="pipeline-svg__text">or bounded LLM plan</text>
                             </g>
 

@@ -39,7 +39,7 @@
 
                 <section>
                     <h2>Script Planning Path</h2>
-                    <p>When a script section exists, the subsystem does not call the LLM for planning. Instead, it runs the declared script through the LightSOPLang interpreter. In that path, the interpreter receives a command registry that exposes the filtered MCP tools together with two built-in commands: <code>prompt</code>, which returns the original prompt text, and <code>workspaceroot</code>, which returns the workspace root directory. Each MCP-tool command schedules a plan step rather than executing the tool immediately.</p>
+                    <p>When a script section exists, the subsystem does not call the LLM for planning. Instead, it runs the declared script through the Plan SOPlang interpreter. In that path, the interpreter receives a command registry that exposes the filtered MCP tools together with two built-in commands: <code>prompt</code>, which returns the original prompt text, and <code>workspaceroot</code>, which returns the workspace root directory. Each MCP-tool command schedules a plan step rather than executing the tool immediately.</p>
                     <p>The resulting plan is returned together with the original script and the filtered tool list. This makes the script path useful when the planning structure should remain explicit and inspectable in the descriptor rather than synthesized by the LLM.</p>
                 </section>
 
@@ -72,7 +72,7 @@
                             <g class="pipeline-svg__card pipeline-svg__card--spec">
                                 <rect x="270" y="30" width="200" height="110" rx="16"></rect>
                                 <text x="290" y="62" class="pipeline-svg__label">Planner</text>
-                                <text x="290" y="90" class="pipeline-svg__text">LightSOPLang script</text>
+                                <text x="290" y="90" class="pipeline-svg__text">Plan SOPlang script</text>
                                 <text x="290" y="110" class="pipeline-svg__text">or bounded LLM plan</text>
                             </g>
 

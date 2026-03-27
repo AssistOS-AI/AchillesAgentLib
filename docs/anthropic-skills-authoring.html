@@ -59,7 +59,7 @@
                             </li>
                         </ul>
                     </div>
-                    <p>The older page mentioned <code>assets/</code> as though it were part of the subsystem contract. In the current implementation, that folder is not prepared or exposed by the Anthropic subsystem itself. It may still exist as ordinary repository content, but it is not one of the active runtime surfaces described by this chapter.</p>
+                    <p>The <code>assets/</code> folder may still be used in a skill bundle for auxiliary files, but it is not loaded into the session context at runtime by the Anthropic subsystem. In practice, <code>assets/</code> should be treated as repository storage rather than as an active runtime surface.</p>
                 </section>
 
                 <section>
