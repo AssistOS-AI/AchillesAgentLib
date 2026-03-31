@@ -1,6 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
 const CODE_ARGUMENT_NAME = 'input';
@@ -78,7 +75,7 @@ function unwrapCodeFence(payload) {
     return trimmed;
 }
 
-function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast', tierConfig = null }) {
+function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast' }) {
     return async (invocation) => {
         const recursiveSkilledAgent = invocation?.recursiveAgent || null;
         const input = invocation?.input;
@@ -158,60 +155,6 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
     };
 }
 
-function createModuleExecutor({ skillName, modulePath, prompt = '', llmAgent, llmMode = 'fast', tierConfig = null }) {
-    let cached = null;
-    return async (invocation) => {
-        const recursiveSkilledAgent = invocation.recursiveAgent;
-        const input = invocation.input;
-        if (typeof input !== 'string' || !input.trim()) {
-            throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
-        }
-        if (!cached) {
-            const moduleUrl = pathToFileURL(modulePath);
-            const imported = await import(moduleUrl.href);
-            cached = typeof imported.action === 'function'
-                ? imported.action
-                : (typeof imported.default === 'function' ? imported.default : null);
-            if (typeof cached !== 'function') {
-                throw new Error(`Dynamic code generation skill module at ${modulePath} does not export an action function.`);
-            }
-        }
-
-        const payload = {
-            llmAgent,
-            recursiveAgent: invocation.recursiveAgent,
-            sessionMemory: invocation.sessionMemory,
-            context: invocation.context,
-            user: invocation.user,
-            input: invocation.input,
-            promptText: invocation.promptText,
-            attachments: invocation.attachments,
-            llmMode,
-            tierConfig,
-            skillName,
-        };
-        const execution = Promise.resolve(cached(payload));
-
-        const result = await withTimeout(
-            execution,
-            SKILL_TIMEOUT_MS,
-            () => new Error(`Dynamic code generation skill "${skillName}" execution timed out after ${SKILL_TIMEOUT_MS}ms.`),
-        );
-
-        if (typeof result === 'string') {
-            return result;
-        }
-        if (result === null || result === undefined) {
-            return '';
-        }
-        try {
-            return JSON.stringify(result);
-        } catch (error) {
-            return String(result);
-        }
-    };
-}
-
 const MAX_SNIPPET_PREVIEW = 160;
 
 async function runSnippet(code, label) {
@@ -261,7 +204,7 @@ async function executeCodeSnippet({ skillName, code }) {
     } catch (error) {
         return String(result);
     }
-} ``
+}
 
 export class DynamicCodeGenerationSubsystem {
     constructor({ llmAgent, tierConfig = null, modelConfig = null }) {
@@ -281,26 +224,10 @@ export class DynamicCodeGenerationSubsystem {
         const argumentDescription = extractSectionContent(sections, 'argument', 'input', 'parameters') || DEFAULT_CODE_ARGUMENT_DESCRIPTION;
         const rawLlmMode = extractSectionContent(sections, 'llm mode', 'llm-mode', 'mode');
         const llmMode = rawLlmMode ? determineMode(rawLlmMode) : (this.tierConfig.code || 'code');
-        const folderName = skillDir ? path.basename(skillDir) : null;
-        // Check for both .js and .mjs module files
-        let localModulePath = null;
-        let moduleExists = false;
-        if (folderName) {
-            const jsPath = path.join(skillDir, `${folderName}.js`);
-            const mjsPath = path.join(skillDir, `${folderName}.mjs`);
-            if (fs.existsSync(mjsPath)) {
-                localModulePath = mjsPath;
-                moduleExists = true;
-            } else if (fs.existsSync(jsPath)) {
-                localModulePath = jsPath;
-                moduleExists = true;
-            }
-        }
 
         skillRecord.preparedConfig = {
             type: 'dynamic-code-generation',
             prompt,
-            modulePath: moduleExists ? localModulePath : null,
             filePath,
             skillDir,
             name: descriptor?.name || null,
@@ -311,22 +238,12 @@ export class DynamicCodeGenerationSubsystem {
             llmMode,
         };
 
-        const executor = moduleExists
-            ? createModuleExecutor({
-                skillName: skillRecord.name,
-                modulePath: localModulePath,
-                prompt,
-                llmAgent: this.llmAgent,
-                llmMode,
-                tierConfig: this.tierConfig,
-            })
-            : createDefaultExecutor({
-                skillName: skillRecord.name,
-                prompt,
-                llmAgent: this.llmAgent,
-                llmMode,
-                tierConfig: this.tierConfig,
-            });
+        const executor = createDefaultExecutor({
+            skillName: skillRecord.name,
+            prompt,
+            llmAgent: this.llmAgent,
+            llmMode,
+        });
 
         this.executors.set(skillRecord.name, executor);
     }
