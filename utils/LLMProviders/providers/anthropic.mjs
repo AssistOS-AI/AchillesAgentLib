@@ -117,6 +117,8 @@ export async function* callLLMStreaming(chatContext, options) {
 
     let fullText = '';
     let usage = null;
+    const toolCallAccum = [];
+    let stopReason = null;
 
     try {
         for await (const frame of parseSSEStream(response.body)) {
@@ -133,9 +135,18 @@ export async function* callLLMStreaming(chatContext, options) {
                 usage = { ...data.message.usage };
             }
 
-            // Merge output usage from message_delta
-            if (data.type === 'message_delta' && data.usage) {
-                usage = usage ? { ...usage, ...data.usage } : { ...data.usage };
+            // content_block_start: detect tool_use blocks
+            if (data.type === 'content_block_start') {
+                const block = data.content_block;
+                if (block?.type === 'tool_use') {
+                    const idx = data.index ?? toolCallAccum.length;
+                    toolCallAccum[idx] = {
+                        id: block.id || '',
+                        type: 'function',
+                        function: { name: block.name || '', arguments: '' },
+                    };
+                }
+                continue;
             }
 
             if (data.type === 'content_block_delta') {
@@ -147,7 +158,42 @@ export async function* callLLMStreaming(chatContext, options) {
                     yield { type: 'text_delta', text: delta.text };
                 } else if (delta.type === 'thinking_delta' && typeof delta.thinking === 'string') {
                     yield { type: 'thinking_delta', thinking: delta.thinking };
+                } else if (delta.type === 'input_json_delta') {
+                    const idx = data.index ?? 0;
+                    if (toolCallAccum[idx]) {
+                        toolCallAccum[idx].function.arguments += delta.partial_json || '';
+                    }
                 }
+                continue;
+            }
+
+            // content_block_stop: emit tool call delta
+            if (data.type === 'content_block_stop') {
+                const idx = data.index;
+                if (idx !== undefined && toolCallAccum[idx]) {
+                    yield {
+                        type: 'tool_calls_delta',
+                        toolCalls: [{ index: idx, ...toolCallAccum[idx] }],
+                    };
+                }
+                continue;
+            }
+
+            // message_delta: stop reason
+            if (data.type === 'message_delta') {
+                if (data.delta?.stop_reason) {
+                    const reason = data.delta.stop_reason;
+                    stopReason = reason === 'end_turn' ? 'stop' : reason === 'tool_use' ? 'tool_calls' : reason;
+                }
+                if (data.usage && usage) {
+                    // Merge output usage — keep Anthropic's output_tokens AND add OpenAI-style fields
+                    Object.assign(usage, data.usage);
+                    if (data.usage.output_tokens !== undefined) {
+                        usage.completion_tokens = data.usage.output_tokens;
+                        usage.total_tokens = (usage.input_tokens || 0) + data.usage.output_tokens;
+                    }
+                }
+                continue;
             }
         }
     } catch (err) {
@@ -155,5 +201,12 @@ export async function* callLLMStreaming(chatContext, options) {
         return;
     }
 
-    yield { type: 'done', fullText, usage };
+    const toolCalls = toolCallAccum.filter(Boolean);
+    yield {
+        type: 'done',
+        fullText,
+        toolCalls: toolCalls.length > 0 ? toolCalls : null,
+        usage,
+        stopReason: stopReason || (toolCalls.length > 0 ? 'tool_calls' : 'stop'),
+    };
 }

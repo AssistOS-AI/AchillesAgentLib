@@ -103,7 +103,7 @@ test('streams text deltas and yields done with fullText', async () => {
         const done = chunks.find(c => c.type === 'done');
         assert.ok(done, 'should have a done chunk');
         assert.equal(done.fullText, 'Hello world');
-        assert.deepEqual(done.usage, { input_tokens: 10, output_tokens: 5 });
+        assert.deepEqual(done.usage, { input_tokens: 10, output_tokens: 5, completion_tokens: 5, total_tokens: 15 });
     } finally {
         restore();
     }
@@ -313,7 +313,7 @@ test('handles stream with only message_start and message_stop (empty response)',
         const done = chunks.find(c => c.type === 'done');
         assert.ok(done);
         assert.equal(done.fullText, '');
-        assert.deepEqual(done.usage, { input_tokens: 3, output_tokens: 0 });
+        assert.deepEqual(done.usage, { input_tokens: 3, output_tokens: 0, completion_tokens: 0, total_tokens: 3 });
     } finally {
         restore();
     }

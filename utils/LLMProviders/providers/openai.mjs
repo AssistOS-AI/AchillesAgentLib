@@ -108,6 +108,8 @@ export async function* callLLMStreaming(chatContext, options) {
 
     let fullText = '';
     let usage = null;
+    const toolCallAccum = [];
+    let stopReason = null;
 
     try {
         for await (const frame of parseSSEStream(response.body)) {
@@ -123,10 +125,41 @@ export async function* callLLMStreaming(chatContext, options) {
                 usage = data.usage;
             }
 
-            const content = data.choices?.[0]?.delta?.content;
-            if (typeof content === 'string' && content.length > 0) {
-                fullText += content;
-                yield { type: 'text_delta', text: content };
+            const choice = data.choices?.[0];
+            if (!choice) continue;
+
+            if (choice.finish_reason) {
+                stopReason = choice.finish_reason;
+            }
+
+            const delta = choice.delta;
+            if (!delta) continue;
+
+            // Content delta
+            if (typeof delta.content === 'string' && delta.content.length > 0) {
+                fullText += delta.content;
+                yield { type: 'text_delta', text: delta.content };
+            }
+
+            // Tool calls delta — accumulate incrementally
+            if (Array.isArray(delta.tool_calls)) {
+                for (const tc of delta.tool_calls) {
+                    const idx = tc.index ?? 0;
+                    if (!toolCallAccum[idx]) {
+                        toolCallAccum[idx] = {
+                            id: tc.id || '',
+                            type: tc.type || 'function',
+                            function: { name: tc.function?.name || '', arguments: '' },
+                        };
+                    } else {
+                        if (tc.id) toolCallAccum[idx].id = tc.id;
+                        if (tc.function?.name) toolCallAccum[idx].function.name = tc.function.name;
+                    }
+                    if (tc.function?.arguments) {
+                        toolCallAccum[idx].function.arguments += tc.function.arguments;
+                    }
+                }
+                yield { type: 'tool_calls_delta', toolCalls: delta.tool_calls };
             }
         }
     } catch (err) {
@@ -134,5 +167,12 @@ export async function* callLLMStreaming(chatContext, options) {
         return;
     }
 
-    yield { type: 'done', fullText, usage };
+    const toolCalls = toolCallAccum.filter(Boolean);
+    yield {
+        type: 'done',
+        fullText,
+        toolCalls: toolCalls.length > 0 ? toolCalls : null,
+        usage,
+        stopReason: stopReason || 'stop',
+    };
 }
