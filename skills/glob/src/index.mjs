@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { glob } from 'node:fs/promises';
 import path from 'node:path';
-import { getSopDocBaseDir, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
+import { stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 export async function action(context) {
     const { promptText } = context;
@@ -10,13 +10,13 @@ export async function action(context) {
         throw new Error('Glob requires a pattern.');
     }
 
-    const sopBaseDir = getSopDocBaseDir(context) || process.cwd();
+    const baseDir = process.cwd();
     const matches = [];
 
-    for await (const match of glob(pattern, { cwd: sopBaseDir })) {
+    for await (const match of glob(pattern, { cwd: baseDir })) {
         const fullPath = path.isAbsolute(match)
             ? match
-            : path.resolve(sopBaseDir, match);
+            : path.resolve(baseDir, match);
         let stat;
         try {
             stat = await fs.promises.stat(fullPath);

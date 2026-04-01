@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { isProbablyText, parseKeyValueInput, resolvePathFromContext, stripDependsOn, unwrapBacktickLiteral } from '../../../utils/internalSkillsUtils.mjs';
+import { isProbablyText, parseKeyValueInput, resolvePath, stripDependsOn, unwrapBacktickLiteral } from '../../../utils/internalSkillsUtils.mjs';
 
 function extractMultilineBlock(promptText, key, stopKeys) {
     const lines = String(promptText ?? '').split(/\r?\n/);
@@ -29,7 +29,7 @@ export async function action(context) {
     if (!data || typeof data !== 'object' || !Object.keys(data).length) {
         throw new Error('Edit requires input with file_path, old_string, and new_string.');
     }
-    const filePath = resolvePathFromContext(data.file_path, 'file_path', context);
+    const filePath = resolvePath(data.file_path, 'file_path');
     const stopKeys = ['file_path', 'old_string', 'new_string', 'replace_all'];
     const multilineOld = extractMultilineBlock(sanitizedPrompt, 'old_string', stopKeys);
     const multilineNew = extractMultilineBlock(sanitizedPrompt, 'new_string', stopKeys);

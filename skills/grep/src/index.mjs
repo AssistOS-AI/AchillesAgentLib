@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getSopDocBaseDir, parseKeyValueInput, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
+import { parseKeyValueInput, resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 function escapeRegex(text) {
     return text.replace(/[.+^$|(){}\\]/g, '\\$&');
@@ -153,11 +153,10 @@ export async function action(context) {
     const headLimit = input.head_limit && Number.isFinite(Number(input.head_limit))
         ? Math.max(0, Number(input.head_limit))
         : null;
-    const sopBaseDir = getSopDocBaseDir(context) || process.cwd();
-    const targetPathRaw = String(input.path || sopBaseDir);
-    const targetPath = path.isAbsolute(targetPathRaw)
-        ? targetPathRaw
-        : path.resolve(sopBaseDir, targetPathRaw);
+    const baseDir = process.cwd();
+    const targetPath = input.path
+        ? resolvePath(input.path, 'path')
+        : baseDir;
 
     let files = await listFiles(targetPath);
     if (input.glob) {

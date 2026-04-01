@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { isProbablyText, parseKeyValueInput, resolvePathFromContext, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
+import { isProbablyText, parseKeyValueInput, resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 const DEFAULT_LIMIT = 2000;
 const MAX_LINE_LENGTH = 2000;
@@ -24,7 +24,7 @@ export async function action(context) {
     const sanitizedPrompt = stripDependsOn(promptText);
     const { data, raw, hasPairs } = parseKeyValueInput(sanitizedPrompt);
     const input = hasPairs ? data : { file_path: raw };
-    const filePath = resolvePathFromContext(input.file_path, 'file_path', context);
+    const filePath = resolvePath(input.file_path, 'file_path');
     const offset = input.offset ? Number(input.offset) : 1;
     const limit = input.limit ? Number(input.limit) : DEFAULT_LIMIT;
 

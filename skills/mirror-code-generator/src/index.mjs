@@ -23,7 +23,7 @@ export const descriptor = {
  * @param {Object} context.llmAgent - The LLM agent instance.
  * @returns {Promise<Object>} Result object with message and generatedFiles array.
  */
-import { resolvePathFromContext, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
+import { resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 export async function action(context) {
     const { promptText, recursiveAgent, llmAgent, logger = console } = context;
@@ -32,7 +32,7 @@ export async function action(context) {
     if (!targetDirRaw) {
         throw new Error('mirror-code-generator requires a skill directory path as input.');
     }
-    const targetDir = resolvePathFromContext(targetDirRaw, 'skill directory path', context);
+    const targetDir = resolvePath(targetDirRaw, 'skill directory path');
 
     const agent = llmAgent || recursiveAgent?.llmAgent;
     if (!agent) {

@@ -165,7 +165,7 @@ test('glob skill: matches direct files', async () => {
     await writeFile(fileA, 'a');
     await writeFile(fileB, 'b');
 
-    const result = await globAction({ promptText: `pattern: *.txt\npath: ${tempDir}` });
+    const result = await globAction({ promptText: path.join(tempDir, '*.txt') });
     const files = JSON.parse(result);
     assert.ok(files.includes(fileA));
     assert.ok(!files.includes(fileB));
@@ -176,7 +176,7 @@ test('glob skill: matches nested files', async () => {
     const nested = path.join(tempDir, 'nested', 'file.js');
     await writeFile(nested, 'console.log(1);');
 
-    const result = await globAction({ promptText: `pattern: **/*.js\npath: ${tempDir}` });
+    const result = await globAction({ promptText: path.join(tempDir, '**', '*.js') });
     const files = JSON.parse(result);
     assert.ok(files.includes(nested));
 });
@@ -188,7 +188,7 @@ test('glob skill: supports brace patterns', async () => {
     await writeFile(fileA, 'a');
     await writeFile(fileB, 'b');
 
-    const result = await globAction({ promptText: `pattern: *.{md,txt}\npath: ${tempDir}` });
+    const result = await globAction({ promptText: path.join(tempDir, '*.{md,txt}') });
     const files = JSON.parse(result);
     assert.ok(files.includes(fileA));
     assert.ok(files.includes(fileB));
