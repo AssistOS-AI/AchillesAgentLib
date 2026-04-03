@@ -27,9 +27,18 @@
 
 const API_TYPE_OPENAI = 'openai';
 const API_TYPE_ANTHROPIC = 'anthropic';
+const API_TYPE_GOOGLE = 'google';
+const API_TYPE_HUGGINGFACE = 'huggingface';
+const API_TYPE_COPILOT = 'copilot';
+const API_TYPE_KIRO = 'kiro';
+const API_TYPE_SOUL_GATEWAY = 'soul_gateway';
 
 const OPENAI_MODULE = './utils/LLMProviders/providers/openai.mjs';
 const ANTHROPIC_MODULE = './utils/LLMProviders/providers/anthropic.mjs';
+const GOOGLE_MODULE = './utils/LLMProviders/providers/google.mjs';
+const HUGGINGFACE_MODULE = './utils/LLMProviders/providers/huggingFace.mjs';
+const COPILOT_MODULE = './utils/LLMProviders/providers/copilot.mjs';
+const KIRO_MODULE = './utils/LLMProviders/providers/kiro.mjs';
 
 /**
  * Parse a model definition string.
@@ -94,9 +103,9 @@ function parseProvidersFromEnv() {
     const providerData = new Map(); // Collect partial data before building providers
 
     // Patterns to match
-    const urlPattern = /^(OPENAI|ANTHROPIC)_([A-Z][A-Z0-9_]*)_URL$/;
-    const keyPattern = /^(OPENAI|ANTHROPIC)_([A-Z][A-Z0-9_]*)_KEY$/;
-    const keyEnvPattern = /^(OPENAI|ANTHROPIC)_([A-Z][A-Z0-9_]*)_KEY_ENV$/;
+    const urlPattern = /^(OPENAI|ANTHROPIC|GOOGLE|HUGGINGFACE|COPILOT|KIRO)_([A-Z][A-Z0-9_]*)_URL$/;
+    const keyPattern = /^(OPENAI|ANTHROPIC|GOOGLE|HUGGINGFACE|COPILOT|KIRO)_([A-Z][A-Z0-9_]*)_(KEY|TOKEN)$/;
+    const keyEnvPattern = /^(OPENAI|ANTHROPIC|GOOGLE|HUGGINGFACE|COPILOT|KIRO)_([A-Z][A-Z0-9_]*)_KEY_ENV$/;
 
     for (const [envKey, envValue] of Object.entries(process.env)) {
         if (!envValue) continue;
@@ -135,7 +144,7 @@ function parseProvidersFromEnv() {
             if (!providerData.has(key)) {
                 providerData.set(key, { apiType, providerName });
             }
-            // Store the direct key - we'll create a synthetic env var for it
+            // Store the direct key/token - we'll create a synthetic env var for it
             providerData.get(key).directKey = envValue;
             continue;
         }
@@ -152,7 +161,7 @@ function parseProvidersFromEnv() {
         const apiType = data.apiType.toLowerCase();
 
         // Determine the module based on API type
-        const module = apiType === 'anthropic' ? ANTHROPIC_MODULE : OPENAI_MODULE;
+        const module = resolveModuleForApiType(apiType);
 
         // Determine API key env var
         let apiKeyEnv = data.apiKeyEnv;
@@ -177,7 +186,109 @@ function parseProvidersFromEnv() {
         });
     }
 
+    addDirectProvider(providers, {
+        providerKey: 'openai',
+        apiType: API_TYPE_OPENAI,
+        envNames: ['OPENAI_API_KEY'],
+        baseURL: process.env.OPENAI_BASE_URL || process.env.OPENAI_URL || 'https://api.openai.com/v1',
+    });
+
+    addDirectProvider(providers, {
+        providerKey: 'anthropic',
+        apiType: API_TYPE_ANTHROPIC,
+        envNames: ['ANTHROPIC_API_KEY'],
+        baseURL: process.env.ANTHROPIC_BASE_URL || process.env.ANTHROPIC_URL || 'https://api.anthropic.com',
+    });
+
+    addDirectProvider(providers, {
+        providerKey: 'google',
+        apiType: API_TYPE_GOOGLE,
+        envNames: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
+        baseURL: process.env.GOOGLE_BASE_URL || process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/models',
+    });
+
+    addDirectProvider(providers, {
+        providerKey: 'huggingface',
+        apiType: API_TYPE_HUGGINGFACE,
+        envNames: ['HUGGINGFACE_API_KEY', 'HF_TOKEN'],
+        baseURL: process.env.HUGGINGFACE_BASE_URL || 'https://router.huggingface.co/v1/chat/completions',
+    });
+
+    addDirectProvider(providers, {
+        providerKey: 'copilot',
+        apiType: API_TYPE_COPILOT,
+        envNames: ['COPILOT_API_KEY', 'COPILOT_TOKEN'],
+        baseURL: process.env.COPILOT_BASE_URL || 'https://api.githubcopilot.com',
+    });
+
+    addDirectProvider(providers, {
+        providerKey: 'kiro',
+        apiType: API_TYPE_KIRO,
+        envNames: ['KIRO_API_KEY', 'KIRO_ACCESS_TOKEN'],
+        baseURL: process.env.KIRO_BASE_URL || 'https://api.kiro.dev',
+    });
+
+    addDirectProvider(providers, {
+        providerKey: 'soul_gateway',
+        apiType: API_TYPE_SOUL_GATEWAY,
+        envNames: ['SOUL_GATEWAY_API_KEY'],
+        baseURL: resolveSoulGatewayBaseURL(),
+    });
+
     return providers;
+}
+
+function resolveModuleForApiType(apiType) {
+    switch (apiType) {
+        case API_TYPE_ANTHROPIC:
+            return ANTHROPIC_MODULE;
+        case API_TYPE_GOOGLE:
+            return GOOGLE_MODULE;
+        case API_TYPE_HUGGINGFACE:
+            return HUGGINGFACE_MODULE;
+        case API_TYPE_COPILOT:
+            return COPILOT_MODULE;
+        case API_TYPE_KIRO:
+            return KIRO_MODULE;
+        case API_TYPE_SOUL_GATEWAY:
+        case API_TYPE_OPENAI:
+        default:
+            return OPENAI_MODULE;
+    }
+}
+
+function addDirectProvider(providers, { providerKey, apiType, envNames, baseURL }) {
+    if (providers.has(providerKey)) {
+        return;
+    }
+
+    const envName = envNames.find((name) => process.env[name]);
+    if (!envName) {
+        return;
+    }
+
+    providers.set(providerKey, {
+        name: providerKey,
+        providerKey,
+        baseURL,
+        apiKeyEnv: envName,
+        module: resolveModuleForApiType(apiType),
+        apiType,
+        fromEnv: true,
+    });
+}
+
+function resolveSoulGatewayBaseURL() {
+    const raw = process.env.SOUL_GATEWAY_BASE_URL || process.env.SOUL_GATEWAY_URL || 'http://localhost:3000';
+    const trimmed = raw.replace(/\/+$/, '');
+
+    if (trimmed.endsWith('/chat/completions')) {
+        return trimmed;
+    }
+    if (trimmed.endsWith('/v1')) {
+        return `${trimmed}/chat/completions`;
+    }
+    return `${trimmed}/v1/chat/completions`;
 }
 
 /**

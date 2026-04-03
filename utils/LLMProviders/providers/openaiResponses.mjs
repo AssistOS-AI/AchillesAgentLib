@@ -29,8 +29,26 @@ function toResponsesInput(chatContext) {
     const messages = toOpenAIChatMessages(chatContext);
     return messages.map((msg) => ({
         role: ROLE_MAP[msg.role] || 'user',
-        content: msg.content,
+        content: Array.isArray(msg.content)
+            ? msg.content.map((part) => {
+                if (part.type === 'text') return { type: 'input_text', text: part.text || '' };
+                if (part.type === 'image_url') return { type: 'input_image', image_url: part.image_url?.url || '' };
+                return part;
+            })
+            : msg.content,
     }));
+}
+
+function convertTools(tools) {
+    return (tools || []).map((tool) => {
+        const fn = tool.function || tool;
+        return {
+            type: 'function',
+            name: fn.name,
+            description: fn.description || '',
+            parameters: fn.parameters || { type: 'object', properties: {} },
+        };
+    });
 }
 
 /**
@@ -57,8 +75,25 @@ function extractOutputText(output) {
 }
 
 function deriveProviderLabel(baseURL) {
-    const match = baseURL.match(/https?:\/\/api\.([^/]+)\/v1\//i);
+    const match = baseURL.match(/https?:\/\/api\.([^/]+)\/?/i);
     return match?.[1] || 'OpenAI';
+}
+
+function resolveResponsesURL(baseURL) {
+    const trimmed = (baseURL || '').replace(/\/+$/, '');
+    if (!trimmed) {
+        return 'https://api.openai.com/v1/responses';
+    }
+
+    if (trimmed.endsWith('/responses')) {
+        return trimmed;
+    }
+
+    if (trimmed.endsWith('/v1')) {
+        return `${trimmed}/responses`;
+    }
+
+    return `${trimmed}/v1/responses`;
 }
 
 export async function callLLM(chatContext, options) {
@@ -86,9 +121,12 @@ export async function callLLM(chatContext, options) {
 
     if (params && typeof params === 'object') {
         Object.assign(payload, params);
+        if (Array.isArray(params.tools)) {
+            payload.tools = convertTools(params.tools);
+        }
     }
 
-    const response = await fetch(baseURL, {
+    const response = await fetch(resolveResponsesURL(baseURL), {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -149,9 +187,12 @@ export async function* callLLMStreaming(chatContext, options) {
 
     if (params && typeof params === 'object') {
         Object.assign(payload, params);
+        if (Array.isArray(params.tools)) {
+            payload.tools = convertTools(params.tools);
+        }
     }
 
-    const response = await fetch(baseURL, {
+    const response = await fetch(resolveResponsesURL(baseURL), {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${apiKey}`,

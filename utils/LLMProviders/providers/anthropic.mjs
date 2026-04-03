@@ -1,6 +1,37 @@
 import { toAnthropicMessages } from '../messageAdapters/anthropicMessages.mjs';
 import { parseSSEStream } from './sseParser.mjs';
 
+function resolveMessagesURL(baseURL) {
+    const trimmed = (baseURL || '').replace(/\/+$/, '');
+    if (!trimmed) {
+        return 'https://api.anthropic.com/v1/messages';
+    }
+
+    if (trimmed.endsWith('/messages')) {
+        return trimmed;
+    }
+
+    if (trimmed.endsWith('/v1')) {
+        return `${trimmed}/messages`;
+    }
+
+    return `${trimmed}/v1/messages`;
+}
+
+function buildHeaders(apiKey, optionsHeaders = {}) {
+    const headers = {
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+        ...(optionsHeaders || {}),
+    };
+
+    if (!headers.Authorization && apiKey) {
+        headers['x-api-key'] = apiKey;
+    }
+
+    return headers;
+}
+
 export async function callLLM(chatContext, options) {
     if (!options || typeof options !== 'object') {
         throw new Error('Anthropic provider requires invocation options.');
@@ -10,8 +41,8 @@ export async function callLLM(chatContext, options) {
     if (!model) {
         throw new Error('Anthropic provider requires a model name.');
     }
-    if (!apiKey) {
-        throw new Error('Anthropic provider requires an API key.');
+    if (!apiKey && !headers?.Authorization) {
+        throw new Error('Anthropic provider requires an API key or Authorization header.');
     }
     if (!baseURL) {
         throw new Error('Anthropic provider requires a baseURL.');
@@ -32,14 +63,9 @@ export async function callLLM(chatContext, options) {
         Object.assign(payload, params);
     }
 
-    const response = await fetch(baseURL, {
+    const response = await fetch(resolveMessagesURL(baseURL), {
         method: 'POST',
-        headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json',
-            ...(headers || {}),
-        },
+        headers: buildHeaders(apiKey, headers),
         body: JSON.stringify(payload),
         signal,
     });
@@ -79,7 +105,7 @@ export async function* callLLMStreaming(chatContext, options) {
     const { model, apiKey, baseURL, signal, params, headers } = options;
 
     if (!model) throw new Error('Anthropic provider requires a model name.');
-    if (!apiKey) throw new Error('Anthropic provider requires an API key.');
+    if (!apiKey && !headers?.Authorization) throw new Error('Anthropic provider requires an API key or Authorization header.');
     if (!baseURL) throw new Error('Anthropic provider requires a baseURL.');
 
     const { messages, system } = toAnthropicMessages(chatContext);
@@ -98,14 +124,9 @@ export async function* callLLMStreaming(chatContext, options) {
         Object.assign(payload, params);
     }
 
-    const response = await fetch(baseURL, {
+    const response = await fetch(resolveMessagesURL(baseURL), {
         method: 'POST',
-        headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json',
-            ...(headers || {}),
-        },
+        headers: buildHeaders(apiKey, headers),
         body: JSON.stringify(payload),
         signal,
     });

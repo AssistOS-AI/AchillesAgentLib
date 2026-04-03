@@ -2,8 +2,25 @@ import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
 import { parseSSEStream } from './sseParser.mjs';
 
 function deriveProviderLabel(baseURL) {
-    const match = baseURL.match(/https?:\/\/api\.([^/]+)\/v1\//i);
+    const match = baseURL.match(/https?:\/\/api\.([^/]+)\/?/i);
     return match?.[1] || 'OpenAI';
+}
+
+function resolveCompletionsURL(baseURL) {
+    const trimmed = (baseURL || '').replace(/\/+$/, '');
+    if (!trimmed) {
+        return 'https://api.openai.com/v1/completions';
+    }
+
+    if (trimmed.endsWith('/completions')) {
+        return trimmed;
+    }
+
+    if (trimmed.endsWith('/v1')) {
+        return `${trimmed}/completions`;
+    }
+
+    return `${trimmed}/v1/completions`;
 }
 
 /**
@@ -68,7 +85,7 @@ export async function callLLM(chatContext, options) {
         Object.assign(payload, params);
     }
 
-    const response = await fetch(baseURL, {
+    const response = await fetch(resolveCompletionsURL(baseURL), {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -124,7 +141,7 @@ export async function* callLLMStreaming(chatContext, options) {
         Object.assign(payload, params);
     }
 
-    const response = await fetch(baseURL, {
+    const response = await fetch(resolveCompletionsURL(baseURL), {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${apiKey}`,

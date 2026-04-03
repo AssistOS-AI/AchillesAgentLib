@@ -24,7 +24,11 @@ function extractContent(entry) {
         return entry.text;
     }
     if (Array.isArray(entry.content)) {
-        return entry.content.map(chunk => (typeof chunk?.text === 'string' ? chunk.text : '')).join('\n').trim();
+        return entry.content
+            .filter(chunk => chunk?.type === 'text' || chunk?.type === 'input_text')
+            .map(chunk => chunk.text || '')
+            .join('\n')
+            .trim();
     }
     return '';
 }
@@ -62,11 +66,72 @@ export function toAnthropicMessages(history = []) {
         }
 
         const role = normalizeRole(entry.role || entry.author);
-        messages.push({
-            role,
-            content: [{ type: 'text', text: content }],
-        });
+        messages.push(convertMessage({ ...entry, role }, content));
     }
 
     return { system, messages };
+}
+
+function convertMessage(entry, fallbackContent = '') {
+    if (entry.role === 'tool') {
+        return {
+            role: 'user',
+            content: [{
+                type: 'tool_result',
+                tool_use_id: entry.tool_call_id,
+                content: typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content ?? ''),
+            }],
+        };
+    }
+
+    const result = { role: normalizeRole(entry.role || entry.author) };
+    const parts = [];
+
+    if (Array.isArray(entry.content)) {
+        for (const part of entry.content) {
+            if (!part || typeof part !== 'object') continue;
+            if (part.type === 'text' || part.type === 'input_text') {
+                parts.push({ type: 'text', text: part.text || '' });
+                continue;
+            }
+            if (part.type === 'image_url') {
+                const url = part.image_url?.url || '';
+                if (url.startsWith('data:')) {
+                    const match = url.match(/^data:([^;]+);base64,(.+)$/);
+                    if (match) {
+                        parts.push({
+                            type: 'image',
+                            source: { type: 'base64', media_type: match[1], data: match[2] },
+                        });
+                    }
+                } else if (url) {
+                    parts.push({ type: 'image', source: { type: 'url', url } });
+                }
+            }
+        }
+    } else if (fallbackContent) {
+        parts.push({ type: 'text', text: fallbackContent });
+    }
+
+    if (Array.isArray(entry.tool_calls)) {
+        for (const toolCall of entry.tool_calls) {
+            parts.push({
+                type: 'tool_use',
+                id: toolCall.id,
+                name: toolCall.function?.name || toolCall.name || '',
+                input: safeParseJson(toolCall.function?.arguments || toolCall.arguments || '{}'),
+            });
+        }
+    }
+
+    result.content = parts.length > 0 ? parts : [{ type: 'text', text: fallbackContent }];
+    return result;
+}
+
+function safeParseJson(value) {
+    try {
+        return JSON.parse(value);
+    } catch {
+        return {};
+    }
 }
