@@ -128,6 +128,154 @@ function resolveResponsesURL(baseURL) {
     return `${trimmed}/v1/responses`;
 }
 
+/**
+ * Resolve the full /models listing URL from a provider base URL.
+ *
+ * Follows the same base-URL convention as resolveResponsesURL:
+ * - If the base URL already ends with `/models`, pass it through.
+ * - If it ends with `/v1`, append `/models`.
+ * - If it contains `/backend-api/` (Codex ChatGPT backend), append
+ *   `/models?client_version=0.30.0` — the Codex backend requires a
+ *   `client_version` query parameter.
+ * - Otherwise default to `<base>/v1/models` (standard OpenAI shape).
+ */
+function resolveModelsURL(baseURL) {
+    const trimmed = (baseURL || '').replace(/\/+$/, '');
+    if (!trimmed) {
+        return 'https://api.openai.com/v1/models';
+    }
+
+    if (trimmed.endsWith('/models')) {
+        return trimmed;
+    }
+
+    if (trimmed.endsWith('/v1')) {
+        return `${trimmed}/models`;
+    }
+
+    if (trimmed.includes('/backend-api/')) {
+        return `${trimmed}/models?client_version=0.30.0`;
+    }
+
+    return `${trimmed}/v1/models`;
+}
+
+/**
+ * Normalize a raw model entry into the shape the Soul Gateway's
+ * auto-provisioner consumes. Handles both response shapes:
+ *
+ *  - Codex backend: `{ slug, display_name, description, context_window,
+ *    input_modalities, visibility, supported_in_api, ... }`
+ *  - Standard OpenAI: `{ id, object: 'model', created, owned_by }`
+ *
+ * Models that look marked as unavailable (Codex's `supported_in_api: false`)
+ * are filtered out upstream — this function just maps shape.
+ */
+function normalizeDiscoveryModel(raw, { providerLabel } = {}) {
+    if (!raw) return null;
+    const modelId = raw.slug || raw.id || raw.model_key;
+    if (!modelId) return null;
+
+    const inputModalities = Array.isArray(raw.input_modalities) ? raw.input_modalities : null;
+    const supportsVision = inputModalities ? inputModalities.includes('image') : null;
+
+    return {
+        modelId,
+        displayName: raw.display_name || raw.id || modelId,
+        description: raw.description || null,
+        contextWindow: raw.context_window ?? null,
+        supportsTools: true,
+        supportsStreaming: true,
+        supportsVision,
+        ownedBy: raw.owned_by || providerLabel || null,
+        visibility: raw.visibility || null,
+        metadata: {
+            inputModalities,
+            minimalClientVersion: raw.minimal_client_version || null,
+            priority: raw.priority ?? null,
+            reasoningSummaryFormat: raw.reasoning_summary_format || null,
+            supportedReasoningLevels: Array.isArray(raw.supported_reasoning_levels)
+                ? raw.supported_reasoning_levels.map((l) => l.effort || l).filter(Boolean)
+                : null,
+        },
+    };
+}
+
+/**
+ * List available models for a provider via its `/models` endpoint.
+ *
+ * Supports two response shapes:
+ *  - Codex ChatGPT backend: `{ models: [ ... ] }` with `slug`,
+ *    `visibility`, `supported_in_api` per entry.
+ *  - Standard OpenAI: `{ object: 'list', data: [ ... ] }` (or a bare
+ *    array) with `id` per entry.
+ *
+ * Returns a normalized array; callers filter further if they want to
+ * drop hidden/unsupported entries.
+ *
+ * @param {object} options
+ * @param {string} options.baseURL  Provider base URL (same value used
+ *                                  for callLLMStreaming)
+ * @param {string} options.apiKey   Bearer token / API key
+ * @param {AbortSignal} [options.signal]
+ * @param {object} [options.headers]  Extra headers (e.g. User-Agent)
+ * @returns {Promise<Array<object>>}
+ */
+export async function listModels(options) {
+    if (!options || typeof options !== 'object') {
+        throw new Error('OpenAI Responses listModels requires invocation options.');
+    }
+
+    const { baseURL, apiKey, signal, headers } = options;
+    if (!baseURL) {
+        throw new Error('OpenAI Responses listModels requires a baseURL.');
+    }
+    if (!apiKey) {
+        throw new Error('OpenAI Responses listModels requires an API key.');
+    }
+    const providerLabel = deriveProviderLabel(baseURL);
+
+    const url = resolveModelsURL(baseURL);
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            Accept: 'application/json',
+            ...(headers || {}),
+        },
+        signal,
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        let detail = errorBody;
+        try {
+            const parsed = JSON.parse(errorBody);
+            detail = parsed?.detail || parsed?.error?.message || parsed?.message || errorBody;
+        } catch { /* keep raw body */ }
+        const err = new Error(`${providerLabel} Responses listModels error (${response.status}): ${detail}`);
+        err.status = response.status;
+        try { err.body = JSON.parse(errorBody); } catch { err.body = { raw: errorBody }; }
+        throw err;
+    }
+
+    const data = await response.json();
+
+    // Codex ChatGPT backend: { models: [...] }
+    if (Array.isArray(data?.models)) {
+        return data.models
+            .filter((m) => m && m.supported_in_api !== false)
+            .map((m) => normalizeDiscoveryModel(m, { providerLabel }))
+            .filter(Boolean);
+    }
+
+    // Standard OpenAI: { object: 'list', data: [...] } or a bare array
+    const rawModels = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+    return rawModels
+        .map((m) => normalizeDiscoveryModel(m, { providerLabel }))
+        .filter(Boolean);
+}
+
 export async function callLLM(chatContext, options) {
     if (!options || typeof options !== 'object') {
         throw new Error('OpenAI Responses provider requires invocation options.');

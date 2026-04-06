@@ -15,7 +15,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { callLLMStreaming } from '../utils/LLMProviders/providers/openaiResponses.mjs';
+import { callLLMStreaming, listModels } from '../utils/LLMProviders/providers/openaiResponses.mjs';
 
 // ─── fetch stub helpers ─────────────────────────────────────────────
 
@@ -283,5 +283,183 @@ describe('openaiResponses.callLLMStreaming — chunk yield contract', () => {
         const done = chunks.find((c) => c.type === 'done');
         assert.ok(done);
         assert.equal(done.fullText, 'Hi there');
+    });
+});
+
+// ─── listModels tests ──────────────────────────────────────────────
+
+function buildJsonResponse(body, status = 200) {
+    return new Response(JSON.stringify(body), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+describe('openaiResponses.listModels — URL resolution', () => {
+    afterEach(restoreFetch);
+
+    it('hits /v1/models on a bare api.openai.com base URL', async () => {
+        stubFetch(() => buildJsonResponse({ data: [] }));
+        await listModels({ baseURL: 'https://api.openai.com', apiKey: 'k' });
+        assert.equal(fetchCalls[0].url, 'https://api.openai.com/v1/models');
+    });
+
+    it('appends /models when the base ends in /v1', async () => {
+        stubFetch(() => buildJsonResponse({ data: [] }));
+        await listModels({ baseURL: 'https://api.openai.com/v1', apiKey: 'k' });
+        assert.equal(fetchCalls[0].url, 'https://api.openai.com/v1/models');
+    });
+
+    it('passes a URL that already ends in /models through unchanged', async () => {
+        stubFetch(() => buildJsonResponse({ data: [] }));
+        await listModels({ baseURL: 'https://example.test/custom/models', apiKey: 'k' });
+        assert.equal(fetchCalls[0].url, 'https://example.test/custom/models');
+    });
+
+    it('hits /backend-api/codex/models with client_version for ChatGPT Codex', async () => {
+        stubFetch(() => buildJsonResponse({ models: [] }));
+        await listModels({
+            baseURL: 'https://chatgpt.com/backend-api/codex',
+            apiKey: 'k',
+        });
+        assert.ok(fetchCalls[0].url.startsWith('https://chatgpt.com/backend-api/codex/models?client_version='));
+    });
+});
+
+describe('openaiResponses.listModels — response normalization', () => {
+    afterEach(restoreFetch);
+
+    it('parses the Codex ChatGPT backend shape ({ models: [...] })', async () => {
+        stubFetch(() => buildJsonResponse({
+            models: [
+                {
+                    slug: 'gpt-5.2-codex',
+                    display_name: 'gpt-5.2-codex',
+                    description: 'Frontier coding model.',
+                    context_window: 272000,
+                    input_modalities: ['text', 'image'],
+                    visibility: 'list',
+                    supported_in_api: true,
+                    priority: 8,
+                },
+                {
+                    slug: 'gpt-5-codex',
+                    display_name: 'gpt-5-codex',
+                    context_window: 128000,
+                    input_modalities: ['text'],
+                    visibility: 'hide',
+                    supported_in_api: true,
+                },
+                {
+                    slug: 'legacy-model',
+                    visibility: 'list',
+                    supported_in_api: false, // should be filtered out
+                },
+            ],
+        }));
+
+        const models = await listModels({
+            baseURL: 'https://chatgpt.com/backend-api/codex',
+            apiKey: 'k',
+        });
+
+        assert.equal(models.length, 2);
+        assert.equal(models[0].modelId, 'gpt-5.2-codex');
+        assert.equal(models[0].displayName, 'gpt-5.2-codex');
+        assert.equal(models[0].description, 'Frontier coding model.');
+        assert.equal(models[0].contextWindow, 272000);
+        assert.equal(models[0].supportsVision, true);
+        assert.equal(models[0].visibility, 'list');
+        assert.equal(models[1].modelId, 'gpt-5-codex');
+        assert.equal(models[1].supportsVision, false);
+        assert.equal(models[1].visibility, 'hide');
+    });
+
+    it('parses the standard OpenAI models list ({ object: "list", data: [...] })', async () => {
+        stubFetch(() => buildJsonResponse({
+            object: 'list',
+            data: [
+                { id: 'gpt-4o', object: 'model', created: 0, owned_by: 'openai' },
+                { id: 'gpt-4o-mini', object: 'model', created: 0, owned_by: 'openai' },
+            ],
+        }));
+
+        const models = await listModels({ baseURL: 'https://api.openai.com/v1', apiKey: 'k' });
+        assert.equal(models.length, 2);
+        assert.equal(models[0].modelId, 'gpt-4o');
+        assert.equal(models[0].ownedBy, 'openai');
+        assert.equal(models[1].modelId, 'gpt-4o-mini');
+    });
+
+    it('parses a bare array response for providers that skip the envelope', async () => {
+        stubFetch(() => buildJsonResponse([
+            { id: 'model-a' },
+            { id: 'model-b' },
+        ]));
+        const models = await listModels({ baseURL: 'https://example.test/v1', apiKey: 'k' });
+        assert.equal(models.length, 2);
+        assert.equal(models[0].modelId, 'model-a');
+    });
+
+    it('drops entries without an id/slug', async () => {
+        stubFetch(() => buildJsonResponse({
+            data: [
+                { id: 'keeper' },
+                { description: 'no id here' },
+                null,
+                { id: 'also-keeper' },
+            ],
+        }));
+        const models = await listModels({ baseURL: 'https://example.test/v1', apiKey: 'k' });
+        assert.equal(models.length, 2);
+        assert.equal(models[0].modelId, 'keeper');
+        assert.equal(models[1].modelId, 'also-keeper');
+    });
+});
+
+describe('openaiResponses.listModels — validation & errors', () => {
+    afterEach(restoreFetch);
+
+    it('requires an apiKey', async () => {
+        await assert.rejects(
+            () => listModels({ baseURL: 'https://api.openai.com/v1' }),
+            /requires an API key/,
+        );
+    });
+
+    it('requires a baseURL', async () => {
+        await assert.rejects(
+            () => listModels({ apiKey: 'k' }),
+            /requires a baseURL/,
+        );
+    });
+
+    it('throws an Error with .status and parsed .body on HTTP error', async () => {
+        stubFetch(() => new Response(JSON.stringify({ detail: 'scope denied' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+        }));
+
+        let caught;
+        try {
+            await listModels({ baseURL: 'https://api.openai.com/v1', apiKey: 'k' });
+        } catch (err) {
+            caught = err;
+        }
+        assert.ok(caught);
+        assert.equal(caught.status, 403);
+        assert.ok(caught.message.includes('scope denied'));
+        assert.deepEqual(caught.body, { detail: 'scope denied' });
+    });
+
+    it('forwards custom headers (e.g. User-Agent) to the fetch call', async () => {
+        stubFetch(() => buildJsonResponse({ data: [] }));
+        await listModels({
+            baseURL: 'https://chatgpt.com/backend-api/codex',
+            apiKey: 'k',
+            headers: { 'User-Agent': 'codex-cli/1.0.0' },
+        });
+        assert.equal(fetchCalls[0].init.headers['User-Agent'], 'codex-cli/1.0.0');
+        assert.equal(fetchCalls[0].init.headers.Authorization, 'Bearer k');
     });
 });
