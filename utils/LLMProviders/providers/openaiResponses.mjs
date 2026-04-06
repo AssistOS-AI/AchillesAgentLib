@@ -8,11 +8,17 @@ import { parseSSEStream } from './sseParser.mjs';
  * instead of the /v1/chat/completions endpoint.
  *
  * Key differences from the Chat Completions API:
- *  - Endpoint: POST /v1/responses
+ *  - Endpoint: POST /v1/responses (or /backend-api/codex/responses for
+ *    Codex with a ChatGPT account — see resolveResponsesURL)
  *  - Payload uses `input` (array of message objects) instead of `messages`
  *  - Role mapping: "system" -> "developer", "user" stays "user",
  *    "assistant" stays "assistant"
  *  - Response shape: output[] -> message -> content[] -> output_text -> text
+ *
+ * Callers that need the top-level `instructions` field (required by the
+ * Codex backend) can pass `instructions` via `options.params` — when it
+ * is a string, system messages are filtered out of `input` so they
+ * don't get duplicated as both instructions and developer messages.
  */
 
 const ROLE_MAP = {
@@ -24,10 +30,19 @@ const ROLE_MAP = {
 /**
  * Convert standard OpenAI chat messages into Responses API input items.
  * The Responses API uses "developer" instead of "system".
+ *
+ * @param {Array} chatContext     - Conversation history
+ * @param {object} [opts]
+ * @param {boolean} [opts.stripSystem]  If true, drop any system/developer
+ *        messages from the returned input array. Used when the caller is
+ *        providing instructions as a separate top-level field.
  */
-function toResponsesInput(chatContext) {
+function toResponsesInput(chatContext, { stripSystem = false } = {}) {
     const messages = toOpenAIChatMessages(chatContext);
-    return messages.map((msg) => ({
+    const filtered = stripSystem
+        ? messages.filter((msg) => msg.role !== 'system' && msg.role !== 'developer')
+        : messages;
+    return filtered.map((msg) => ({
         role: ROLE_MAP[msg.role] || 'user',
         content: Array.isArray(msg.content)
             ? msg.content.map((part) => {
@@ -79,6 +94,18 @@ function deriveProviderLabel(baseURL) {
     return match?.[1] || 'OpenAI';
 }
 
+/**
+ * Resolve the full Responses API URL from a provider base URL.
+ *
+ * - If the base URL already ends with `/responses`, pass it through.
+ * - If it ends with `/v1`, append `/responses`.
+ * - If it contains `/backend-api/` (e.g. ChatGPT's Codex backend at
+ *   `https://chatgpt.com/backend-api/codex`), the endpoint lives at
+ *   `<base>/responses` — NOT `<base>/v1/responses`.
+ * - Otherwise default to `<base>/v1/responses` (standard OpenAI shape).
+ *
+ * Empty/missing base URL falls back to the canonical OpenAI endpoint.
+ */
 function resolveResponsesURL(baseURL) {
     const trimmed = (baseURL || '').replace(/\/+$/, '');
     if (!trimmed) {
@@ -90,6 +117,11 @@ function resolveResponsesURL(baseURL) {
     }
 
     if (trimmed.endsWith('/v1')) {
+        return `${trimmed}/responses`;
+    }
+
+    // Non-/v1 Responses endpoints such as Codex's ChatGPT backend.
+    if (trimmed.includes('/backend-api/')) {
         return `${trimmed}/responses`;
     }
 
@@ -113,7 +145,8 @@ export async function callLLM(chatContext, options) {
         throw new Error(`${providerLabel} Responses provider requires a baseURL.`);
     }
 
-    const input = toResponsesInput(chatContext);
+    const hasExplicitInstructions = typeof params?.instructions === 'string';
+    const input = toResponsesInput(chatContext, { stripSystem: hasExplicitInstructions });
     const payload = {
         model,
         input,
@@ -178,7 +211,12 @@ export async function* callLLMStreaming(chatContext, options) {
     if (!apiKey) throw new Error(`${providerLabel} Responses provider requires an API key.`);
     if (!baseURL) throw new Error(`${providerLabel} Responses provider requires a baseURL.`);
 
-    const input = toResponsesInput(chatContext);
+    // When the caller provides `instructions` as a top-level param
+    // (required by the Codex backend and honoured by the standard
+    // Responses API), strip system/developer messages from `input` so
+    // they don't get duplicated in both places.
+    const hasExplicitInstructions = typeof params?.instructions === 'string';
+    const input = toResponsesInput(chatContext, { stripSystem: hasExplicitInstructions });
     const payload = {
         model,
         input,
@@ -205,7 +243,20 @@ export async function* callLLMStreaming(chatContext, options) {
 
     if (!response.ok) {
         const errorBody = await response.text();
-        throw new Error(`${providerLabel} Responses API Error (${response.status}): ${errorBody}`);
+        // Surface the parsed detail/error message so upstream loggers
+        // see what actually went wrong instead of a generic HTTP code.
+        let detail = errorBody;
+        try {
+            const parsedBody = JSON.parse(errorBody);
+            detail = parsedBody?.detail
+                || parsedBody?.error?.message
+                || parsedBody?.message
+                || errorBody;
+        } catch { /* keep raw body */ }
+        const err = new Error(`${providerLabel} Responses API Error (${response.status}): ${detail}`);
+        err.status = response.status;
+        try { err.body = JSON.parse(errorBody); } catch { err.body = { raw: errorBody }; }
+        throw err;
     }
 
     let fullText = '';
