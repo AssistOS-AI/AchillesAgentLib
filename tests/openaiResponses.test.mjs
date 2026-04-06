@@ -316,13 +316,39 @@ describe('openaiResponses.listModels — URL resolution', () => {
         assert.equal(fetchCalls[0].url, 'https://example.test/custom/models');
     });
 
-    it('hits /backend-api/codex/models with client_version for ChatGPT Codex', async () => {
+    it('hits /backend-api/codex/models with a high default client_version for ChatGPT Codex', async () => {
         stubFetch(() => buildJsonResponse({ models: [] }));
         await listModels({
             baseURL: 'https://chatgpt.com/backend-api/codex',
             apiKey: 'k',
         });
-        assert.ok(fetchCalls[0].url.startsWith('https://chatgpt.com/backend-api/codex/models?client_version='));
+        // The default must be high enough to surface models with
+        // minimal_client_version >= 0.98.0 (gpt-5.3-codex, gpt-5.4,
+        // gpt-5.4-mini). 99.99.99 is the canonical future-proof value.
+        assert.equal(fetchCalls[0].url, 'https://chatgpt.com/backend-api/codex/models?client_version=99.99.99');
+    });
+
+    it('honours an explicit clientVersion override', async () => {
+        stubFetch(() => buildJsonResponse({ models: [] }));
+        await listModels({
+            baseURL: 'https://chatgpt.com/backend-api/codex',
+            apiKey: 'k',
+            clientVersion: '0.30.0',
+        });
+        assert.equal(fetchCalls[0].url, 'https://chatgpt.com/backend-api/codex/models?client_version=0.30.0');
+    });
+
+    it('URL-encodes the clientVersion value', async () => {
+        stubFetch(() => buildJsonResponse({ models: [] }));
+        await listModels({
+            baseURL: 'https://chatgpt.com/backend-api/codex',
+            apiKey: 'k',
+            clientVersion: '1.0.0-beta+abc',
+        });
+        assert.equal(
+            fetchCalls[0].url,
+            'https://chatgpt.com/backend-api/codex/models?client_version=1.0.0-beta%2Babc',
+        );
     });
 });
 

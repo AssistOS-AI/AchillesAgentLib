@@ -129,17 +129,36 @@ function resolveResponsesURL(baseURL) {
 }
 
 /**
+ * Default client_version sent to the Codex ChatGPT backend's /models
+ * listing endpoint. Each Codex model carries its own
+ * `minimal_client_version` and the backend hides models whose minimum
+ * is above the requested `client_version`. We send an artificially
+ * high value so newly-published models (gpt-5.3-codex, gpt-5.4, ...
+ * which require 0.98.0+) show up in the listing alongside older ones.
+ *
+ * This affects discovery only; inference endpoints do not validate
+ * the client_version query param.
+ */
+const DEFAULT_CODEX_CLIENT_VERSION = '99.99.99';
+
+/**
  * Resolve the full /models listing URL from a provider base URL.
  *
  * Follows the same base-URL convention as resolveResponsesURL:
  * - If the base URL already ends with `/models`, pass it through.
  * - If it ends with `/v1`, append `/models`.
  * - If it contains `/backend-api/` (Codex ChatGPT backend), append
- *   `/models?client_version=0.30.0` — the Codex backend requires a
- *   `client_version` query parameter.
+ *   `/models?client_version=<clientVersion>` — the Codex backend
+ *   requires a `client_version` query parameter and uses it to
+ *   filter models by their per-entry `minimal_client_version`.
  * - Otherwise default to `<base>/v1/models` (standard OpenAI shape).
+ *
+ * @param {string} baseURL
+ * @param {object} [options]
+ * @param {string} [options.clientVersion]  Override the default
+ *        Codex client_version (only used for /backend-api/ URLs).
  */
-function resolveModelsURL(baseURL) {
+function resolveModelsURL(baseURL, { clientVersion = DEFAULT_CODEX_CLIENT_VERSION } = {}) {
     const trimmed = (baseURL || '').replace(/\/+$/, '');
     if (!trimmed) {
         return 'https://api.openai.com/v1/models';
@@ -154,7 +173,7 @@ function resolveModelsURL(baseURL) {
     }
 
     if (trimmed.includes('/backend-api/')) {
-        return `${trimmed}/models?client_version=0.30.0`;
+        return `${trimmed}/models?client_version=${encodeURIComponent(clientVersion)}`;
     }
 
     return `${trimmed}/v1/models`;
@@ -226,7 +245,7 @@ export async function listModels(options) {
         throw new Error('OpenAI Responses listModels requires invocation options.');
     }
 
-    const { baseURL, apiKey, signal, headers } = options;
+    const { baseURL, apiKey, signal, headers, clientVersion } = options;
     if (!baseURL) {
         throw new Error('OpenAI Responses listModels requires a baseURL.');
     }
@@ -235,7 +254,7 @@ export async function listModels(options) {
     }
     const providerLabel = deriveProviderLabel(baseURL);
 
-    const url = resolveModelsURL(baseURL);
+    const url = resolveModelsURL(baseURL, { clientVersion });
     const response = await fetch(url, {
         method: 'GET',
         headers: {
