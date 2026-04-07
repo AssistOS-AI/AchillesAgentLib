@@ -54,7 +54,7 @@ export async function action(context) {
     ].join('\n\n');
     const llmResult = await llmAgent.executePrompt(promptForLlm, {
         responseShape: 'text',
-        tier: context?.tierConfig?.execution || 'fast',
+        model: context?.modelConfig?.plan || 'plan',
         context,
     });
     return (llmResult && typeof llmResult === 'string')

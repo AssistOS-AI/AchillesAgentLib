@@ -64,7 +64,6 @@ export class RecursiveSkilledAgent {
         inputReader = null,
         outputWriter = null,
         exposeInternalSkills = true,
-        tierConfig = {},
         modelConfig = {},
         fallbackSessionType = 'loop',
         enableSummary = false,
@@ -78,14 +77,19 @@ export class RecursiveSkilledAgent {
         this.dbAdapter = dbAdapter;
         this.searchUpwards = Boolean(searchUpwards);
         this.exposeInternalSkills = Boolean(exposeInternalSkills);
-        const effectiveConfig = { ...tierConfig, ...modelConfig };
-        const baseTierConfig = { plan: 'plan', execution: 'fast', code: 'code', ...effectiveConfig };
-        // Expanded tier config: orchestrator and skill levels
-        // Backwards compatible: skillPlan/skillExec fall back to plan/execution
-        this.tierConfig = {
-            ...baseTierConfig,
-            skillPlan: baseTierConfig.skillPlan || baseTierConfig.plan || 'plan',
-            skillExec: baseTierConfig.skillExec || baseTierConfig.execution || 'fast',
+        const envModelConfig = {
+            plan: process.env.ACHILLES_MODEL_PLAN || null,
+            code: process.env.ACHILLES_MODEL_CODE || null,
+        };
+        const effectiveConfig = { ...envModelConfig, ...modelConfig };
+        const baseModelConfig = {
+            plan: 'plan',
+            code: 'code',
+            ...effectiveConfig,
+        };
+        this.modelConfig = {
+            ...baseModelConfig,
+            summary: baseModelConfig.summary || baseModelConfig.plan || 'plan',
         };
         this.fallbackSessionType = fallbackSessionType === 'sop' ? 'sop' : 'loop';
         this.enableSummary = Boolean(enableSummary);
@@ -120,7 +124,7 @@ export class RecursiveSkilledAgent {
             onProcessingBegin,
             onProcessingProgress,
             onProcessingEnd,
-            tierConfig: this.tierConfig,
+            modelConfig: this.modelConfig,
             enableSummary: this.enableSummary,
         });
 
@@ -150,7 +154,7 @@ export class RecursiveSkilledAgent {
      * Initialize all internal services.
      * @private
      */
-    _initializeServices({ skillFilter, onProcessingBegin, onProcessingProgress, onProcessingEnd, tierConfig, enableSummary }) {
+    _initializeServices({ skillFilter, onProcessingBegin, onProcessingProgress, onProcessingEnd, modelConfig, enableSummary }) {
         // Skill registry
         this.registry = new SkillRegistry({
             skillFilter,
@@ -161,7 +165,7 @@ export class RecursiveSkilledAgent {
         this.subsystemFactory = new SubsystemFactory({
             llmAgent: this.llmAgent,
             dbAdapter: this.dbAdapter,
-            tierConfig,
+            modelConfig,
         });
 
         // Skill discovery service
@@ -176,7 +180,7 @@ export class RecursiveSkilledAgent {
             llmAgent: this.llmAgent,
             logger: this.logger,
             debugLogger: this.debugLogger,
-            tierConfig,
+            modelConfig,
         });
 
         // Skill executor
@@ -191,7 +195,7 @@ export class RecursiveSkilledAgent {
                 onProgress: onProcessingProgress,
                 onEnd: onProcessingEnd,
             },
-            tierConfig,
+            modelConfig,
             enableSummary,
         });
 

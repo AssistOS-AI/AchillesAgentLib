@@ -51,7 +51,6 @@ function loadDotEnvWalkUp(startDir) {
 // before any configuration loading happens.
 loadDotEnvWalkUp(process.cwd());
 
-const VALID_MODES = new Set(['fast', 'deep']);
 const DEFAULT_CONFIG_FILENAME = 'LLMConfig.json';
 const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../../', DEFAULT_CONFIG_FILENAME);
 
@@ -86,8 +85,6 @@ export function normalizeConfig(rawConfig, options = {}) {
     const qualifiedModels = new Map();
     const orderedModelNames = [];
     const promotedNames = new Set();
-    const defaultFastModel = selectString(rawConfig?.defaultFastModel, null);
-    const defaultDeepModel = selectString(rawConfig?.defaultDeepModel, null);
 
     const rawProviders = rawConfig?.providers && typeof rawConfig.providers === 'object' ? rawConfig.providers : {};
     const rawModels = Array.isArray(rawConfig?.models) ? rawConfig.models : [];
@@ -146,31 +143,6 @@ export function normalizeConfig(rawConfig, options = {}) {
 
     validateProviders(providers, models, providerModels, issues);
 
-    const validatedDefaults = {
-        defaultFastModel: null,
-        defaultDeepModel: null,
-    };
-    if (defaultFastModel) {
-        const model = models.get(defaultFastModel);
-        if (!model) {
-            issues.warnings.push(`Default fast model "${defaultFastModel}" is not defined in ${DEFAULT_CONFIG_FILENAME}.`);
-        } else if (model.tier !== 'fast') {
-            issues.warnings.push(`Default fast model "${defaultFastModel}" is not configured as a fast model.`);
-        } else {
-            validatedDefaults.defaultFastModel = defaultFastModel;
-        }
-    }
-    if (defaultDeepModel) {
-        const model = models.get(defaultDeepModel);
-        if (!model) {
-            issues.warnings.push(`Default deep model "${defaultDeepModel}" is not defined in ${DEFAULT_CONFIG_FILENAME}.`);
-        } else if (model.tier !== 'deep') {
-            issues.warnings.push(`Default deep model "${defaultDeepModel}" is not configured as a deep model.`);
-        } else {
-            validatedDefaults.defaultDeepModel = defaultDeepModel;
-        }
-    }
-
     // Parse defaults map (intent name → model name)
     const defaults = new Map();
     if (rawConfig?.defaults && typeof rawConfig.defaults === 'object') {
@@ -190,7 +162,6 @@ export function normalizeConfig(rawConfig, options = {}) {
         raw: rawConfig,
         orderedModels: orderedModelNames,
         defaults,
-        ...validatedDefaults,
     };
 }
 
@@ -227,7 +198,6 @@ function normalizeProvider(providerKey, entry, issues, options) {
 function normalizeModel(entry, providers, issues, options) {
     const modelName = selectString(entry && typeof entry === 'object' ? entry.name : null, null);
     let providerKey = null;
-    let tier = 'fast';
     let apiKeyEnvOverride = null;
     let baseURLOverride = null;
 
@@ -238,7 +208,6 @@ function normalizeModel(entry, providers, issues, options) {
 
     if (entry && typeof entry === 'object') {
         providerKey = entry.provider || entry.providerKey || null;
-        tier = normalizeTier(entry.tier ?? entry.mode ?? entry.modes, issues, `model "${modelName}"`);
         apiKeyEnvOverride = selectString(entry.apiKeyEnv, null);
         baseURLOverride = selectString(entry.baseURL, null);
     } else {
@@ -260,45 +229,10 @@ function normalizeModel(entry, providers, issues, options) {
     return {
         name: modelName,
         providerKey,
-        tier,
         tags,
         apiKeyEnv: apiKeyEnvOverride,
         baseURL: baseURLOverride,
     };
-}
-
-function normalizeTier(rawTier, issues, context) {
-    if (rawTier === undefined || rawTier === null) {
-        return 'fast';
-    }
-
-    if (Array.isArray(rawTier)) {
-        const normalized = rawTier
-            .filter(value => typeof value === 'string')
-            .map(value => value.toLowerCase())
-            .filter(value => VALID_MODES.has(value));
-
-        if (normalized.length > 1) {
-            issues.warnings.push(`Model configuration for ${context} lists multiple tiers; using "${normalized[0]}".`);
-        }
-
-        if (normalized.length) {
-            return normalized[0];
-        }
-
-        issues.warnings.push(`No valid tier found for ${context}; defaulting to 'fast'.`);
-        return 'fast';
-    }
-
-    if (typeof rawTier === 'string') {
-        const lower = rawTier.toLowerCase();
-        if (VALID_MODES.has(lower)) {
-            return lower;
-        }
-    }
-
-    issues.warnings.push(`Invalid tier value for ${context}; defaulting to 'fast'.`);
-    return 'fast';
 }
 
 function validateProviders(providers, models, providerModels, issues) {
@@ -493,7 +427,6 @@ async function discoverGatewayModels(normalized) {
             const modelDescriptor = {
                 name: dm.name,
                 providerKey: dm.providerKey,
-                tier: dm.tier,
                 tags: dm.tags || [],
                 sortOrder: dm.sortOrder ?? 100,
                 isFree: dm.isFree || false,

@@ -225,8 +225,7 @@ class SOPAgenticSession {
         const planOnlyFlag = options.planOnly ?? options.generatePlanOnly ?? false;
         this.options = {
             ...options,
-            tier: options.tier || options.mode || 'plan',
-            model: options.model || null,
+            model: options.model || 'plan',
             planOnly: planOnlyFlag,
         };
         this.executionInterpreterOptions = options.interpreterOptions || {};
@@ -330,7 +329,7 @@ class SOPAgenticSession {
                 agent: this.agent,
                 skillsDescription: preparationSkillsDescription,
                 commandsRegistry: preparationCommandsRegistry,
-                options: { tier: this.options.tier },
+                options: { model: this.options.model },
                 preparationText: this.preparation.text,
                 userPrompt,
                 retries: this.preparation.retries ?? 1,
@@ -494,8 +493,8 @@ class SOPAgenticSession {
         if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmAgent')) {
             interpreterOptions.llmAgent = this.agent;
         }
-        if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmMode')) {
-            interpreterOptions.llmMode = this.options.tier;
+        if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmModel')) {
+            interpreterOptions.llmModel = this.options.model;
         }
         this._lastFinalAnswer = null;
         let interpreter;
@@ -687,8 +686,8 @@ ${trimmed}`;
                 }
             },
         };
-        if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmMode')) {
-            planOptions.llmMode = this.options.tier;
+        if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmModel')) {
+            planOptions.llmModel = this.options.model;
         }
         const interpreter = new LightSOPLangInterpreter(
             englishSource,

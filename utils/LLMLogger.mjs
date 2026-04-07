@@ -133,13 +133,13 @@ const sanitizeCsvText = (text) => {
     return `"${escaped}"`;
 };
 
-const writeCsvEvent = ({ timestamp, model, tier, type, durationMs, text }) => {
+const writeCsvEvent = ({ timestamp, model, selector, type, durationMs, text }) => {
     const safeTimestamp = timestamp || new Date().toISOString();
     const safeModel = (model || 'unknown').replace(/,/g, ' ');
-    const safeTier = (tier || 'fast').replace(/,/g, ' ');
+    const safeSelector = (selector || 'plan').replace(/,/g, ' ');
     const safeType = (type || 'input').replace(/,/g, ' ');
     const safeDuration = Number.isFinite(durationMs) ? durationMs : 0;
-    const line = `${safeTimestamp},${safeModel},${safeTier},${safeType},${safeDuration},${sanitizeCsvText(text)}`;
+    const line = `${safeTimestamp},${safeModel},${safeSelector},${safeType},${safeDuration},${sanitizeCsvText(text)}`;
     appendLogLine(line);
 };
 
@@ -179,7 +179,7 @@ export const logLLMInteraction = ({
     prompt = '',
     response = '',
     model = 'auto',
-    tier = 'fast',
+    selector = 'plan',
     durationMs = 0,
 } = {}) => {
     if (!enabled) {
@@ -194,7 +194,7 @@ export const logLLMInteraction = ({
     writeCsvEvent({
         timestamp: new Date().toISOString(),
         model,
-        tier,
+        selector,
         type: 'input',
         durationMs: 0,
         text: promptText,
@@ -202,7 +202,7 @@ export const logLLMInteraction = ({
     writeCsvEvent({
         timestamp: new Date().toISOString(),
         model,
-        tier,
+        selector,
         type: 'output',
         durationMs,
         text: responseText,

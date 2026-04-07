@@ -58,19 +58,21 @@ export async function discoverModels(providerConfig) {
 
         const models = rawModels
             .filter(m => m.id)
-            .map(m => ({
-                name: m.id,
-                providerKey,
-                tier: m.tier || m.mode || 'deep',
-                tags: Array.isArray(m.tags) ? m.tags : [],
-                inputPrice: parseFloat(m.input_price) || 0,
-                outputPrice: parseFloat(m.output_price) || 0,
-                context: m.context_window || null,
-                sortOrder: m.sort_order ?? 100,
-                isFree: Boolean(m.is_free),
-                billingType: m.billing_type || 'api_key',
-                fromGateway: true,
-            }))
+            .map((m) => {
+                const tags = Array.isArray(m.tags) ? m.tags : [];
+                return {
+                    name: m.id,
+                    providerKey,
+                    tags,
+                    inputPrice: parseFloat(m.input_price) || 0,
+                    outputPrice: parseFloat(m.output_price) || 0,
+                    context: m.context_window || null,
+                    sortOrder: m.sort_order ?? 100,
+                    isFree: Boolean(m.is_free),
+                    billingType: m.billing_type || 'api_key',
+                    fromGateway: true,
+                };
+            })
             .sort((a, b) => a.sortOrder - b.sortOrder);
 
         return { models, issues };
@@ -79,4 +81,3 @@ export async function discoverModels(providerConfig) {
         return { models: [], issues };
     }
 }
-

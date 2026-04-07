@@ -98,6 +98,19 @@ function parseArguments(argumentValue, fallbackPrompt = '') {
     return fallbackPrompt;
 }
 
+function getStepArguments(step) {
+    if (!step || typeof step !== 'object') {
+        return undefined;
+    }
+    if (Object.prototype.hasOwnProperty.call(step, 'args')) {
+        return step.args;
+    }
+    if (Object.prototype.hasOwnProperty.call(step, 'arguments')) {
+        return Reflect.get(step, 'arguments');
+    }
+    return undefined;
+}
+
 function normaliseTools(tools = []) {
     if (!Array.isArray(tools)) {
         return [];
@@ -111,10 +124,10 @@ function normaliseTools(tools = []) {
 }
 
 export class MCPSkillsSubsystem {
-    constructor({ llmAgent = null, tierConfig = null, modelConfig = null } = {}) {
+    constructor({ llmAgent = null, modelConfig = null } = {}) {
         this.type = 'mcp';
         this.llmAgent = llmAgent;
-        this.tierConfig = modelConfig || tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
+        this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 
@@ -152,7 +165,7 @@ export class MCPSkillsSubsystem {
                 continue;
             }
 
-            const rawArgs = step?.args ?? step?.arguments;
+            const rawArgs = getStepArguments(step);
             const args = parseArguments(rawArgs, promptText);
             try {
                 // eslint-disable-next-line no-await-in-loop
@@ -333,7 +346,7 @@ export class MCPSkillsSubsystem {
         let rawPlan;
         try {
             rawPlan = await this.llmAgent.executePrompt(prompt, {
-                tier: this.tierConfig.plan || 'plan',
+                model: this.modelConfig.plan || 'plan',
                 context: {
                     intent: 'mcp-skill-plan',
                     skillName: skillRecord.name,
@@ -363,8 +376,9 @@ export class MCPSkillsSubsystem {
             if (!allowedLookup.has(toolKey)) {
                 throw new Error(`LLM selected tool "${step.tool}" which is not permitted for skill "${skillRecord.name}".`);
             }
-            const argValue = typeof step.arguments === 'string' && step.arguments.trim()
-                ? step.arguments
+            const stepArgs = getStepArguments(step);
+            const argValue = typeof stepArgs === 'string' && stepArgs.trim()
+                ? stepArgs
                 : (promptText || '');
             steps.push({
                 tool: allowedLookup.get(toolKey),

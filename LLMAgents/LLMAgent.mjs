@@ -44,7 +44,7 @@ class LLMAgent {
         this._debugCounter = 0;
         this._inputCounter = 0;
         this._outputCounter = 0;
-        this._callLog = []; // Per-call tracking: { inputChars, outputChars, model, tier, durationMs, context }
+        this._callLog = []; // Per-call tracking: { inputChars, outputChars, model, selector, durationMs, context }
         this._actionReporter = null;
         this._inputReader = null;
         this._outputWriter = null;
@@ -130,7 +130,7 @@ class LLMAgent {
         const raw = await this.complete({
             prompt,
             history: [{ role: 'user', message }],
-            tier: 'fast',
+            model: process.env.ACHILLES_MODEL_PLAN || 'plan',
             context: { intent: 'classify-message', expectedIntents: intents },
         });
 
@@ -164,7 +164,7 @@ class LLMAgent {
         };
     }
 
-    async resolveConfirmation(userInput, { actionContext = null, tier = 'fast' } = {}) {
+    async resolveConfirmation(userInput, { actionContext = null, model = null } = {}) {
         if (!userInput || typeof userInput !== 'string') {
             return { decision: 'unclear', confidence: 0 };
         }
@@ -191,7 +191,7 @@ class LLMAgent {
         try {
             const response = await this.complete({
                 prompt,
-                tier,
+                model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
                 context: { intent: 'resolve-confirmation' },
             });
 
@@ -237,18 +237,14 @@ class LLMAgent {
         return `llm-${this._debugCounter}`;
     }
 
-    getSupportedModes() {
-        if (this.invokerStrategy && typeof this.invokerStrategy.getSupportedModes === 'function') {
-            const modes = this.invokerStrategy.getSupportedModes();
-            if (Array.isArray(modes) && modes.length) {
-                return modes;
+    getSupportedModels() {
+        if (this.invokerStrategy && typeof this.invokerStrategy.getSupportedModels === 'function') {
+            const models = this.invokerStrategy.getSupportedModels();
+            if (Array.isArray(models) && models.length) {
+                return models;
             }
         }
-        return ['fast'];
-    }
-
-    getSupportedTiers() {
-        return this.getSupportedModes();
+        return [];
     }
 
     getInputCounter() {
@@ -261,7 +257,7 @@ class LLMAgent {
 
     /**
      * Get per-call log entries.
-     * Each entry: { inputChars, outputChars, model, tier, durationMs, intent }
+     * Each entry: { inputChars, outputChars, model, selector, durationMs, intent }
      * @returns {Array}
      */
     getCallLog() {
@@ -303,8 +299,6 @@ class LLMAgent {
         }
 
         const {
-            tier = 'fast',
-            mode = null,
             model = null,
             tags = null,
             responseShape = null,
@@ -344,9 +338,7 @@ ${promptText}`
             : '';
 
         const result = await extraDoTask(this, agentContext, promptText, {
-            tier,
-            mode,
-            model,
+            model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
             tags,
             ...rest,
         });
@@ -385,7 +377,6 @@ ${promptText}`
 
     async detectIntents(skillsDescription, userPrompt, options = {}) {
         const {
-            tier = null,
             model = null,
             ...rest
         } = options;
@@ -394,8 +385,7 @@ ${promptText}`
 
         const result = await this.complete({
             prompt,
-            tier: tier ?? undefined,
-            model,
+            model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
             context: { intent: 'detect-intents' },
             ...rest,
         });

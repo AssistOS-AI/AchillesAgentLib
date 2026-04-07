@@ -55,12 +55,9 @@ function withTimeout(promiseLike, timeoutMs, errorFactory) {
     });
 }
 
-function determineMode(value) {
-    const normalized = String(value || '').toLowerCase();
-    if (normalized.includes('deep') || normalized.includes('code')) {
-        return 'code';
-    }
-    return 'fast';
+function determineModelSelector(value) {
+    const selector = String(value || '').trim();
+    return selector || 'code';
 }
 
 function unwrapCodeFence(payload) {
@@ -75,7 +72,7 @@ function unwrapCodeFence(payload) {
     return trimmed;
 }
 
-function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fast' }) {
+function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'code' }) {
     return async (invocation) => {
         const recursiveSkilledAgent = invocation?.recursiveAgent || null;
         const input = invocation?.input;
@@ -108,7 +105,7 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmMode = 'fa
 
         const decision = await withTimeout(
             llmAgent.executePrompt(decisionPrompt, {
-                tier: llmMode,
+                model: llmModel,
                 context: { intent: 'dynamic-code-generation-skill-default', skillName },
                 responseShape: 'json',
             }),
@@ -207,9 +204,9 @@ async function executeCodeSnippet({ skillName, code }) {
 }
 
 export class DynamicCodeGenerationSubsystem {
-    constructor({ llmAgent, tierConfig = null, modelConfig = null }) {
+    constructor({ llmAgent, modelConfig = null }) {
         this.llmAgent = llmAgent;
-        this.tierConfig = modelConfig || tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
+        this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
         this.executors = new Map();
     }
 
@@ -222,8 +219,8 @@ export class DynamicCodeGenerationSubsystem {
         const sections = descriptor?.sections || {};
         const prompt = extractSectionContent(sections, 'prompt');
         const argumentDescription = extractSectionContent(sections, 'argument', 'input', 'parameters') || DEFAULT_CODE_ARGUMENT_DESCRIPTION;
-        const rawLlmMode = extractSectionContent(sections, 'llm mode', 'llm-mode', 'mode');
-        const llmMode = rawLlmMode ? determineMode(rawLlmMode) : (this.tierConfig.code || 'code');
+        const rawLlmModel = extractSectionContent(sections, 'llm model', 'llm-model', 'model');
+        const llmModel = rawLlmModel ? determineModelSelector(rawLlmModel) : (this.modelConfig.code || 'code');
 
         skillRecord.preparedConfig = {
             type: 'dynamic-code-generation',
@@ -235,14 +232,14 @@ export class DynamicCodeGenerationSubsystem {
             sections,
             defaultArgument: CODE_ARGUMENT_NAME,
             argumentDescription,
-            llmMode,
+            llmModel,
         };
 
         const executor = createDefaultExecutor({
             skillName: skillRecord.name,
             prompt,
             llmAgent: this.llmAgent,
-            llmMode,
+            llmModel,
         });
 
         this.executors.set(skillRecord.name, executor);

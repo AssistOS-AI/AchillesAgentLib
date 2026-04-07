@@ -46,7 +46,7 @@ async function repairGeneratedFile(
     });
 
     const response = await llmAgent.executePrompt(prompt, {
-        tier: 'code',
+        model: 'code',
         responseShape: 'text',
         context: { intent },
         responseValidator: createCodeResponseValidator(),
@@ -87,7 +87,7 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
         if (!sourceDirExists) {
             debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'Source directory not found.' });
             return {
-                message: `Skipped: source directory not found for "${sourceName}".`,
+                message: `Skipped: "${sourceName}" directory not found.`,
                 generatedFiles: [],
             };
         }
@@ -182,7 +182,7 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
             });
 
             const response = await llmAgent.executePrompt(prompt, {
-                tier: 'code',
+                model: 'code',
                 responseShape: 'text',
                 context: { intent: 'generate-single-file-code-from-spec' },
                 responseValidator: createCodeResponseValidator(),

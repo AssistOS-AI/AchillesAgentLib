@@ -48,7 +48,6 @@ export class SkillExecutor {
         logger = console,
         debugLogger = null,
         callbacks = {},
-        tierConfig = null,
         modelConfig = null,
         enableSummary = false,
     } = {}) {
@@ -57,7 +56,7 @@ export class SkillExecutor {
         this.selector = selector;
         this.logger = logger;
         this.debugLogger = debugLogger;
-        this.tierConfig = modelConfig || tierConfig;
+        this.modelConfig = modelConfig;
         this.enableSummary = enableSummary;
         this.callbacks = {
             onBegin: typeof callbacks.onBegin === 'function' ? callbacks.onBegin : null,
@@ -449,9 +448,9 @@ export class SkillExecutor {
                 '- Output ONLY the summary text.',
             ].filter(Boolean).join('\n');
 
-            const summaryTier = this.tierConfig?.summary || this.tierConfig?.execution || 'fast';
+            const summaryModel = this.modelConfig?.summary || this.modelConfig?.plan || 'plan';
             const summary = await llmAgent.executePrompt(summaryPrompt, {
-                tier: summaryTier,
+                model: summaryModel,
                 context: { intent: 'conversation-summary' },
             });
 

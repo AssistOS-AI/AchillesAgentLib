@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Test: Model Selection — verifies that the invoker resolves a single model
- * (no cascade) based on model, tags, tier/mode, or defaults.
+ * (no cascade) based on model selectors, tags, or defaults.
  *
  * Usage: node tests/test-model-selection.mjs
  *
@@ -66,20 +66,16 @@ if (someModel) {
 const unknownResolved = resolveModelForInvocation({ model: 'unknown-model-xyz' });
 assert(unknownResolved === 'unknown-model-xyz', `unknown model name passes through for gateway`);
 
-// ── Test 3: resolveModelForInvocation with tier/mode ────────────────
-console.log(`\n${COLORS.BOLD}Test 3: Tier/mode resolves to default model${COLORS.RESET}`);
-const fastResolved = resolveModelForInvocation({ tier: 'fast' });
-assert(typeof fastResolved === 'string' && fastResolved.length > 0, `tier:"fast" resolves to "${fastResolved}"`);
+// ── Test 3: resolveModelForInvocation selector behavior ──────────────
+console.log(`\n${COLORS.BOLD}Test 3: Selector intents resolve to configured models${COLORS.RESET}`);
+const planResolved = resolveModelForInvocation({ model: 'plan' });
+assert(typeof planResolved === 'string' && planResolved.length > 0, `model:"plan" resolves to "${planResolved}"`);
 
-const deepResolved = resolveModelForInvocation({ tier: 'deep' });
-assert(typeof deepResolved === 'string' && deepResolved.length > 0, `tier:"deep" resolves to "${deepResolved}"`);
-
-// Legacy mode alias
-const modeResolved = resolveModelForInvocation({ mode: 'fast' });
-assert(typeof modeResolved === 'string' && modeResolved.length > 0, `mode:"fast" resolves to "${modeResolved}"`);
+const codeResolved = resolveModelForInvocation({ model: 'code' });
+assert(typeof codeResolved === 'string' && codeResolved.length > 0, `model:"code" resolves to "${codeResolved}"`);
 
 // ── Test 4: resolveModelForInvocation with no args uses default ─────
-console.log(`\n${COLORS.BOLD}Test 4: No args resolves to default (fast)${COLORS.RESET}`);
+console.log(`\n${COLORS.BOLD}Test 4: No args resolves to default selector${COLORS.RESET}`);
 const defaultResolved = resolveModelForInvocation({});
 assert(typeof defaultResolved === 'string' && defaultResolved.length > 0, `no args resolves to "${defaultResolved}"`);
 
@@ -121,7 +117,7 @@ try {
     try {
         await defaultLLMInvokerStrategy({
             prompt: 'test no cascade',
-            tier: 'fast',
+            model: 'plan',
         });
         assert(false, 'should have thrown');
     } catch (err) {
@@ -129,15 +125,15 @@ try {
         assert(err.message.includes('forced failure'), `error propagated directly`);
     }
 
-    // ── Test 7: Specific model bypasses tier ────────────────────────
-    console.log(`\n${COLORS.BOLD}Test 7: Specific model name bypasses tier${COLORS.RESET}`);
+    // ── Test 7: Specific model bypasses selector intent ─────────────
+    console.log(`\n${COLORS.BOLD}Test 7: Specific model name bypasses selector intent${COLORS.RESET}`);
     if (someModel) {
         callLog.length = 0;
         try {
             await defaultLLMInvokerStrategy({
                 prompt: 'test specific model',
                 model: someModel,
-                tier: 'deep', // should be ignored
+                tags: ['plan'], // should be ignored when explicit model is provided
             });
         } catch (err) {
             assert(callLog.length === 1, `specific model: only 1 call made`);
@@ -156,7 +152,7 @@ try {
     try {
         const result = await defaultLLMInvokerStrategy({
             prompt: 'test success',
-            tier: 'fast',
+            model: 'plan',
         });
         assert(callLog.length === 1, `single call made`);
         assert(typeof result.output === 'string', `result has output string`);
@@ -165,9 +161,9 @@ try {
         assert(false, `unexpected error: ${err.message}`);
     }
 
-    // ── Test 9: getPrioritizedModels backward compat ────────────────
-    console.log(`\n${COLORS.BOLD}Test 9: getPrioritizedModels backward compat${COLORS.RESET}`);
-    const prioritized = getPrioritizedModels('fast');
+    // ── Test 9: getPrioritizedModels with selector intent ───────────
+    console.log(`\n${COLORS.BOLD}Test 9: getPrioritizedModels with selector intent${COLORS.RESET}`);
+    const prioritized = getPrioritizedModels('plan');
     assert(Array.isArray(prioritized), `getPrioritizedModels returns array`);
     assert(prioritized.length >= 1, `getPrioritizedModels returns at least 1 model`);
 

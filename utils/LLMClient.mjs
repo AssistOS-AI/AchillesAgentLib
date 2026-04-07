@@ -17,13 +17,11 @@ function createAgentModelRecord(modelDescriptor, providerConfig) {
     if (!modelDescriptor || !providerConfig) {
         return null;
     }
-    const tier = modelDescriptor.tier === 'deep' ? 'deep' : 'fast';
     return {
         name: modelDescriptor.name,
         providerKey: modelDescriptor.providerKey,
         apiKeyEnv: modelDescriptor.apiKeyEnv || providerConfig.apiKeyEnv || null,
         baseURL: modelDescriptor.baseURL || providerConfig.baseURL || null,
-        tier,
         tags: modelDescriptor.tags || [],
         sortOrder: modelDescriptor.sortOrder ?? 100,
         isFree: modelDescriptor.isFree || false,
@@ -33,8 +31,7 @@ function createAgentModelRecord(modelDescriptor, providerConfig) {
 
 function buildModelRegistry() {
     const recordMap = new Map();
-    const fast = [];
-    const deep = [];
+    const ordered = [];
 
     const orderedNames = Array.isArray(modelsConfiguration.orderedModels) && modelsConfiguration.orderedModels.length
         ? modelsConfiguration.orderedModels
@@ -51,26 +48,20 @@ function buildModelRegistry() {
 
         record.qualifiedName = `${record.providerKey}/${record.name}`;
         recordMap.set(name, record);
-        if (record.tier === 'deep') {
-            deep.push(name);
-        } else {
-            fast.push(name);
-        }
+        ordered.push(name);
     }
 
-    return { recordMap, fast, deep };
+    return { recordMap, ordered };
 }
 
 let modelRecordMap;
-let fastModelNames;
-let deepModelNames;
+let orderedModelNames;
 
 function ensureRegistryFresh() {
     if (!modelRecordMap) {
         const reg = buildModelRegistry();
         modelRecordMap = reg.recordMap;
-        fastModelNames = reg.fast;
-        deepModelNames = reg.deep;
+        orderedModelNames = reg.ordered;
     }
 }
 
@@ -113,41 +104,74 @@ export function selectModelByTags(requestedTags) {
     return bestModel;
 }
 
+function mapIntentToEnvKey(intent) {
+    const normalized = String(intent || '').trim().toLowerCase();
+    if (!normalized) return null;
+    if (normalized === 'plan') return 'ACHILLES_MODEL_PLAN';
+    if (normalized === 'code') return 'ACHILLES_MODEL_CODE';
+    if (normalized === 'summary') return 'ACHILLES_MODEL_PLAN';
+    return null;
+}
+
+function resolveModelString(candidate) {
+    if (!candidate || typeof candidate !== 'string') return null;
+    const trimmed = candidate.trim();
+    if (!trimmed) return null;
+    const envKey = mapIntentToEnvKey(trimmed);
+    if (envKey) {
+        const mapped = String(process.env[envKey] || '').trim();
+        if (mapped) {
+            const resolvedMapped = resolveModelName(mapped, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
+            return resolvedMapped || mapped;
+        }
+    }
+    const resolved = resolveModelName(trimmed, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
+    return resolved || trimmed;
+}
+
 /**
- * Resolve invocation parameters to a single model name.
- * Priority: explicit model > tags > tier/mode (as intent or passthrough) > default.
- * No cascade — returns one model. Soul Gateway handles tier resolution and fallback.
+ * Resolve invocation parameters to a single model selector.
+ * A selector can be a concrete model name or a gateway tag.
  */
-export function resolveModelForInvocation({ model, tags, tier, mode }) {
-    // 1. Explicit model → resolve name and pass through
-    if (model) {
-        const resolved = resolveModelName(model, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
-        return resolved || model; // unknown names pass through (gateway may know them)
+export function resolveModelForInvocation({ model, tags } = {}) {
+    // 1. Explicit model selector (model or tag)
+    const explicitModel = resolveModelString(model);
+    if (explicitModel) {
+        return explicitModel;
     }
 
-    // 2. Tags → select best match from known models
+    // 2. Tags array: choose best known model, otherwise pass-through first tag
     if (tags && Array.isArray(tags) && tags.length > 0) {
         const selected = selectModelByTags(tags);
         if (selected) return selected;
+        const firstTag = String(tags[0] || '').trim();
+        if (firstTag) return firstTag;
     }
 
-    // 3. Tier/mode → look up in defaults map, or pass through as-is
-    const intent = tier || mode || 'fast';
-    const defaultModel = modelsConfiguration.defaults?.get(intent);
+    // 3. Default selector from env (plan)
+    const configuredPlan = String(process.env.ACHILLES_MODEL_PLAN || '').trim();
+    if (configuredPlan) {
+        const resolvedPlan = resolveModelName(configuredPlan, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
+        return resolvedPlan || configuredPlan;
+    }
+
+    // 4. Config defaults
+    const defaultModel = modelsConfiguration.defaults?.get('plan');
     if (defaultModel) {
         const resolved = resolveModelName(defaultModel, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
         return resolved || defaultModel;
     }
 
-    // 4. Pass intent name directly (soul-gateway resolves tier names)
-    return intent;
+    // 5. Last-resort selector
+    return 'plan';
 }
 
-// ── Backward-compat exports ─────────────────────────────────────────
+// ── Convenience exports ─────────────────────────────────────────
 
-export function getPrioritizedModels(requestedTier = null) {
+export function getPrioritizedModels(requestedModel = null) {
     ensureRegistryFresh();
-    const model = resolveModelForInvocation({ tier: requestedTier });
+    const candidate = typeof requestedModel === 'string' ? requestedModel : null;
+    const model = resolveModelForInvocation({ model: candidate || null });
     return model ? [model] : [];
 }
 
@@ -159,8 +183,7 @@ export function listModelsFromCache() {
     }).filter(Boolean);
 
     return {
-        fast: clone(fastModelNames),
-        deep: clone(deepModelNames),
+        models: clone(orderedModelNames),
     };
 }
 
@@ -246,10 +269,7 @@ async function callLLMWithModelInternal(modelName, historyArray, prompt, invocat
     try {
         let metadata = getModelMetadata(modelName);
 
-        // For unregistered qualified names (e.g. "soul_gateway/fast"), extract provider
-        // from prefix and resolve the provider config directly. This allows default
-        // entries like "soul_gateway/fast" to route through the correct provider even
-        // when "fast" is a tier name (not a registered model) on the gateway.
+        // For unregistered qualified names, extract provider prefix and continue.
         let inferredProviderKey = null;
         let inferredModelName = modelName;
         if (!metadata && modelName.includes('/')) {
@@ -265,16 +285,17 @@ async function callLLMWithModelInternal(modelName, historyArray, prompt, invocat
         const providerKey = resolveProviderKey(modelName, invocationOptions, metadata)
             || inferredProviderKey;
         const provider = ensureProvider(providerKey);
+        const providerConfig = metadata?.provider || modelsConfiguration.providers.get(providerKey) || null;
 
         const baseURL = invocationOptions.baseURL
             || metadata?.model?.baseURL
-            || metadata?.provider?.baseURL;
+            || providerConfig?.baseURL;
 
         if (!baseURL) {
             throw new Error(`Missing base URL for provider "${providerKey}" and model "${modelName}".`);
         }
 
-        const apiKey = resolveApiKey(invocationOptions, metadata);
+        const apiKey = resolveApiKey(invocationOptions, metadata || { provider: providerConfig });
         if (!apiKey && providerKey !== 'huggingface') {
             throw new Error(`Missing API key for provider "${providerKey}".`);
         }
@@ -332,14 +353,12 @@ export function __resetCallLLMWithModelForTests() {
 export function createDefaultLLMInvokerStrategy() {
     ensureRegistryFresh();
     const cachedModels = listModelsFromCache();
-    let lastInvocationDetails = { model: null, tier: null };
+    let lastInvocationDetails = { model: null, selector: null };
 
     const invokerStrategy = async function defaultLLMInvokerStrategy(invocation = {}) {
         const {
             prompt,
             history = [],
-            mode = null,
-            tier = null,
             model = null,
             tags = null,
             params = {},
@@ -358,9 +377,9 @@ export function createDefaultLLMInvokerStrategy() {
         }
 
         // Resolve to a single model name — no cascade
-        const modelName = resolveModelForInvocation({ model, tags, tier, mode });
-        const effectiveTier = tier || mode || 'auto';
-        lastInvocationDetails = { model: null, tier: effectiveTier };
+        const modelName = resolveModelForInvocation({ model, tags });
+        const effectiveSelector = model || process.env.ACHILLES_MODEL_PLAN || 'plan';
+        lastInvocationDetails = { model: null, selector: effectiveSelector };
 
         const record = modelRecordMap?.get(modelName) || null;
 
@@ -393,7 +412,7 @@ export function createDefaultLLMInvokerStrategy() {
         }
 
         if (DEBUG_ENABLED) {
-            console.info(`[AchillesAgentsLib] LLM call -> provider: ${record?.providerKey || 'unknown'}, model: ${modelName}, tier: ${effectiveTier}`);
+            console.info(`[AchillesAgentsLib] LLM call -> provider: ${record?.providerKey || 'unknown'}, model: ${modelName}, selector: ${effectiveSelector}`);
         }
 
         const attemptHistory = Array.isArray(history) ? history.slice() : [];
@@ -403,30 +422,25 @@ export function createDefaultLLMInvokerStrategy() {
             responseValidator(output);
         }
 
-        lastInvocationDetails = { model: modelName, tier: effectiveTier };
+        lastInvocationDetails = { model: modelName, selector: effectiveSelector };
         return {
             output,
             model: modelName,
-            tier: effectiveTier,
+            selector: effectiveSelector,
         };
     };
 
-    // Backward-compat helper methods
+    // Helper methods
     const defaultsList = modelsConfiguration.defaults ? [...modelsConfiguration.defaults.keys()] : [];
-    invokerStrategy.getSupportedModes = () => defaultsList.slice();
+    invokerStrategy.getSupportedModels = () => defaultsList.slice();
     invokerStrategy.listAvailableModels = () => ({
-        fast: cachedModels.fast.map(record => ({ ...record })),
-        deep: cachedModels.deep.map(record => ({ ...record })),
+        models: cachedModels.models.map(record => ({ ...record })),
     });
     invokerStrategy.getLastInvocationDetails = () => ({ ...lastInvocationDetails });
     invokerStrategy.describe = () => ({
         configPath: modelsConfiguration.path || null,
         defaults: defaultsList,
-        fastModels: cachedModels.fast.map((record) => ({
-            name: record.name,
-            apiKeyEnv: record.apiKeyEnv || null,
-        })),
-        deepModels: cachedModels.deep.map((record) => ({
+        models: cachedModels.models.map((record) => ({
             name: record.name,
             apiKeyEnv: record.apiKeyEnv || null,
         })),
