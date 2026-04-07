@@ -54,7 +54,7 @@
                     <p>The loop regime includes several independent stopping and recovery mechanisms. If a tool returns one of the reserved completion wrappers, the session converts that wrapper into the effective final answer. If the caller supplied an <code>expected</code> value for the turn, the session compares the returned completion against that expectation and may retry within a bounded number of attempts. If a tool repeats the same effective invocation and result several times in a row, the session stops rather than allowing trivial loops to continue. If tool errors or planner errors exceed the configured error budget, the session fails explicitly. If the step budget is exhausted, it returns a bounded failure response instead of continuing indefinitely.</p>
                     <p>The return surface is intentionally compact. <code>getLastResult()</code> returns the current last answer. <code>getVariables()</code> returns a small state object containing <code>lastAnswer</code>, the current <code>status</code>, and the number of failed turns. The session also exposes <code>finalizeFailures()</code>, which attempts to convert accumulated failed turns into a <code>cannot_complete</code> result through the reserved completion tool. The regime is therefore adaptive, but its externally visible surface remains narrow.</p>
                     <pre><code>const session = await llmAgent.startLoopAgentSession(tools, 'Investigate the request', {
-    tier: 'plan',
+    model: 'plan',
     maxStepsPerTurn: 8,
     maxRetriesPerTurn: 3,
 });

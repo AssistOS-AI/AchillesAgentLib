@@ -28,10 +28,10 @@
 
         <section>
             <h2>Prompt Execution, Interpretation, and Sessions</h2>
-            <p>The lowest direct method is <code>complete()</code>. It expects a prompt string and optional history, tier, model, tags, and context, forwards those values to the configured invoker strategy, records input and output character counts, logs per-call telemetry, and returns the provider output as a string. This is the most direct general-purpose surface offered by the class.</p>
+            <p>The lowest direct method is <code>complete()</code>. It expects a prompt string and optional history, model, tags, and context, forwards those values to the configured invoker strategy, records input and output character counts, logs per-call telemetry, and returns the provider output as a string. This is the most direct general-purpose surface offered by the class.</p>
             <p><code>executePrompt()</code> builds on that lower layer. It can prepend memory segments such as global, user, session, or skill short memory to the prompt context and then routes the request through the task-execution helper. When <code>responseShape</code> is declared, it also performs bounded post-processing on the returned text. For <code>json</code>, it extracts JSON and throws if parsing fails. For <code>code</code>, it strips code fences. For <code>json-code</code>, it extracts a JSON object and requires that the object contain a <code>code</code> field. The method therefore does not “understand” arbitrary schemas, but it does centralize the output-coercion patterns used by the rest of the runtime.</p>
             <pre><code>const result = await llmAgent.executePrompt('Summarize the report', {
-    tier: 'fast',
+    model: 'plan',
     responseShape: 'json',
     context: { intent: 'summarize-report' },
     sessionMemory,
@@ -43,7 +43,7 @@
 const sopSession = await llmAgent.startSOPLangAgentSession(skillsDescription, 'Run the plan', {
     planOnly: false,
 });</code></pre>
-            <p>Two additional operational details complete the picture. First, <code>cancel()</code> forwards cancellation to the underlying request layer and attempts to close active processing callbacks. Second, <code>getCallLog()</code> returns the per-call telemetry accumulated by the agent, including input size, output size, model, tier, duration, and intent. This makes LLMAgent not only a prompt wrapper, but the general LLM-facing runtime service on top of which the rest of the library is built.</p>
+            <p>Two additional operational details complete the picture. First, <code>cancel()</code> forwards cancellation to the underlying request layer and attempts to close active processing callbacks. Second, <code>getCallLog()</code> returns the per-call telemetry accumulated by the agent, including input size, output size, model, duration, and intent. This makes LLMAgent not only a prompt wrapper, but the general LLM-facing runtime service on top of which the rest of the library is built.</p>
         </section>
     </main>
 

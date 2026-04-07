@@ -140,12 +140,12 @@
     searchUpwards: true,
     additionalSkillRoots: ['./team-skills'],
     exposeInternalSkills: false,
-    tierConfig: { plan: 'plan', execution: 'fast', code: 'code' },
+    modelConfig: { plan: 'plan', code: 'code' },
     sessionConfig: { maxSessions: 1000, sessionTTL: 7_200_000, cleanupInterval: 300_000 },
     fallbackSessionType: 'loop',
     enableSummary: false,
 });</code></pre>
-            <p>The practical meaning of that configuration is straightforward. The agent scans for skills, preserves session state, can hide internal skills from LLM-based selection, and delegates planning and execution to the tiers appropriate for the selected skill family. Its purpose is not to behave like a universal assistant. Its purpose is to make skill-based execution repeatable, bounded, and inspectable at the entry level of the runtime.</p>
+            <p>The practical meaning of that configuration is straightforward. The agent scans for skills, preserves session state, can hide internal skills from LLM-based selection, and delegates planning and execution using the configured plan/code models for the selected skill family. Its purpose is not to behave like a universal assistant. Its purpose is to make skill-based execution repeatable, bounded, and inspectable at the entry level of the runtime.</p>
         </section>
     </main>
 
