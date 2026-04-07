@@ -52,9 +52,10 @@ export async function action(context) {
         'Page content:',
         pageText,
     ].join('\n\n');
+    const modelConfig = context?.recursiveAgent?.modelConfig || null;
     const llmResult = await llmAgent.executePrompt(promptForLlm, {
         responseShape: 'text',
-        model: context?.modelConfig?.plan || 'plan',
+        model: modelConfig?.plan || 'plan',
         context,
     });
     return (llmResult && typeof llmResult === 'string')

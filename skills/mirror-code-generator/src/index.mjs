@@ -39,7 +39,8 @@ export async function action(context) {
         throw new Error('mirror-code-generator requires an LLM agent.');
     }
 
-    const generationResult = await generateMirrorCode(targetDir, agent, logger);
+    const modelConfig = recursiveAgent?.modelConfig || null;
+    const generationResult = await generateMirrorCode(targetDir, agent, logger, modelConfig);
 
     return {
         message: generationResult?.message || `Code generation completed for ${targetDir}`,
