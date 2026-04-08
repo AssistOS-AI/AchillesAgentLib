@@ -58,8 +58,11 @@ assert(unknown === 'unknown-model-xyz', 'unknown model remains pass-through');
 
 console.log(`\n${COLORS.BOLD}Test 5: callLLMWithModel("plan") sends defaults.plan${COLORS.RESET}`);
 const callLog = [];
-__setCallLLMWithModelForTests(async (modelName) => {
-    callLog.push(modelName);
+__setCallLLMWithModelForTests(async (modelName, history, prompt, invocationOptions = {}) => {
+    callLog.push({
+        modelName,
+        providerKey: invocationOptions.providerKey || null,
+    });
     return `ok:${modelName}`;
 });
 
@@ -67,17 +70,27 @@ try {
     callLog.length = 0;
     const output = await callLLMWithModel('plan', [], 'ping');
     assert(callLog.length === 1, `single call made (${callLog.length})`);
-    assert(callLog[0] === planDefault, `called with defaults.plan (${callLog[0]})`);
+    assert(callLog[0]?.modelName === planDefault, `called with defaults.plan (${callLog[0]?.modelName})`);
     assert(typeof output === 'string' && output.startsWith('ok:'), `callLLMWithModel returned test output (${output})`);
 
     console.log(`\n${COLORS.BOLD}Test 6: invoker with model:"plan" calls one resolved model${COLORS.RESET}`);
     callLog.length = 0;
-    await defaultLLMInvokerStrategy({
+    const invocationResult = await defaultLLMInvokerStrategy({
         prompt: 'test plan routing',
         model: 'plan',
     });
     assert(callLog.length === 1, `invoker made one call (${callLog.length})`);
-    assert(callLog[0] === planDefault, `invoker used defaults.plan (${callLog[0]})`);
+    assert(callLog[0]?.modelName === planDefault, `invoker used defaults.plan (${callLog[0]?.modelName})`);
+    assert(callLog[0]?.providerKey === 'soul_gateway', `invoker inferred provider soul_gateway (${callLog[0]?.providerKey})`);
+    assert(Array.isArray(invocationResult?.requestedTags), 'invoker result contains requestedTags array');
+    assert(Array.isArray(invocationResult?.matchedTags), 'invoker result contains matchedTags array');
+    assert(invocationResult?.requestedTags?.length === 0, `requestedTags empty for explicit model (${JSON.stringify(invocationResult?.requestedTags)})`);
+    assert(invocationResult?.matchedTags?.length === 0, `matchedTags empty for explicit model (${JSON.stringify(invocationResult?.matchedTags)})`);
+
+    const lastInvocation = defaultLLMInvokerStrategy.getLastInvocationDetails();
+    assert(Array.isArray(lastInvocation?.requestedTags), 'last invocation includes requestedTags array');
+    assert(Array.isArray(lastInvocation?.matchedTags), 'last invocation includes matchedTags array');
+    assert(lastInvocation?.model === planDefault, `last invocation model stored (${lastInvocation?.model})`);
 
     console.log(`\n${COLORS.BOLD}Test 7: getPrioritizedModels("plan") starts with defaults.plan${COLORS.RESET}`);
     const prioritized = getPrioritizedModels('plan');

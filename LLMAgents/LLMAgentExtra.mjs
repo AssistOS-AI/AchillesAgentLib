@@ -6,6 +6,15 @@ import {
 import { serializeContext } from './LLMAgentHelpers.mjs';
 import { logLLMInteraction } from '../utils/LLMLogger.mjs';
 
+function normalizeTagArray(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((entry) => String(entry || '').trim())
+        .filter(Boolean);
+}
+
 // NOTE: These helpers encapsulate complete/doTask* behaviour so that LLMAgent
 // can delegate to them without duplicating orchestration logic.
 async function extraComplete(agent, options = {}) {
@@ -125,13 +134,23 @@ ${prompt}`
             || agent.invokerStrategy?.getLastInvocationDetails?.()?.model
             || model
             || 'auto';
-        const loggedSelector = responseMetadata?.selector || model || process.env.ACHILLES_MODEL_PLAN || 'plan';
+        const lastInvocation = agent.invokerStrategy?.getLastInvocationDetails?.() || null;
+        const loggedRequestedTags = normalizeTagArray(
+            responseMetadata?.requestedTags
+            || lastInvocation?.requestedTags
+            || tags
+        );
+        const loggedMatchedTags = normalizeTagArray(
+            responseMetadata?.matchedTags
+            || lastInvocation?.matchedTags
+        );
         const callDurationMs = Date.now() - startedAt;
         logLLMInteraction({
             prompt: loggedPrompt,
             response: finalResponse,
             model: loggedModel,
-            selector: loggedSelector,
+            requestedTags: loggedRequestedTags,
+            matchedTags: loggedMatchedTags,
             durationMs: callDurationMs,
         });
 
@@ -141,7 +160,8 @@ ${prompt}`
                 inputChars: inputCharacters,
                 outputChars: outputCharacters,
                 model: loggedModel,
-                selector: loggedSelector,
+                requestedTags: loggedRequestedTags,
+                matchedTags: loggedMatchedTags,
                 durationMs: callDurationMs,
                 intent: context?.intent || null,
             });
@@ -173,12 +193,14 @@ ${prompt}`
         }
         const lastInvocation = agent.invokerStrategy?.getLastInvocationDetails?.() || null;
         const loggedModel = lastInvocation?.model || responseMetadata?.model || model || 'auto';
-        const loggedSelector = lastInvocation?.selector || responseMetadata?.selector || model || process.env.ACHILLES_MODEL_PLAN || 'plan';
+        const loggedRequestedTags = normalizeTagArray(lastInvocation?.requestedTags || tags);
+        const loggedMatchedTags = normalizeTagArray(lastInvocation?.matchedTags);
         logLLMInteraction({
             prompt: loggedPrompt,
             response: error?.message || '',
             model: loggedModel,
-            selector: loggedSelector,
+            requestedTags: loggedRequestedTags,
+            matchedTags: loggedMatchedTags,
             durationMs: Date.now() - startedAt,
         });
         throw error;

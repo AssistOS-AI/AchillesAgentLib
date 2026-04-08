@@ -133,13 +133,25 @@ const sanitizeCsvText = (text) => {
     return `"${escaped}"`;
 };
 
-const writeCsvEvent = ({ timestamp, model, selector, type, durationMs, text }) => {
+const serializeTagsForCsv = (tags) => {
+    if (!Array.isArray(tags) || tags.length === 0) {
+        return '[]';
+    }
+    const cleaned = tags
+        .map((tag) => String(tag || '').trim())
+        .filter(Boolean)
+        .map((tag) => tag.replace(/[|,]/g, ' '));
+    return `[${cleaned.join('|')}]`;
+};
+
+const writeCsvEvent = ({ timestamp, model, requestedTags, matchedTags, type, durationMs, text }) => {
     const safeTimestamp = timestamp || new Date().toISOString();
     const safeModel = (model || 'unknown').replace(/,/g, ' ');
-    const safeSelector = (selector || 'plan').replace(/,/g, ' ');
+    const safeRequestedTags = serializeTagsForCsv(requestedTags);
+    const safeMatchedTags = serializeTagsForCsv(matchedTags);
     const safeType = (type || 'input').replace(/,/g, ' ');
     const safeDuration = Number.isFinite(durationMs) ? durationMs : 0;
-    const line = `${safeTimestamp},${safeModel},${safeSelector},${safeType},${safeDuration},${sanitizeCsvText(text)}`;
+    const line = `${safeTimestamp},${safeModel},${safeRequestedTags},${safeMatchedTags},${safeType},${safeDuration},${sanitizeCsvText(text)}`;
     appendLogLine(line);
 };
 
@@ -179,7 +191,8 @@ export const logLLMInteraction = ({
     prompt = '',
     response = '',
     model = 'auto',
-    selector = 'plan',
+    requestedTags = [],
+    matchedTags = [],
     durationMs = 0,
 } = {}) => {
     if (!enabled) {
@@ -187,14 +200,14 @@ export const logLLMInteraction = ({
     }
     const promptText = typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
     const responseText = typeof response === 'string' ? response : JSON.stringify(response);
-    const promptLength = promptText.length;
     const tokensSent = estimateTokens(promptText);
     const tokensReceived = estimateTokens(responseText);
 
     writeCsvEvent({
         timestamp: new Date().toISOString(),
         model,
-        selector,
+        requestedTags,
+        matchedTags,
         type: 'input',
         durationMs: 0,
         text: promptText,
@@ -202,7 +215,8 @@ export const logLLMInteraction = ({
     writeCsvEvent({
         timestamp: new Date().toISOString(),
         model,
-        selector,
+        requestedTags,
+        matchedTags,
         type: 'output',
         durationMs,
         text: responseText,

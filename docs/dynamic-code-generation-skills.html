@@ -39,7 +39,7 @@
 
                 <section>
                     <h2>How the Subsystem Works in Practice</h2>
-                    <p>A skill of this family is discovered through <code>dcgskill.md</code>. During preparation, the subsystem reads the descriptor, records the prompt guidance, resolves the declared LLM model selector, and prepares one dynamic executor. That executor always follows the same decision contract at runtime: ask the LLM for a structured <code>text</code> versus <code>code</code> response, then either return text directly or execute the returned JavaScript snippet.</p>
+                    <p>A skill of this family is discovered through <code>dcgskill.md</code>. During preparation, the subsystem reads the descriptor, records the prompt guidance, resolves the declared LLM model value, and prepares one dynamic executor. That executor always follows the same decision contract at runtime: ask the LLM for a structured <code>text</code> versus <code>code</code> response, then either return text directly or execute the returned JavaScript snippet.</p>
                     <p>Nothing in this family resembles the Code Skills generation pipeline. There is no automatic derivation into <code>src/</code> and no module entrypoint loaded from the skill folder. The subsystem remains descriptor-driven and request-local: each execution either returns direct text or runs temporary code produced for that request. The exact execution rules are described in <a href="dynamic-code-generation-skills-runtime.html">Runtime</a>.</p>
                     <figure class="pipeline-svg" aria-label="Dynamic code generation skill pipeline">
                         <svg viewBox="0 0 980 170" role="img" aria-hidden="true">

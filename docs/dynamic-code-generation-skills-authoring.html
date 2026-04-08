@@ -33,9 +33,9 @@
 
                 <section>
                     <h2>Descriptor Surface</h2>
-                    <p>The source descriptor for this family is <code>dcgskill.md</code>. During preparation, the subsystem reads the descriptor through the generic skill document parser and then extracts a small set of sections: prompt guidance, argument description, and LLM model selector. The recognized aliases are deliberately narrow. <code>Prompt</code> supplies the behavioral guidance. <code>Argument</code>, <code>Input</code>, or <code>Parameters</code> can supply a descriptive explanation of the expected input. <code>LLM Model</code>, <code>LLM-Model</code>, or <code>Model</code> determine which model selector is used for the text/code decision prompt.</p>
+                    <p>The source descriptor for this family is <code>dcgskill.md</code>. During preparation, the subsystem reads the descriptor through the generic skill document parser and then extracts a small set of sections: prompt guidance, argument description, and the LLM model value. The recognized aliases are deliberately narrow. <code>Prompt</code> supplies the behavioral guidance. <code>Argument</code>, <code>Input</code>, or <code>Parameters</code> can supply a descriptive explanation of the expected input. <code>LLM Model</code>, <code>LLM-Model</code>, or <code>Model</code> determine which model value is used for the text/code decision prompt.</p>
                     <p>The important limitation is that the argument section does not redefine the runtime argument key. The subsystem always treats the operative argument name as <code>input</code>. The descriptor may describe that input more precisely, but it does not rename it. If a caller passes structured arguments explicitly, the subsystem looks for <code>args.input</code>; otherwise it falls back to the raw prompt text.</p>
-                    <p>The LLM model field is scoped to the decision prompt for this subsystem. If it is omitted, the subsystem falls back to the configured code model. The field therefore chooses which model selector is used for the text/code decision rather than defining a broader execution configuration.</p>
+                    <p>The LLM model field is scoped to the decision prompt for this subsystem. If it is omitted, the subsystem falls back to the configured code model. The field therefore chooses which model value is used for the text/code decision rather than defining a broader execution configuration.</p>
                 </section>
 
                 <section>
@@ -74,7 +74,7 @@ Primary natural-language instruction or text payload.
 
 ## LLM Model
 code</code></pre>
-                    <p>This is enough for the subsystem to record prompt guidance, a human-readable argument description, and the resolved model selector before executing the standard decision path.</p>
+                    <p>This is enough for the subsystem to record prompt guidance, a human-readable argument description, and the resolved model value before executing the standard decision path.</p>
                 </section>
             </div>
         </div>

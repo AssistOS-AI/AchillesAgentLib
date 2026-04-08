@@ -113,6 +113,50 @@ function mapIntentToEnvKey(intent) {
     return null;
 }
 
+function normalizeRequestedTags(tags) {
+    if (!Array.isArray(tags)) {
+        return [];
+    }
+    return tags
+        .map((tag) => String(tag || '').trim())
+        .filter(Boolean);
+}
+
+function collectMatchedTags(requestedTags, modelRecord, resolvedModelName) {
+    if (!requestedTags.length) {
+        return [];
+    }
+
+    const modelTags = Array.isArray(modelRecord?.tags)
+        ? modelRecord.tags.map((tag) => String(tag || '').trim()).filter(Boolean)
+        : [];
+    if (modelTags.length) {
+        const matched = [];
+        for (const tag of requestedTags) {
+            if (modelTags.includes(tag) && !matched.includes(tag)) {
+                matched.push(tag);
+            }
+        }
+        return matched;
+    }
+
+    if (requestedTags.includes(resolvedModelName)) {
+        return [resolvedModelName];
+    }
+    return [];
+}
+
+function inferProviderKeyFromModelName(modelName) {
+    if (!modelName || typeof modelName !== 'string' || !modelName.includes('/')) {
+        return null;
+    }
+    const { provider } = parseModelReference(modelName);
+    if (provider && modelsConfiguration.providers.has(provider)) {
+        return provider;
+    }
+    return null;
+}
+
 function resolveModelString(candidate) {
     if (!candidate || typeof candidate !== 'string') return null;
     const trimmed = candidate.trim();
@@ -138,11 +182,11 @@ function resolveModelString(candidate) {
 }
 
 /**
- * Resolve invocation parameters to a single model selector.
- * A selector can be a concrete model name or a gateway tag.
+ * Resolve invocation parameters to a single model string.
+ * Model input can be a concrete model name or a gateway tag.
  */
 export function resolveModelForInvocation({ model, tags } = {}) {
-    // 1. Explicit model selector (model or tag)
+    // 1. Explicit model input (model or tag)
     const explicitModel = resolveModelString(model);
     if (explicitModel) {
         return explicitModel;
@@ -156,7 +200,7 @@ export function resolveModelForInvocation({ model, tags } = {}) {
         if (firstTag) return firstTag;
     }
 
-    // 3. Default selector from env (plan)
+    // 3. Default model from env (plan)
     const configuredPlan = String(process.env.ACHILLES_MODEL_PLAN || '').trim();
     if (configuredPlan) {
         const resolvedPlan = resolveModelName(configuredPlan, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
@@ -170,7 +214,7 @@ export function resolveModelForInvocation({ model, tags } = {}) {
         return resolved || defaultModel;
     }
 
-    // 5. Last-resort selector
+    // 5. Last-resort model input
     return 'plan';
 }
 
@@ -362,7 +406,7 @@ export function __resetCallLLMWithModelForTests() {
 export function createDefaultLLMInvokerStrategy() {
     ensureRegistryFresh();
     const cachedModels = listModelsFromCache();
-    let lastInvocationDetails = { model: null, selector: null };
+    let lastInvocationDetails = { model: null, requestedTags: [], matchedTags: [] };
 
     const invokerStrategy = async function defaultLLMInvokerStrategy(invocation = {}) {
         const {
@@ -390,10 +434,11 @@ export function createDefaultLLMInvokerStrategy() {
 
         // Resolve to a single model name — no cascade
         const modelName = resolveModelForInvocation({ model, tags });
-        const effectiveSelector = model || process.env.ACHILLES_MODEL_PLAN || 'plan';
-        lastInvocationDetails = { model: null, selector: effectiveSelector };
 
         const record = modelRecordMap?.get(modelName) || null;
+        const requestedTags = normalizeRequestedTags(tags);
+        const matchedTags = collectMatchedTags(requestedTags, record, modelName);
+        lastInvocationDetails = { model: null, requestedTags, matchedTags };
 
         const mergedHeaders = { ...(invocationOptions.headers || {}), ...headers };
         if (process.env.AGENT_NAME && !mergedHeaders['X-Soul-Agent']) {
@@ -423,8 +468,17 @@ export function createDefaultLLMInvokerStrategy() {
             invocationConfig.apiKeyEnv = record.apiKeyEnv;
         }
 
+        const inferredProviderKey = inferProviderKeyFromModelName(modelName);
+        const resolvedProviderKey = invocationConfig.providerKey
+            || record?.providerKey
+            || inferredProviderKey
+            || null;
+        if (!invocationConfig.providerKey && resolvedProviderKey) {
+            invocationConfig.providerKey = resolvedProviderKey;
+        }
+
         if (DEBUG_ENABLED) {
-            console.info(`[AchillesAgentsLib] LLM call -> provider: ${record?.providerKey || 'unknown'}, model: ${modelName}, selector: ${effectiveSelector}`);
+            console.info(`[AchillesAgentsLib] LLM call -> provider: ${resolvedProviderKey || 'unknown'}, model: ${modelName}, requestedTags: ${JSON.stringify(requestedTags)}, matchedTags: ${JSON.stringify(matchedTags)}`);
         }
 
         const attemptHistory = Array.isArray(history) ? history.slice() : [];
@@ -434,11 +488,12 @@ export function createDefaultLLMInvokerStrategy() {
             responseValidator(output);
         }
 
-        lastInvocationDetails = { model: modelName, selector: effectiveSelector };
+        lastInvocationDetails = { model: modelName, requestedTags, matchedTags };
         return {
             output,
             model: modelName,
-            selector: effectiveSelector,
+            requestedTags,
+            matchedTags,
         };
     };
 
