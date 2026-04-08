@@ -117,6 +117,7 @@ function resolveModelString(candidate) {
     if (!candidate || typeof candidate !== 'string') return null;
     const trimmed = candidate.trim();
     if (!trimmed) return null;
+
     const envKey = mapIntentToEnvKey(trimmed);
     if (envKey) {
         const mapped = String(process.env[envKey] || '').trim();
@@ -125,6 +126,13 @@ function resolveModelString(candidate) {
             return resolvedMapped || mapped;
         }
     }
+
+    const defaultsKey = trimmed.toLowerCase();
+    const defaultMapped = modelsConfiguration.defaults?.get(defaultsKey);
+    if (typeof defaultMapped === 'string' && defaultMapped.trim()) {
+        return defaultMapped.trim();
+    }
+
     const resolved = resolveModelName(trimmed, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
     return resolved || trimmed;
 }
@@ -329,7 +337,8 @@ async function callLLMWithModelInternal(modelName, historyArray, prompt, invocat
 let callLLMWithModelImpl = callLLMWithModelInternal;
 
 export async function callLLMWithModel(modelName, historyArray, prompt, invocationOptions = {}) {
-    return callLLMWithModelImpl(modelName, historyArray, prompt, invocationOptions);
+    const resolvedModel = resolveModelForInvocation({ model: modelName });
+    return callLLMWithModelImpl(resolvedModel, historyArray, prompt, invocationOptions);
 }
 
 export function cancelRequests() {
@@ -372,7 +381,10 @@ export function createDefaultLLMInvokerStrategy() {
             throw new Error('defaultLLMInvokerStrategy requires a prompt string.');
         }
 
-        if (!modelsConfiguration.models || modelsConfiguration.models.size === 0) {
+        const hasConfiguredModels = Boolean(modelsConfiguration.models && modelsConfiguration.models.size > 0);
+        const hasDefaults = Boolean(modelsConfiguration.defaults && modelsConfiguration.defaults.size > 0);
+        const hasProviders = Boolean(modelsConfiguration.providers && modelsConfiguration.providers.size > 0);
+        if (!hasConfiguredModels && !hasDefaults && !hasProviders) {
             throw new Error(`No LLM models are configured in ${modelsConfiguration.path || 'the LLM configuration file'}.`);
         }
 
