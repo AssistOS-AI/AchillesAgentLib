@@ -116,7 +116,7 @@ export class SkillDiscoveryService {
         }
 
         if (!reposRoot) {
-            this.logger?.warn?.('[SkillDiscoveryService] No "repos" directory found during downward discovery.');
+            this.debugLogger?.log('[SkillDiscoveryService] No "repos" directory found during downward discovery.');
             return;
         }
 
