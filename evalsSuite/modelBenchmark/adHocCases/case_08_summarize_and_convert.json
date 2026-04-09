@@ -1,0 +1,9 @@
+{
+    "id": "case_08",
+    "description": "Summarize a long text and convert the summary to multiple formats",
+    "difficulty": "medium",
+    "prompt": "Here is a long technical document: 'The warehouse management system has been experiencing intermittent failures in the barcode scanning module since the firmware update on March 15. The issue affects approximately 30% of scan attempts, primarily during peak hours between 10am and 2pm. The engineering team has identified a buffer overflow in the scan processing queue that occurs when more than 50 concurrent scans are initiated. A hotfix has been developed and tested in staging. Deployment is scheduled for the next maintenance window.' Summarize the key points, then convert the summary into a CSV format with columns: issue, impact, cause, resolution, timeline.",
+    "expectedSkills": ["summarizer", "format-converter"],
+    "resultMustContain": [",", "issue"],
+    "resultMustNotContain": ["error"]
+}

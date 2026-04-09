@@ -1,0 +1,9 @@
+{
+    "id": "case_07",
+    "description": "Multi-domain: translate foreign data description, fetch corresponding data, validate it, and analyze",
+    "difficulty": "very_hard",
+    "prompt": "I received this data request in French: \"Récupérer toutes les données d'inventaire pour l'entrepôt principal et vérifier que les quantités sont correctes.\" First translate it, then fetch the inventory data based on the translated request, validate the quantities, and give me an analysis of the results.",
+    "expectedSkills": ["translator", "data-fetcher", "data-validator", "data-analyzer"],
+    "resultMustContain": ["totalRecords"],
+    "resultMustNotContain": []
+}

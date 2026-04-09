@@ -1,0 +1,18 @@
+{
+    "id": "case_13",
+    "description": "Multi-turn: translate a foreign request, then execute it based on the translation",
+    "difficulty": "hard",
+    "multiTurn": true,
+    "turns": [
+        {
+            "prompt": "Translate this French text to English: \"Nous avons besoin d'un rapport complet sur l'inventaire de l'entrepôt, incluant le nombre total d'articles, les articles en rupture de stock, et des recommandations pour améliorer la gestion.\"",
+            "resultMustContain": ["inventory", "warehouse"],
+            "resultMustNotContain": []
+        },
+        {
+            "prompt": "Now execute the request from the translation: fetch the inventory data, analyze it, and generate the report as described.",
+            "resultMustContain": ["Report"],
+            "resultMustNotContain": []
+        }
+    ]
+}

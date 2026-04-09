@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_03_callback_to_async",
+  "difficulty": "easy",
+  "description": "Convert callback-based readLines function to async/await that returns lines array directly",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/readLines.mjs": "export function readLines(text, callback) {\n  try {\n    if (typeof text !== 'string') {\n      callback(new TypeError('Input must be a string'));\n      return;\n    }\n    const lines = text.split('\\n');\n    callback(null, lines);\n  } catch (err) {\n    callback(err);\n  }\n}",
+    "tests/readLines.test.mjs": "import { readLines } from '../src/readLines.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\nasync function runTests() {\n  // Test 1: normal text splits into lines\n  const r1 = await readLines('hello\\nworld\\nfoo');\n  assert(JSON.stringify(r1) === JSON.stringify(['hello', 'world', 'foo']), 'readLines should split by newline but got ' + JSON.stringify(r1));\n\n  // Test 2: empty string returns array with one empty string\n  const r2 = await readLines('');\n  assert(JSON.stringify(r2) === JSON.stringify(['']), 'readLines(\"\") should return [\"\"] but got ' + JSON.stringify(r2));\n\n  // Test 3: single line with no newlines\n  const r3 = await readLines('single line');\n  assert(JSON.stringify(r3) === JSON.stringify(['single line']), 'readLines(\"single line\") should return [\"single line\"] but got ' + JSON.stringify(r3));\n\n  // Test 4: returns a promise\n  const result = readLines('test');\n  assert(result instanceof Promise, 'readLines should return a Promise');\n\n  // Test 5: rejects on non-string input\n  try {\n    await readLines(123);\n    assert(false, 'Should have thrown for non-string input');\n  } catch (e) {\n    assert(e instanceof TypeError, 'Should throw TypeError for non-string input');\n  }\n\n  console.log('ALL TESTS PASSED');\n}\n\nrunTests();"
+  },
+  "verification": {
+    "testFile": "tests/readLines.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

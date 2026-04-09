@@ -1,0 +1,9 @@
+{
+    "id": "case_04",
+    "description": "Pipeline: fetch sales data and convert it to CSV format",
+    "difficulty": "medium",
+    "prompt": "Fetch the latest sales data and convert it to CSV format so I can import it into a spreadsheet. The CSV must have a header row.",
+    "expectedSkills": ["data-fetcher", "format-converter"],
+    "resultMustContain": [","],
+    "resultMustNotContain": ["error"]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_09_add_timeout",
+  "difficulty": "medium",
+  "description": "Add timeout support to promise wrapper that rejects with TimeoutError if any promise takes too long",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/promiseUtils.mjs": "export async function runAll(promises) {\n  return Promise.all(promises);\n}",
+    "tests/promiseUtils.test.mjs": "import { runAll } from '../src/promiseUtils.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\nfunction delay(ms, value) {\n  return new Promise(resolve => setTimeout(() => resolve(value), ms));\n}\n\nasync function runTests() {\n  // Test 1: all promises resolve within timeout\n  const r1 = await runAll([\n    delay(10, 'a'),\n    delay(20, 'b'),\n    delay(30, 'c')\n  ], 500);\n  assert(JSON.stringify(r1) === JSON.stringify(['a', 'b', 'c']), 'Should resolve all values but got ' + JSON.stringify(r1));\n\n  // Test 2: timeout triggers rejection\n  try {\n    await runAll([\n      delay(10, 'fast'),\n      delay(5000, 'slow')\n    ], 50);\n    assert(false, 'Should have thrown a timeout error');\n  } catch (e) {\n    assert(e.message.toLowerCase().includes('timeout'), 'Error should mention timeout but got: ' + e.message);\n  }\n\n  // Test 3: no timeout (undefined) works like normal Promise.all\n  const r3 = await runAll([\n    delay(10, 1),\n    delay(20, 2)\n  ]);\n  assert(JSON.stringify(r3) === JSON.stringify([1, 2]), 'Without timeout should work like Promise.all but got ' + JSON.stringify(r3));\n\n  // Test 4: empty array resolves immediately\n  const r4 = await runAll([], 100);\n  assert(JSON.stringify(r4) === JSON.stringify([]), 'Empty array should resolve to [] but got ' + JSON.stringify(r4));\n\n  // Test 5: timeout of 0 should still reject for async promises\n  try {\n    await runAll([delay(50, 'x')], 0);\n    assert(false, 'Should have thrown for timeout of 0');\n  } catch (e) {\n    assert(e.message.toLowerCase().includes('timeout'), 'Error should mention timeout but got: ' + e.message);\n  }\n\n  console.log('ALL TESTS PASSED');\n}\n\nrunTests();"
+  },
+  "verification": {
+    "testFile": "tests/promiseUtils.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

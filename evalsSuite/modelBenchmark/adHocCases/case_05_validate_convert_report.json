@@ -1,0 +1,9 @@
+{
+    "id": "case_05",
+    "description": "Complex: validate input data, convert valid records to markdown, and generate a summary report",
+    "difficulty": "very_hard",
+    "prompt": "Process this user data: [{\"id\":1,\"name\":\"Alice\",\"email\":\"alice@example.com\",\"role\":\"admin\"},{\"id\":2,\"name\":\"Bob\",\"email\":\"invalid-email\",\"role\":\"user\"},{\"id\":3,\"name\":\"\",\"email\":\"charlie@example.com\",\"role\":\"user\"}]. First validate all records. Then convert only the valid records to a markdown table. Finally, generate a report summarizing the validation and conversion results.",
+    "expectedSkills": ["data-validator", "format-converter", "report-generator"],
+    "resultMustContain": ["Report", "|"],
+    "resultMustNotContain": []
+}

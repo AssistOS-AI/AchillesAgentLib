@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_02_fix_null_check",
+  "difficulty": "easy",
+  "description": "Add missing null guard in deepGet so missing paths return undefined instead of throwing",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/deepGet.mjs": "export function deepGet(obj, path) {\n  const keys = path.split('.');\n  let current = obj;\n  for (const key of keys) {\n    current = current[key];\n  }\n  return current;\n}",
+    "tests/deepGet.test.mjs": "import { deepGet } from '../src/deepGet.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\n// Test 1: valid nested path\nconst r1 = deepGet({ a: { b: { c: 42 } } }, 'a.b.c');\nassert(r1 === 42, 'deepGet({a:{b:{c:42}}}, \"a.b.c\") should be 42 but got ' + r1);\n\n// Test 2: missing path returns undefined\nconst r2 = deepGet({ a: { b: 1 } }, 'a.c.d');\nassert(r2 === undefined, 'deepGet({a:{b:1}}, \"a.c.d\") should be undefined but got ' + r2);\n\n// Test 3: single-level path\nconst r3 = deepGet({ x: 'hello' }, 'x');\nassert(r3 === 'hello', 'deepGet({x:\"hello\"}, \"x\") should be \"hello\" but got ' + r3);\n\n// Test 4: null object returns undefined\nconst r4 = deepGet(null, 'a.b');\nassert(r4 === undefined, 'deepGet(null, \"a.b\") should be undefined but got ' + r4);\n\n// Test 5: undefined intermediate returns undefined\nconst r5 = deepGet({ a: undefined }, 'a.b.c');\nassert(r5 === undefined, 'deepGet({a:undefined}, \"a.b.c\") should be undefined but got ' + r5);\n\nconsole.log('ALL TESTS PASSED');"
+  },
+  "verification": {
+    "testFile": "tests/deepGet.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

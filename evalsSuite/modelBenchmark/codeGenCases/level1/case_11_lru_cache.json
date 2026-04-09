@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_11_lru_cache",
+  "difficulty": "hard",
+  "description": "Implement an LRU (Least Recently Used) cache with get and set methods",
+  "prompt": "Write a JavaScript ES module that exports a class `LRUCache` whose constructor takes a `maxSize` argument. It should have two methods: `get(key)` returns the value for the key or `undefined` if not found (and marks the key as recently used), and `set(key, value)` stores the key-value pair (and marks it as recently used). When the cache exceeds `maxSize`, evict the least recently used entry. Export as named export.",
+  "exportedSymbols": ["LRUCache"],
+  "tests": [
+    {
+      "name": "basic set and get",
+      "code": "const cache = new mod.LRUCache(3); cache.set('a', 1); cache.set('b', 2); assert(cache.get('a') === 1, 'Expected 1'); assert(cache.get('b') === 2, 'Expected 2');"
+    },
+    {
+      "name": "evicts least recently used when full",
+      "code": "const cache = new mod.LRUCache(2); cache.set('a', 1); cache.set('b', 2); cache.set('c', 3); assert(cache.get('a') === undefined, 'a should have been evicted'); assert(cache.get('b') === 2, 'b should still exist'); assert(cache.get('c') === 3, 'c should still exist');"
+    },
+    {
+      "name": "get updates recency so item is not evicted",
+      "code": "const cache = new mod.LRUCache(2); cache.set('a', 1); cache.set('b', 2); cache.get('a'); cache.set('c', 3); assert(cache.get('a') === 1, 'a should still exist after get refreshed it'); assert(cache.get('b') === undefined, 'b should have been evicted as least recent');"
+    },
+    {
+      "name": "returns undefined for missing keys",
+      "code": "const cache = new mod.LRUCache(2); assert(cache.get('missing') === undefined, 'Expected undefined for missing key');"
+    },
+    {
+      "name": "set updates existing key value and recency",
+      "code": "const cache = new mod.LRUCache(2); cache.set('a', 1); cache.set('b', 2); cache.set('a', 10); cache.set('c', 3); assert(cache.get('a') === 10, 'a should be updated to 10'); assert(cache.get('b') === undefined, 'b should have been evicted'); assert(cache.get('c') === 3, 'c should exist');"
+    }
+  ]
+}

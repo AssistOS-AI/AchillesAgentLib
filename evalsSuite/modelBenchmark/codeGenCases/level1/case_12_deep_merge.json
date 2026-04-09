@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_12_deep_merge",
+  "difficulty": "hard",
+  "description": "Deep merge two objects with recursive object merging and array concatenation",
+  "prompt": "Write a JavaScript ES module that exports a function `deepMerge(target, source)` which deeply merges `source` into `target` and returns a new object (do not mutate the inputs). The merge rules are: for plain objects, recurse and merge properties; for arrays, concatenate them (target array + source array); for all other types, source value overwrites target. Treat `null` as a primitive (not an object to recurse into). Export as named export.",
+  "exportedSymbols": ["deepMerge"],
+  "tests": [
+    {
+      "name": "merges flat objects",
+      "code": "const result = mod.deepMerge({a: 1, b: 2}, {b: 3, c: 4}); assert(result.a === 1, 'Expected a=1'); assert(result.b === 3, 'Expected b=3 (overwritten)'); assert(result.c === 4, 'Expected c=4');"
+    },
+    {
+      "name": "recursively merges nested objects",
+      "code": "const result = mod.deepMerge({a: {x: 1, y: 2}}, {a: {y: 3, z: 4}}); assert(result.a.x === 1, 'Expected a.x=1'); assert(result.a.y === 3, 'Expected a.y=3'); assert(result.a.z === 4, 'Expected a.z=4');"
+    },
+    {
+      "name": "concatenates arrays",
+      "code": "const result = mod.deepMerge({tags: ['a', 'b']}, {tags: ['c']}); assert(JSON.stringify(result.tags) === JSON.stringify(['a', 'b', 'c']), 'Expected [a,b,c] but got ' + JSON.stringify(result.tags));"
+    },
+    {
+      "name": "handles null values as primitives",
+      "code": "const result = mod.deepMerge({a: {x: 1}}, {a: null}); assert(result.a === null, 'Expected null to overwrite object'); const result2 = mod.deepMerge({a: null}, {a: {x: 1}}); assert(result2.a.x === 1, 'Expected object to overwrite null');"
+    },
+    {
+      "name": "does not mutate original objects",
+      "code": "const target = {a: {x: 1}}; const source = {a: {y: 2}}; const result = mod.deepMerge(target, source); assert(target.a.y === undefined, 'Target should not be mutated'); assert(source.a.x === undefined, 'Source should not be mutated'); assert(result.a.x === 1 && result.a.y === 2, 'Result should have merged values');"
+    }
+  ]
+}

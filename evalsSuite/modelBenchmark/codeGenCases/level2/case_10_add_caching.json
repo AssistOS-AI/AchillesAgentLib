@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_10_add_caching",
+  "difficulty": "hard",
+  "description": "Add TTL-based caching to data loader with cache expiration and manual cache clearing",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/dataLoader.mjs": "let fetchCount = 0;\n\nexport function getFetchCount() {\n  return fetchCount;\n}\n\nexport function resetFetchCount() {\n  fetchCount = 0;\n}\n\nexport async function loadData(key, ttl = 1000) {\n  fetchCount++;\n  return { key, timestamp: Date.now(), fetchNum: fetchCount };\n}\n\nexport function clearCache() {\n  // no-op for now\n}",
+    "tests/dataLoader.test.mjs": "import { loadData, clearCache, getFetchCount, resetFetchCount } from '../src/dataLoader.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\nfunction delay(ms) {\n  return new Promise(resolve => setTimeout(resolve, ms));\n}\n\nasync function runTests() {\n  // Reset state\n  resetFetchCount();\n  clearCache();\n\n  // Test 1: first call fetches data\n  const r1 = await loadData('user:1', 200);\n  assert(r1.key === 'user:1', 'Key should be user:1');\n  assert(getFetchCount() === 1, 'Should have fetched once but count is ' + getFetchCount());\n\n  // Test 2: second call within TTL returns cached (no new fetch)\n  const r2 = await loadData('user:1', 200);\n  assert(getFetchCount() === 1, 'Should still be 1 fetch (cached) but count is ' + getFetchCount());\n  assert(r2.timestamp === r1.timestamp, 'Cached result should have same timestamp');\n  assert(r2.fetchNum === r1.fetchNum, 'Cached result should have same fetchNum');\n\n  // Test 3: different key triggers new fetch\n  const r3 = await loadData('user:2', 200);\n  assert(getFetchCount() === 2, 'Should be 2 fetches for different key but count is ' + getFetchCount());\n  assert(r3.key === 'user:2', 'Key should be user:2');\n\n  // Test 4: after TTL expires, re-fetches\n  await delay(250);\n  const r4 = await loadData('user:1', 200);\n  assert(getFetchCount() === 3, 'Should re-fetch after TTL expiry but count is ' + getFetchCount());\n  assert(r4.timestamp > r1.timestamp, 'New fetch should have later timestamp');\n\n  // Test 5: clearCache forces re-fetch\n  const r5 = await loadData('user:2', 5000);\n  const countBefore = getFetchCount();\n  clearCache();\n  const r6 = await loadData('user:2', 5000);\n  assert(getFetchCount() === countBefore + 1, 'clearCache should force re-fetch but count is ' + getFetchCount());\n  assert(r6.fetchNum > r5.fetchNum, 'Should be a new fetch after clearCache');\n\n  console.log('ALL TESTS PASSED');\n}\n\nrunTests();"
+  },
+  "verification": {
+    "testFile": "tests/dataLoader.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

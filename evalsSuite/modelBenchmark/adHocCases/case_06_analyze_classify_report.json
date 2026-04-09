@@ -1,0 +1,9 @@
+{
+    "id": "case_06",
+    "description": "Cross-domain: fetch data, analyze it, classify the findings, then produce a report",
+    "difficulty": "very_hard",
+    "prompt": "Fetch the current inventory data. Analyze it for anomalies and trends. Classify the overall inventory health into a category (critical, warning, healthy). Then generate a comprehensive report that includes the classification, metrics, and action items.",
+    "expectedSkills": ["data-fetcher", "data-analyzer", "classifier", "report-generator"],
+    "resultMustContain": ["Report"],
+    "resultMustNotContain": []
+}

@@ -547,3 +547,56 @@ export const functions = {
 | Enumerators | enumerator_status |
 | Derivators | derivator_display_name |
 | Global | generatePKValues, prepareRecord, validateRecord, validateDelete, presentRecord |
+
+---
+
+## Main Functions
+
+- `validator_customer_id(value, record)`: Validates the customer_id field. Required.
+- `validator_name(value, record)`: Validates the name field. Required.
+- `validator_email(value, record)`: Validates the email field. Required.
+- `validator_status(value, record)`: Validates the status field. Required.
+- `presenter_name(value, record)`: Formats name for display.
+- `presenter_email(value, record)`: Formats email for display.
+- `presenter_status(value, record)`: Formats status for display.
+- `resolver_name(value, record)`: Resolves user input for name.
+- `resolver_email(value, record)`: Resolves user input for email.
+- `resolver_status(value, record)`: Resolves user input for status.
+- `enumerator_status(context)`: Returns allowed values for status.
+- `derivator_display_name(record)`: Computes derived value for display_name.
+- `generatePKValues(record, existingRecords)`: Generates primary key values.
+- `prepareRecord(record, context)`: Transforms record before database insertion.
+- `validateRecord(record)`: Validates entire record by running all field validators.
+- `validateDelete(recordId, record, context)`: Validates whether a record can be deleted.
+- `presentRecord(record)`: Formats entire record for display.
+
+---
+
+## Exports
+
+Named exports: `validator_customer_id`, `validator_name`, `validator_email`, `validator_status`, `presenter_name`, `presenter_email`, `presenter_status`, `resolver_name`, `resolver_email`, `resolver_status`, `enumerator_status`, `derivator_display_name`, `generatePKValues`, `prepareRecord`, `validateRecord`, `validateDelete`, `presentRecord`, `functions`
+
+The `functions` export wraps all functions under a `global` key.
+
+---
+
+## Testing
+
+### Validator Tests
+Test each validator function with valid inputs (expect empty string) and invalid inputs (expect JSON error string).
+- `validator_customer_id`: null/undefined/empty string → error; valid value → empty string
+- `validator_name`: null/undefined/empty string → error; invalid format → error per: Must be between 2 and 200 characters. Cannot contain only numbers or special characters.; valid value → empty string
+- `validator_email`: null/undefined/empty string → error; invalid format → error per: Must be a valid email format matching pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/; valid value → empty string
+- `validator_status`: null/undefined/empty string → error; invalid format → error per: Must be one of: active, inactive, pending, suspended; valid value → empty string
+### Presenter Tests
+Test each presenter with null (expect '—'), and normal values.
+- `presenter_name`: null → '—'; normal value → formatted per: Display the name in Title Case format
+- `presenter_email`: null → '—'; normal value → formatted per: Display email in lowercase format
+- `presenter_status`: null → '—'; normal value → formatted per: Display status in uppercase with color coding context
+### Enumerator Tests
+- `enumerator_status`: returns array containing 'active', 'inactive', 'pending', 'suspended'
+### Record-Level Tests
+- `validateRecord`: pass a valid record → isValid true; pass record with missing required fields → isValid false with errors
+- `prepareRecord`: pass a record → returns transformed record with resolvers/derivators applied
+- `presentRecord`: pass a record → returns record with presenter formatting applied
+- `generatePKValues`: pass empty record → returns object with primary key field populated

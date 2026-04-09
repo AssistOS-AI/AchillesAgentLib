@@ -1,0 +1,18 @@
+{
+    "id": "case_09",
+    "description": "Multi-turn: fetch+analyze inventory, then generate report from prior findings",
+    "difficulty": "hard",
+    "multiTurn": true,
+    "turns": [
+        {
+            "prompt": "Fetch all inventory data for the warehouse and analyze it. Give me the total count of records and a breakdown by status.",
+            "resultMustContain": ["totalRecords"],
+            "resultMustNotContain": ["cannot"]
+        },
+        {
+            "prompt": "Based on the findings from your analysis, generate a comprehensive report with recommendations.",
+            "resultMustContain": ["Report", "recommend"],
+            "resultMustNotContain": []
+        }
+    ]
+}

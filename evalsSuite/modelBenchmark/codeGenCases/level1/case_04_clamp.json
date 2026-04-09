@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_04_clamp",
+  "difficulty": "easy",
+  "description": "Clamp a number between a minimum and maximum value",
+  "prompt": "Write a JavaScript ES module that exports a function `clamp(value, min, max)` which restricts `value` to be within the range `[min, max]`. If `value` is less than `min`, return `min`. If `value` is greater than `max`, return `max`. Otherwise return `value`. Export as named export.",
+  "exportedSymbols": ["clamp"],
+  "tests": [
+    {
+      "name": "clamps value above max",
+      "code": "assert(mod.clamp(15, 0, 10) === 10, 'Expected 10 for value above max');"
+    },
+    {
+      "name": "clamps value below min",
+      "code": "assert(mod.clamp(-5, 0, 10) === 0, 'Expected 0 for value below min');"
+    },
+    {
+      "name": "returns value within range unchanged",
+      "code": "assert(mod.clamp(5, 0, 10) === 5, 'Expected 5 for value within range');"
+    },
+    {
+      "name": "handles value equal to bounds",
+      "code": "assert(mod.clamp(0, 0, 10) === 0, 'Expected 0 at lower bound'); assert(mod.clamp(10, 0, 10) === 10, 'Expected 10 at upper bound');"
+    },
+    {
+      "name": "handles negative ranges",
+      "code": "assert(mod.clamp(-3, -10, -1) === -3, 'Expected -3 in negative range'); assert(mod.clamp(0, -10, -1) === -1, 'Expected -1 for value above negative max');"
+    }
+  ]
+}

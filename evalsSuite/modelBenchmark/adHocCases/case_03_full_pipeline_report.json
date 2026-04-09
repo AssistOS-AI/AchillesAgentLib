@@ -1,0 +1,9 @@
+{
+    "id": "case_03",
+    "description": "Full pipeline: fetch data → analyze → generate a formatted report",
+    "difficulty": "hard",
+    "prompt": "I need a complete warehouse status report. Fetch the current inventory data, analyze it for key metrics, and then generate a formatted report with a title, summary, and recommendations.",
+    "expectedSkills": ["data-fetcher", "data-analyzer", "report-generator"],
+    "resultMustContain": ["Report", "summary", "recommend"],
+    "resultMustNotContain": []
+}

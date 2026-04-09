@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_04_fix_email_regex",
+  "difficulty": "medium",
+  "description": "Fix email validation regex that incorrectly rejects addresses containing a + character",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/emailValidator.mjs": "export function isValidEmail(email) {\n  if (typeof email !== 'string') return false;\n  const pattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/;\n  return pattern.test(email);\n}",
+    "tests/emailValidator.test.mjs": "import { isValidEmail } from '../src/emailValidator.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\n// Test 1: normal email is valid\nassert(isValidEmail('user@example.com') === true, 'user@example.com should be valid');\n\n// Test 2: email with + tag is valid\nassert(isValidEmail('user+tag@example.com') === true, 'user+tag@example.com should be valid');\n\n// Test 3: email with dots and hyphens\nassert(isValidEmail('first.last@sub-domain.example.com') === true, 'first.last@sub-domain.example.com should be valid');\n\n// Test 4: rejects email without @\nassert(isValidEmail('userexample.com') === false, 'userexample.com should be invalid');\n\n// Test 5: rejects email with double @\nassert(isValidEmail('user@@example.com') === false, 'user@@example.com should be invalid');\n\n// Test 6: rejects email without TLD\nassert(isValidEmail('user@example') === false, 'user@example should be invalid');\n\n// Test 7: rejects empty string\nassert(isValidEmail('') === false, 'empty string should be invalid');\n\n// Test 8: rejects non-string\nassert(isValidEmail(null) === false, 'null should be invalid');\n\nconsole.log('ALL TESTS PASSED');"
+  },
+  "verification": {
+    "testFile": "tests/emailValidator.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

@@ -1,0 +1,23 @@
+{
+    "id": "case_12",
+    "description": "Multi-turn 3-step: fetch data, classify health, then generate targeted report",
+    "difficulty": "very_hard",
+    "multiTurn": true,
+    "turns": [
+        {
+            "prompt": "Fetch all inventory data for the main warehouse and give me an analysis with counts and status breakdown.",
+            "resultMustContain": ["totalRecords"],
+            "resultMustNotContain": ["cannot"]
+        },
+        {
+            "prompt": "Based on the inventory analysis, classify the overall warehouse health as critical, warning, or healthy. Explain your reasoning.",
+            "resultMustContain": [],
+            "resultMustNotContain": []
+        },
+        {
+            "prompt": "Now generate a formal report that includes the inventory metrics, the health classification, and specific action items to address any issues.",
+            "resultMustContain": ["Report", "action"],
+            "resultMustNotContain": []
+        }
+    ]
+}

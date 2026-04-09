@@ -1,0 +1,9 @@
+{
+    "id": "case_01",
+    "description": "Pipeline: fetch inventory data, then analyze it to produce metrics",
+    "difficulty": "medium",
+    "prompt": "Fetch all inventory data for the warehouse, then analyze it to give me the total count and a breakdown by status.",
+    "expectedSkills": ["data-fetcher", "data-analyzer"],
+    "resultMustContain": ["totalRecords", "summary"],
+    "resultMustNotContain": ["error", "cannot"]
+}

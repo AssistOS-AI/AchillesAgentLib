@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_06_add_retry",
+  "difficulty": "medium",
+  "description": "Add retry logic with exponential backoff to fetchData function",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/fetchData.mjs": "export async function fetchData(fetchFn, url) {\n  const response = await fetchFn(url);\n  return response;\n}",
+    "tests/fetchData.test.mjs": "import { fetchData } from '../src/fetchData.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\nfunction createMockFetch(failCount) {\n  let calls = 0;\n  return async function mockFetch(url) {\n    calls++;\n    if (calls <= failCount) {\n      throw new Error('Network error on attempt ' + calls);\n    }\n    return { url, data: 'success', attempt: calls };\n  };\n}\n\nasync function runTests() {\n  // Test 1: succeeds on first try\n  const mock1 = createMockFetch(0);\n  const r1 = await fetchData(mock1, 'https://api.example.com/data');\n  assert(r1.data === 'success', 'Should succeed on first try but got ' + JSON.stringify(r1));\n  assert(r1.attempt === 1, 'Should have been called once but attempt is ' + r1.attempt);\n\n  // Test 2: succeeds on second try after one failure\n  const mock2 = createMockFetch(1);\n  const r2 = await fetchData(mock2, 'https://api.example.com/data');\n  assert(r2.data === 'success', 'Should succeed on retry');\n  assert(r2.attempt === 2, 'Should have been called twice but attempt is ' + r2.attempt);\n\n  // Test 3: succeeds on third try after two failures\n  const mock3 = createMockFetch(2);\n  const r3 = await fetchData(mock3, 'https://api.example.com/data');\n  assert(r3.data === 'success', 'Should succeed on third try');\n  assert(r3.attempt === 3, 'Should have been called three times but attempt is ' + r3.attempt);\n\n  // Test 4: fails after 3 attempts (all fail)\n  const mock4 = createMockFetch(10);\n  try {\n    await fetchData(mock4, 'https://api.example.com/data');\n    assert(false, 'Should have thrown after 3 failed attempts');\n  } catch (e) {\n    assert(e.message.includes('Network error'), 'Should throw the last error: ' + e.message);\n  }\n\n  // Test 5: backoff timing - should take at least 100+200=300ms for 3 attempts\n  const mock5 = createMockFetch(2);\n  const start = Date.now();\n  await fetchData(mock5, 'https://api.example.com/data');\n  const elapsed = Date.now() - start;\n  assert(elapsed >= 250, 'Should have exponential backoff of at least 300ms total but took ' + elapsed + 'ms');\n\n  console.log('ALL TESTS PASSED');\n}\n\nrunTests();"
+  },
+  "verification": {
+    "testFile": "tests/fetchData.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

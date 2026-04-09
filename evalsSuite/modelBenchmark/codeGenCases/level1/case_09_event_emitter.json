@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_09_event_emitter",
+  "difficulty": "hard",
+  "description": "Implement an EventEmitter class with on, off, emit, and once methods",
+  "prompt": "Write a JavaScript ES module that exports a class `EventEmitter` with the following methods: `on(event, listener)` registers a listener for an event, `off(event, listener)` removes a specific listener, `emit(event, ...args)` calls all listeners for the event with the given arguments, and `once(event, listener)` registers a listener that is automatically removed after it fires once. Export as named export.",
+  "exportedSymbols": ["EventEmitter"],
+  "tests": [
+    {
+      "name": "on and emit work together",
+      "code": "const ee = new mod.EventEmitter(); let called = false; ee.on('test', () => { called = true; }); ee.emit('test'); assert(called === true, 'Listener should have been called');"
+    },
+    {
+      "name": "off removes a listener",
+      "code": "const ee = new mod.EventEmitter(); let count = 0; const fn = () => { count++; }; ee.on('test', fn); ee.emit('test'); ee.off('test', fn); ee.emit('test'); assert(count === 1, 'Expected 1 call after off but got ' + count);"
+    },
+    {
+      "name": "once fires listener only once",
+      "code": "const ee = new mod.EventEmitter(); let count = 0; ee.once('test', () => { count++; }); ee.emit('test'); ee.emit('test'); ee.emit('test'); assert(count === 1, 'Expected once listener called 1 time but got ' + count);"
+    },
+    {
+      "name": "supports multiple listeners on same event",
+      "code": "const ee = new mod.EventEmitter(); const results = []; ee.on('test', () => results.push('a')); ee.on('test', () => results.push('b')); ee.emit('test'); assert(JSON.stringify(results) === JSON.stringify(['a', 'b']), 'Expected [a,b] but got ' + JSON.stringify(results));"
+    },
+    {
+      "name": "emit passes arguments to listeners",
+      "code": "const ee = new mod.EventEmitter(); let received = null; ee.on('data', (a, b) => { received = [a, b]; }); ee.emit('data', 'hello', 42); assert(JSON.stringify(received) === JSON.stringify(['hello', 42]), 'Expected [hello, 42] but got ' + JSON.stringify(received));"
+    }
+  ]
+}

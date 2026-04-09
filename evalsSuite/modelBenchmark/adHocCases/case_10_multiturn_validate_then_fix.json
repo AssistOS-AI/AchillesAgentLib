@@ -1,0 +1,18 @@
+{
+    "id": "case_10",
+    "description": "Multi-turn: validate data and identify errors, then summarize the problems found",
+    "difficulty": "hard",
+    "multiTurn": true,
+    "turns": [
+        {
+            "prompt": "Validate this inventory data: [{\"id\":1,\"name\":\"Widget A\",\"quantity\":50,\"status\":\"active\"},{\"id\":2,\"name\":\"Widget B\",\"quantity\":-5,\"status\":\"active\"},{\"id\":3,\"name\":\"Widget C\",\"quantity\":30,\"status\":\"unknown\"},{\"id\":4,\"name\":\"\",\"quantity\":10,\"status\":\"pending\"}]. Report all validation errors.",
+            "resultMustContain": ["error"],
+            "resultMustNotContain": []
+        },
+        {
+            "prompt": "Summarize the validation issues you found into a brief executive summary.",
+            "resultMustContain": ["quantity", "status"],
+            "resultMustNotContain": []
+        }
+    ]
+}

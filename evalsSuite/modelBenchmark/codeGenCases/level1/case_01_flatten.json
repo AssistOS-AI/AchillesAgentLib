@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_01_flatten",
+  "difficulty": "easy",
+  "description": "Recursively flatten nested arrays into a single flat array",
+  "prompt": "Write a JavaScript ES module that exports a function `flatten(arr)` which takes an arbitrarily nested array and returns a new flat array containing all elements in order. For example, `flatten([1, [2, [3, 4]], 5])` should return `[1, 2, 3, 4, 5]`. Export as named export.",
+  "exportedSymbols": ["flatten"],
+  "tests": [
+    {
+      "name": "flattens simple nested array",
+      "code": "const result = mod.flatten([1, [2, [3, 4]], 5]); assert(JSON.stringify(result) === JSON.stringify([1, 2, 3, 4, 5]), 'Expected [1,2,3,4,5] but got ' + JSON.stringify(result));"
+    },
+    {
+      "name": "returns already flat array unchanged",
+      "code": "const result = mod.flatten([1, 2, 3]); assert(JSON.stringify(result) === JSON.stringify([1, 2, 3]), 'Expected [1,2,3] but got ' + JSON.stringify(result));"
+    },
+    {
+      "name": "handles empty array",
+      "code": "const result = mod.flatten([]); assert(JSON.stringify(result) === JSON.stringify([]), 'Expected [] but got ' + JSON.stringify(result));"
+    },
+    {
+      "name": "handles deeply nested arrays",
+      "code": "const result = mod.flatten([[[[[1]]]]]);  assert(JSON.stringify(result) === JSON.stringify([1]), 'Expected [1] but got ' + JSON.stringify(result));"
+    },
+    {
+      "name": "handles mixed types including strings and nulls",
+      "code": "const result = mod.flatten([1, ['a', [null, [true]]], 'b']); assert(JSON.stringify(result) === JSON.stringify([1, 'a', null, true, 'b']), 'Expected [1,\"a\",null,true,\"b\"] but got ' + JSON.stringify(result));"
+    }
+  ]
+}

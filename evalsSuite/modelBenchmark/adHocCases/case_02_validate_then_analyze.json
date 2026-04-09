@@ -1,0 +1,9 @@
+{
+    "id": "case_02",
+    "description": "Pipeline: validate data integrity first, then analyze only if valid",
+    "difficulty": "hard",
+    "prompt": "I have this inventory data: [{\"id\":1,\"name\":\"Widget A\",\"quantity\":50,\"status\":\"active\"},{\"id\":2,\"name\":\"Widget B\",\"quantity\":-5,\"status\":\"active\"},{\"id\":3,\"name\":\"Widget C\",\"quantity\":30,\"status\":\"unknown\"}]. First validate it, then analyze the results. If there are validation errors, include them in your analysis.",
+    "expectedSkills": ["data-validator", "data-analyzer"],
+    "resultMustContain": ["valid", "error"],
+    "resultMustNotContain": []
+}

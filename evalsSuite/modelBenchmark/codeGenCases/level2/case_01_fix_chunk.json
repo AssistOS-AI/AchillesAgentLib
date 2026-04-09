@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_01_fix_chunk",
+  "difficulty": "easy",
+  "description": "Fix off-by-one error in array chunk function that creates an empty trailing chunk",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/chunk.mjs": "export function chunk(arr, size) {\n  if (!Array.isArray(arr)) throw new TypeError('First argument must be an array');\n  if (size < 1) throw new RangeError('Size must be at least 1');\n  const result = [];\n  for (let i = 0; i <= arr.length; i += size) {\n    result.push(arr.slice(i, i + size));\n  }\n  return result;\n}",
+    "tests/chunk.test.mjs": "import { chunk } from '../src/chunk.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\n// Test 1: chunks array of 5 into pairs\nconst r1 = chunk([1, 2, 3, 4, 5], 2);\nassert(JSON.stringify(r1) === JSON.stringify([[1, 2], [3, 4], [5]]), 'chunk([1,2,3,4,5], 2) should be [[1,2],[3,4],[5]] but got ' + JSON.stringify(r1));\n\n// Test 2: empty array returns empty\nconst r2 = chunk([], 3);\nassert(JSON.stringify(r2) === JSON.stringify([]), 'chunk([], 3) should be [] but got ' + JSON.stringify(r2));\n\n// Test 3: single element\nconst r3 = chunk([42], 5);\nassert(JSON.stringify(r3) === JSON.stringify([[42]]), 'chunk([42], 5) should be [[42]] but got ' + JSON.stringify(r3));\n\n// Test 4: size equals array length\nconst r4 = chunk([1, 2, 3], 3);\nassert(JSON.stringify(r4) === JSON.stringify([[1, 2, 3]]), 'chunk([1,2,3], 3) should be [[1,2,3]] but got ' + JSON.stringify(r4));\n\n// Test 5: size of 1\nconst r5 = chunk([1, 2, 3], 1);\nassert(JSON.stringify(r5) === JSON.stringify([[1], [2], [3]]), 'chunk([1,2,3], 1) should be [[1],[2],[3]] but got ' + JSON.stringify(r5));\n\nconsole.log('ALL TESTS PASSED');"
+  },
+  "verification": {
+    "testFile": "tests/chunk.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

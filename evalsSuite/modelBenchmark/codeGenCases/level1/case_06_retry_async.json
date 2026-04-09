@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_06_retry_async",
+  "difficulty": "medium",
+  "description": "Retry an async function up to N times with a delay between attempts",
+  "prompt": "Write a JavaScript ES module that exports an async function `retryAsync(fn, maxRetries, delayMs)` which calls the async function `fn()`. If `fn` rejects, wait `delayMs` milliseconds and retry, up to `maxRetries` total retries (so the function is called at most `maxRetries + 1` times). If all attempts fail, reject with the last error. If `fn` resolves, return its value immediately. Export as named export.",
+  "exportedSymbols": ["retryAsync"],
+  "tests": [
+    {
+      "name": "returns result on first successful call",
+      "code": "const result = await mod.retryAsync(async () => 42, 3, 10); assert(result === 42, 'Expected 42 but got ' + result);",
+      "async": true
+    },
+    {
+      "name": "retries and succeeds after failures",
+      "code": "let attempts = 0; const result = await mod.retryAsync(async () => { attempts++; if (attempts < 3) throw new Error('fail'); return 'ok'; }, 3, 10); assert(result === 'ok', 'Expected ok but got ' + result); assert(attempts === 3, 'Expected 3 attempts but got ' + attempts);",
+      "async": true
+    },
+    {
+      "name": "throws last error after exhausting retries",
+      "code": "let attempts = 0; try { await mod.retryAsync(async () => { attempts++; throw new Error('always fails'); }, 2, 10); assert(false, 'Should have thrown'); } catch (e) { assert(e.message === 'always fails', 'Expected always fails but got ' + e.message); assert(attempts === 3, 'Expected 3 total attempts (1 + 2 retries) but got ' + attempts); }",
+      "async": true
+    },
+    {
+      "name": "waits delayMs between retries",
+      "code": "let attempts = 0; const start = Date.now(); await mod.retryAsync(async () => { attempts++; if (attempts < 3) throw new Error('fail'); return 'done'; }, 3, 50).catch(() => {}); const elapsed = Date.now() - start; assert(elapsed >= 80, 'Expected at least 80ms delay for 2 retries but got ' + elapsed + 'ms');",
+      "async": true
+    }
+  ]
+}

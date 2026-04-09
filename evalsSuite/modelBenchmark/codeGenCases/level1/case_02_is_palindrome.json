@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_02_is_palindrome",
+  "difficulty": "easy",
+  "description": "Check if a string is a palindrome, ignoring case and non-alphanumeric characters",
+  "prompt": "Write a JavaScript ES module that exports a function `isPalindrome(str)` which returns `true` if the given string is a palindrome and `false` otherwise. The check should ignore case and all non-alphanumeric characters. For example, `isPalindrome(\"A man, a plan, a canal: Panama\")` should return `true`. Export as named export.",
+  "exportedSymbols": ["isPalindrome"],
+  "tests": [
+    {
+      "name": "detects simple palindrome",
+      "code": "assert(mod.isPalindrome('racecar') === true, 'Expected true for racecar');"
+    },
+    {
+      "name": "handles spaces and punctuation",
+      "code": "assert(mod.isPalindrome('A man, a plan, a canal: Panama') === true, 'Expected true for Panama sentence');"
+    },
+    {
+      "name": "returns false for non-palindrome",
+      "code": "assert(mod.isPalindrome('hello') === false, 'Expected false for hello');"
+    },
+    {
+      "name": "handles empty string as palindrome",
+      "code": "assert(mod.isPalindrome('') === true, 'Expected true for empty string');"
+    },
+    {
+      "name": "handles single character",
+      "code": "assert(mod.isPalindrome('x') === true, 'Expected true for single character');"
+    }
+  ]
+}

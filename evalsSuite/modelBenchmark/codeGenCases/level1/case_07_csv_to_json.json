@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_07_csv_to_json",
+  "difficulty": "medium",
+  "description": "Parse a CSV string into an array of objects using the header row as keys",
+  "prompt": "Write a JavaScript ES module that exports a function `csvToJson(csvString)` which parses a CSV string and returns an array of objects. The first line is the header row (column names), and each subsequent line is a data row. Use the header values as object keys. Handle basic quoted fields (fields wrapped in double quotes that may contain commas). Return an empty array if the input is empty or contains only a header. Export as named export.",
+  "exportedSymbols": ["csvToJson"],
+  "tests": [
+    {
+      "name": "parses basic CSV correctly",
+      "code": "const result = mod.csvToJson('name,age\\nAlice,30\\nBob,25'); assert(JSON.stringify(result) === JSON.stringify([{name:'Alice',age:'30'},{name:'Bob',age:'25'}]), 'Basic parse failed: ' + JSON.stringify(result));"
+    },
+    {
+      "name": "handles single data row",
+      "code": "const result = mod.csvToJson('x,y\\n1,2'); assert(result.length === 1, 'Expected 1 row'); assert(result[0].x === '1' && result[0].y === '2', 'Values incorrect');"
+    },
+    {
+      "name": "handles quoted fields containing commas",
+      "code": "const result = mod.csvToJson('name,address\\nAlice,\"123 Main St, Apt 4\"'); assert(result.length === 1, 'Expected 1 row'); assert(result[0].address === '123 Main St, Apt 4', 'Expected unquoted address but got ' + result[0].address);"
+    },
+    {
+      "name": "returns empty array for empty input",
+      "code": "const result = mod.csvToJson(''); assert(JSON.stringify(result) === '[]', 'Expected [] for empty input but got ' + JSON.stringify(result));"
+    },
+    {
+      "name": "returns empty array for header only",
+      "code": "const result = mod.csvToJson('name,age'); assert(JSON.stringify(result) === '[]', 'Expected [] for header-only input but got ' + JSON.stringify(result));"
+    }
+  ]
+}

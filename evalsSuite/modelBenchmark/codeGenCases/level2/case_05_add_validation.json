@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_05_add_validation",
+  "difficulty": "medium",
+  "description": "Add input validation to createUser function with descriptive error messages",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/createUser.mjs": "export function createUser(name, email, age) {\n  return {\n    id: Math.random().toString(36).slice(2, 10),\n    name,\n    email,\n    age,\n    createdAt: new Date().toISOString()\n  };\n}",
+    "tests/createUser.test.mjs": "import { createUser } from '../src/createUser.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\n// Test 1: valid user is created correctly\nconst user = createUser('Alice', 'alice@example.com', 30);\nassert(typeof user.id === 'string' && user.id.length > 0, 'User should have a non-empty id');\nassert(user.name === 'Alice', 'Name should be Alice');\nassert(user.email === 'alice@example.com', 'Email should match');\nassert(user.age === 30, 'Age should be 30');\nassert(typeof user.createdAt === 'string', 'Should have createdAt timestamp');\n\n// Test 2: empty name throws\ntry {\n  createUser('', 'a@b.com', 25);\n  assert(false, 'Should throw for empty name');\n} catch (e) {\n  assert(e.message.toLowerCase().includes('name'), 'Error should mention name: ' + e.message);\n}\n\n// Test 3: non-string name throws\ntry {\n  createUser(123, 'a@b.com', 25);\n  assert(false, 'Should throw for non-string name');\n} catch (e) {\n  assert(e.message.toLowerCase().includes('name'), 'Error should mention name: ' + e.message);\n}\n\n// Test 4: invalid email (no @) throws\ntry {\n  createUser('Bob', 'invalid-email', 25);\n  assert(false, 'Should throw for invalid email');\n} catch (e) {\n  assert(e.message.toLowerCase().includes('email'), 'Error should mention email: ' + e.message);\n}\n\n// Test 5: age out of range throws\ntry {\n  createUser('Bob', 'bob@example.com', -1);\n  assert(false, 'Should throw for negative age');\n} catch (e) {\n  assert(e.message.toLowerCase().includes('age'), 'Error should mention age: ' + e.message);\n}\n\ntry {\n  createUser('Bob', 'bob@example.com', 151);\n  assert(false, 'Should throw for age > 150');\n} catch (e) {\n  assert(e.message.toLowerCase().includes('age'), 'Error should mention age: ' + e.message);\n}\n\n// Test 6: non-number age throws\ntry {\n  createUser('Bob', 'bob@example.com', 'thirty');\n  assert(false, 'Should throw for non-number age');\n} catch (e) {\n  assert(e.message.toLowerCase().includes('age'), 'Error should mention age: ' + e.message);\n}\n\nconsole.log('ALL TESTS PASSED');"
+  },
+  "verification": {
+    "testFile": "tests/createUser.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

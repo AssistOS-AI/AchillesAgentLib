@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_08_memoize",
+  "difficulty": "medium",
+  "description": "Memoize a function by caching results keyed on JSON-serialized arguments",
+  "prompt": "Write a JavaScript ES module that exports a function `memoize(fn)` which returns a new function that caches results. The cache key should be computed using `JSON.stringify` on the arguments array. If the memoized function is called with the same arguments again, return the cached result without calling `fn` again. Export as named export.",
+  "exportedSymbols": ["memoize"],
+  "tests": [
+    {
+      "name": "returns correct results",
+      "code": "const add = mod.memoize((a, b) => a + b); assert(add(1, 2) === 3, 'Expected 3'); assert(add(3, 4) === 7, 'Expected 7');"
+    },
+    {
+      "name": "caches results and avoids re-calling fn",
+      "code": "let callCount = 0; const fn = mod.memoize((x) => { callCount++; return x * 2; }); fn(5); fn(5); fn(5); assert(callCount === 1, 'Expected fn called once but got ' + callCount);"
+    },
+    {
+      "name": "different arguments produce different cached entries",
+      "code": "let callCount = 0; const fn = mod.memoize((x) => { callCount++; return x * 2; }); assert(fn(3) === 6, 'Expected 6'); assert(fn(4) === 8, 'Expected 8'); assert(callCount === 2, 'Expected 2 calls but got ' + callCount);"
+    },
+    {
+      "name": "handles multiple arguments as cache key",
+      "code": "let callCount = 0; const fn = mod.memoize((a, b) => { callCount++; return a + b; }); fn(1, 2); fn(1, 2); fn(2, 1); assert(callCount === 2, 'Expected 2 calls (different arg order) but got ' + callCount);"
+    },
+    {
+      "name": "handles object arguments via JSON serialization",
+      "code": "let callCount = 0; const fn = mod.memoize((obj) => { callCount++; return obj.x + obj.y; }); fn({x: 1, y: 2}); fn({x: 1, y: 2}); assert(callCount === 1, 'Expected 1 call for identical object args but got ' + callCount);"
+    }
+  ]
+}

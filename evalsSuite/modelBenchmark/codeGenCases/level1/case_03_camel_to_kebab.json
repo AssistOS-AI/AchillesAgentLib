@@ -1,0 +1,29 @@
+{
+  "id": "codegen_l1_03_camel_to_kebab",
+  "difficulty": "easy",
+  "description": "Convert camelCase strings to kebab-case",
+  "prompt": "Write a JavaScript ES module that exports a function `camelToKebab(str)` which converts a camelCase string to kebab-case. For example, `camelToKebab(\"backgroundColor\")` should return `\"background-color\"`. Consecutive uppercase letters like in `\"XMLParser\"` should be treated as a single acronym block, producing `\"xml-parser\"`. Export as named export.",
+  "exportedSymbols": ["camelToKebab"],
+  "tests": [
+    {
+      "name": "converts simple camelCase",
+      "code": "assert(mod.camelToKebab('backgroundColor') === 'background-color', 'Expected background-color');"
+    },
+    {
+      "name": "handles multiple capital letters",
+      "code": "assert(mod.camelToKebab('borderTopLeftRadius') === 'border-top-left-radius', 'Expected border-top-left-radius');"
+    },
+    {
+      "name": "returns already lowercase string unchanged",
+      "code": "assert(mod.camelToKebab('color') === 'color', 'Expected color');"
+    },
+    {
+      "name": "handles consecutive capitals as acronym",
+      "code": "const result = mod.camelToKebab('XMLParser'); assert(result === 'xml-parser', 'Expected xml-parser but got ' + result);"
+    },
+    {
+      "name": "handles single word with leading capital",
+      "code": "const result = mod.camelToKebab('Hello'); assert(result === 'hello', 'Expected hello but got ' + result);"
+    }
+  ]
+}

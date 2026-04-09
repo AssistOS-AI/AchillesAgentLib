@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_11_fix_memory_leak",
+  "difficulty": "hard",
+  "description": "Fix subscription manager where off() fails to remove listeners due to wrong index comparison",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/subscriptions.mjs": "export class SubscriptionManager {\n  constructor() {\n    this.listeners = {};\n  }\n\n  on(event, fn) {\n    if (!this.listeners[event]) {\n      this.listeners[event] = [];\n    }\n    this.listeners[event].push(fn);\n  }\n\n  off(event, fn) {\n    if (!this.listeners[event]) return;\n    const idx = this.listeners[event].indexOf(fn.toString());\n    if (idx !== -1) {\n      this.listeners[event].splice(idx, 1);\n    }\n  }\n\n  emit(event, ...args) {\n    if (!this.listeners[event]) return;\n    for (const fn of this.listeners[event]) {\n      fn(...args);\n    }\n  }\n\n  listenerCount(event) {\n    return this.listeners[event] ? this.listeners[event].length : 0;\n  }\n}",
+    "tests/subscriptions.test.mjs": "import { SubscriptionManager } from '../src/subscriptions.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\n// Test 1: subscribe and emit works\nconst mgr1 = new SubscriptionManager();\nconst received = [];\nconst handler = (msg) => received.push(msg);\nmgr1.on('message', handler);\nmgr1.emit('message', 'hello');\nmgr1.emit('message', 'world');\nassert(JSON.stringify(received) === JSON.stringify(['hello', 'world']), 'Should receive [hello, world] but got ' + JSON.stringify(received));\n\n// Test 2: unsubscribe actually removes the listener\nmgr1.off('message', handler);\nassert(mgr1.listenerCount('message') === 0, 'After off(), listener count should be 0 but got ' + mgr1.listenerCount('message'));\nmgr1.emit('message', 'after-off');\nassert(received.length === 2, 'Should not receive messages after off() but got ' + received.length + ' messages');\n\n// Test 3: multiple listeners on same event\nconst mgr2 = new SubscriptionManager();\nconst log1 = [];\nconst log2 = [];\nconst h1 = (v) => log1.push(v);\nconst h2 = (v) => log2.push(v);\nmgr2.on('data', h1);\nmgr2.on('data', h2);\nmgr2.emit('data', 'x');\nassert(log1.length === 1 && log2.length === 1, 'Both listeners should fire');\nmgr2.off('data', h1);\nmgr2.emit('data', 'y');\nassert(log1.length === 1, 'h1 should not fire after off, got ' + log1.length);\nassert(log2.length === 2, 'h2 should still fire, got ' + log2.length);\nassert(mgr2.listenerCount('data') === 1, 'Should have 1 listener remaining but got ' + mgr2.listenerCount('data'));\n\n// Test 4: events are independent\nconst mgr3 = new SubscriptionManager();\nconst aEvents = [];\nconst bEvents = [];\nmgr3.on('a', (v) => aEvents.push(v));\nmgr3.on('b', (v) => bEvents.push(v));\nmgr3.emit('a', 1);\nmgr3.emit('b', 2);\nassert(aEvents.length === 1 && bEvents.length === 1, 'Events should be independent');\nassert(aEvents[0] === 1 && bEvents[0] === 2, 'Each event should receive its own data');\n\n// Test 5: off() on non-existent event does not throw\nmgr3.off('nonexistent', () => {});\n\n// Test 6: emit on event with no listeners does not throw\nmgr3.emit('nonexistent', 'data');\n\nconsole.log('ALL TESTS PASSED');"
+  },
+  "verification": {
+    "testFile": "tests/subscriptions.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}

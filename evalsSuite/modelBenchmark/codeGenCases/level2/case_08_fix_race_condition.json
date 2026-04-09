@@ -1,0 +1,22 @@
+{
+  "id": "codegen_l2_08_fix_race_condition",
+  "difficulty": "medium",
+  "description": "Fix async queue that processes items concurrently instead of sequentially",
+  "systemPrompt": "You are a code agent. Use the available tools to read files, write fixes, and run tests. Your goal is to make all tests pass.",
+  "tools": {
+    "readFile": "Reads a file from the workspace. Arg: file path (e.g., 'src/utils.mjs'). Returns file contents as string.",
+    "writeFile": "Writes content to a file in the workspace. First line of your argument must be the file path, remaining lines are the file content. Example:\nsrc/utils.mjs\nexport function foo() { return 42; }",
+    "runTests": "Runs the test suite and returns output. No arguments needed.",
+    "listFiles": "Lists all files in the workspace. No arguments needed. Returns newline-separated file paths."
+  },
+  "workspace": {
+    "src/asyncQueue.mjs": "export async function processQueue(items, processFn) {\n  const results = await Promise.all(items.map(item => processFn(item)));\n  return results;\n}",
+    "tests/asyncQueue.test.mjs": "import { processQueue } from '../src/asyncQueue.mjs';\n\nconst assert = (c, m) => { if (!c) throw new Error(m); };\n\nfunction delay(ms) {\n  return new Promise(resolve => setTimeout(resolve, ms));\n}\n\nasync function runTests() {\n  // Test 1: processes items in sequential order\n  const order = [];\n  await processQueue(['a', 'b', 'c'], async (item) => {\n    const delayMs = item === 'a' ? 30 : item === 'b' ? 10 : 20;\n    await delay(delayMs);\n    order.push(item);\n    return item.toUpperCase();\n  });\n  assert(JSON.stringify(order) === JSON.stringify(['a', 'b', 'c']), 'Should process in order [a,b,c] but got ' + JSON.stringify(order));\n\n  // Test 2: returns results in order\n  const results = await processQueue([1, 2, 3], async (n) => {\n    await delay(5);\n    return n * 10;\n  });\n  assert(JSON.stringify(results) === JSON.stringify([10, 20, 30]), 'Results should be [10,20,30] but got ' + JSON.stringify(results));\n\n  // Test 3: error in one item does not prevent others from running\n  const processed = [];\n  const results3 = await processQueue(['x', 'fail', 'z'], async (item) => {\n    await delay(5);\n    if (item === 'fail') {\n      processed.push('fail-attempted');\n      throw new Error('item failed');\n    }\n    processed.push(item);\n    return item;\n  });\n  assert(processed.includes('x'), 'Should have processed x');\n  assert(processed.includes('fail-attempted'), 'Should have attempted fail');\n  assert(processed.includes('z'), 'Should have processed z even after error');\n\n  // Test 4: results contain errors for failed items\n  assert(results3[0] === 'x', 'First result should be x');\n  assert(results3[1] instanceof Error, 'Second result should be an Error');\n  assert(results3[2] === 'z', 'Third result should be z');\n\n  // Test 5: empty array returns empty results\n  const r5 = await processQueue([], async (item) => item);\n  assert(JSON.stringify(r5) === JSON.stringify([]), 'Empty queue should return empty results');\n\n  console.log('ALL TESTS PASSED');\n}\n\nrunTests();"
+  },
+  "verification": {
+    "testFile": "tests/asyncQueue.test.mjs",
+    "expectedOutput": "ALL TESTS PASSED"
+  },
+  "maxToolCalls": 10,
+  "timeoutMs": 60000
+}
