@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownDataStore Runtime · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"MarkdownDataStore","href":"md-datastore.html"},
+            {"label":"Runtime"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="MarkdownDataStore chapter navigation">
+                <p class="doc-sidebar__title">MarkdownDataStore</p>
+                <nav>
+                    <a href="md-datastore.html">Overview</a>
+                    <a href="md-datastore-authoring.html">Authoring</a>
+                    <a href="md-datastore-runtime.html" aria-current="page">Runtime</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Runtime Behavior of MarkdownDataStore</h1>
+                    <p>This chapter explains read/write semantics, section selection rules, and metadata access at runtime.</p>
+                </section>
+
+                <section>
+                    <h2>Read Semantics</h2>
+                    <p><code>getFile</code> returns all sections when no selector is provided. When <code>sections</code> is provided, it accepts an array of section names or section indices and returns only matching sections in file order.</p>
+                    <p><code>getSectionMap</code> returns the same file as a name-to-content object for direct keyed access by section label.</p>
+                </section>
+
+                <section>
+                    <h2>Write Semantics</h2>
+                    <p><code>updateFile</code> upserts section content by section name. <code>replaceFile</code> rewrites the full section set and reindexes headings from 1. <code>appendToFile</code> appends to existing sections and can optionally deduplicate appended lines.</p>
+                    <p><code>deleteFile</code> deletes selected sections when selectors are provided, or removes the whole markdown file when selectors are omitted.</p>
+                </section>
+
+                <section>
+                    <h2>Metadata and Listing</h2>
+                    <p><code>listFiles</code> returns the current markdown file names (without extension) for a type folder. <code>getFileStats</code> exposes filesystem metadata required for timestamp-based workflows.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>
