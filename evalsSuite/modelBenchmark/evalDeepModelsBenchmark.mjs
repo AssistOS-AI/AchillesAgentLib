@@ -60,6 +60,14 @@ const CONFIG = {
     // Use production prompt by default (buildDetectIntentsPrompt from LLMAgents)
     // Set to false to use a simpler benchmark-specific prompt
     useProductionPrompt: true,
+
+    // Explicit model id used by checkSemanticMatch when it needs an LLM to
+    // compare expected vs actual descriptions. When null, the resolver falls
+    // back to ACHILLES_SEMANTIC_CHECK_MODEL and finally to the model under
+    // test. Never let this default back to a bare tier alias like "fast" —
+    // the new Soul Gateway no longer resolves those and it pollutes results
+    // with "Model not found: fast" errors.
+    semanticCheckModel: null,
 };
 // ============================================================================
 
@@ -101,12 +109,49 @@ const COLORS = {
 };
 
 /**
+ * Resolve which model should be used for the LLM-backed semantic comparison
+ * step in checkSemanticMatch(). The rule here is deliberate: do NOT send
+ * bare tier aliases (e.g., "fast"/"deep") to Soul Gateway — the new gateway
+ * does not resolve cascade shorthands, and doing so turned every semantic
+ * check into a "Model not found: fast" error that was indistinguishable
+ * from a genuine benchmark failure.
+ *
+ * Resolution order:
+ *   1. Explicit env var ACHILLES_SEMANTIC_CHECK_MODEL
+ *   2. CONFIG.semanticCheckModel if present
+ *   3. The benchmark's current model under test (reasonable default so the
+ *      check still runs without extra configuration)
+ *
+ * The final choice is logged once at startup so benchmark output is
+ * reproducible and easy to audit.
+ *
+ * @param {object} options
+ * @param {string|null} [options.configuredModel] - CONFIG.semanticCheckModel
+ * @param {string|null} [options.benchmarkModel]  - Current model under test
+ * @param {object} [options.env] - Environment source (for tests)
+ * @returns {{ model: string|null, source: 'env'|'config'|'model-under-test'|'none' }}
+ */
+function resolveSemanticCheckModel({ configuredModel = null, benchmarkModel = null, env = process.env } = {}) {
+    const envModel = env.ACHILLES_SEMANTIC_CHECK_MODEL;
+    if (typeof envModel === 'string' && envModel.trim()) {
+        return { model: envModel.trim(), source: 'env' };
+    }
+    if (typeof configuredModel === 'string' && configuredModel.trim()) {
+        return { model: configuredModel.trim(), source: 'config' };
+    }
+    if (typeof benchmarkModel === 'string' && benchmarkModel.trim()) {
+        return { model: benchmarkModel.trim(), source: 'model-under-test' };
+    }
+    return { model: null, source: 'none' };
+}
+
+/**
  * Resolve default models from configuration or environment variables.
  * Priority:
  * 1. CONFIG.defaultModels (if explicitly set as array)
  * 2. ACHILLES_ENABLED_DEEP_MODELS env var (comma-separated list)
  * 3. null (test all available deep models)
- * 
+ *
  * @returns {string[]|null} List of model names to test, or null for all models
  */
 function resolveDefaultModels() {
@@ -283,10 +328,74 @@ async function loadTestCases(caseRange, difficulties = null) {
     return cases;
 }
 
+// ---------------------------------------------------------------------------
+// Tag-driven selection helpers
+//
+// The new Soul Gateway does NOT emit a `tier` field for direct models —
+// `descriptor.tier` silently falls back to 'deep' for every gateway model,
+// which is why this benchmark previously pulled in every discovered model
+// without actually filtering. Selection must therefore be driven off the
+// curated `_tags` set exposed by the gateway.
+//
+// Deep-pool rule:
+//   - Prefer models tagged `reasoning` or `long-context`.
+//   - Otherwise accept chat-capable models that are NOT explicitly tagged
+//     `fast` (they're presumed deep-class by elimination).
+//   - Legacy gateways without curated tags fall through to tier-based
+//     behavior (`descriptor.tier === 'deep'`).
+//
+// Chat benchmarks also drop obvious non-chat models (embeddings, retrieval,
+// moderated, search). Explicit --models requests bypass all of this.
+// ---------------------------------------------------------------------------
+
+const CHAT_ALLOW_TAGS = new Set([
+    'chat',
+    'tool-calling',
+    'reasoning',
+    'coding',
+    'instruction-following',
+    'multimodal',
+]);
+
+const CHAT_BLOCK_TAGS = new Set([
+    'embeddings',
+    'retrieval',
+    'moderated',
+    'search',
+]);
+
+function modelTags(descriptor) {
+    if (!descriptor || !Array.isArray(descriptor.tags)) return [];
+    return descriptor.tags
+        .filter(t => typeof t === 'string')
+        .map(t => t.toLowerCase());
+}
+
+function hasTag(descriptor, tag) {
+    const needle = String(tag).toLowerCase();
+    return modelTags(descriptor).includes(needle);
+}
+
+/**
+ * A model is "chat-capable" if it has at least one chat-oriented tag, OR
+ * if it has no curated tags at all (legacy gateways). It is NOT chat-capable
+ * only when its tags are exclusively non-chat markers like `embeddings` or
+ * `retrieval`. We lean toward "include on doubt" so that new unclassified
+ * tags don't silently drop models from the benchmark.
+ */
+function isChatCapableModel(descriptor) {
+    const tags = modelTags(descriptor);
+    if (tags.length === 0) return true;
+    if (tags.some(t => CHAT_ALLOW_TAGS.has(t))) return true;
+    if (tags.some(t => CHAT_BLOCK_TAGS.has(t))) return false;
+    return true;
+}
+
 /**
  * Get available deep models from configuration.
- * When no requestedModels are specified, filters to only deep-tier models.
- * 
+ * When no requestedModels are specified, filters to deep-class tagged models
+ * (or, for legacy gateways, tier === 'deep').
+ *
  * @param {Object} modelsConfig - The loaded models configuration
  * @param {string[]|null} requestedModels - Explicitly requested model names
  * @returns {Array} - Available deep models with API keys
@@ -312,7 +421,7 @@ function getAvailableModels(modelsConfig, requestedModels) {
 
         // Build qualified name for matching (provider/model)
         const qualifiedName = `${descriptor.providerKey}/${name}`;
-        
+
         // Filter by requested models if specified
         // Support both simple name and qualified name (provider/model)
         if (requestedModels) {
@@ -320,13 +429,25 @@ function getAvailableModels(modelsConfig, requestedModels) {
             const matchesQualified = requestedModels.includes(qualifiedName);
             if (!matchesSimple && !matchesQualified) continue;
         } else {
-            // When no models are explicitly requested, only include deep models
-            if (descriptor.tier !== 'deep') continue;
+            // Default selection: prefer curated tags when present, fall back
+            // to legacy `tier` for gateways that don't publish tags.
+            const tags = modelTags(descriptor);
+            if (tags.length > 0) {
+                const isReasoning = hasTag(descriptor, 'reasoning') || hasTag(descriptor, 'long-context');
+                const isFast = hasTag(descriptor, 'fast');
+                const chatCapable = isChatCapableModel(descriptor);
+                // Deep pool membership: explicit reasoning/long-context, OR
+                // chat-capable non-fast models (deep by elimination).
+                if (!(isReasoning || (chatCapable && !isFast))) continue;
+            } else {
+                // Legacy gateway with tier-only metadata.
+                if (descriptor.tier !== 'deep') continue;
+            }
         }
 
         // Use qualified name in output to support provider/model format
         const displayName = requestedModels?.includes(qualifiedName) ? qualifiedName : name;
-        
+
         available.push({
             name: displayName,
             provider: descriptor.providerKey,
@@ -376,7 +497,7 @@ function getPromptBuilder(useProductionPrompt) {
     }
 }
 
-async function testModel(agent, modelName, skillsDescription, testCase, skipSemantic, promptBuilder) {
+async function testModel(agent, modelName, skillsDescription, testCase, skipSemantic, promptBuilder, semanticCheckModel = null) {
     // Add a random nonce to bypass Soul Gateway prompt cache
     const nonce = `[bench-${Date.now()}-${Math.random().toString(36).slice(2, 8)}]`;
     const prompt = promptBuilder(skillsDescription, testCase.prompt) + `\n<!-- ${nonce} -->`;
@@ -430,10 +551,15 @@ async function testModel(agent, modelName, skillsDescription, testCase, skipSema
                 
                 // Semantic match check (enabled by default for deep models)
                 if (!skipSemantic) {
+                    // Thread the resolved semantic-check model through so the
+                    // LLM fallback inside checkSemanticMatch does NOT fall
+                    // back to a bare tier alias. When null, checkSemanticMatch
+                    // will use the model under test as last resort.
                     const isSemanticMatch = await checkSemanticMatch(
-                        agent, 
-                        testCase.expected[key], 
+                        agent,
+                        testCase.expected[key],
                         parsed[key],
+                        semanticCheckModel || modelName,
                     );
                     if (isSemanticMatch) {
                         semanticMatches++;
@@ -483,20 +609,29 @@ async function testModel(agent, modelName, skillsDescription, testCase, skipSema
     }
 }
 
-async function checkSemanticMatch(agent, expected, actual) {
+async function checkSemanticMatch(agent, expected, actual, semanticCheckModel = null) {
     if (!expected || !actual) return false;
-    
+
     const expectedLower = String(expected).toLowerCase();
     const actualLower = String(actual).toLowerCase();
-    
+
     // Quick exact match
     if (expectedLower === actualLower) return true;
-    
+
     // Simple substring check for common cases
     const expectedWords = expectedLower.split(/\s+/).filter(w => w.length > 2);
     const matchingWords = expectedWords.filter(w => actualLower.includes(w));
     if (matchingWords.length >= expectedWords.length * 0.7) {
         return true;
+    }
+
+    // If no concrete semantic-check model was resolved, refuse to fall back
+    // to a bare tier alias. Silently returning false would bias benchmark
+    // accuracy numbers, so we surface the gap by failing the check only
+    // when the caller did not provide a model — matching the fail-fast
+    // rule in CLAUDE.md for this repo.
+    if (!semanticCheckModel) {
+        return false;
     }
 
     // Use LLM for complex cases
@@ -509,7 +644,7 @@ Do they describe essentially the same action? Answer ONLY "YES" or "NO".`;
 
         const response = await agent.complete({
             prompt,
-            tier: 'fast',
+            model: semanticCheckModel,
             context: { intent: 'deep-benchmark-semantic-check' },
         });
 
@@ -694,11 +829,27 @@ async function main() {
         return;
     }
 
+    // Resolve the semantic-check model once, up front, so the entire run
+    // uses a single deterministic choice we can print in the header. We
+    // still recompute `semanticCheckModel || modelName` per-call inside
+    // testModel so the default remains "the model being benchmarked".
+    const semanticCheckResolution = resolveSemanticCheckModel({
+        configuredModel: CONFIG.semanticCheckModel,
+        benchmarkModel: null,
+    });
+
     console.log(`${COLORS.CYAN}Deep models to test:${COLORS.RESET} ${availableModels.length}`);
     availableModels.forEach(m => console.log(`  - ${m.name} (${m.provider}, tier: ${m.tier})`));
     console.log(`${COLORS.CYAN}Test cases:${COLORS.RESET} ${testCases.length}`);
     console.log(`${COLORS.CYAN}Runs per case:${COLORS.RESET} ${config.runs}`);
     console.log(`${COLORS.CYAN}Semantic matching:${COLORS.RESET} ${config.skipSemantic ? 'disabled' : 'enabled (default for deep models)'}`);
+    if (!config.skipSemantic) {
+        if (semanticCheckResolution.model) {
+            console.log(`${COLORS.CYAN}Semantic check model:${COLORS.RESET} ${semanticCheckResolution.model} (source: ${semanticCheckResolution.source})`);
+        } else {
+            console.log(`${COLORS.CYAN}Semantic check model:${COLORS.RESET} model-under-test (per-run)`);
+        }
+    }
     console.log(`${COLORS.CYAN}Prompt type:${COLORS.RESET} ${config.useProductionPrompt ? 'production (buildDetectIntentsPrompt)' : 'simple benchmark'}`);
     console.log(`${COLORS.CYAN}Model timeout:${COLORS.RESET} ${CONFIG.modelTimeout}ms`);
     console.log();
@@ -727,6 +878,7 @@ async function main() {
                     testCase,
                     config.skipSemantic,
                     promptBuilder,
+                    semanticCheckResolution.model,
                 );
 
                 allResults[modelInfo.name].push({
