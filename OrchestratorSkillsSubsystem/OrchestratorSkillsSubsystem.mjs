@@ -62,10 +62,10 @@ function buildLoopSystemPrompt(skillRecord) {
 }
 
 export class OrchestratorSkillsSubsystem {
-    constructor({ llmAgent = null, tierConfig = null, modelConfig = null } = {}) {
+    constructor({ llmAgent = null, modelConfig = null } = {}) {
         this.type = 'orchestrator';
         this.llmAgent = llmAgent;
-        this.tierConfig = modelConfig || tierConfig || { plan: 'plan', execution: 'fast', code: 'code' };
+        this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
 
@@ -157,8 +157,8 @@ export class OrchestratorSkillsSubsystem {
         const tools = {};
         // Forward context (sessionMemory, user, etc.) from the orchestrator's options
         const forwardedContext = options?.context || {};
-        // Use skillPlan tier for inner skill calls (falls back to execution tier)
-        const skillTier = this.tierConfig?.skillPlan || this.tierConfig?.execution || options?.mode || null;
+        // Use plan model for inner skill calls
+        const skillModel = this.modelConfig?.plan || options?.model || null;
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
@@ -175,7 +175,7 @@ export class OrchestratorSkillsSubsystem {
                     context: forwardedContext,
                     sessionMemory: forwardedContext.sessionMemory || null,
                 };
-                if (skillTier) execOptions.tier = skillTier;
+                if (skillModel) execOptions.model = skillModel;
                 const executionResult = await recursiveAgent.executePrompt(safePrompt, execOptions);
                 // Serialize non-string results so downstream tools receive valid text
                 const result = executionResult?.result;
@@ -273,7 +273,7 @@ export class OrchestratorSkillsSubsystem {
 
             const sessionOptions = {
                 systemPrompt: baseSystemPrompt,
-                tier: options?.tier || options?.mode || this.tierConfig.plan || 'plan',
+                model: options?.model || this.modelConfig.plan || 'plan',
                 maxStepsPerTurn: 20,
                 preparation,
             };
@@ -322,15 +322,15 @@ export class OrchestratorSkillsSubsystem {
 
         const sessionOptions = {
             systemPrompt: skillRecord.preparedConfig?.instructions || 'Plan and execute skills to satisfy the user request.',
-            tier: options?.tier || options?.mode || this.tierConfig.plan || 'plan',
+            model: options?.model || this.modelConfig.plan || 'plan',
             planOnly: false,
             commandsRegistry,
             preparation,
             planGeneratorOptions: {
-                llmMode: options?.planTier || this.tierConfig.plan || 'plan',
+                llmModel: options?.planModel || options?.model || this.modelConfig.plan || 'plan',
             },
             interpreterOptions: {
-                llmMode: options?.executionTier || this.tierConfig.execution || 'fast',
+                llmModel: options?.planModel || options?.model || this.modelConfig.plan || 'plan',
             },
         };
 

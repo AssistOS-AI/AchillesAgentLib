@@ -57,23 +57,24 @@ describe('envConfigLoader', () => {
     });
 
     describe('parseModelDefinition', () => {
-        it('should parse full model definition', () => {
+        it('should parse a legacy tier-prefixed model definition without storing tier', () => {
             const result = parseModelDefinition('myproxy/gpt-4-turbo|deep|5|15|128k');
             assert.strictEqual(result.provider, 'myproxy');
             assert.strictEqual(result.name, 'gpt-4-turbo');
-            assert.strictEqual(result.tier, 'deep');
+            assert.strictEqual(Object.hasOwn(result, 'tier'), false);
             assert.strictEqual(result.inputPrice, 5);
             assert.strictEqual(result.outputPrice, 15);
             assert.strictEqual(result.context, '128k');
         });
 
-        it('should parse minimal model definition', () => {
+        it('should parse a minimal legacy tier-prefixed model definition', () => {
             const result = parseModelDefinition('myproxy/gpt-4-turbo|fast');
             assert.strictEqual(result.provider, 'myproxy');
             assert.strictEqual(result.name, 'gpt-4-turbo');
-            assert.strictEqual(result.tier, 'fast');
+            assert.strictEqual(Object.hasOwn(result, 'tier'), false);
             assert.strictEqual(result.inputPrice, 0);
             assert.strictEqual(result.outputPrice, 0);
+            assert.strictEqual(result.context, 'N/A');
         });
 
         it('should return null for invalid format', () => {
@@ -81,17 +82,27 @@ describe('envConfigLoader', () => {
             assert.strictEqual(result, null);
         });
 
-        it('should parse tags from model definition', () => {
+        it('should parse tags from a legacy tier-prefixed model definition', () => {
             const result = parseModelDefinition('myproxy/gpt-4-turbo|deep|5|15|128k|coding,fast,agentic');
             assert.strictEqual(result.provider, 'myproxy');
             assert.strictEqual(result.name, 'gpt-4-turbo');
-            assert.strictEqual(result.tier, 'deep');
+            assert.strictEqual(Object.hasOwn(result, 'tier'), false);
             assert.deepStrictEqual(result.tags, ['coding', 'fast', 'agentic']);
         });
 
         it('should return empty tags when not specified', () => {
             const result = parseModelDefinition('myproxy/gpt-4-turbo|deep|5|15|128k');
             assert.deepStrictEqual(result.tags, []);
+        });
+
+        it('should parse the current tag-driven model definition format', () => {
+            const result = parseModelDefinition('myproxy/gpt-4-turbo|0.15|0.6|128k|coding,fast');
+            assert.strictEqual(result.provider, 'myproxy');
+            assert.strictEqual(result.name, 'gpt-4-turbo');
+            assert.strictEqual(result.inputPrice, 0.15);
+            assert.strictEqual(result.outputPrice, 0.6);
+            assert.strictEqual(result.context, '128k');
+            assert.deepStrictEqual(result.tags, ['coding', 'fast']);
         });
     });
 
@@ -147,16 +158,18 @@ describe('envConfigLoader', () => {
         it('should parse LLM_MODEL_* from env', () => {
             process.env.OPENAI_MYPROXY_URL = 'https://myproxy.example.com/v1/chat/completions';
             process.env.LLM_MODEL_01 = 'myproxy/gpt-4-turbo|deep|5|15|128k';
-            process.env.LLM_MODEL_02 = 'myproxy/gpt-4o-mini|fast|0.15|0.6|128k';
+            process.env.LLM_MODEL_02 = 'myproxy/gpt-4o-mini|0.15|0.6|128k|fast,cheap';
 
             const config = loadEnvConfig();
             
             assert.strictEqual(config.models.length, 2);
             assert.strictEqual(config.models[0].name, 'gpt-4-turbo');
             assert.strictEqual(config.models[0].provider, 'myproxy');
-            assert.strictEqual(config.models[0].tier, 'deep');
+            assert.strictEqual(Object.hasOwn(config.models[0], 'tier'), false);
+            assert.strictEqual(config.models[0].context, '128k');
             assert.strictEqual(config.models[1].name, 'gpt-4o-mini');
-            assert.strictEqual(config.models[1].tier, 'fast');
+            assert.strictEqual(config.models[1].inputPrice, 0.15);
+            assert.deepStrictEqual(config.models[1].tags, ['fast', 'cheap']);
         });
     });
 });

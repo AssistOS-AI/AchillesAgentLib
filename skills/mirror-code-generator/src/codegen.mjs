@@ -34,7 +34,7 @@ async function repairGeneratedFile(
     failures,
     llmAgent,
     intent,
-    { runnerCode } = {}
+    { runnerCode, llmModel } = {}
 ) {
     const prompt = buildRepairPrompt({
         targetPath,
@@ -46,7 +46,7 @@ async function repairGeneratedFile(
     });
 
     const response = await llmAgent.executePrompt(prompt, {
-        tier: 'code',
+        model: llmModel || 'code',
         responseShape: 'text',
         context: { intent },
         responseValidator: createCodeResponseValidator(),
@@ -75,19 +75,20 @@ async function repairGeneratedFile(
  * @param {object} [logger=console] - Logger instance.
  * @returns {Promise<{message: string, generatedFiles: string[]}>} Result describing generation status.
  */
-async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
+async function generateMirrorCode(sourcePath, llmAgent, logger = console, modelConfig = null) {
     const debugLogger = getDebugLogger();
     const execFileAsync = promisify(execFile);
     const specsDir = path.join(sourcePath, 'specs');
     const backupSpecsDir = path.join(specsDir, '.backup');
     const sourceName = path.basename(sourcePath);
+    const codeModel = modelConfig?.code || 'code';
 
     try {
         const sourceDirExists = await fs.stat(sourcePath).then(stat => stat.isDirectory()).catch(() => false);
         if (!sourceDirExists) {
             debugLogger?.log('generateMirrorCode:skip', { skill: sourceName, reason: 'Source directory not found.' });
             return {
-                message: `Skipped: source directory not found for "${sourceName}".`,
+                message: `Skipped: "${sourceName}" directory not found.`,
                 generatedFiles: [],
             };
         }
@@ -182,7 +183,7 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
             });
 
             const response = await llmAgent.executePrompt(prompt, {
-                tier: 'code',
+                model: codeModel,
                 responseShape: 'text',
                 context: { intent: 'generate-single-file-code-from-spec' },
                 responseValidator: createCodeResponseValidator(),
@@ -266,7 +267,8 @@ async function generateMirrorCode(sourcePath, llmAgent, logger = console) {
                     generatedCode,
                     repairFailures,
                     llmAgent,
-                    'repair-single-file-from-syntax-error'
+                    'repair-single-file-from-syntax-error',
+                    { llmModel: codeModel }
                 );
                 generatedFiles.set(targetPath, repairedCode);
                 await fs.writeFile(outputPath, repairedCode, 'utf-8');

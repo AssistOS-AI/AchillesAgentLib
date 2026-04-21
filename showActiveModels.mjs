@@ -2,13 +2,13 @@
 /**
  * Show Active Models
  * 
- * Displays the currently configured fast and deep models
+ * Displays the currently configured models
  * based on LLMConfig.json and .env overrides.
  * 
  * Usage: node showActiveModels.mjs
  */
 
-import { listModelsFromCache, listTiersFromCache, loadModelsConfiguration } from './utils/LLMClient.mjs';
+import { listModelsFromCache, loadModelsConfiguration } from './utils/LLMClient.mjs';
 
 const COLORS = {
     RESET: '\x1b[0m',
@@ -20,7 +20,7 @@ const COLORS = {
     BOLD: '\x1b[1m',
 };
 
-function printSection(title, models, defaultModel) {
+function printSection(title, models) {
     console.log(`\n${COLORS.BOLD}${COLORS.CYAN}=== ${title} ===${COLORS.RESET}`);
     
     if (models.length === 0) {
@@ -30,12 +30,10 @@ function printSection(title, models, defaultModel) {
 
     for (let i = 0; i < models.length; i++) {
         const model = models[i];
-        const isDefault = model.name === defaultModel;
         const isPriority = i === 0;
         
         let badge = '';
         if (isPriority) badge += `${COLORS.GREEN}[1st]${COLORS.RESET} `;
-        if (isDefault) badge += `${COLORS.YELLOW}[default]${COLORS.RESET} `;
         
         const hasKey = model.apiKeyEnv ? (process.env[model.apiKeyEnv] ? COLORS.GREEN + 'YES' : COLORS.RED + 'NO') : COLORS.GRAY + 'N/A';
         
@@ -57,52 +55,34 @@ async function main() {
     
     // Show env overrides
     console.log(`\n${COLORS.BOLD}Environment Overrides:${COLORS.RESET}`);
-    const envFast = process.env.ACHILLES_ENABLED_FAST_MODELS;
-    const envDeep = process.env.ACHILLES_ENABLED_DEEP_MODELS;
-    const envDefaultFast = process.env.ACHILLES_DEFAULT_FAST_MODEL;
-    const envDefaultDeep = process.env.ACHILLES_DEFAULT_DEEP_MODEL;
+    const envPlan = process.env.ACHILLES_MODEL_PLAN;
+    const envCode = process.env.ACHILLES_MODEL_CODE;
     
-    if (envFast) console.log(`  ACHILLES_ENABLED_FAST_MODELS: ${envFast}`);
-    if (envDeep) console.log(`  ACHILLES_ENABLED_DEEP_MODELS: ${envDeep}`);
-    if (envDefaultFast) console.log(`  ACHILLES_DEFAULT_FAST_MODEL: ${envDefaultFast}`);
-    if (envDefaultDeep) console.log(`  ACHILLES_DEFAULT_DEEP_MODEL: ${envDefaultDeep}`);
-    if (!envFast && !envDeep && !envDefaultFast && !envDefaultDeep) {
-        console.log(`  ${COLORS.GRAY}(none - using LLMConfig.json)${COLORS.RESET}`);
+    if (envPlan) console.log(`  ACHILLES_MODEL_PLAN: ${envPlan}`);
+    if (envCode) console.log(`  ACHILLES_MODEL_CODE: ${envCode}`);
+    if (!envPlan && !envCode) {
+        console.log(`  ${COLORS.GRAY}(none - using LLMConfig.json defaults)${COLORS.RESET}`);
     }
     
     // Show LLMConfig.json defaults
     console.log(`\n${COLORS.BOLD}LLMConfig.json Defaults:${COLORS.RESET}`);
-    console.log(`  defaultFastModel: ${config.defaultFastModel || '(not set)'}`);
-    console.log(`  defaultDeepModel: ${config.defaultDeepModel || '(not set)'}`);
-    
-    // Show active models by mode
-    printSection('FAST Models (tier: fast)', models.fast, config.defaultFastModel);
-    printSection('DEEP Models (tier: deep)', models.deep, config.defaultDeepModel);
-    
-    // Show tiers
-    const tiers = listTiersFromCache();
-    const tierNames = Object.keys(tiers);
-    if (tierNames.length > 0) {
-        console.log(`\n${COLORS.BOLD}${COLORS.CYAN}=== Model Tiers ===${COLORS.RESET}`);
-        for (const name of tierNames) {
-            const tierModels = tiers[name];
-            console.log(`  ${COLORS.BOLD}${name}${COLORS.RESET}: ${tierModels.length > 0 ? tierModels.join(' → ') : COLORS.GRAY + '(empty)' + COLORS.RESET}`);
-        }
+    const defaults = Array.from(config.defaults?.entries?.() || []);
+    if (!defaults.length) {
+        console.log(`  ${COLORS.GRAY}(no defaults configured)${COLORS.RESET}`);
+    } else {
+        defaults.forEach(([key, value]) => {
+            console.log(`  ${key}: ${value}`);
+        });
     }
-
+    
+    // Show active models
+    printSection('Models (priority order)', models.models);
+ 
     // Summary
     console.log(`\n${COLORS.BOLD}Summary:${COLORS.RESET}`);
-    console.log(`  Total fast models: ${models.fast.length}`);
-    console.log(`  Total deep models: ${models.deep.length}`);
-    if (tierNames.length > 0) {
-        console.log(`  Tiers: ${tierNames.join(', ')}`);
-    }
-
-    if (models.fast.length > 0) {
-        console.log(`  ${COLORS.GREEN}First fast model (will be used):${COLORS.RESET} ${models.fast[0].name}`);
-    }
-    if (models.deep.length > 0) {
-        console.log(`  ${COLORS.GREEN}First deep model (will be used):${COLORS.RESET} ${models.deep[0].name}`);
+    console.log(`  Total models: ${models.models.length}`);
+    if (models.models.length > 0) {
+        console.log(`  ${COLORS.GREEN}First model (will be used):${COLORS.RESET} ${models.models[0].name}`);
     }
 }
 

@@ -6,16 +6,21 @@ import {
 import { serializeContext } from './LLMAgentHelpers.mjs';
 import { logLLMInteraction } from '../utils/LLMLogger.mjs';
 
-// NOTE: These helpers encapsulate the legacy complete/doTask* behaviour so that
-// LLMAgent can delegate to them. This makes it easier to detect external
-// usage and eventually remove or replace them without touching the agent
-// core.
+function normalizeTagArray(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((entry) => String(entry || '').trim())
+        .filter(Boolean);
+}
+
+// NOTE: These helpers encapsulate complete/doTask* behaviour so that LLMAgent
+// can delegate to them without duplicating orchestration logic.
 async function extraComplete(agent, options = {}) {
     const {
         prompt,
         history = [],
-        tier = 'fast',
-        mode = null,
         model = null,
         tags = null,
         context = {},
@@ -71,7 +76,7 @@ ${prompt}`
     let llmAction = null;
     if (actionReporter) {
         const purpose = context?.intent || 'Processing';
-        const modelName = model || tier || 'auto';
+        const modelName = model || process.env.ACHILLES_MODEL_PLAN || 'plan';
         llmAction = actionReporter.llmCall(modelName, purpose);
     }
 
@@ -80,7 +85,6 @@ ${prompt}`
         const conversation = Array.isArray(history) ? history.slice() : [];
         emit({
             phase: 'request',
-            tier,
             model,
             prompt,
             history: conversation,
@@ -90,9 +94,7 @@ ${prompt}`
         const response = await agent.invokerStrategy({
             prompt,
             history: conversation,
-            tier,
-            mode,
-            model,
+            model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
             tags,
             agent,
             context,
@@ -132,13 +134,23 @@ ${prompt}`
             || agent.invokerStrategy?.getLastInvocationDetails?.()?.model
             || model
             || 'auto';
-        const loggedMode = responseMetadata?.tier || tier;
+        const lastInvocation = agent.invokerStrategy?.getLastInvocationDetails?.() || null;
+        const loggedRequestedTags = normalizeTagArray(
+            responseMetadata?.requestedTags
+            || lastInvocation?.requestedTags
+            || tags
+        );
+        const loggedMatchedTags = normalizeTagArray(
+            responseMetadata?.matchedTags
+            || lastInvocation?.matchedTags
+        );
         const callDurationMs = Date.now() - startedAt;
         logLLMInteraction({
             prompt: loggedPrompt,
             response: finalResponse,
             model: loggedModel,
-            tier: loggedMode,
+            requestedTags: loggedRequestedTags,
+            matchedTags: loggedMatchedTags,
             durationMs: callDurationMs,
         });
 
@@ -148,7 +160,8 @@ ${prompt}`
                 inputChars: inputCharacters,
                 outputChars: outputCharacters,
                 model: loggedModel,
-                tier: loggedMode,
+                requestedTags: loggedRequestedTags,
+                matchedTags: loggedMatchedTags,
                 durationMs: callDurationMs,
                 intent: context?.intent || null,
             });
@@ -180,12 +193,14 @@ ${prompt}`
         }
         const lastInvocation = agent.invokerStrategy?.getLastInvocationDetails?.() || null;
         const loggedModel = lastInvocation?.model || responseMetadata?.model || model || 'auto';
-        const loggedMode = lastInvocation?.tier || responseMetadata?.tier || tier;
+        const loggedRequestedTags = normalizeTagArray(lastInvocation?.requestedTags || tags);
+        const loggedMatchedTags = normalizeTagArray(lastInvocation?.matchedTags);
         logLLMInteraction({
             prompt: loggedPrompt,
             response: error?.message || '',
             model: loggedModel,
-            tier: loggedMode,
+            requestedTags: loggedRequestedTags,
+            matchedTags: loggedMatchedTags,
             durationMs: Date.now() - startedAt,
         });
         throw error;
@@ -194,8 +209,6 @@ ${prompt}`
 
 async function extraDoTask(agent, agentContext, description, options = {}) {
     const {
-        tier = 'fast',
-        mode = null,
         model = null,
         tags = null,
         outputSchema = null,
@@ -210,19 +223,15 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
 
     return agent.complete({
         prompt,
-        tier,
-        mode,
-        model,
+        model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
         tags,
-        context: { intent: 'task-execution' },
+        context: { intent: 'task-run' },
         ...rest,
     });
 }
 
 async function extraDoTaskWithReview(agent, agentContext, description, options = {}) {
     const {
-        tier = 'plan',
-        mode = null,
         maxIterations = 3,
         model = null,
         tags = null,
@@ -237,9 +246,7 @@ async function extraDoTaskWithReview(agent, agentContext, description, options =
 
     return agent.complete({
         prompt,
-        tier,
-        mode,
-        model,
+        model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
         tags,
         context: { intent: 'task-review', maxIterations },
         ...rest,

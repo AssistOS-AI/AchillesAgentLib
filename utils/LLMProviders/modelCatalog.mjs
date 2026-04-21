@@ -50,14 +50,12 @@ function createAgentModelRecord(providerConfig, modelDescriptor) {
 
     const apiKeyEnv = modelDescriptor.apiKeyEnv || providerConfig.apiKeyEnv || null;
     const baseURL = modelDescriptor.baseURL || providerConfig.baseURL || null;
-    const tier = modelDescriptor.tier || modelDescriptor.mode || 'fast';
 
     return {
         name: modelDescriptor.name,
         providerKey: modelDescriptor.providerKey,
         apiKeyEnv,
         baseURL,
-        tier,
     };
 }
 
@@ -67,29 +65,23 @@ function cloneAgentModelRecord(record) {
         providerKey: record.providerKey,
         apiKeyEnv: record.apiKeyEnv,
         baseURL: record.baseURL,
-        tier: record.tier || 'fast',
     };
-}
-
-function normalizeModePreference(value) {
-    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
-    return normalized === 'deep' || normalized === 'fast' ? normalized : null;
 }
 
 function normalizeInvocationRequest(input) {
     if (typeof input === 'string') {
-        return { tier: normalizeModePreference(input), modelName: null };
+        const normalized = input.trim();
+        return { modelName: normalized || null };
     }
 
     if (!input || typeof input !== 'object') {
-        return { tier: null, modelName: null };
+        return { modelName: null };
     }
 
-    const tier = normalizeModePreference(input.tier || input.mode || input.preferredMode || input.modePreference);
     const modelRaw = input.modelName || input.model || input.preferredModel;
     const modelName = typeof modelRaw === 'string' && modelRaw.trim() ? modelRaw.trim() : null;
 
-    return { tier, modelName };
+    return { modelName };
 }
 
 function getOrderedModelNames() {
@@ -100,20 +92,7 @@ function getOrderedModelNames() {
 }
 
 function categorizeModelsByMode(modelNames) {
-    const fast = [];
-    const deep = [];
-    for (const name of modelNames) {
-        const descriptor = getModelDescriptor(name);
-        if (!descriptor) {
-            continue;
-        }
-        if (descriptor.tier === 'deep') {
-            deep.push(name);
-        } else {
-            fast.push(name);
-        }
-    }
-    return { fast, deep };
+    return { models: normalizeModelNameList(modelNames) };
 }
 
 function buildModelRecordByName(modelName) {
@@ -175,7 +154,6 @@ export {
     getOrderedModelNames,
     getProviderConfig,
     normalizeInvocationRequest,
-    normalizeModePreference,
     normalizeModelNameList,
     resetModelCatalogForTests,
 };

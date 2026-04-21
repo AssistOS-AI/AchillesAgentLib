@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownDataStore Authoring · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"MarkdownDataStore","href":"md-datastore.html"},
+            {"label":"Authoring"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="MarkdownDataStore chapter navigation">
+                <p class="doc-sidebar__title">MarkdownDataStore</p>
+                <nav>
+                    <a href="md-datastore.html">Overview</a>
+                    <a href="md-datastore-authoring.html" aria-current="page">Authoring</a>
+                    <a href="md-datastore-runtime.html">Runtime</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Authoring with MarkdownDataStore</h1>
+                    <p>This chapter describes how callers should structure files and sections so they match the datastore conventions.</p>
+                </section>
+
+                <section>
+                    <h2>File and Type Conventions</h2>
+                    <p>All operations are relative to the configured <code>dataDir</code>. When <code>type</code> is provided, files are read from <code>dataDir/type</code>; otherwise they are read directly from <code>dataDir</code>. File names are provided without <code>.md</code>.</p>
+                </section>
+
+                <section>
+                    <h2>Section Conventions</h2>
+                    <p>Sections are persisted in the canonical numbered heading form <code>### N. Name</code>. Callers should use stable section names and avoid duplicating semantic aliases, because section-name matching is case-insensitive but normalized to one canonical section entry.</p>
+                    <p>When a section is written without meaningful text, the datastore persists <code>*None*</code>.</p>
+                </section>
+
+                <section>
+                    <h2>Recommended Write Patterns</h2>
+                    <p>Use <code>replaceFile</code> for complete section rewrites, <code>updateFile</code> for targeted section upserts, and <code>appendToFile</code> when extending existing section content incrementally.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

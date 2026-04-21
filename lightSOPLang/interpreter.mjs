@@ -125,9 +125,9 @@ export class LightSOPLangInterpreter {
         this.commandsRegistry = this._createMergedRegistry(this._externalRegistry);
         this.onFail = ensureOnFail(onFail ?? options.onFail);
         this.llmAgent = options.llmAgent ?? null;
-        this.llmMode = typeof options.llmMode === 'string'
-            ? options.llmMode
-            : (typeof options.tier === 'string' ? options.tier : typeof options.mode === 'string' ? options.mode : null);
+        this.llmModel = typeof options.llmModel === 'string'
+            ? options.llmModel
+            : (typeof options.model === 'string' ? options.model : null);
         this.maxLlmaRounds = Number.isFinite(options.maxLlmaRounds) ? options.maxLlmaRounds : 5;
         this.executionMonitor = ensureExecutionMonitor(options.executionMonitor ?? new DefaultExecutionMonitor());
         const registryHeuristic = typeof this.commandsRegistry.cancelHeuristic === 'function'
@@ -938,8 +938,8 @@ export class LightSOPLangInterpreter {
         const prompt = this._buildLlmaPrompt(request);
         this.executionMonitor.beforeRegenerateScript({ prompt, request });
 
-        const llmMode = this.llmMode ? this.llmMode : "code";
-        const generated = await this.llmAgent.executePrompt(prompt, { mode: llmMode });
+        const llmModel = this.llmModel ? this.llmModel : 'code';
+        const generated = await this.llmAgent.executePrompt(prompt, { model: llmModel });
         if (typeof generated !== 'string' || !generated.trim()) {
             throw new Error('LLMAgent returned empty code');
         }

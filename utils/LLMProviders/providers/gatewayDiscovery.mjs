@@ -195,21 +195,23 @@ export async function discoverModels(providerConfig) {
 
         const models = rawModels
             .filter(m => m.id)
-            .map(m => {
+            .map((m) => {
                 const meta = normalizeGatewayModelMetadata(m);
+                const tier = typeof m.tier === 'string' && m.tier.trim()
+                    ? m.tier.trim()
+                    : typeof m.mode === 'string' && m.mode.trim()
+                        ? m.mode.trim()
+                        : null;
+
                 return {
                     name: m.id,
                     providerKey,
-                    // Tier is kept for backward compatibility with older
-                    // gateways that advertised it. The new Soul Gateway does
-                    // NOT emit tier — downstream callers that want fast/deep
-                    // classification should drive off `tags` instead.
-                    tier: m.tier || m.mode || 'deep',
+                    // Preserve an explicit legacy tier if the gateway still
+                    // emits one, but never guess a default for v2 payloads.
+                    ...(tier ? { tier } : {}),
                     tags: meta.tags,
                     inputPrice: meta.pricing.inputPricePerMillion ?? 0,
                     outputPrice: meta.pricing.outputPricePerMillion ?? 0,
-                    // Rich fields added for new-gateway consumers that want
-                    // to reason about context / pricing without re-parsing.
                     pricing: meta.pricing,
                     context: meta.contextWindow,
                     maxOutputTokens: meta.maxOutputTokens,

@@ -14,12 +14,12 @@
  *   ANTHROPIC_<PROVIDER>_KEY_ENV=<env_var> - Env var name containing key
  * 
  * Model format:
- *   LLM_MODEL_<NN>=<provider>/<model>|<tier>|<inputPrice>|<outputPrice>|<context>
+ *   LLM_MODEL_<NN>=<provider>/<model>|<inputPrice>|<outputPrice>|<context>|<tags>
  *   
  *   Examples:
- *   LLM_MODEL_01=myproxy/gpt-4-turbo|deep|5|15|128k
- *   LLM_MODEL_02=bedrock/claude-3-sonnet|fast|3|15|200k
- *   LLM_MODEL_03=myproxy/gpt-4o-mini|fast   (prices and context optional)
+ *   LLM_MODEL_01=myproxy/gpt-4-turbo|5|15|128k
+ *   LLM_MODEL_02=bedrock/claude-3-sonnet|3|15|200k
+ *   LLM_MODEL_03=myproxy/gpt-4o-mini (prices and context optional)
  * 
  * The provider/model format allows disambiguation when the same model name
  * exists across multiple providers.
@@ -42,7 +42,7 @@ const KIRO_MODULE = './utils/LLMProviders/providers/kiro.mjs';
 
 /**
  * Parse a model definition string.
- * Format: provider/model|tier|inputPrice|outputPrice|context
+ * Format: provider/model|inputPrice|outputPrice|context|tags
  * 
  * @param {string} value - The model definition string
  * @returns {object|null} Parsed model object or null if invalid
@@ -71,18 +71,18 @@ function parseModelDefinition(value) {
         return null;
     }
 
-    const tier = parts[1]?.toLowerCase() || 'fast';
-    const inputPrice = parts[2] ? parseFloat(parts[2]) : 0;
-    const outputPrice = parts[3] ? parseFloat(parts[3]) : 0;
-    const context = parts[4] || 'N/A';
-    const rawTags = parts[5] || '';
+    const maybeTier = parts[1]?.toLowerCase() || '';
+    const offset = (maybeTier === 'fast' || maybeTier === 'deep') ? 2 : 1;
+    const inputPrice = parts[offset] ? parseFloat(parts[offset]) : 0;
+    const outputPrice = parts[offset + 1] ? parseFloat(parts[offset + 1]) : 0;
+    const context = parts[offset + 2] || 'N/A';
+    const rawTags = parts[offset + 3] || '';
     const tags = rawTags ? rawTags.split(',').map(t => t.trim()).filter(Boolean) : [];
 
     return {
         name: modelName,
         provider,
         providerKey: provider,
-        tier: tier === 'deep' ? 'deep' : 'fast',
         tags,
         inputPrice: isNaN(inputPrice) ? 0 : inputPrice,
         outputPrice: isNaN(outputPrice) ? 0 : outputPrice,
@@ -293,7 +293,7 @@ function resolveSoulGatewayBaseURL() {
 
 /**
  * Extract model definitions from environment variables.
- * Looks for patterns like LLM_MODEL_<NN>=provider/model|tier|...
+ * Looks for patterns like LLM_MODEL_<NN>=provider/model|...
  * 
  * @returns {Array<object>} Array of model definitions in order
  */

@@ -31,11 +31,11 @@ export class SkillSelector {
      * @param {Object} [options.logger] - Logger instance (defaults to console)
      * @param {Object} [options.debugLogger] - Debug logger instance
      */
-    constructor({ llmAgent = null, logger = console, debugLogger = null, tierConfig = null, modelConfig = null } = {}) {
+    constructor({ llmAgent = null, logger = console, debugLogger = null, modelConfig = null } = {}) {
         this.llmAgent = llmAgent;
         this.logger = logger;
         this.debugLogger = debugLogger;
-        this.tierConfig = modelConfig || tierConfig;
+        this.modelConfig = modelConfig;
     }
 
     /**
@@ -222,7 +222,7 @@ export class SkillSelector {
 
         try {
             const response = await this.llmAgent.executePrompt(prompt.join('\n'), {
-                tier: this.tierConfig?.execution || 'fast',
+                model: this.modelConfig?.plan || 'plan',
                 context: { intent: 'recursive-skill-selection' },
             });
 
