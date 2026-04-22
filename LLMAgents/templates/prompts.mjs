@@ -207,7 +207,6 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         lines.push(`If the user's response is a confirmation (yes, ok, proceed, etc.) or cancellation (no, cancel, etc.), route it back to "${pendingTool}".`);
     }
     lines.push('');
-    lines.push(`Current user instruction: ${userPrompt}`);
     if (mentionedTools.length) {
         lines.push('');
         lines.push('Tools explicitly mentioned in the current instruction:');

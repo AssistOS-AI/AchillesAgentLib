@@ -61,6 +61,24 @@ function buildLoopSystemPrompt(skillRecord) {
     return lines.join('\n');
 }
 
+function buildContextualSystemPrompt(basePrompt, context) {
+    if (!context || typeof context !== 'object') return basePrompt;
+
+    const INTERNAL_KEYS = new Set(['sessionMemory', 'io']);
+
+    const entries = Object.entries(context)
+        .filter(([key]) => !INTERNAL_KEYS.has(key));
+
+    if (!entries.length) return basePrompt;
+
+    const contextLines = entries.map(([key, value]) => {
+        const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+        return `${key}: ${text}`;
+    });
+
+    return `${basePrompt}\n\nAdditional session context:\n${contextLines.join('\n\n')}`;
+}
+
 export class OrchestratorSkillsSubsystem {
     constructor({ llmAgent = null, modelConfig = null } = {}) {
         this.type = 'orchestrator';
@@ -270,9 +288,10 @@ export class OrchestratorSkillsSubsystem {
         } else {
             // Create new session
             const baseSystemPrompt = buildLoopSystemPrompt(skillRecord);
+            const contextualSystemPrompt = buildContextualSystemPrompt(baseSystemPrompt, options?.context);
 
             const sessionOptions = {
-                systemPrompt: baseSystemPrompt,
+                systemPrompt: contextualSystemPrompt,
                 model: options?.model || this.modelConfig.plan || 'plan',
                 maxStepsPerTurn: 20,
                 preparation,
@@ -320,8 +339,11 @@ export class OrchestratorSkillsSubsystem {
             }
             : null;
 
+        const baseSystemPrompt = skillRecord.preparedConfig?.instructions || 'Plan and execute skills to satisfy the user request.';
+        const contextualSystemPrompt = buildContextualSystemPrompt(baseSystemPrompt, options?.context);
+
         const sessionOptions = {
-            systemPrompt: skillRecord.preparedConfig?.instructions || 'Plan and execute skills to satisfy the user request.',
+            systemPrompt: contextualSystemPrompt,
             model: options?.model || this.modelConfig.plan || 'plan',
             planOnly: false,
             commandsRegistry,
