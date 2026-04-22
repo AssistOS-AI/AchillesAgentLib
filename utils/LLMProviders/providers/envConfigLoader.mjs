@@ -267,19 +267,26 @@ function addDirectProvider(providers, { providerKey, apiType, envNames, baseURL 
         return;
     }
 
-    providers.set(providerKey, {
+    const providerRecord = {
         name: providerKey,
         providerKey,
-        baseURL,
         apiKeyEnv: envName,
         module: resolveModuleForApiType(apiType),
         apiType,
         fromEnv: true,
-    });
+    };
+    if (typeof baseURL === 'string' && baseURL.trim()) {
+        providerRecord.baseURL = baseURL;
+    }
+
+    providers.set(providerKey, providerRecord);
 }
 
 function resolveSoulGatewayBaseURL() {
-    const raw = process.env.SOUL_GATEWAY_BASE_URL || process.env.SOUL_GATEWAY_URL || 'http://localhost:3000';
+    const raw = process.env.SOUL_GATEWAY_BASE_URL || process.env.SOUL_GATEWAY_URL;
+    if (!raw || !String(raw).trim()) {
+        return null;
+    }
     const trimmed = raw.replace(/\/+$/, '');
 
     if (trimmed.endsWith('/chat/completions')) {

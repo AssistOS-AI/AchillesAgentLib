@@ -48,7 +48,8 @@ describe('Config Merging: .env and LLMConfig.json', () => {
         for (const key of Object.keys(process.env)) {
             if (key.startsWith('OPENAI_TEST') || 
                 key.startsWith('ANTHROPIC_TEST') || 
-                key.startsWith('LLM_MODEL_TEST')) {
+                key.startsWith('LLM_MODEL_TEST') ||
+                key.startsWith('SOUL_GATEWAY')) {
                 delete process.env[key];
             }
         }
@@ -126,6 +127,45 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             
             const model = config.models.get(resolved);
             assert.strictEqual(model.providerKey, 'customproxy', 'Should be the env-defined provider');
+        });
+
+        it('should keep the JSON soul_gateway baseURL when only the API key is set', async () => {
+            const originalFetch = global.fetch;
+            global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
+            setEnvVar('SOUL_GATEWAY_API_KEY', 'sk-test-soul-key');
+
+            try {
+                const config = await loadModelsConfiguration();
+                const provider = config.providers.get('soul_gateway');
+                assert.ok(provider, 'soul_gateway provider should exist');
+                assert.strictEqual(
+                    provider.baseURL,
+                    'https://soul.axiologic.dev/v1/chat/completions',
+                    'JSON soul_gateway baseURL should remain the default when no env baseURL is set'
+                );
+            } finally {
+                global.fetch = originalFetch;
+            }
+        });
+
+        it('should use an explicit SOUL_GATEWAY_BASE_URL override when provided', async () => {
+            const originalFetch = global.fetch;
+            global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
+            setEnvVar('SOUL_GATEWAY_API_KEY', 'sk-test-soul-key');
+            setEnvVar('SOUL_GATEWAY_BASE_URL', 'https://custom-soul.example.com');
+
+            try {
+                const config = await loadModelsConfiguration();
+                const provider = config.providers.get('soul_gateway');
+                assert.ok(provider, 'soul_gateway provider should exist');
+                assert.strictEqual(
+                    provider.baseURL,
+                    'https://custom-soul.example.com/v1/chat/completions',
+                    'Explicit Soul Gateway env URL should override the JSON default'
+                );
+            } finally {
+                global.fetch = originalFetch;
+            }
         });
     });
 
