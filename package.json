@@ -16,6 +16,8 @@
         "./BacklogManager/backlogIO.mjs": "./BacklogManager/backlogIO.mjs",
         "./BacklogManager/backlogDomain.mjs": "./BacklogManager/backlogDomain.mjs",
         "./utils/*": "./utils/*",
+        "./jwt": "./jwt/index.mjs",
+        "./jwt/*": "./jwt/*",
         "./package.json": "./package.json"
     },
     "scripts": {
