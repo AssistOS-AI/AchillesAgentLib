@@ -121,12 +121,14 @@ export function verifyJws(token, {
 export function verifyInvocationToken(token, {
     secret,
     expectedAudience,
+    expectedIssuer = 'ploinky-router',
+    expectedTool,
     bodyObject,
     replayCache,
     clockSkewSeconds,
     maxTtlSeconds
 }) {
-    return verifyJws(token, {
+    const result = verifyJws(token, {
         secret,
         expectedAudience,
         bodyObject,
@@ -134,6 +136,16 @@ export function verifyInvocationToken(token, {
         clockSkewSeconds,
         maxTtlSeconds
     });
+    if (result.payload?.typ !== 'invocation') {
+        throw new Error('jwtVerify: token type is not invocation');
+    }
+    if (expectedIssuer && result.payload?.iss !== expectedIssuer) {
+        throw new Error(`jwtVerify: issuer mismatch (want ${expectedIssuer}, got ${result.payload?.iss})`);
+    }
+    if (expectedTool && String(result.payload?.tool || '') !== String(expectedTool)) {
+        throw new Error(`jwtVerify: tool mismatch (want ${expectedTool}, got ${result.payload?.tool})`);
+    }
+    return result;
 }
 
 export function createMemoryReplayCache({ maxSize = 2048 } = {}) {
