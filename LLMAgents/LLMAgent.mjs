@@ -2,9 +2,8 @@ import {
     extractKeyValuePairs,
     extractIdeaList,
     classifyIntent,
-    responseToJSON,
 } from './markdown.mjs';
-import { defaultLLMInvokerStrategy, cancelRequests } from '../utils/LLMClient.mjs';
+import { defaultLLMInvokerStrategy, cancelRequests, modelsConfiguration } from '../utils/LLMClient.mjs';
 import {
     buildInterpretMessagePrompt,
     buildDetectIntentsPrompt,
@@ -21,11 +20,32 @@ import {
 
 const DEFAULT_AGENT_NAME = 'DefaultLLMAgent';
 
+/**
+ * LLMAgent — the mediation layer between high-level agents and LLM providers.
+ *
+ * All LLM calls converge through `complete()`, which delegates to `extraComplete()`.
+ * Interpretation methods (`interpretMessage`, `resolveConfirmation`, `detectIntents`)
+ * and execution methods (`executePrompt`) all route through this hub.
+ *
+ * Traffic counters (_inputCounter, _outputCounter) are updated automatically
+ * inside extraComplete() for performance metrics used by the evals suite.
+ */
 class LLMAgent {
+    /**
+     * Create a new LLMAgent.
+     *
+     * @param {Object} options
+     * @param {string} [options.name='DefaultLLMAgent'] - Agent identifier
+     * @param {Function} [options.invokerStrategy] - Function that makes the actual LLM call.
+     *   Defaults to `defaultLLMInvokerStrategy` from LLMClient.
+     * @param {Object} [options.modelConfig] - Maps semantic tags to model names.
+     *   Defaults are loaded from LLMConfig.json `defaults` key.
+     */
     constructor(options = {}) {
         const {
             name = DEFAULT_AGENT_NAME,
             invokerStrategy = null,
+            modelConfig = null,
         } = options;
 
         if (!name || typeof name !== 'string') {
@@ -39,84 +59,74 @@ class LLMAgent {
 
         this.name = name;
         this.invokerStrategy = resolvedStrategy;
-        this._debugEnabled = false;
-        this._debugLogger = null;
-        this._debugCounter = 0;
+        this.modelConfig = modelConfig || this._buildDefaultModelConfig();
         this._inputCounter = 0;
         this._outputCounter = 0;
-        this._callLog = []; // Per-call tracking: { inputChars, outputChars, model, requestedTags, matchedTags, durationMs, context }
-        this._actionReporter = null;
-        this._inputReader = null;
-        this._outputWriter = null;
+        this._callLog = [];
     }
 
     /**
-     * Set an ActionReporter for real-time feedback
-     * @param {ActionReporter} reporter - The reporter instance
+     * Build default modelConfig from LLMConfig.json `defaults`.
+     * Returns an empty object if no defaults are configured.
      */
-    setActionReporter(reporter) {
-        this._actionReporter = reporter;
+    _buildDefaultModelConfig() {
+        const config = {};
+        if (modelsConfiguration?.defaults) {
+            for (const [tag, modelRef] of modelsConfiguration.defaults) {
+                config[tag] = modelRef;
+            }
+        }
+        return config;
     }
 
     /**
-     * Get the current ActionReporter
-     * @returns {ActionReporter|null}
+     * Resolve a semantic tag to a concrete model name.
+     *
+     * Looks up the tag in modelConfig. If found, returns the mapped model.
+     * If not found, returns the tag itself (normalized to lowercase, trimmed).
+     * Returns null for non-string or empty input.
+     *
+     * @param {string} tag - Semantic tag like 'thinking', 'fast', 'code'
+     * @returns {string|null} Model name or the tag itself as fallback
      */
-    getActionReporter() {
-        return this._actionReporter;
+    getModelByTag(tag) {
+        if (!tag || typeof tag !== 'string') {
+            return null;
+        }
+        const normalized = tag.trim().toLowerCase();
+        return this.modelConfig[normalized] || normalized;
     }
 
     /**
-     * Set an InputReader for reading user input.
-     * InputReader should have: { read: async (prompt?) => string }
-     * @param {object} reader - The input reader instance
+     * Replace the current modelConfig entirely.
+     * Pass null to reset to defaults from LLMConfig.json.
+     *
+     * @param {Object|null} modelConfig - New tag-to-model mapping
      */
-    setInputReader(reader) {
-        this._inputReader = reader;
+    setModelConfig(modelConfig) {
+        this.modelConfig = modelConfig || this._buildDefaultModelConfig();
     }
 
     /**
-     * Get the current InputReader
-     * @returns {object|null} InputReader with read() method
+     * Classify a short user message into a bounded operational signal.
+     *
+     * Determines whether the user wants to accept, cancel, update, or
+     * something else. Uses heuristic matching first (fast), falls back
+     * to LLM classification for ambiguous input.
+     *
+     * Used by AgenticSession and SOPAgenticSession when a tool is awaiting
+     * user input — decides whether to continue the pending tool or start
+     * a fresh instruction.
+     *
+     * @param {string} message - The user's reply
+     * @param {Object} options
+     * @param {string[]} [options.intents=['accept','cancel','update']] - Allowed intents
+     * @param {string|null} [options.instructions] - Extra guidance for LLM fallback
+     * @param {string|null} [options.model] - Override model for LLM fallback
+     * @returns {Object} { intent, confidence, updates?, ideas?, raw }
      */
-    get inputReader() {
-        return this._inputReader;
-    }
-
-    /**
-     * Set an OutputWriter for writing output to the user.
-     * OutputWriter should have: { write: async (message) => void }
-     * @param {object} writer - The output writer instance
-     */
-    setOutputWriter(writer) {
-        this._outputWriter = writer;
-    }
-
-    /**
-     * Get the current OutputWriter
-     * @returns {object|null} OutputWriter with write() method
-     */
-    get outputWriter() {
-        return this._outputWriter;
-    }
-
-    parseMarkdownKeyValues(markdown) {
-        return extractKeyValuePairs(markdown);
-    }
-
-    parseMarkdownIdeas(markdown) {
-        return extractIdeaList(markdown);
-    }
-
-    classifyMessage(message, options = {}) {
-        return classifyIntent(message, options);
-    }
-
-    responseToJSON(markdown) {
-        return responseToJSON(markdown);
-    }
-
-    async interpretMessage(message, { intents = ['accept', 'cancel', 'update'], instructions = null } = {}) {
+    async interpretMessage(message, { intents = ['accept', 'cancel', 'update'], instructions = null, model = null } = {}) {
+        // Stage 1: fast heuristic matching
         const heuristic = classifyIntent(message, { intents });
         if (heuristic.intent !== 'unknown' && (!intents.length || intents.includes(heuristic.intent))) {
             const hasMeaningfulUpdates = heuristic.updates && Object.keys(heuristic.updates).length;
@@ -125,12 +135,13 @@ class LLMAgent {
             }
         }
 
+        // Stage 2: LLM fallback for ambiguous input
         const prompt = buildInterpretMessagePrompt(intents, instructions);
 
         const raw = await this.complete({
             prompt,
             history: [{ role: 'user', message }],
-            model: process.env.ACHILLES_MODEL_PLAN || 'plan',
+            model: model || this.getModelByTag('thinking'),
             context: { intent: 'classify-message', expectedIntents: intents },
         });
 
@@ -164,6 +175,21 @@ class LLMAgent {
         };
     }
 
+    /**
+     * Determine if user input means yes, no, or is unclear.
+     *
+     * Uses pattern matching for common responses (yes/y/ok/sure, no/n/cancel),
+     * falls back to LLM for ambiguous cases (maybe/I think so).
+     *
+     * Used by ConfirmationUtils, which is called by DBTableSkills flow handlers
+     * when confirming create/update/delete operations with the user.
+     *
+     * @param {string} userInput - The user's reply
+     * @param {Object} options
+     * @param {string|null} [options.actionContext] - Context for LLM fallback prompt
+     * @param {string|null} [options.model] - Override model for LLM fallback
+     * @returns {Object} { decision: 'yes'|'no'|'unclear', confidence: number }
+     */
     async resolveConfirmation(userInput, { actionContext = null, model = null } = {}) {
         if (!userInput || typeof userInput !== 'string') {
             return { decision: 'unclear', confidence: 0 };
@@ -174,7 +200,7 @@ class LLMAgent {
             return { decision: 'unclear', confidence: 0 };
         }
 
-        // Fast path: check common explicit responses first
+        // Fast path: pattern matching for common explicit responses
         const yesPatterns = ['yes', 'y', 'ok', 'sure', 'confirm', 'accept', 'proceed'];
         const noPatterns = ['no', 'n', 'cancel', 'stop', 'abort', 'reject'];
 
@@ -185,13 +211,13 @@ class LLMAgent {
             return { decision: 'no', confidence: 1.0 };
         }
 
-        // Use LLM for ambiguous input
+        // LLM fallback for ambiguous input
         const prompt = buildResolveConfirmationPrompt(userInput, actionContext);
 
         try {
             const response = await this.complete({
                 prompt,
-                model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
+                model: model || this.getModelByTag('thinking'),
                 context: { intent: 'resolve-confirmation' },
             });
 
@@ -213,86 +239,104 @@ class LLMAgent {
         return { decision: 'unclear', confidence: 0 };
     }
 
-    setDebugLogger(logger) {
-        this._debugLogger = typeof logger === 'function' ? logger : null;
-    }
-
-    setDebugEnabled(enabled) {
-        this._debugEnabled = Boolean(enabled);
-    }
-
-    _emitDebugEvent(event) {
-        if (!this._debugEnabled || typeof this._debugLogger !== 'function') {
-            return;
-        }
-        try {
-            this._debugLogger(event);
-        } catch {
-            // Avoid cascading failures from debug hooks
-        }
-    }
-
-    _nextDebugRequestId() {
-        this._debugCounter += 1;
-        return `llm-${this._debugCounter}`;
-    }
-
-    getSupportedModels() {
-        if (this.invokerStrategy && typeof this.invokerStrategy.getSupportedModels === 'function') {
-            const models = this.invokerStrategy.getSupportedModels();
-            if (Array.isArray(models) && models.length) {
-                return models;
-            }
-        }
-        return [];
-    }
-
+    /**
+     * Get total input characters sent across all LLM calls.
+     * Used by evals suite for performance metrics.
+     */
     getInputCounter() {
         return this._inputCounter;
     }
 
+    /**
+     * Get total output characters received across all LLM calls.
+     * Used by evals suite for performance metrics.
+     */
     getOutputCounter() {
         return this._outputCounter;
     }
 
     /**
-     * Get per-call log entries.
-     * Each entry: { inputChars, outputChars, model, requestedTags, matchedTags, durationMs, intent }
-     * @returns {Array}
+     * Accumulate input character count. Called automatically by extraComplete().
+     * @private
      */
-    getCallLog() {
-        return this._callLog;
-    }
-
     _recordInputChars(count = 0) {
         const safe = Number.isFinite(count) ? count : 0;
         this._inputCounter += Math.max(0, safe);
     }
 
+    /**
+     * Accumulate output character count. Called automatically by extraComplete().
+     * @private
+     */
     _recordOutputChars(count = 0) {
         const safe = Number.isFinite(count) ? count : 0;
         this._outputCounter += Math.max(0, safe);
     }
 
+    /**
+     * Central hub for all LLM calls.
+     *
+     * Delegates to `extraComplete()` which:
+     * 1. Records input character count
+     * 2. Calls the invoker strategy with the resolved model
+     * 3. Records output character count
+     * 4. Logs the interaction (model, tags, duration)
+     * 5. Pushes entry to the per-call log
+     *
+     * Called by: interpretMessage, resolveConfirmation, detectIntents,
+     * and extraDoTask (which backs executePrompt).
+     *
+     * @param {Object} options
+     * @param {string} options.prompt - The prompt text
+     * @param {Array} [options.history=[]] - Conversation history
+     * @param {string|null} [options.model] - Model name or tag
+     * @param {Array|null} [options.tags] - Semantic tags for model selection
+     * @param {Object} [options.context={}] - Context metadata for logging
+     * @returns {string} Raw LLM response text
+     */
     async complete(options = {}) {
         return extraComplete(this, options);
     }
 
+    /**
+     * Abort all in-flight LLM requests.
+     *
+     * Safety mechanism for timeouts or shutdown scenarios.
+     * Catches errors silently so callers don't need to handle them.
+     */
     cancel() {
         try {
             cancelRequests();
         } catch {
             // ignore cancellation failures
         }
-        if (this._processingCallbacks?.onEnd) {
-            try {
-                this._processingCallbacks.onEnd();
-            } catch {
-                // ignore callback errors
-            }
-        }
     }
 
+    /**
+     * Execute a prompt with memory context injection.
+     *
+     * Prepends memory segments (global, user, session, skill) to the prompt,
+     * then routes through `extraDoTask()` → `complete()`.
+     *
+     * Supports response shape coercion via `responseShape`:
+     * - `'json'` — extracts and parses JSON, throws on failure
+     * - `'code'` — strips markdown code fences
+     * - `'json-code'` — extracts JSON object requiring a `code` field
+     *
+     * Used by: All subsystems (CodeSkills, DCG, MCP, DBTable, Orchestrator),
+     * evals suite, and any code that needs to send a prompt with context.
+     *
+     * @param {string} promptText - The user prompt
+     * @param {Object} options
+     * @param {string|null} [options.model] - Model name or tag
+     * @param {Array|null} [options.tags] - Semantic tags
+     * @param {string|null} [options.responseShape] - 'json', 'code', or 'json-code'
+     * @param {string|null} [options.globalMemory] - Global memory context
+     * @param {string|null} [options.userMemory] - User-scoped memory
+     * @param {string|null} [options.sessionMemory] - Session-scoped memory
+     * @param {string|null} [options.skillShortMemory] - Skill-scoped memory
+     * @returns {string|Object} Raw text or coerced response
+     */
     async executePrompt(promptText, options = {}) {
         if (!promptText || typeof promptText !== 'string') {
             throw new Error('executePrompt requires a promptText string.');
@@ -309,6 +353,7 @@ class LLMAgent {
             ...rest
         } = options || {};
 
+        // Build context string from memory segments
         const segments = [];
         const pushSegment = (label, value) => {
             if (value === null || value === undefined) {
@@ -338,11 +383,12 @@ ${promptText}`
             : '';
 
         const result = await extraDoTask(this, agentContext, promptText, {
-            model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
+            model: model || this.getModelByTag('thinking'),
             tags,
             ...rest,
         });
 
+        // Coerce response to requested shape
         if (!responseShape) {
             return result;
         }
@@ -360,7 +406,6 @@ ${promptText}`
         }
 
         if (responseShape === 'json-code') {
-            // Use extractJson to handle potential markdown code fences
             const payload = extractJson(result);
             if (!payload || typeof payload !== 'object') {
                 throw new Error(`Expected JSON with code, but parsing failed. Raw: ${String(result).slice(0, 200)}…`);
@@ -375,6 +420,20 @@ ${promptText}`
         return result;
     }
 
+    /**
+     * Analyze a user prompt against a described skill space.
+     *
+     * Determines which skills are relevant and what intents are present.
+     * Returns a JSON object parsed from the LLM response.
+     *
+     * Used by: evalsSuite/evalDetectIntents.mjs — evaluates intent detection accuracy.
+     *
+     * @param {Object|string} skillsDescription - Description of available skills
+     * @param {string} userPrompt - The user's request
+     * @param {Object} options
+     * @param {string|null} [options.model] - Model name or tag
+     * @returns {Object} Parsed JSON with skill/intent analysis
+     */
     async detectIntents(skillsDescription, userPrompt, options = {}) {
         const {
             model = null,
@@ -385,7 +444,7 @@ ${promptText}`
 
         const result = await this.complete({
             prompt,
-            model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
+            model: model || this.getModelByTag('thinking'),
             context: { intent: 'detect-intents' },
             ...rest,
         });
@@ -397,6 +456,25 @@ ${promptText}`
         return parsed;
     }
 
+    /**
+     * Create a LoopAgentSession — a bounded multi-step execution where the
+     * LLM planner decides which tool to call at each step.
+     *
+     * The session runs until a final answer is reached, the user provides
+     * input, or execution limits (max steps, max errors) are hit.
+     *
+     * Used by: MainAgent.executePrompt(), AnthropicSkillsSubsystem.
+     *
+     * @param {Object} tools - Map of tool name → { handler, description }
+     * @param {string} initialPrompt - Starting user request
+     * @param {Object} options
+     * @param {string|null} [options.initialExpected] - Expected initial response
+     * @param {number} [options.maxStepsPerTurn] - Max tool calls per turn (default 8)
+     * @param {number} [options.maxErrors] - Max errors before abort (default 5)
+     * @param {string} [options.model] - Model for planner decisions
+     * @param {Object} [options.supervisor] - Tool approval controller
+     * @returns {LoopAgentSession} Started session
+     */
     async startLoopAgentSession(tools, initialPrompt, options = {}) {
         if (!tools || typeof tools !== 'object') {
             throw new Error('startLoopAgentSession requires a tools object.');
@@ -416,6 +494,22 @@ ${promptText}`
         return session;
     }
 
+    /**
+     * Create a SOPAgenticSession — a structured plan-then-execute workflow
+     * using LightSOPLang.
+     *
+     * The LLM generates a plan of tool invocations with dependencies,
+     * then executes them (potentially in parallel based on the dependency graph).
+     *
+     * Used by: OrchestratorSkillsSubsystem.
+     *
+     * @param {Object} skillsDescription - Description of available skills
+     * @param {string} initialPrompt - Starting user request
+     * @param {Object} options
+     * @param {boolean} [options.generatePlanOnly=false] - Only generate plan, don't execute
+     * @param {boolean} [options.planOnly=false] - Alias for generatePlanOnly
+     * @returns {SOPAgenticSession} Started session
+     */
     async startSOPLangAgentSession(skillsDescription, initialPrompt, options = {}) {
         if (!skillsDescription || typeof skillsDescription !== 'object') {
             throw new Error('startSOPLangAgentSession requires a skillsDescription object.');
@@ -423,7 +517,7 @@ ${promptText}`
         if (!initialPrompt || typeof initialPrompt !== 'string') {
             throw new Error('startSOPLangAgentSession requires an initial prompt string.');
         }
- 
+
         const {
             generatePlanOnly = false,
             planOnly = false,
@@ -445,7 +539,7 @@ ${promptText}`
     }
 
 }
- 
+
 export {
     LLMAgent,
     DEFAULT_AGENT_NAME,

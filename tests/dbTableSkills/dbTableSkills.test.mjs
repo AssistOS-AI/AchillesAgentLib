@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { DBTableSkillsSubsystem } from '../../DBTableSkillsSubsystem/DBTableSkillsSubsystem.mjs';
 import { parseSkillMarkdown, validateSkill } from '../../DBTableSkillsSubsystem/SkillParser.mjs';
 import { LLMAgent } from '../../LLMAgents/index.mjs';
-import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
+import { MainAgent } from '../../MainAgent/index.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -425,19 +425,14 @@ test('DBTableSkillsSubsystem: Validate required fields', async (t) => {
 });
 
 // ============================================================================
-// SECTION 3: RecursiveSkilledAgent Integration Tests
+// SECTION 3: MainAgent Integration Tests
 // ============================================================================
 
-test('RecursiveSkilledAgent: Extend to support dbtable skill type', async (t) => {
+test('MainAgent: Extend to support dbtable skill type', async (t) => {
     await initializeShared();
 
-    // For this test, we'll need to manually register DBTable subsystem
-    // since RecursiveSkilledAgent doesn't natively support tskill.md yet
-
-    const recursiveAgent = new RecursiveSkilledAgent({
-        llmAgent: shared.llmAgent || new MockLLMAgent(),
+    const mainAgent = new MainAgent({
         startDir: __dirname,
-        skillFilter: ({ type }) => type === 'dbtable' || type === 'dynamic-code-generation',
     });
 
     // Manually add DBTable subsystem support
@@ -446,18 +441,17 @@ test('RecursiveSkilledAgent: Extend to support dbtable skill type', async (t) =>
         dbAdapter: shared.dbAdapter
     });
 
-    recursiveAgent.subsystems.set('dbtable', dbTableSubsystem);
+    mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
 
     // Verify subsystem was registered
-    assert.ok(recursiveAgent.subsystems.has('dbtable'));
-    assert.equal(recursiveAgent.subsystems.get('dbtable'), dbTableSubsystem);
+    assert.ok(mainAgent.subsystemFactory.has('dbtable'));
+    assert.equal(mainAgent.subsystemFactory.get('dbtable'), dbTableSubsystem);
 });
 
-test('RecursiveSkilledAgent: Register tskill.md skill manually', async (t) => {
+test('MainAgent: Register tskill.md skill manually', async (t) => {
     await initializeShared();
 
-    const recursiveAgent = new RecursiveSkilledAgent({
-        llmAgent: shared.llmAgent || new MockLLMAgent(),
+    const mainAgent = new MainAgent({
         startDir: __dirname,
     });
 
@@ -467,7 +461,7 @@ test('RecursiveSkilledAgent: Register tskill.md skill manually', async (t) => {
         dbAdapter: shared.dbAdapter
     });
 
-    recursiveAgent.subsystems.set('dbtable', dbTableSubsystem);
+    mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
 
     // Manually register a skill from tskill.md
     const skillRecord = {
@@ -488,13 +482,12 @@ test('RecursiveSkilledAgent: Register tskill.md skill manually', async (t) => {
     await dbTableSubsystem.prepareSkill(skillRecord);
 
     // Register in the catalog
-    recursiveAgent.skillCatalog.set(skillRecord.name, skillRecord);
-    recursiveAgent.skillAliases.set('customers', skillRecord);
-    recursiveAgent.skillToSubsystem.set('customers', 'dbtable');
+    mainAgent._skills.set(skillRecord.name, skillRecord);
+    mainAgent._skillAliases.set('customers', skillRecord);
 
     // Verify registration
-    assert.ok(recursiveAgent.skillCatalog.has('customers-dbtable'));
-    const retrievedSkill = recursiveAgent.getSkillRecord('customers');
+    assert.ok(mainAgent._skills.has('customers-dbtable'));
+    const retrievedSkill = mainAgent.getSkillRecord('customers');
     assert.ok(retrievedSkill);
     assert.equal(retrievedSkill.name, 'customers-dbtable');
     assert.equal(retrievedSkill.type, 'dbtable');
@@ -516,37 +509,36 @@ test('E2E: Full workflow from skill discovery to execution', async (t) => {
 
     // This test demonstrates what SHOULD work once tskill.md support is added
 
-    const recursiveAgent = new RecursiveSkilledAgent({
-        llmAgent: shared.llmAgent,
+    const mainAgent = new MainAgent({
         startDir: __dirname,
-        skillFilter: ({ type, filePath }) => {
-            console.log(`SkillFilter called: type=${type}, filePath=${filePath}`);
-            return type === 'dbtable';
-        },
-        dbAdapter: shared.dbAdapter
     });
 
+    // Add DBTable subsystem
+    const dbTableSubsystem = new DBTableSkillsSubsystem({
+        llmAgent: shared.llmAgent,
+        dbAdapter: shared.dbAdapter
+    });
+    mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
+
     // Debug: Check what skills were registered
-    console.log('Registered skills:', Array.from(recursiveAgent.skillCatalog.keys()));
-    console.log('Skill aliases:', Array.from(recursiveAgent.skillAliases.keys()));
+    console.log('Registered skills:', Array.from(mainAgent._skills.keys()));
+    console.log('Skill aliases:', Array.from(mainAgent._skillAliases.keys()));
     console.log('startDir:', __dirname);
 
     // If no skills, skip the test
-    if (recursiveAgent.skillCatalog.size === 0) {
+    if (mainAgent._skills.size === 0) {
         t.skip('No skills were discovered/registered');
         return;
     }
 
     // Execute a prompt
-    const result = await recursiveAgent.executePrompt(
-        'Show me all customers',
-        {
-            skillName: 'customers'
-        }
+    const result = await mainAgent.executeSkill(
+        'customers',
+        'Show me all customers'
     );
 
     assert.ok(result);
-    assert.equal(result.skill, 'customers-skill-dbtable');
+    assert.equal(result.skill, 'customers-dbtable');
     assert.ok(result.result);
 });
 
@@ -857,8 +849,7 @@ test('E2E: Mock-based full workflow (works now)', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
     const mockDB = new MockDBAdapter();
 
-    const recursiveAgent = new RecursiveSkilledAgent({
-        llmAgent,
+    const mainAgent = new MainAgent({
         startDir: __dirname,
     });
 
@@ -868,7 +859,7 @@ test('E2E: Mock-based full workflow (works now)', async (t) => {
         dbAdapter: mockDB
     });
 
-    recursiveAgent.subsystems.set('dbtable', dbTableSubsystem);
+    mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
 
     // Manually register skill
     const skillRecord = {
@@ -886,26 +877,18 @@ test('E2E: Mock-based full workflow (works now)', async (t) => {
     };
 
     await dbTableSubsystem.prepareSkill(skillRecord);
-    recursiveAgent.skillCatalog.set(skillRecord.name, skillRecord);
-    recursiveAgent.skillAliases.set('customers-dbtable', skillRecord);
-    recursiveAgent.skillAliases.set('customers', skillRecord);
-    recursiveAgent.skillToSubsystem.set('customers-dbtable', 'dbtable');
-    recursiveAgent.skillToSubsystem.set('customers', 'dbtable');
+    mainAgent._skills.set(skillRecord.name, skillRecord);
+    mainAgent._skillAliases.set('customers-dbtable', skillRecord);
+    mainAgent._skillAliases.set('customers', skillRecord);
 
-    // Execute using executeWithReviewMode (internal method)
-    const result = await recursiveAgent.executeWithReviewMode(
-        'Show me all active customers',
-        {
-            skillName: 'customers-dbtable',
-            args: {
-                prompt: 'Show me all active customers'
-            }
-        },
-        'none'
+    // Execute using executeSkill
+    const result = await mainAgent.executeSkill(
+        'customers-dbtable',
+        'Show me all active customers'
     );
 
     assert.ok(result);
-    assert.equal(result.subsystem, 'dbtable');
+    assert.equal(result.skill, 'customers-dbtable');
     assert.ok(result.result);
     assert.equal(result.result.operation, 'SELECT');
     assert.equal(result.result.success, true, 'SELECT should succeed');
@@ -930,8 +913,7 @@ test('E2E: Test CREATE operation workflow', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
     const mockDB = new MockDBAdapter();
 
-    const recursiveAgent = new RecursiveSkilledAgent({
-        llmAgent,
+    const mainAgent = new MainAgent({
         startDir: __dirname,
     });
 
@@ -940,7 +922,7 @@ test('E2E: Test CREATE operation workflow', async (t) => {
         dbAdapter: mockDB
     });
 
-    recursiveAgent.subsystems.set('dbtable', dbTableSubsystem);
+    mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
 
     const skillRecord = {
         name: 'customers-dbtable',
@@ -957,24 +939,16 @@ test('E2E: Test CREATE operation workflow', async (t) => {
     };
 
     await dbTableSubsystem.prepareSkill(skillRecord);
-    recursiveAgent.skillCatalog.set(skillRecord.name, skillRecord);
-    recursiveAgent.skillAliases.set('customers-dbtable', skillRecord);
-    recursiveAgent.skillAliases.set('customers', skillRecord);
-    recursiveAgent.skillToSubsystem.set('customers-dbtable', 'dbtable');
+    mainAgent._skills.set(skillRecord.name, skillRecord);
+    mainAgent._skillAliases.set('customers-dbtable', skillRecord);
+    mainAgent._skillAliases.set('customers', skillRecord);
 
-    const result = await recursiveAgent.executeWithReviewMode(
-        'Add a new customer named Alice Brown with email alice@example.com and status pending',
-        {
-            skillName: 'customers-dbtable',
-            args: {
-                prompt: 'Add a new customer named Alice Brown with email alice@example.com and status pending'
-            }
-        },
-        'none'
+    const result = await mainAgent.executeSkill(
+        'customers-dbtable',
+        'Add a new customer named Alice Brown with email alice@example.com and status pending'
     );
 
     assert.ok(result, 'Result should exist');
-    assert.equal(result.subsystem, 'dbtable', 'Subsystem should be dbtable');
     assert.ok(result.result, 'Result.result should exist');
     assert.equal(result.result.operation, 'CREATE', 'Operation should be CREATE');
     assert.equal(result.result.success, true, 'CREATE should succeed');
@@ -989,8 +963,7 @@ test('E2E: Test UPDATE operation workflow', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
     const mockDB = new MockDBAdapter();
 
-    const recursiveAgent = new RecursiveSkilledAgent({
-        llmAgent,
+    const mainAgent = new MainAgent({
         startDir: __dirname,
     });
 
@@ -999,7 +972,7 @@ test('E2E: Test UPDATE operation workflow', async (t) => {
         dbAdapter: mockDB
     });
 
-    recursiveAgent.subsystems.set('dbtable', dbTableSubsystem);
+    mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
 
     const skillRecord = {
         name: 'customers-dbtable',
@@ -1016,23 +989,16 @@ test('E2E: Test UPDATE operation workflow', async (t) => {
     };
 
     await dbTableSubsystem.prepareSkill(skillRecord);
-    recursiveAgent.skillCatalog.set(skillRecord.name, skillRecord);
-    recursiveAgent.skillAliases.set('customers-dbtable', skillRecord);
-    recursiveAgent.skillToSubsystem.set('customers-dbtable', 'dbtable');
+    mainAgent._skills.set(skillRecord.name, skillRecord);
+    mainAgent._skillAliases.set('customers-dbtable', skillRecord);
+    mainAgent._skillAliases.set('customers', skillRecord);
 
-    const result = await recursiveAgent.executeWithReviewMode(
-        'Update customer john@example.com to active status',
-        {
-            skillName: 'customers-dbtable',
-            args: {
-                prompt: 'Update customer john@example.com to active status'
-            }
-        },
-        'none'
+    const result = await mainAgent.executeSkill(
+        'customers-dbtable',
+        'Update customer john@example.com to active status'
     );
 
     assert.ok(result, 'Result should exist');
-    assert.equal(result.subsystem, 'dbtable', 'Subsystem should be dbtable');
     assert.ok(result.result, 'Result.result should exist');
     assert.equal(result.result.operation, 'UPDATE', 'Operation should be UPDATE');
 
@@ -1062,8 +1028,7 @@ test('E2E: Test DELETE operation workflow', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
     const mockDB = new MockDBAdapter();
 
-    const recursiveAgent = new RecursiveSkilledAgent({
-        llmAgent,
+    const mainAgent = new MainAgent({
         startDir: __dirname,
     });
 
@@ -1072,7 +1037,7 @@ test('E2E: Test DELETE operation workflow', async (t) => {
         dbAdapter: mockDB
     });
 
-    recursiveAgent.subsystems.set('dbtable', dbTableSubsystem);
+    mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
 
     const skillRecord = {
         name: 'customers-dbtable',
@@ -1089,23 +1054,15 @@ test('E2E: Test DELETE operation workflow', async (t) => {
     };
 
     await dbTableSubsystem.prepareSkill(skillRecord);
-    recursiveAgent.skillCatalog.set(skillRecord.name, skillRecord);
-    recursiveAgent.skillAliases.set('customers-dbtable', skillRecord);
-    recursiveAgent.skillToSubsystem.set('customers-dbtable', 'dbtable');
+    mainAgent._skills.set(skillRecord.name, skillRecord);
+    mainAgent._skillAliases.set('customers-dbtable', skillRecord);
+    mainAgent._skillAliases.set('customers', skillRecord);
 
-    const result = await recursiveAgent.executeWithReviewMode(
-        'Delete customer with email john@example.com',
-        {
-            skillName: 'customers-dbtable',
-            args: {
-                prompt: 'Delete customer with email john@example.com'
-            }
-        },
-        'none'
+    const result = await mainAgent.executeSkill(
+        'customers-dbtable',
+        'Delete customer with email john@example.com'
     );
-
     assert.ok(result, 'Result should exist');
-    assert.equal(result.subsystem, 'dbtable', 'Subsystem should be dbtable');
     assert.ok(result.result, 'Result.result should exist');
     assert.equal(result.result.operation, 'DELETE', 'Operation should be DELETE');
 

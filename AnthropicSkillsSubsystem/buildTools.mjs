@@ -56,7 +56,7 @@ export function buildAnthropicTools({
     const forwardedContext = options?.context || {};
 
     // Build tools from internal skills (from skills/ directory)
-    const internalSkillNames = ['ask-user', 'read', 'write', 'edit', 'glob', 'grep', 'bash', 'webfetch'];
+    const internalSkillNames = ['read', 'write', 'edit', 'glob', 'grep', 'bash', 'webfetch'];
     
     for (const skillName of internalSkillNames) {
         const skill = resolveInternalSkillRecord(internalSkills, skillName);

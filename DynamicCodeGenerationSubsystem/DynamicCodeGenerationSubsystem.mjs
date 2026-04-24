@@ -74,7 +74,7 @@ function unwrapCodeFence(payload) {
 
 function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'code' }) {
     return async (invocation) => {
-        const recursiveSkilledAgent = invocation?.recursiveAgent || null;
+        const mainAgent = invocation?.recursiveAgent || null;
         const input = invocation?.input;
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
@@ -140,9 +140,9 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'c
             throw new Error(`Dynamic code generation skill "${skillName}" received unsupported mode "${decision.mode}".`);
         }
 
-        if (recursiveSkilledAgent?.sessionMemory && typeof recursiveSkilledAgent.sessionMemory.appendToHistory === 'function') {
+        if (mainAgent?.sessionMemory && typeof mainAgent.sessionMemory.appendToHistory === 'function') {
             try {
-                recursiveSkilledAgent.sessionMemory.appendToHistory({ user: input, ai: outcome });
+                mainAgent.sessionMemory.appendToHistory({ user: input, ai: outcome });
             } catch (error) {
                 // Ignore context persistence issues
             }

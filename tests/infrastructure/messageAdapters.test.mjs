@@ -48,8 +48,7 @@ test('LLMAgent.complete uses correct message adapter for each configured model (
             throw new Error('Model must be specified for mocked complete.');
         }
 
-        const { fast, deep } = listModelsFromCache();
-        const allModels = [...fast, ...deep];
+        const { models: allModels } = listModelsFromCache();
         const modelRecord = allModels.find(m => m.name === model);
 
         if (!modelRecord) {
@@ -77,8 +76,7 @@ test('LLMAgent.complete uses correct message adapter for each configured model (
         return JSON.stringify(convertedContext);
     };
 
-    const { fast, deep } = listModelsFromCache();
-    const allModels = [...fast, ...deep];
+    const { models: allModels } = listModelsFromCache();
 
     for (const modelRecord of allModels) {
         const modelName = modelRecord.name;

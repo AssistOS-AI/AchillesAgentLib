@@ -1,12 +1,12 @@
 # DBTableSkillsSubsystem Integration Tests
 
-Comprehensive integration tests for the DBTableSkillsSubsystem with RecursiveSkilledAgent.
+Comprehensive integration tests for the DBTableSkillsSubsystem with MainAgent.
 
 ## Overview
 
 These tests verify the integration between:
 - **DBTableSkillsSubsystem**: AI-powered database table management subsystem
-- **RecursiveSkilledAgent**: Skill discovery and execution framework
+- **MainAgent**: Skill discovery and execution framework
 - **SkillParser**: Markdown skill definition parser
 - **FunctionGenerator**: Dynamic function generation utilities
 
@@ -28,7 +28,7 @@ These tests verify the integration between:
    - Execute CREATE operation
    - Validate required fields
 
-3. **RecursiveSkilledAgent Integration Tests** - Tests for integration between systems
+3. **MainAgent Integration Tests** - Tests for integration between systems
    - Extend to support dbtable skill type
    - Register tskill.md skill manually
    - Skill discovery and registration
@@ -94,7 +94,7 @@ This file demonstrates:
 
 ### 1. Skill Registration
 
-The DBTableSkillsSubsystem integrates with RecursiveSkilledAgent through:
+The DBTableSkillsSubsystem integrates with MainAgent through:
 
 **prepareSkill(skillRecord)**
 - Called when a skill is discovered
@@ -142,7 +142,7 @@ After `prepareSkill()`, the skillRecord.metadata contains:
 ```
 User Prompt
     ↓
-RecursiveSkilledAgent.executePrompt()
+MainAgent.executePrompt()
     ↓
 DBTableSkillsSubsystem.executeSkillPrompt()
     ↓
@@ -157,9 +157,9 @@ Return result
 
 ## Current Limitations
 
-### 1. RecursiveSkilledAgent Support
+### 1. MainAgent Support
 
-RecursiveSkilledAgent doesn't natively support `tskill.md` files yet. The SKILL_FILE_TYPES constant in RecursiveSkilledAgent.mjs needs to be extended:
+MainAgent doesn't natively support `tskill.md` files yet. The SKILL_FILE_TYPES constant in MainAgent.mjs needs to be extended:
 
 ```javascript
 const SKILL_FILE_TYPES = {
@@ -189,7 +189,7 @@ ensureSubsystem(type) {
     } else if (type === 'dbtable') {  // ADD THIS BLOCK
         subsystem = new DBTableSkillsSubsystem({
             llmAgent: this.aggregatorAgent.llmAgent,
-            dbAdapter: this.dbAdapter  // Need to add dbAdapter to RecursiveSkilledAgent
+            dbAdapter: this.dbAdapter  // Need to add dbAdapter to MainAgent
         });
     } else {
         subsystem = new AnthropicSkillsSubsystem();
@@ -240,13 +240,13 @@ The test suite covers:
 ✅ All CRUD operations (CREATE, READ, UPDATE, DELETE)
 ✅ Field validation
 ✅ Function generation and caching
-✅ Integration with RecursiveSkilledAgent
+✅ Integration with MainAgent
 ✅ Error handling (missing files, missing arguments, etc.)
 ✅ End-to-end workflows with mock objects
 
 ## Future Enhancements
 
-1. **Native tskill.md Support**: Add tskill.md to RecursiveSkilledAgent's SKILL_FILE_TYPES
+1. **Native tskill.md Support**: Add tskill.md to MainAgent's SKILL_FILE_TYPES
 2. **Database Adapter Integration**: Connect to real database adapters
 3. **Advanced Validation**: Test complex validation rules and business logic
 4. **Relationship Testing**: Test foreign key relationships between tables
@@ -277,6 +277,6 @@ When adding new tests:
 ## Related Documentation
 
 - [DBTableSkillsSubsystem README](../../DBTableSkillsSubsystem/README.md)
-- [RecursiveSkilledAgent](../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs)
+- [MainAgent](../../MainAgents/MainAgent.mjs)
 - [SkillParser](../../DBTableSkillsSubsystem/SkillParser.mjs)
 - [FunctionGenerator](../../DBTableSkillsSubsystem/FunctionGenerator.mjs)

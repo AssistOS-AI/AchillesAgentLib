@@ -39,7 +39,7 @@
 
                 <section>
                     <h2>Tool Surface</h2>
-                    <p>The runtime tool surface is not arbitrary. It is assembled from a bounded set of internal skills, plus optional bundle-local helpers. The internal side currently attempts to expose the internal skills <code>ask-user</code>, <code>read</code>, <code>write</code>, <code>edit</code>, <code>glob</code>, <code>grep</code>, <code>bash</code>, and <code>webfetch</code> when those internal skills are available through the registry.</p>
+                    <p>The runtime tool surface is not arbitrary. It is assembled from a bounded set of internal skills, plus optional bundle-local helpers. The internal side currently attempts to expose the internal skills <code>read</code>, <code>write</code>, <code>edit</code>, <code>glob</code>, <code>grep</code>, <code>bash</code>, and <code>webfetch</code> when those internal skills are available through the registry.</p>
                     <p>When the skill bundle contains <code>scripts/</code>, the subsystem also exposes <code>run-script</code>. That tool can execute a shell command in the skill directory and rewrites any referenced <code>scripts/...</code> path to an absolute path inside the bundle, rejecting paths that escape the folder. When the skill bundle contains <code>resources/</code>, the subsystem exposes <code>get-resource</code>. That tool reads files only from inside <code>resources/</code> and returns either UTF-8 text or base64 content depending on the file contents.</p>
                     <div class="doc-callout doc-callout--important">
                         <span class="doc-callout__label">Important</span>

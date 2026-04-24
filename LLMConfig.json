@@ -1,9 +1,16 @@
 {
     "defaults": {
+        "coding": "soul_gateway/code",
         "fast": "soul_gateway/fast",
+        "free": "soul_gateway/fast",
+        "long-context": "soul_gateway/deep",
+        "research": "soul_gateway/deep",
+        "thinking": "soul_gateway/plan",
+        "writing": "soul_gateway/write",
+        "vision": "soul_gateway/plan",
+        "code": "soul_gateway/code",
         "plan": "soul_gateway/plan",
         "write": "soul_gateway/write",
-        "code": "soul_gateway/code",
         "deep": "soul_gateway/deep",
         "ultra": "soul_gateway/ultra"
     },

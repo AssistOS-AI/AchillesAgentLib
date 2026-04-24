@@ -10,15 +10,21 @@ function toTitleCase(input) {
         .trim()
         .split(/\s+/)
         .filter(Boolean)
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+}
+
+function createValidationError(field, error, value) {
+    return JSON.stringify({ field, error, value });
 }
 
 function validator_customer_id(value, record) {
     if (isEmptyRequired(value)) {
-        return JSON.stringify({ field: 'customer_id', error: 'customer_id is required', value });
+        return createValidationError('customer_id', 'customer_id is required', value);
     }
+
     let valid = false;
+
     if (typeof value === 'number' && Number.isInteger(value)) {
         valid = true;
     } else if (typeof value === 'string') {
@@ -27,46 +33,74 @@ function validator_customer_id(value, record) {
             valid = true;
         }
     }
+
     if (!valid) {
-        return JSON.stringify({ field: 'customer_id', error: 'customer_id must be a valid integer', value });
+        return createValidationError('customer_id', 'customer_id must be a valid integer', value);
     }
+
     return '';
 }
 
 function validator_name(value, record) {
     if (isEmptyRequired(value)) {
-        return JSON.stringify({ field: 'name', error: 'name is required', value });
+        return createValidationError('name', 'name is required', value);
     }
+
     const str = String(value).trim();
+
     if (str.length < 2 || str.length > 200) {
-        return JSON.stringify({ field: 'name', error: 'name must be between 2 and 200 characters', value });
+        return createValidationError(
+            'name',
+            'Must be between 2 and 200 characters. Cannot contain only numbers or special characters.',
+            value
+        );
     }
-    if (!/[a-zA-Z]/.test(str)) {
-        return JSON.stringify({ field: 'name', error: 'name must contain alphabetic characters', value });
+
+    if (!/[A-Za-z]/.test(str)) {
+        return createValidationError(
+            'name',
+            'Must be between 2 and 200 characters. Cannot contain only numbers or special characters.',
+            value
+        );
     }
+
     return '';
 }
 
 function validator_email(value, record) {
     if (isEmptyRequired(value)) {
-        return JSON.stringify({ field: 'email', error: 'email is required', value });
+        return createValidationError('email', 'email is required', value);
     }
+
     const str = String(value).trim();
     const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!pattern.test(str)) {
-        return JSON.stringify({ field: 'email', error: 'email must be a valid email address', value });
+        return createValidationError(
+            'email',
+            'Must be a valid email format matching pattern: /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/',
+            value
+        );
     }
+
     return '';
 }
 
 function validator_status(value, record) {
     if (isEmptyRequired(value)) {
-        return JSON.stringify({ field: 'status', error: 'status is required', value });
+        return createValidationError('status', 'status is required', value);
     }
+
     const str = String(value).toLowerCase().trim();
+
     if (!STATUS_VALUES.includes(str)) {
-        return JSON.stringify({ field: 'status', error: 'status must be one of: active, inactive, pending, suspended', value });
+        return createValidationError(
+            'status',
+            'Must be one of: active, inactive, pending, suspended',
+            value
+        );
     }
+
     return '';
 }
 
@@ -97,8 +131,13 @@ function resolver_email(value, record) {
 
 function resolver_status(value, record) {
     if (value === null || value === undefined) return null;
+
     const resolved = String(value).toLowerCase().trim();
-    if (!STATUS_VALUES.includes(resolved)) return null;
+
+    if (!STATUS_VALUES.includes(resolved)) {
+        return null;
+    }
+
     return resolved;
 }
 
@@ -116,36 +155,53 @@ function generatePKValues(record, existingRecords = []) {
     if (record && record.customer_id !== null && record.customer_id !== undefined && record.customer_id !== '') {
         return { customer_id: record.customer_id };
     }
+
     let maxId = 0;
+
     if (Array.isArray(existingRecords)) {
         for (const rec of existingRecords) {
             const val = rec?.customer_id;
             const num = typeof val === 'number' ? val : parseInt(val, 10);
+
             if (Number.isInteger(num) && num > maxId) {
                 maxId = num;
             }
         }
     }
+
     return { customer_id: maxId + 1 };
 }
 
 async function prepareRecord(record, context) {
     const prepared = { ...record };
-    if ('name' in prepared) prepared.name = resolver_name(prepared.name, prepared);
-    if ('email' in prepared) prepared.email = resolver_email(prepared.email, prepared);
-    if ('status' in prepared) prepared.status = resolver_status(prepared.status, prepared);
+
+    if ('name' in prepared) {
+        prepared.name = resolver_name(prepared.name, prepared);
+    }
+
+    if ('email' in prepared) {
+        prepared.email = resolver_email(prepared.email, prepared);
+    }
+
+    if ('status' in prepared) {
+        prepared.status = resolver_status(prepared.status, prepared);
+    }
+
     prepared.display_name = derivator_display_name(prepared);
+
     return prepared;
 }
 
 async function validateRecord(record) {
     const errors = [];
+
     const validators = [
         ['customer_id', validator_customer_id],
         ['name', validator_name],
         ['email', validator_email],
         ['status', validator_status],
     ];
+
     for (const [fieldName, validatorFn] of validators) {
         const result = validatorFn(record[fieldName], record);
         if (result) {
@@ -156,6 +212,7 @@ async function validateRecord(record) {
             }
         }
     }
+
     return { isValid: errors.length === 0, errors };
 }
 
@@ -179,14 +236,17 @@ async function validateDelete(recordId, record, context = {}) {
 
 async function presentRecord(record) {
     if (!record) return record;
+
     const presented = { ...record };
 
     if (record.name !== undefined) {
         presented.name = presenter_name(record.name, record);
     }
+
     if (record.email !== undefined) {
         presented.email = presenter_email(record.email, record);
     }
+
     if (record.status !== undefined) {
         presented.status = presenter_status(record.status, record);
     }

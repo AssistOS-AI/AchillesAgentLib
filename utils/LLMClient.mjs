@@ -1,5 +1,5 @@
 import { loadModelsConfiguration, resolveModelName, parseModelReference } from './LLMProviders/providers/modelsConfigLoader.mjs';
-export { loadModelsConfiguration, resolveModelName, parseModelReference };
+export { loadModelsConfiguration, resolveModelName, parseModelReference, modelsConfiguration };
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
 const debugFlag = (process.env.ACHILLES_DEBUG ?? '').toLowerCase();
@@ -104,15 +104,6 @@ export function selectModelByTags(requestedTags) {
     return bestModel;
 }
 
-function mapIntentToEnvKey(intent) {
-    const normalized = String(intent || '').trim().toLowerCase();
-    if (!normalized) return null;
-    if (normalized === 'plan') return 'ACHILLES_MODEL_PLAN';
-    if (normalized === 'code') return 'ACHILLES_MODEL_CODE';
-    if (normalized === 'summary') return 'ACHILLES_MODEL_PLAN';
-    return null;
-}
-
 function normalizeRequestedTags(tags) {
     if (!Array.isArray(tags)) {
         return [];
@@ -162,15 +153,6 @@ function resolveModelString(candidate) {
     const trimmed = candidate.trim();
     if (!trimmed) return null;
 
-    const envKey = mapIntentToEnvKey(trimmed);
-    if (envKey) {
-        const mapped = String(process.env[envKey] || '').trim();
-        if (mapped) {
-            const resolvedMapped = resolveModelName(mapped, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
-            return resolvedMapped || mapped;
-        }
-    }
-
     const defaultsKey = trimmed.toLowerCase();
     const defaultMapped = modelsConfiguration.defaults?.get(defaultsKey);
     if (typeof defaultMapped === 'string' && defaultMapped.trim()) {
@@ -200,21 +182,14 @@ export function resolveModelForInvocation({ model, tags } = {}) {
         if (firstTag) return firstTag;
     }
 
-    // 3. Default model from env (plan)
-    const configuredPlan = String(process.env.ACHILLES_MODEL_PLAN || '').trim();
-    if (configuredPlan) {
-        const resolvedPlan = resolveModelName(configuredPlan, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
-        return resolvedPlan || configuredPlan;
-    }
-
-    // 4. Config defaults
+    // 3. Config defaults
     const defaultModel = modelsConfiguration.defaults?.get('plan');
     if (defaultModel) {
         const resolved = resolveModelName(defaultModel, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
         return resolved || defaultModel;
     }
 
-    // 5. Last-resort model input
+    // 4. Last-resort model input
     return 'plan';
 }
 

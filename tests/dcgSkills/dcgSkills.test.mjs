@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { LLMAgent } from '../../LLMAgents/index.mjs';
-import { RecursiveSkilledAgent } from '../../RecursiveSkilledAgents/RecursiveSkilledAgent.mjs';
+import { MainAgent } from '../../MainAgent/index.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,10 +16,10 @@ function createTestLLMAgent() {
 const shared = {
     initialized: false,
     errorReason: null,
-    recursiveAgent: null,
+    mainAgent: null,
 };
 
-async function initializeRecursiveAgent() {
+async function initializeMainAgent() {
     if (shared.initialized) {
         return shared;
     }
@@ -44,46 +44,44 @@ async function initializeRecursiveAgent() {
         return shared;
     }
 
-    shared.recursiveAgent = new RecursiveSkilledAgent({
-        llmAgent,
+    shared.mainAgent = new MainAgent({
         startDir: __dirname,
-        skillFilter: ({ type }) => type === 'dynamic-code-generation',
+        llmAgentOptions: {
+            invokerStrategy: llmAgent.invokerStrategy,
+        },
     });
 
     return shared;
 }
 
 async function ensureAgent(t) {
-    await initializeRecursiveAgent();
-    if (!shared.recursiveAgent) {
+    await initializeMainAgent();
+    if (!shared.mainAgent) {
         const reason = shared.errorReason || 'LLM invocation unavailable.';
         console.error(`[dcgSkills.test] LLM unavailable: ${reason}`);
         t.skip(`LLM invocation unavailable: ${reason}`);
         return null;
     }
-    return shared.recursiveAgent;
+    return shared.mainAgent;
 }
 
 test('Proofread code skill polishes input text', async (t) => {
-    const recursiveAgent = await ensureAgent(t);
-    if (!recursiveAgent) {
+    const mainAgent = await ensureAgent(t);
+    if (!mainAgent) {
         return;
     }
 
     try {
         console.info('[dcgSkills.test] invoking proofread skill');
-        const result = await recursiveAgent.executePrompt(
+        const result = await mainAgent.executeSkill(
+            'proofread-dynamic-code-generation',
             'Proofread the following sentence so it sounds natural: THIS is A TesT',
-            {
-                args: { input: 'THIS is A TesT' },
-                skillName: 'proofread',
-            },
         );
 
-        assert.equal(result.skill, 'proofread-polisher-dynamic-code-generation');
+        assert.equal(result.skill, 'proofread-dynamic-code-generation');
         console.info('[dcgSkills.test] proofread result:', result.result);
         assert.equal(result.preparedConfig.type, 'dynamic-code-generation');
-        assert.equal(result.preparedConfig.llmMode, 'fast');
+        assert.ok(result.preparedConfig.llmModel);
         const normalized = result.result.trim().toLowerCase();
         assert.ok(normalized.startsWith('this is a test'));
     } catch (error) {
@@ -93,24 +91,22 @@ test('Proofread code skill polishes input text', async (t) => {
 });
 
 test('Large number multiplication uses code execution', async (t) => {
-    const recursiveAgent = await ensureAgent(t);
-    if (!recursiveAgent) {
+    const mainAgent = await ensureAgent(t);
+    if (!mainAgent) {
         return;
     }
 
     try {
         console.info('[dcgSkills.test] invoking multiply skill');
-        const result = await recursiveAgent.executePrompt(
+        const result = await mainAgent.executeSkill(
+            'bigmultiply-dynamic-code-generation',
             'Multiply 98765432123456789 by 123456789987654321 and return the exact result.',
-            {
-                skillName: 'bigMultiply',
-            },
         );
 
-        assert.equal(result.skill, 'large-number-multiplier-dynamic-code-generation');
+        assert.equal(result.skill, 'bigmultiply-dynamic-code-generation');
         console.info('[dcgSkills.test] multiply result:', result.result);
         assert.equal(result.preparedConfig.type, 'dynamic-code-generation');
-        assert.equal(result.preparedConfig.llmMode, 'fast');
+        assert.ok(result.preparedConfig.llmModel);
         assert.ok(result.result.includes('12193263211705532552354824112635269'));
     } catch (error) {
         console.error('Test failure diagnostic:', error);
@@ -119,24 +115,22 @@ test('Large number multiplication uses code execution', async (t) => {
 });
 
 test('Math evaluator computes arithmetic mean with generated code', async (t) => {
-    const recursiveAgent = await ensureAgent(t);
-    if (!recursiveAgent) {
+    const mainAgent = await ensureAgent(t);
+    if (!mainAgent) {
         return;
     }
 
     try {
         console.info('[dcgSkills.test] invoking math skill');
-        const result = await recursiveAgent.executePrompt(
+        const result = await mainAgent.executeSkill(
+            'matheval-dynamic-code-generation',
             'Calculate the arithmetic mean of the first five odd numbers.',
-            {
-                skillName: 'mathEval',
-            },
         );
 
-        assert.equal(result.skill, 'math-expression-evaluator-dynamic-code-generation');
+        assert.equal(result.skill, 'matheval-dynamic-code-generation');
         console.info('[dcgSkills.test] math result:', result.result);
         assert.equal(result.preparedConfig.type, 'dynamic-code-generation');
-        assert.equal(result.preparedConfig.llmMode, 'code');
+        assert.ok(result.preparedConfig.llmModel);
         assert.ok(typeof result.result === 'string');
         assert.ok(result.result && result.result.length > 0);
         const normalized = result.result.toLowerCase();

@@ -33,7 +33,7 @@
 
                 <section>
                     <h2>Registration and Generation</h2>
-                    <p>When <code>RecursiveSkilledAgent</code> registers a skill of type <code>cskill</code>, it immediately schedules a preparation step through the internal <code>mirror-code-generator</code> skill. That generation request is issued automatically with the skill directory as input. If the directory contains usable files under <code>specs/</code>, the generator can produce or refresh matching files under <code>src/</code>. If the directory does not contain specifications, the generation step may complete without producing code.</p>
+                    <p>When <code>MainAgent</code> registers a skill of type <code>cskill</code>, it immediately schedules a preparation step through the internal <code>mirror-code-generator</code> skill. That generation request is issued automatically with the skill directory as input. If the directory contains usable files under <code>specs/</code>, the generator can produce or refresh matching files under <code>src/</code>. If the directory does not contain specifications, the generation step may complete without producing code.</p>
                     <p>This means that the Code Skills runtime should not be described as though generation and execution were the same phase. Generation is an earlier preparation step initiated by the top-level agent. Execution happens later inside the Code Skills subsystem, which simply loads the module that exists on disk at that point.</p>
                 </section>
 

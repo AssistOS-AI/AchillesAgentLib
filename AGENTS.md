@@ -2,7 +2,7 @@
 
 ## Overview
 
-AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powered task execution through specialized subsystems. The architecture follows a hierarchical pattern where a central `RecursiveSkilledAgent` discovers, registers, and orchestrates execution of various skill types.
+AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powered task execution through specialized subsystems. The architecture follows a hierarchical pattern where a central `MainAgent` discovers, registers, and orchestrates execution of various skill types.
 
 ## Documentation Work
 
@@ -10,10 +10,10 @@ For any work under `docs/`, follow `DOCUMENTATION_SPECIFICATION.md`. That file d
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        RecursiveSkilledAgent                            │
+│                            MainAgent                                    │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
 │  │                      Skill Discovery                            │    │
-│  │  - Scans skills directories                            │    │
+│  │  - Scans skills directories                                     │    │
 │  │  - Registers skills by type (skill.md, dcgskill.md, etc.)        │    │
 │  │  - Creates aliases for flexible skill resolution                │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
@@ -39,16 +39,17 @@ For any work under `docs/`, follow `DOCUMENTATION_SPECIFICATION.md`. That file d
 
 ## Core Components
 
-### 1. RecursiveSkilledAgent (`RecursiveSkilledAgents/RecursiveSkilledAgent.mjs`)
+### 1. MainAgent (`MainAgent/MainAgent.mjs`)
 
 The main entry point and coordinator for skill-based execution.
 
 **Key Responsibilities:**
-- **Skill Discovery**: Recursively scans directories for `skills` folders
+- **Skill Discovery**: Scans directories for `skills` folders
 - **Skill Registration**: Parses skill markdown files and registers them by type
 - **Subsystem Management**: Lazily instantiates subsystems on demand
 - **Execution Routing**: Routes prompts to appropriate skills/orchestrators
 - **Alias Resolution**: Maintains skill aliases for flexible invocation
+- **Model Configuration**: Accepts `modelConfig` for semantic tag-to-model mapping
 
 **Skill File Types:**
 | File | Type | Subsystem |
@@ -65,37 +66,63 @@ The main entry point and coordinator for skill-based execution.
 await agent.executePrompt(taskDescription, options);
 
 // Execute with explicit skill
-await agent.executeWithReviewMode(taskDescription, { skillName: 'my-skill' }, 'none');
-
-// Execute with LLM review
-await agent.executePromptWithReview(taskDescription, options);
-
-// Execute with human review
-await agent.executePromptWithHumanReview(taskDescription, options);
+await agent.executeSkill('my-skill', 'task description');
 ```
 
-**Session Memory Management:**
+**Model Configuration:**
 
-RecursiveSkilledAgent centralizes session state management, supporting both single-session (CLI) and multi-session (webchat) modes.
+MainAgent accepts a `modelConfig` parameter that maps semantic tags to model names:
 
 ```javascript
-// Get session memory (CLI mode - default session)
-const sessionMemory = agent.getSessionMemory();
+const agent = new MainAgent({
+    startDir: '/path/to/project',
+    modelConfig: {
+        thinking: 'claude-sonnet-4',
+        fast: 'gpt-4o-mini',
+        code: 'claude-sonnet-4',
+        writing: 'gpt-4o',
+        research: 'claude-3-opus',
+        'long-context': 'claude-3-opus',
+        vision: 'gpt-4o',
+        free: 'gpt-4o-mini',
+        coding: 'claude-sonnet-4',
+    },
+});
+```
 
-// Get session memory for specific user (webchat mode)
-const userSession = agent.getSessionMemory('user-session-123');
+Default tags map to model identifiers resolved through LLMConfig.json:
+| Tag | Default | Purpose |
+|-----|---------|---------|
+| `coding` | `code` | Code generation |
+| `fast` | `fast` | Quick responses |
+| `free` | `fast` | Free-tier model |
+| `long-context` | `deep` | Large context |
+| `research` | `deep` | Deep analysis |
+| `thinking` | `plan` | Reasoning |
+| `writing` | `write` | Text composition |
+| `vision` | `plan` | Vision tasks |
 
-// Clear session data
-agent.clearSessionMemory('user-session-123');
+**Session Management:**
 
-// Delete session entirely (cannot delete default)
-agent.deleteSession('user-session-123');
+MainAgent manages sessions through its internal session map:
+
+```javascript
+// Execute prompt (creates/reuses session automatically)
+const result = await agent.executePrompt('add equipment Drill', {
+    sessionId: 'user-123',
+});
+
+// Delete session
+agent.deleteSession('user-123');
 
 // List active sessions
-const sessions = agent.getActiveSessions(); // ['user-1', 'user-2', ...]
+const sessions = agent.getActiveSessions();
 
 // Check if session exists
-if (agent.hasSession('user-session-123')) { ... }
+if (agent.hasSession('user-123')) { ... }
+
+// Clear all sessions
+agent.clearSessions();
 ```
 
 **Auto-Injection:** When `executePrompt()` is called, sessionMemory is automatically injected into `options.context` based on:
@@ -116,23 +143,14 @@ await agent.executePrompt('add equipment Drill', {
 **Session Lifecycle (Memory Leak Prevention):**
 
 ```javascript
-const agent = new RecursiveSkilledAgent({
+const agent = new MainAgent({
     // ... other options
-    sessionConfig: {
-        maxSessions: 1000,      // Max sessions (0 = unlimited), default 1000
-        sessionTTL: 7200000,    // TTL in ms (0 = never expire), default 2 hours
-        cleanupInterval: 300000, // Cleanup interval, default 5 minutes
-    },
 });
 
-// Get session statistics
-const stats = agent.getSessionStats();
-// { totalSessions, userSessions, config, sessions: [{sessionId, createdAt, lastAccessTime, idleMs, size}] }
+// Get active sessions
+const sessions = agent.getActiveSessions();
 
-// Manual cleanup (removes expired sessions, enforces maxSessions)
-agent.cleanupSessions();
-
-// Graceful shutdown (clears all sessions, stops cleanup timer)
+// Graceful shutdown (clears all sessions)
 agent.shutdown();
 ```
 
@@ -499,7 +517,7 @@ OrchestratorSubsystem.executeSkillPrompt()
 
 ## Internal Skills System
 
-RecursiveSkilledAgent includes a system for internal helper skills that are always exposed for direct invocation.
+MainAgent includes a system for internal helper skills that are always exposed for direct invocation.
 
 ### Available Internal Skills
 
@@ -519,27 +537,22 @@ Generates JavaScript/ESM code from specification files in a skill's `specs/` dir
 
 **Usage Example:**
 ```javascript
-const agent = new RecursiveSkilledAgent({
-    llmAgent: myLLMAgent,
+const agent = new MainAgent({
+    startDir: '/path/to/project',
 });
 
-const result = await agent.executeWithReviewMode(
-    '/path/to/my-skill',
-    { skillName: 'mirror-code-generator' },
-    'none'
+const result = await agent.executeSkill(
+    'mirror-code-generator',
+    '/path/to/my-skill'
 );
 
 console.log(result);
 // {
 //     skill: 'mirror-code-generator',
 //     result: {
-//         output: {
-//             message: 'Code generation completed for /path/to/my-skill',
-//             generatedFiles: ['index.mjs']
-//         }
-//     },
-//     reviewMode: 'none',
-//     subsystem: 'orchestrator'
+//         message: 'Code generation completed for /path/to/my-skill',
+//         generatedFiles: ['index.mjs']
+//     }
 // }
 ```
 
@@ -547,9 +560,9 @@ console.log(result);
 
 Internal skills are implemented as orchestrator module skills. To add a new internal skill:
 
-1. Create a module file in `RecursiveSkilledAgents/` with the required exports:
+1. Create a module file in `skills/` with the required exports:
 ```javascript
-// RecursiveSkilledAgents/my-new-skill.mjs
+// skills/my-new-skill/src/index.mjs
 
 export const shortName = 'my-new-skill';
 
@@ -560,7 +573,7 @@ export const descriptor = {
 };
 
 export async function action(context) {
-    const { prompt, recursiveAgent, llmAgent } = context;
+    const { promptText, recursiveAgent, llmAgent } = context;
     // Implementation logic here
     return {
         message: 'Operation completed',
@@ -640,7 +653,7 @@ A specialized CLI agent for managing, generating, and testing skill definition f
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                          SkillManagerAgent                                  │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                    RecursiveSkilledAgent                              │  │
+│  │                    MainAgent                                        │  │
 │  │  - Discovers skills from workingDir + built-in skills                │  │
 │  │  - Routes prompts via 'skill-manager' orchestrator                   │  │
 │  └───────────────────────────────┬──────────────────────────────────────┘  │
@@ -706,7 +719,7 @@ tests/skill-manager/             # Test files (separate location)
 
 #### SkillManagerAgent.mjs
 
-Main agent class that wraps `RecursiveSkilledAgent` for skill management.
+Main agent class for skill management.
 
 ```javascript
 import { SkillManagerAgent } from 'achillesAgentLib/cli/skill-manager-cli/SkillManagerAgent.mjs';

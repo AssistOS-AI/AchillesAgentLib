@@ -180,7 +180,7 @@ export class OrchestratorSkillsSubsystem {
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-            // Return a standard function that calls the skill via RecursiveSkilledAgent
+            // Return a standard function that calls the skill via MainAgent
             // This allows each subsystem to access any skill uniformly
             tools[toolName] = async (agent, promptText) => {
                 // Coerce promptText to string — planner may pass objects from previous tool results
