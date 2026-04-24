@@ -12,7 +12,7 @@ and how the new skill subsystems consume them.
 | `model`         | `string`        | Explicit model name. Overrides `mode` preference. |
 | `context`       | `object`        | Arbitrary metadata exposed to invoker strategies (e.g. `{ intent: 'code-skill-default' }`). |
 | `history`       | `Array<{role, message}>` | Conversation turns to prepend to the request. |
-| `sessionMemory` | `MemoryContainer \| Array \| {history}` | Captures prior user/assistant messages. `executePrompt` stitches it into the request and updates it after completion. |
+| `sessionMemory` | `Array \| {history}` | Captures prior user/assistant messages. `executePrompt` stitches it into the request and updates it after completion. |
 | `responseShape` | `'json' \| 'json-code' \| 'code' \| 'markdown'` | When provided, the agent validates/coerces the raw response before returning it. For example, `'json'` parses the payload, while `'json-code'` ensures a JSON object with a `code` property. |
 
 ## `executePrompt(promptText, options)`

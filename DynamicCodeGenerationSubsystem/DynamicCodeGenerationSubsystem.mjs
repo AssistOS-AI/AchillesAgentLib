@@ -74,7 +74,6 @@ function unwrapCodeFence(payload) {
 
 function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'code' }) {
     return async (invocation) => {
-        const mainAgent = invocation?.recursiveAgent || null;
         const input = invocation?.input;
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
@@ -138,14 +137,6 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'c
             });
         } else {
             throw new Error(`Dynamic code generation skill "${skillName}" received unsupported mode "${decision.mode}".`);
-        }
-
-        if (mainAgent?.sessionMemory && typeof mainAgent.sessionMemory.appendToHistory === 'function') {
-            try {
-                mainAgent.sessionMemory.appendToHistory({ user: input, ai: outcome });
-            } catch (error) {
-                // Ignore context persistence issues
-            }
         }
 
         return outcome;
@@ -245,7 +236,7 @@ export class DynamicCodeGenerationSubsystem {
         this.executors.set(skillRecord.name, executor);
     }
 
-    async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options = {} }) {
+    async executeSkillPrompt({ skillRecord, mainAgent, promptText, options = {} }) {
         const executor = this.executors.get(skillRecord.name);
         if (!executor) {
             throw new Error(`Executor not prepared for dynamic code generation skill "${skillRecord.name}".`);
@@ -254,9 +245,6 @@ export class DynamicCodeGenerationSubsystem {
         const {
             args = {},
         } = options;
-        const sessionMemory = options.sessionMemory
-            || options.context?.sessionMemory
-            || null;
 
         const input = typeof args[CODE_ARGUMENT_NAME] === 'string' && args[CODE_ARGUMENT_NAME].trim()
             ? args[CODE_ARGUMENT_NAME]
@@ -268,12 +256,10 @@ export class DynamicCodeGenerationSubsystem {
 
         const result = await executor({
             llmAgent: this.llmAgent,
-            recursiveAgent,
             input,
             promptText: String(promptText ?? '').trim(),
             context: options.context || {},
             user: options.context?.user || null,
-            sessionMemory,
             attachments: options.context?.attachments || [],
         });
 
@@ -281,7 +267,6 @@ export class DynamicCodeGenerationSubsystem {
             skill: skillRecord.name,
             preparedConfig: skillRecord.preparedConfig || null,
             result,
-            sessionMemory,
         };
     }
 }

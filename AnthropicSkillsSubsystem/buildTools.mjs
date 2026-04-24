@@ -30,12 +30,10 @@ function resolveInternalSkillRecord(internalSkills, shortName) {
     return null;
 }
 
-function buildSkillHandler(skillRecord, recursiveAgent, forwardedContext) {
+function buildSkillHandler(skillRecord, mainAgent, forwardedContext) {
     return async (_agent, promptText) => {
-        const executionResult = await recursiveAgent.executePrompt(promptText, {
-            skillName: skillRecord.name,
+        const executionResult = await mainAgent.executeSkill(skillRecord.name, promptText, {
             context: forwardedContext,
-            sessionMemory: forwardedContext.sessionMemory || null,
         });
         return executionResult?.result;
     };
@@ -43,9 +41,8 @@ function buildSkillHandler(skillRecord, recursiveAgent, forwardedContext) {
 
 export function buildAnthropicTools({
     skillRecord,
-    recursiveAgent,
+    mainAgent,
     options = {},
-    sessionMemory,
     internalSkills = [],
 }) {
     const skillDir = skillRecord?.skillDir || null;
@@ -64,10 +61,7 @@ export function buildAnthropicTools({
             const description = skill.descriptor?.rawContent || `${skillName} skill`;
             tools[skillName] = {
                 description,
-                handler: buildSkillHandler(skill, recursiveAgent, {
-                    ...forwardedContext,
-                    sessionMemory,
-                }),
+                handler: buildSkillHandler(skill, mainAgent, forwardedContext),
             };
         }
     }

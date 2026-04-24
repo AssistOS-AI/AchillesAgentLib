@@ -171,7 +171,7 @@ export class MainAgent {
 
         return subsystem.executeSkillPrompt({
             skillRecord,
-            recursiveAgent: this,
+            mainAgent: this,
             promptText: prompt,
             options,
         });

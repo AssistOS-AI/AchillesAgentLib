@@ -17,16 +17,15 @@ export const descriptor = {
 
 /**
  * Skill action entry point.
- * @param {Object} context - Execution context provided by OrchestratorSkillsSubsystem.
+ * @param {Object} context - Execution context provided by CodeSkillsSubsystem.
  * @param {string} context.promptText - The skill directory path to generate code for.
- * @param {Object} context.recursiveAgent - The recursive agent instance (provides llmAgent).
  * @param {Object} context.llmAgent - The LLM agent instance.
  * @returns {Promise<Object>} Result object with message and generatedFiles array.
  */
 import { resolvePath, stripDependsOn } from '../../../utils/internalSkillsUtils.mjs';
 
 export async function action(context) {
-    const { promptText, recursiveAgent, llmAgent, logger = console } = context;
+    const { promptText, llmAgent, logger = console } = context;
     const targetDirRaw = stripDependsOn(promptText)?.trim();
 
     if (!targetDirRaw) {
@@ -34,13 +33,12 @@ export async function action(context) {
     }
     const targetDir = resolvePath(targetDirRaw, 'skill directory path');
 
-    const agent = llmAgent || recursiveAgent?.llmAgent;
-    if (!agent) {
+    if (!llmAgent) {
         throw new Error('mirror-code-generator requires an LLM agent.');
     }
 
-    const modelConfig = recursiveAgent?.modelConfig || null;
-    const generationResult = await generateMirrorCode(targetDir, agent, logger, modelConfig);
+    const modelConfig = llmAgent?.modelConfig || null;
+    const generationResult = await generateMirrorCode(targetDir, llmAgent, logger, modelConfig);
 
     return {
         message: generationResult?.message || `Code generation completed for ${targetDir}`,

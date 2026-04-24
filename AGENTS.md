@@ -267,24 +267,24 @@ true
 }
 ```
 
-**Key Methods:**
-```javascript
-// Fast loop session
-const loopResult = await subsystem.executeLoopAgentSession({
-    skillRecord,
-    recursiveAgent,
-    promptText,
-    options,
-});
+ **Key Methods:**
+ ```javascript
+ // Fast loop session
+ const loopResult = await subsystem.executeLoopAgentSession({
+     skillRecord,
+     mainAgent,
+     promptText,
+     options,
+ });
 
-// Deep SOP session when loop metadata is empty
-const sopResult = await subsystem.executeSOPAgentSession({
-    skillRecord,
-    recursiveAgent,
-    promptText,
-    options,
-});
-```
+ // Deep SOP session when loop metadata is empty
+ const sopResult = await subsystem.executeSOPAgentSession({
+     skillRecord,
+     mainAgent,
+     promptText,
+     options,
+ });
+ ```
 
 ---
 
@@ -456,16 +456,6 @@ Sanitiser.sanitiseName('My Skill Name');  // 'my-skill-name'
 Sanitiser.sanitiseName('skill_v2.0');     // 'skill-v2-0'
 ```
 
-### MemoryContainer (`MemoryContainer/MemoryContainer.mjs`)
-
-Manages conversation history for skills.
-
-```javascript
-const memory = new MemoryContainer({ initialHistory: [] });
-memory.appendToHistory({ user: 'Hello', ai: 'Hi there!' });
-const context = memory.getFullContext();
-```
-
 ### FlexSearch Adapter (`SkilledAgents/search/flexsearchAdapter.mjs`)
 
 Powers skill search and selection.
@@ -573,7 +563,7 @@ export const descriptor = {
 };
 
 export async function action(context) {
-    const { promptText, recursiveAgent, llmAgent } = context;
+    const { promptText, mainAgent, llmAgent } = context;
     // Implementation logic here
     return {
         message: 'Operation completed',

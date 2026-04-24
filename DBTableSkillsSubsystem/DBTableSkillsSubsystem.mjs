@@ -1,8 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import crypto from 'node:crypto';
-import vm from 'node:vm';
 import { parseSkillMarkdown, validateSkill } from './SkillParser.mjs';
 import { ConversationalTskillController } from './ConversationalTskillController.mjs';
 import { tskillToSpecs } from './tskillToSpecs.mjs';
@@ -97,21 +95,6 @@ function withTimeout(promiseLike, timeoutMs, errorFactory) {
     });
 }
 
-function extractSectionContent(sections = {}, ...aliases) {
-    if (!sections || typeof sections !== 'object') {
-        return '';
-    }
-    for (const alias of aliases) {
-        if (!alias) {
-            continue;
-        }
-        const key = alias.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        if (sections[key]) {
-            return sections[key];
-        }
-    }
-    return '';
-}
 
 function normalizeIdentifier(value) {
     return String(value || '').trim().toLowerCase();

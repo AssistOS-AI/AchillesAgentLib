@@ -278,13 +278,13 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
         },
     };
 
-    const recursiveAgent = {
-        skillCatalog: new Map(),
+    const mainAgent = {
+        getSkills: () => [],
     };
 
     const result = await subsystem.executeLoopAgentSession({
         skillRecord,
-        recursiveAgent,
+        mainAgent,
         promptText: 'Do something',
         options: { tier: 'fast' },
     });
@@ -320,13 +320,13 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
         },
     };
 
-    const recursiveAgent = {
-        skillCatalog: new Map(),
+    const mainAgent = {
+        getSkills: () => [],
     };
 
     const result = await subsystem.executeSOPAgentSession({
         skillRecord,
-        recursiveAgent,
+        mainAgent,
         promptText: 'Process data',
         options: { tier: 'deep' },
     });
@@ -362,13 +362,13 @@ test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation sectio
         },
     };
 
-    const recursiveAgent = {
-        skillCatalog: new Map(),
+    const mainAgent = {
+        getSkills: () => [],
     };
 
     await subsystem.executeLoopAgentSession({
         skillRecord,
-        recursiveAgent,
+        mainAgent,
         promptText: 'Test',
         options: {},
     });

@@ -182,14 +182,14 @@ Allowed tools:
 4. Execute plan steps sequentially
 5. Trigger fallback if all steps fail/skip
 
-**Key Methods:**
-```javascript
-// Creates execution plan using LLM
-const plan = await subsystem.createPlan({ skillRecord, recursiveAgent, promptText });
+ **Key Methods:**
+ ```javascript
+ // Creates execution plan using LLM
+ const plan = await subsystem.createPlan({ skillRecord, mainAgent, promptText });
 
-// Execute the plan steps
-const executions = await subsystem.executePlanSteps({ plan, recursiveAgent, options });
-```
+ // Execute the plan steps
+ const executions = await subsystem.executePlanSteps({ plan, mainAgent, options });
+ ```
 
 ---
 
@@ -359,16 +359,6 @@ Normalizes skill names and identifiers.
 ```javascript
 Sanitiser.sanitiseName('My Skill Name');  // 'my-skill-name'
 Sanitiser.sanitiseName('skill_v2.0');     // 'skill-v2-0'
-```
-
-### MemoryContainer (`MemoryContainer/MemoryContainer.mjs`)
-
-Manages conversation history for skills.
-
-```javascript
-const memory = new MemoryContainer({ initialHistory: [] });
-memory.appendToHistory({ user: 'Hello', ai: 'Hi there!' });
-const context = memory.getFullContext();
 ```
 
 ### FlexSearch Adapter (`SkilledAgents/search/flexsearchAdapter.mjs`)

@@ -52,7 +52,7 @@ export async function action(context) {
         'Page content:',
         pageText,
     ].join('\n\n');
-    const modelConfig = context?.recursiveAgent?.modelConfig || null;
+    const modelConfig = llmAgent?.modelConfig || null;
     const llmResult = await llmAgent.executePrompt(promptForLlm, {
         responseShape: 'text',
         model: modelConfig?.plan || 'plan',

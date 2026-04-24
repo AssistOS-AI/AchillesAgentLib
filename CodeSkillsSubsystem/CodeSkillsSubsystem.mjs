@@ -42,8 +42,8 @@ export class CodeSkillsSubsystem {
     return parseSkillDocument(filePath);
   }
 
-  async executeSkillPrompt({ skillRecord, recursiveAgent, promptText, options }) {
-    this.llmAgent = recursiveAgent.llmAgent;
+  async executeSkillPrompt({ skillRecord, mainAgent, promptText, options }) {
+    this.llmAgent = mainAgent.llmAgent;
     const specifications = this.getSpecifications(skillRecord);
     
     if (!specifications.inputFormat) {
@@ -56,15 +56,11 @@ export class CodeSkillsSubsystem {
     };
     debugLog(`Executing skill "${skillRecord.shortName}" with prompt: ${args.promptText.substring(0, 200)}...`);
     args.llmAgent = this.llmAgent;
-    args.recursiveAgent = recursiveAgent;
     
-    // Pass through context, sessionMemory, user, and attachments from options.
+    // Pass through context from options
     const executionContext = options?.context || {};
     Object.assign(args, executionContext);
     args.context = executionContext;
-    args.sessionMemory = executionContext.sessionMemory || null;
-    args.user = executionContext.user || null;
-    args.attachments = executionContext.attachments || [];
 
     // Execute the already generated code from disk
     const outputPath = skillRecord.skillDir;
@@ -75,7 +71,6 @@ export class CodeSkillsSubsystem {
       skill: skillRecord.name,
       preparedConfig: skillRecord.preparedConfig || null,
       result,
-      sessionMemory: null,
     };
   }
 
