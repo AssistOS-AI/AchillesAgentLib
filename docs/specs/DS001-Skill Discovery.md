@@ -103,7 +103,7 @@ Skill lookup always goes through the alias map. This means both canonical names 
 
 - Does NOT parse skill descriptors (subsystems handle this during registration)
 - Does NOT prepare skills (subsystems handle this during registration)
-- Does NOT generate code for cskills
+- Does NOT generate code for cskills (CodeSkillsSubsystem handles lazy generation on first execution)
 - Does NOT use FlexSearch or text-based search
 - Does NOT search upward through parent directories
 - Does NOT support additional skill roots beyond startDir and the internal skills directory
