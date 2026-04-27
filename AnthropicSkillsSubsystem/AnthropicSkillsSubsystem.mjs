@@ -64,6 +64,18 @@ export class AnthropicSkillsSubsystem {
         };
     }
 
+    /**
+     * Initialize a skill — async, heavy operations.
+     *
+     * No initialization needed for Anthropic skills.
+     *
+     * @param {Object} skillRecord - The skill record to initialize
+     * @param {MainAgent} mainAgent - The main agent instance
+     */
+    async initSkill(skillRecord, mainAgent) {
+        // No initialization needed for Anthropic skills.
+    }
+
     async executeSkillPrompt({
         skillRecord,
         mainAgent,

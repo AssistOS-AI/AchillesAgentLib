@@ -1006,6 +1006,19 @@ export class DBTableSkillsSubsystem {
     }
 
     /**
+     * Initialize a skill — async, heavy operations.
+     *
+     * No additional initialization needed for DB table skills.
+     * All heavy work (code generation, model registration) is done in prepareSkill().
+     *
+     * @param {Object} skillRecord - The skill record to initialize
+     * @param {MainAgent} mainAgent - The main agent instance
+     */
+    async initSkill(skillRecord, mainAgent) {
+        // No additional initialization needed for DB table skills.
+    }
+
+    /**
      * Create an executor function for the skill.
      *
      * Uses ConversationalTskillController to wrap all operations with confirmation flows,

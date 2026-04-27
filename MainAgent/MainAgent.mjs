@@ -177,6 +177,30 @@ export class MainAgent {
         });
     }
 
+    /**
+     * Initialize all skills — async, heavy one-time setup.
+     *
+     * Unlike `prepareSkill` (called automatically during registration for fast,
+     * synchronous config parsing), `initSkills` performs expensive operations
+     * like code generation from specs/ for code skills.
+     *
+     * Must be called explicitly before executing skills that require initialization.
+     * Safe to call multiple times — skills that are already initialized are skipped.
+     */
+    async initSkills() {
+        const skills = this.getSkills();
+        for (const skillRecord of skills) {
+            const subsystem = this.subsystemFactory.get(skillRecord.type);
+            if (subsystem && typeof subsystem.initSkill === 'function') {
+                try {
+                    await subsystem.initSkill(skillRecord, this);
+                } catch (error) {
+                    this.logger.warn(`[MainAgent] Failed to initialize skill ${skillRecord.name}: ${error.message}`);
+                }
+            }
+        }
+    }
+
     _buildToolsForSession() {
         const tools = {};
         const allSkills = this.getSkills();

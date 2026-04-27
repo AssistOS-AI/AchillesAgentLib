@@ -112,6 +112,18 @@ export class OrchestratorSkillsSubsystem {
         };
     }
 
+    /**
+     * Initialize a skill — async, heavy operations.
+     *
+     * No initialization needed for orchestrator skills.
+     *
+     * @param {Object} skillRecord - The skill record to initialize
+     * @param {MainAgent} mainAgent - The main agent instance
+     */
+    async initSkill(skillRecord, mainAgent) {
+        // No initialization needed for orchestrator skills.
+    }
+
     resolveAllowedSkills(skillRecord, mainAgent) {
         const allSkills = mainAgent.getSkills();
         const selfCanonical = Sanitiser.sanitiseName(skillRecord.name);

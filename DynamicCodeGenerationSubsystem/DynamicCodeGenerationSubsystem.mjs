@@ -236,6 +236,18 @@ export class DynamicCodeGenerationSubsystem {
         this.executors.set(skillRecord.name, executor);
     }
 
+    /**
+     * Initialize a skill — async, heavy operations.
+     *
+     * No initialization needed for dynamic code generation skills.
+     *
+     * @param {Object} skillRecord - The skill record to initialize
+     * @param {MainAgent} mainAgent - The main agent instance
+     */
+    async initSkill(skillRecord, mainAgent) {
+        // No initialization needed for dynamic code generation skills.
+    }
+
     async executeSkillPrompt({ skillRecord, mainAgent, promptText, options = {} }) {
         const executor = this.executors.get(skillRecord.name);
         if (!executor) {

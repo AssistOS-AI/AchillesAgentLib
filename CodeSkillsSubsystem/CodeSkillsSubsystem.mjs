@@ -54,6 +54,18 @@ export class CodeSkillsSubsystem {
     return parseSkillDocument(filePath);
   }
 
+  /**
+   * Prepare a skill for execution — fast, synchronous.
+   *
+   * Parses the skill descriptor and populates `skillRecord.preparedConfig`
+   * with metadata (type, name, sections, file paths). Also detects whether
+   * the skill has specs/ and whether code generation is needed.
+   *
+   * This is called automatically by MainAgent during skill registration.
+   * It does NOT perform heavy operations like code generation.
+   *
+   * @param {Object} skillRecord - The skill record to prepare
+   */
   prepareSkill(skillRecord) {
     const sections = skillRecord.descriptor?.sections || {};
     const skillDir = skillRecord.skillDir;
@@ -83,6 +95,51 @@ export class CodeSkillsSubsystem {
     );
   }
 
+  /**
+   * Initialize a skill — async, heavy operations.
+   *
+   * Performs one-time setup that is too expensive for prepareSkill().
+   * For code skills, this generates JavaScript from specs/ if no entrypoint exists.
+   *
+   * Must be called explicitly via `MainAgent.initSkills()` before executing
+   * skills that have specs/ but no generated code.
+   *
+   * @param {Object} skillRecord - The skill record to initialize
+   * @param {MainAgent} mainAgent - The main agent instance
+   */
+  async initSkill(skillRecord, mainAgent) {
+    const skillDir = skillRecord.skillDir;
+    if (!skillDir) return;
+
+    const entryPoints = [join(skillDir, 'src', 'index.mjs'), join(skillDir, 'src', 'index.js')];
+    const hasCode = (await Promise.all(entryPoints.map(fileExists))).some(Boolean);
+    if (hasCode) return;
+
+    if (this._generating.has(skillDir)) {
+      await this._generating.get(skillDir);
+      return;
+    }
+
+    // Claim the skill immediately to prevent race condition with concurrent callers
+    let resolveGeneration;
+    const generationDone = new Promise(resolve => { resolveGeneration = resolve; });
+    this._generating.set(skillDir, generationDone);
+
+    try {
+      const specsDir = join(skillDir, 'specs');
+      if (await dirExists(specsDir)) {
+        const result = await mainAgent.executeSkill('mirror-code-generator', skillDir);
+        debugLog(`Code generated for "${skillRecord.shortName}": ${JSON.stringify(result?.result)}`);
+        if (skillRecord.preparedConfig) {
+          skillRecord.preparedConfig.needsGeneration = false;
+        }
+      }
+    } finally {
+      resolveGeneration();
+      this._generating.delete(skillDir);
+    }
+  }
+
   async executeSkillPrompt({ skillRecord, mainAgent, promptText, options }) {
     this.llmAgent = mainAgent.llmAgent;
     const specifications = this.getSpecifications(skillRecord);
@@ -90,8 +147,6 @@ export class CodeSkillsSubsystem {
     if (!specifications.inputFormat) {
       throw new Error("Invalid/unprepared cskill: Missing 'Input Format' section in the skill's .md file.");
     }
-
-    await this._ensureCodeGenerated(skillRecord, mainAgent);
 
     const args = {
       promptText
@@ -112,35 +167,6 @@ export class CodeSkillsSubsystem {
       preparedConfig: skillRecord.preparedConfig || null,
       result,
     };
-  }
-
-  async _ensureCodeGenerated(skillRecord, mainAgent) {
-    const skillDir = skillRecord.skillDir;
-    if (!skillDir) return;
-
-    const entryPoints = [join(skillDir, 'src', 'index.mjs'), join(skillDir, 'src', 'index.js')];
-    const hasCode = (await Promise.all(entryPoints.map(fileExists))).some(Boolean);
-    if (hasCode) return;
-
-    if (this._generating.has(skillDir)) {
-      await this._generating.get(skillDir);
-      return;
-    }
-
-    const specsDir = join(skillDir, 'specs');
-    if (!(await dirExists(specsDir))) {
-      throw new Error(`Execution failed: No valid entrypoint found and no specs/ directory. Tried: ${entryPoints.map(f => join(skillDir, f)).join(', ')}. It should have been generated automatically.`);
-    }
-
-    const generationPromise = mainAgent.executeSkill('mirror-code-generator', skillDir);
-    this._generating.set(skillDir, generationPromise);
-
-    try {
-      const result = await generationPromise;
-      debugLog(`Code generated for "${skillRecord.shortName}": ${JSON.stringify(result?.result)}`);
-    } finally {
-      this._generating.delete(skillDir);
-    }
   }
 
   getSpecifications(skillRecord) {
@@ -184,7 +210,7 @@ export class CodeSkillsSubsystem {
     }
 
     if (!mainFilePath) {
-      throw new Error(`Execution failed: No valid entrypoint found. Tried: ${possibleMainFiles.map(f => join(outputPath, f)).join(', ')}. It should have been generated automatically.`);
+      throw new Error(`Execution failed: No valid entrypoint found. Tried: ${possibleMainFiles.map(f => join(outputPath, f)).join(', ')}. Run initSkills() to generate code from specs/.`);
     }
 
     try {
