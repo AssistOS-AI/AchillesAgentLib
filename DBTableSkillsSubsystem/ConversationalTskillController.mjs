@@ -1071,7 +1071,7 @@ export class ConversationalTskillController {
      * @returns {Promise<void>}
      */
     async writeProgress(message) {
-        // Check context I/O first (injected by RecursiveSkilledAgent)
+        // Check context I/O first (injected by MainAgent)
         const contextWriter = this._currentContext?.io?.outputWriter;
         const writer = contextWriter || IOServices.getOutputWriter();
         if (writer && typeof writer.writeProgress === 'function') {

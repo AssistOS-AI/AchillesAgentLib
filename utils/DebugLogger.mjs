@@ -102,3 +102,45 @@ export function closeDebugLogger() {
 }
 
 export const DEBUG_ACTIVE = DEBUG_ENABLED;
+
+export function createLogger({ stream = null } = {}) {
+    let fileStream = stream;
+    let initialised = false;
+
+    function ensureStream() {
+        if (fileStream) return fileStream;
+        if (!initialised) {
+            fileStream = createLogFileStream();
+            initialised = true;
+        }
+        return fileStream;
+    }
+
+    function writeToFile(...args) {
+        const stream = ensureStream();
+        if (!stream) return;
+        const timestamp = new Date().toISOString();
+        const line = `[${timestamp}] ${formatMessage(args)}\n`;
+        stream.write(line);
+    }
+
+    return {
+        info(...args) {
+            console.info(...args);
+        },
+        warn(...args) {
+            console.warn(...args);
+        },
+        debug(...args) {
+            if (!DEBUG_ENABLED) return;
+            console.debug(...args);
+            writeToFile(...args);
+        },
+        close() {
+            if (fileStream) {
+                try { fileStream.end(); } catch {}
+                fileStream = null;
+            }
+        },
+    };
+}

@@ -210,6 +210,18 @@ export class MCPSkillsSubsystem {
         };
     }
 
+    /**
+     * Initialize a skill — async, heavy operations.
+     *
+     * No initialization needed for MCP skills.
+     *
+     * @param {Object} skillRecord - The skill record to initialize
+     * @param {MainAgent} mainAgent - The main agent instance
+     */
+    async initSkill(skillRecord, mainAgent) {
+        // No initialization needed for MCP skills.
+    }
+
     filterTools(allowList = [], availableTools = []) {
         if (!allowList.length) {
             return availableTools.slice();

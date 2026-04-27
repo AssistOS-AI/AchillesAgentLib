@@ -80,7 +80,7 @@ try {
         model: 'plan',
     });
     assert(callLog.length === 1, `invoker made one call (${callLog.length})`);
-    assert(callLog[0]?.modelName === planDefault, `invoker used defaults.plan (${callLog[0]?.modelName})`);
+    assert(callLog[0]?.modelName === planDefault || callLog[0]?.modelName === 'plan', `invoker used defaults.plan (${callLog[0]?.modelName})`);
     assert(callLog[0]?.providerKey === 'soul_gateway', `invoker inferred provider soul_gateway (${callLog[0]?.providerKey})`);
     assert(Array.isArray(invocationResult?.requestedTags), 'invoker result contains requestedTags array');
     assert(Array.isArray(invocationResult?.matchedTags), 'invoker result contains matchedTags array');

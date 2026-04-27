@@ -8,7 +8,7 @@
     "exports": {
         ".": "./index.mjs",
         "./LLMAgents": "./LLMAgents/index.mjs",
-        "./RecursiveSkilledAgents": "./RecursiveSkilledAgents/index.mjs",
+        "./MainAgent": "./MainAgent/index.mjs",
         "./DBTableSkillsSubsystem": "./DBTableSkillsSubsystem/index.mjs",
         "./InteractiveSkillsSubsystem": "./InteractiveSkillsSubsystem/index.mjs",
         "./InteractiveSkillsSubsystem/*": "./InteractiveSkillsSubsystem/*",
@@ -24,6 +24,6 @@
         "test": "node tests/runAll.js"
     },
     "dependencies": {
-        "flexsearch": "^0.8.212"
+        
     }
 }

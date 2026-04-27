@@ -15,8 +15,6 @@ function normalizeTagArray(value) {
         .filter(Boolean);
 }
 
-// NOTE: These helpers encapsulate complete/doTask* behaviour so that LLMAgent
-// can delegate to them without duplicating orchestration logic.
 async function extraComplete(agent, options = {}) {
     const {
         prompt,
@@ -31,7 +29,6 @@ async function extraComplete(agent, options = {}) {
         throw new Error('complete requires a prompt string.');
     }
 
-    const requestId = agent._debugEnabled ? agent._nextDebugRequestId() : null;
     const startedAt = Date.now();
     const conversation = Array.isArray(history) ? history.slice() : [];
     const historyText = conversation.map((entry) => {
@@ -46,68 +43,19 @@ ${prompt}`
         : prompt;
     const inputCharacters = loggedPrompt.length;
     agent._recordInputChars(inputCharacters);
-    const emit = (event) => {
-        if (!requestId) {
-            return;
-        }
-        agent._emitDebugEvent({
-            id: requestId,
-            method: 'complete',
-            ...event,
-        });
-    };
-    emit({
-        phase: 'traffic',
-        direction: 'input',
-        characters: inputCharacters,
-        prompt: loggedPrompt,
-    });
-
-    if (agent._processingCallbacks?.onStart) {
-        try {
-            agent._processingCallbacks.onStart();
-        } catch (error) {
-            // Silently ignore callback errors
-        }
-    }
-
-    // Report LLM call via ActionReporter if available
-    const actionReporter = agent._actionReporter;
-    let llmAction = null;
-    if (actionReporter) {
-        const purpose = context?.intent || 'Processing';
-        const modelName = model || process.env.ACHILLES_MODEL_PLAN || 'plan';
-        llmAction = actionReporter.llmCall(modelName, purpose);
-    }
 
     let responseMetadata = null;
     try {
-        const conversation = Array.isArray(history) ? history.slice() : [];
-        emit({
-            phase: 'request',
-            model,
-            prompt,
-            history: conversation,
-            context,
-            options: invokerExtras,
-        });
         const response = await agent.invokerStrategy({
             prompt,
             history: conversation,
-            model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
+            model,
             tags,
+            modelConfig: agent.modelConfig,
             agent,
             context,
             ...invokerExtras,
         });
-
-        if (agent._processingCallbacks?.onEnd) {
-            try {
-                agent._processingCallbacks.onEnd();
-            } catch (error) {
-                // Silently ignore callback errors
-            }
-        }
 
         let finalResponse = null;
         if (typeof response === 'string') {
@@ -118,18 +66,10 @@ ${prompt}`
         } else {
             throw new Error('LLMAgent invokerStrategy must return a string response.');
         }
-        emit({
-            phase: 'response',
-            output: finalResponse,
-        });
+
         const outputCharacters = finalResponse.length;
         agent._recordOutputChars(outputCharacters);
-        emit({
-            phase: 'traffic',
-            direction: 'output',
-            characters: outputCharacters,
-            output: finalResponse,
-        });
+
         const loggedModel = responseMetadata?.model
             || agent.invokerStrategy?.getLastInvocationDetails?.()?.model
             || model
@@ -154,7 +94,6 @@ ${prompt}`
             durationMs: callDurationMs,
         });
 
-        // Per-call tracking
         if (agent._callLog) {
             agent._callLog.push({
                 inputChars: inputCharacters,
@@ -167,30 +106,8 @@ ${prompt}`
             });
         }
 
-        // Complete the action reporter action
-        if (llmAction && actionReporter) {
-            actionReporter.completeAction({ model: loggedModel, duration: Date.now() - startedAt });
-        }
-
         return finalResponse;
     } catch (error) {
-        emit({
-            phase: 'error',
-            error: error?.message || String(error),
-        });
-
-        // Report failure via ActionReporter
-        if (llmAction && actionReporter) {
-            actionReporter.failAction(error);
-        }
-
-        if (agent._processingCallbacks?.onEnd) {
-            try {
-                agent._processingCallbacks.onEnd();
-            } catch (callbackError) {
-                // Silently ignore callback errors
-            }
-        }
         const lastInvocation = agent.invokerStrategy?.getLastInvocationDetails?.() || null;
         const loggedModel = lastInvocation?.model || responseMetadata?.model || model || 'auto';
         const loggedRequestedTags = normalizeTagArray(lastInvocation?.requestedTags || tags);
@@ -223,7 +140,7 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
 
     return agent.complete({
         prompt,
-        model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
+        model,
         tags,
         context: { intent: 'task-run' },
         ...rest,
@@ -246,7 +163,7 @@ async function extraDoTaskWithReview(agent, agentContext, description, options =
 
     return agent.complete({
         prompt,
-        model: model || process.env.ACHILLES_MODEL_PLAN || 'plan',
+        model,
         tags,
         context: { intent: 'task-review', maxIterations },
         ...rest,

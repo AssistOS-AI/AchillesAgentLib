@@ -1,6 +1,5 @@
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
-import { SESSION_STATUS_AWAITING_INPUT, SESSION_KEY_PREFIX } from '../LLMAgents/constants.mjs';
 import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
@@ -63,20 +62,7 @@ function buildLoopSystemPrompt(skillRecord) {
 
 function buildContextualSystemPrompt(basePrompt, context) {
     if (!context || typeof context !== 'object') return basePrompt;
-
-    const INTERNAL_KEYS = new Set(['sessionMemory', 'io']);
-
-    const entries = Object.entries(context)
-        .filter(([key]) => !INTERNAL_KEYS.has(key));
-
-    if (!entries.length) return basePrompt;
-
-    const contextLines = entries.map(([key, value]) => {
-        const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-        return `${key}: ${text}`;
-    });
-
-    return `${basePrompt}\n\nAdditional session context:\n${contextLines.join('\n\n')}`;
+    return basePrompt;
 }
 
 export class OrchestratorSkillsSubsystem {
@@ -126,8 +112,20 @@ export class OrchestratorSkillsSubsystem {
         };
     }
 
-    resolveAllowedSkills(skillRecord, recursiveAgent) {
-        const allSkills = Array.from(recursiveAgent.skillCatalog.values());
+    /**
+     * Initialize a skill — async, heavy operations.
+     *
+     * No initialization needed for orchestrator skills.
+     *
+     * @param {Object} skillRecord - The skill record to initialize
+     * @param {MainAgent} mainAgent - The main agent instance
+     */
+    async initSkill(skillRecord, mainAgent) {
+        // No initialization needed for orchestrator skills.
+    }
+
+    resolveAllowedSkills(skillRecord, mainAgent) {
+        const allSkills = mainAgent.getSkills();
         const selfCanonical = Sanitiser.sanitiseName(skillRecord.name);
         const allowList = skillRecord.preparedConfig?.allowedSkills || [];
 
@@ -145,21 +143,21 @@ export class OrchestratorSkillsSubsystem {
         return filtered;
     }
 
-    resolveAllowedPrepSkills(skillRecord, recursiveAgent, fallbackSkills = null) {
+    resolveAllowedPrepSkills(skillRecord, mainAgent, fallbackSkills = null) {
         const allowList = skillRecord.preparedConfig?.allowedPrepSkills || [];
         const sectionPresent = Boolean(skillRecord.preparedConfig?.allowedPrepSkillsSectionPresent);
 
         if (!sectionPresent) {
             return Array.isArray(fallbackSkills)
                 ? fallbackSkills
-                : this.resolveAllowedSkills(skillRecord, recursiveAgent);
+                : this.resolveAllowedSkills(skillRecord, mainAgent);
         }
 
         if (!allowList.length) {
             return [];
         }
 
-        const allSkills = Array.from(recursiveAgent.skillCatalog.values());
+        const allSkills = mainAgent.getSkills();
         const selfCanonical = Sanitiser.sanitiseName(skillRecord.name);
 
         return allSkills.filter((record) => {
@@ -171,31 +169,23 @@ export class OrchestratorSkillsSubsystem {
         });
     }
 
-    async buildSkillsAsTools(allowedSkills, recursiveAgent, options) {
+    async buildSkillsAsTools(allowedSkills, mainAgent, options) {
         const tools = {};
-        // Forward context (sessionMemory, user, etc.) from the orchestrator's options
         const forwardedContext = options?.context || {};
-        // Use plan model for inner skill calls
         const skillModel = this.modelConfig?.plan || options?.model || null;
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-            // Return a standard function that calls the skill via RecursiveSkilledAgent
-            // This allows each subsystem to access any skill uniformly
             tools[toolName] = async (agent, promptText) => {
-                // Coerce promptText to string — planner may pass objects from previous tool results
                 const safePrompt = typeof promptText === 'string'
                     ? promptText
                     : (promptText != null ? JSON.stringify(promptText) : '');
 
                 const execOptions = {
-                    skillName: skillRecord.name,
                     context: forwardedContext,
-                    sessionMemory: forwardedContext.sessionMemory || null,
                 };
                 if (skillModel) execOptions.model = skillModel;
-                const executionResult = await recursiveAgent.executePrompt(safePrompt, execOptions);
-                // Serialize non-string results so downstream tools receive valid text
+                const executionResult = await mainAgent.executeSkill(skillRecord.name, safePrompt, execOptions);
                 const result = executionResult?.result;
                 if (result == null) return '';
                 if (typeof result === 'string') return result;
@@ -256,23 +246,14 @@ export class OrchestratorSkillsSubsystem {
         };
     }
 
-
-
-    async executeLoopAgentSession({skillRecord, recursiveAgent, promptText, options}) {
-        const sessionMemory = options?.context?.sessionMemory || options?.sessionMemory || null;
-        const sessionKey = `${SESSION_KEY_PREFIX}${Sanitiser.sanitiseName(skillRecord.name)}`;
-        
-        // Check for existing session in awaiting_input state
-        let session = sessionMemory?.get?.(sessionKey) || null;
-        let result;
-        
-        const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
-        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, recursiveAgent, allowedSkills);
-        const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
+    async executeLoopAgentSession({skillRecord, mainAgent, promptText, options}) {
+        const allowedSkills = this.resolveAllowedSkills(skillRecord, mainAgent);
+        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, mainAgent, allowedSkills);
+        const tools = await this.buildSkillsAsTools(allowedSkills, mainAgent, options);
         const descriptions = this.buildToolDescriptions(allowedSkills);
 
         const toolsWithDescriptions = this.buildToolsWithDescriptions(allowedSkills, tools, descriptions);
-        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, recursiveAgent, options);
+        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, mainAgent, options);
         const prepDescriptions = this.buildToolDescriptions(allowedPrepSkills);
         const prepToolsWithDescriptions = this.buildToolsWithDescriptions(allowedPrepSkills, prepTools, prepDescriptions);
 
@@ -280,53 +261,34 @@ export class OrchestratorSkillsSubsystem {
             ? { text: skillRecord.preparedConfig.preparation, retries: 1, tools: prepToolsWithDescriptions }
             : null;
 
-        if (session && session.status === SESSION_STATUS_AWAITING_INPUT) {
-            // Reuse existing session - continue the conversation
-            // Preparation runs internally in newPrompt() via session.preparation
-            debugLog(`[Orchestrator] Resuming existing LoopSession for "${skillRecord.name}" (status: ${session.status})`);
-            result = await session.newPrompt(promptText);
-        } else {
-            // Create new session
-            const baseSystemPrompt = buildLoopSystemPrompt(skillRecord);
-            const contextualSystemPrompt = buildContextualSystemPrompt(baseSystemPrompt, options?.context);
+        const baseSystemPrompt = buildLoopSystemPrompt(skillRecord);
+        const contextualSystemPrompt = buildContextualSystemPrompt(baseSystemPrompt, options?.context);
 
-            const sessionOptions = {
-                systemPrompt: contextualSystemPrompt,
-                model: options?.model || this.modelConfig.plan || 'plan',
-                maxStepsPerTurn: 20,
-                preparation,
-            };
+        const sessionOptions = {
+            systemPrompt: contextualSystemPrompt,
+            model: options?.model || this.modelConfig.plan || 'plan',
+            maxStepsPerTurn: 20,
+            preparation,
+        };
 
-            session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
-            result = session.getLastResult();
-        }
-
-        // Store or clear session based on status
-        if (session.status === SESSION_STATUS_AWAITING_INPUT && sessionMemory?.set) {
-            // Session is waiting for user input - store it for next call
-            debugLog(`[Orchestrator] Storing LoopSession for "${skillRecord.name}" (${SESSION_STATUS_AWAITING_INPUT})`);
-            sessionMemory.set(sessionKey, session);
-        } else if (sessionMemory?.delete) {
-            // Session completed - clean up
-            sessionMemory.delete(sessionKey);
-        }
+        const session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
+        const result = session.getLastResult();
 
         return {
             skill: skillRecord.name,
             preparedConfig: skillRecord.preparedConfig || null,
-            result: result,
+            result,
             session: 'loop',
-            sessionMemory: sessionMemory,
         };
     }
 
-    async executeSOPAgentSession({skillRecord, recursiveAgent, promptText, options}) {
-        const allowedSkills = this.resolveAllowedSkills(skillRecord, recursiveAgent);
-        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, recursiveAgent, allowedSkills);
-        const tools = await this.buildSkillsAsTools(allowedSkills, recursiveAgent, options);
+    async executeSOPAgentSession({skillRecord, mainAgent, promptText, options}) {
+        const allowedSkills = this.resolveAllowedSkills(skillRecord, mainAgent);
+        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, mainAgent, allowedSkills);
+        const tools = await this.buildSkillsAsTools(allowedSkills, mainAgent, options);
         const skillsDescription = this.buildToolDescriptions(allowedSkills);
         const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools);
-        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, recursiveAgent, options);
+        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, mainAgent, options);
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
         const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools);
 
@@ -363,16 +325,15 @@ export class OrchestratorSkillsSubsystem {
         return {
             skill: skillRecord.name,
             preparedConfig: skillRecord.preparedConfig || null,
-            result: result,
+            result,
             variables,
             session: 'sop',
-            sessionMemory: options?.context?.sessionMemory || options?.sessionMemory || null,
         };
     }
 
     async executeSkillPrompt({
         skillRecord,
-        recursiveAgent,
+        mainAgent,
         promptText,
         options = {},
     }) {
@@ -381,14 +342,14 @@ export class OrchestratorSkillsSubsystem {
         if (sessionType === 'loop') {
             return this.executeLoopAgentSession({
                 skillRecord,
-                recursiveAgent,
+                mainAgent,
                 promptText,
                 options,
             });
         }
         return this.executeSOPAgentSession({
             skillRecord,
-            recursiveAgent,
+            mainAgent,
             promptText,
             options,
         });

@@ -33,7 +33,7 @@
 
                 <section>
                     <h2>Execution Path</h2>
-                    <p>When an orchestration skill is executed, the subsystem first reads the prepared descriptor configuration and resolves the downstream skills admitted by the allowlist. These skill records are then wrapped as tools through the shared <code>RecursiveSkilledAgent</code>, so delegated calls still travel through the same routing surface used elsewhere in the library. The orchestrator therefore coordinates execution; it does not replace the downstream skills it invokes.</p>
+                    <p>When an orchestration skill is executed, the subsystem first reads the prepared descriptor configuration and resolves the downstream skills admitted by the allowlist. These skill records are then wrapped as tools through the shared <code>MainAgent</code>, so delegated calls still travel through the same routing surface used elsewhere in the library. The orchestrator therefore coordinates execution; it does not replace the downstream skills it invokes.</p>
                     <p>The session choice is then resolved from the prepared configuration. If the descriptor yields the session value <code>loop</code>, the subsystem starts a loop-based agentic session. In every other case, it starts a SOP session. This means that the session model is not inferred heuristically from the request. It is selected through a narrow rule in the subsystem.</p>
                     <figure class="pipeline-svg" aria-label="Orchestration skill execution pipeline">
                         <svg viewBox="0 0 980 170" role="img" aria-hidden="true">
@@ -63,7 +63,7 @@
 
                             <g class="pipeline-svg__card pipeline-svg__card--runtime">
                                 <rect x="520" y="30" width="200" height="110" rx="16"></rect>
-                                <text x="540" y="62" class="pipeline-svg__label">RecursiveSkilledAgent</text>
+                                <text x="540" y="62" class="pipeline-svg__label">MainAgent</text>
                                 <text x="540" y="90" class="pipeline-svg__text">Builds bounded tool</text>
                                 <text x="540" y="110" class="pipeline-svg__text">wrappers from allowlists</text>
                             </g>

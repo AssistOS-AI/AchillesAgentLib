@@ -2,11 +2,11 @@
 
 ## Overview
 
-AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powered task execution through specialized subsystems. The architecture follows a hierarchical pattern where a central `RecursiveSkilledAgent` discovers, registers, and orchestrates execution of various skill types.
+AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powered task execution through specialized subsystems. The architecture follows a hierarchical pattern where a central `MainAgent` discovers, registers, and orchestrates execution of various skill types.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        RecursiveSkilledAgent                            │
+│                        MainAgent                            │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                      Skill Discovery                             │   │
 │  │  - Scans skills directories                            │   │
@@ -35,7 +35,7 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 
 ## Core Components
 
-### 1. RecursiveSkilledAgent (`RecursiveSkilledAgents/RecursiveSkilledAgent.mjs`)
+### 1. MainAgent (`MainAgents/MainAgent.mjs`)
 
 The main entry point and coordinator for skill-based execution.
 
@@ -182,14 +182,14 @@ Allowed tools:
 4. Execute plan steps sequentially
 5. Trigger fallback if all steps fail/skip
 
-**Key Methods:**
-```javascript
-// Creates execution plan using LLM
-const plan = await subsystem.createPlan({ skillRecord, recursiveAgent, promptText });
+ **Key Methods:**
+ ```javascript
+ // Creates execution plan using LLM
+ const plan = await subsystem.createPlan({ skillRecord, mainAgent, promptText });
 
-// Execute the plan steps
-const executions = await subsystem.executePlanSteps({ plan, recursiveAgent, options });
-```
+ // Execute the plan steps
+ const executions = await subsystem.executePlanSteps({ plan, mainAgent, options });
+ ```
 
 ---
 
@@ -361,16 +361,6 @@ Sanitiser.sanitiseName('My Skill Name');  // 'my-skill-name'
 Sanitiser.sanitiseName('skill_v2.0');     // 'skill-v2-0'
 ```
 
-### MemoryContainer (`MemoryContainer/MemoryContainer.mjs`)
-
-Manages conversation history for skills.
-
-```javascript
-const memory = new MemoryContainer({ initialHistory: [] });
-memory.appendToHistory({ user: 'Hello', ai: 'Hi there!' });
-const context = memory.getFullContext();
-```
-
 ### FlexSearch Adapter (`SkilledAgents/search/flexsearchAdapter.mjs`)
 
 Powers skill search and selection.
@@ -484,7 +474,7 @@ A specialized CLI agent for managing, generating, and testing skill definition f
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                          SkillManagerAgent                                  │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                    RecursiveSkilledAgent                              │  │
+│  │                    MainAgent                              │  │
 │  │  - Discovers skills from workingDir + built-in skills                │  │
 │  │  - Routes prompts via 'skill-manager' orchestrator                   │  │
 │  └───────────────────────────────┬──────────────────────────────────────┘  │
@@ -550,7 +540,7 @@ tests/skill-manager/             # Test files (separate location)
 
 #### SkillManagerAgent.mjs
 
-Main agent class that wraps `RecursiveSkilledAgent` for skill management.
+Main agent class that wraps `MainAgent` for skill management.
 
 ```javascript
 import { SkillManagerAgent } from 'achillesAgentLib/cli/skill-manager-cli/SkillManagerAgent.mjs';

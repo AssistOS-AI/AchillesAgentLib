@@ -53,17 +53,6 @@ async function main() {
     const config = await loadModelsConfiguration();
     const models = listModelsFromCache();
     
-    // Show env overrides
-    console.log(`\n${COLORS.BOLD}Environment Overrides:${COLORS.RESET}`);
-    const envPlan = process.env.ACHILLES_MODEL_PLAN;
-    const envCode = process.env.ACHILLES_MODEL_CODE;
-    
-    if (envPlan) console.log(`  ACHILLES_MODEL_PLAN: ${envPlan}`);
-    if (envCode) console.log(`  ACHILLES_MODEL_CODE: ${envCode}`);
-    if (!envPlan && !envCode) {
-        console.log(`  ${COLORS.GRAY}(none - using LLMConfig.json defaults)${COLORS.RESET}`);
-    }
-    
     // Show LLMConfig.json defaults
     console.log(`\n${COLORS.BOLD}LLMConfig.json Defaults:${COLORS.RESET}`);
     const defaults = Array.from(config.defaults?.entries?.() || []);

@@ -21,11 +21,11 @@ test('resolveAllowedSkills allows all skill types except self when no allowlist'
         { name: 'orchestrator-skill', type: 'orchestrator' },
     ];
 
-    const recursiveAgent = {
-        skillCatalog: new Map(allSkills.map(skill => [skill.name, skill])),
+    const mainAgent = {
+        getSkills: () => allSkills,
     };
 
-    const filtered = subsystem.resolveAllowedSkills(skillRecord, recursiveAgent);
+    const filtered = subsystem.resolveAllowedSkills(skillRecord, mainAgent);
 
     const allowedTypes = filtered.map(skill => skill.type);
     const expectedTypes = ['cskill', 'mcp', 'dbtable', 'anthropic', 'dynamic-code-generation'];
@@ -47,11 +47,11 @@ test('resolveAllowedSkills excludes self from allowed skills', () => {
         { name: 'other-skill', type: 'cskill' },
     ];
 
-    const recursiveAgent = {
-        skillCatalog: new Map(allSkills.map(skill => [skill.name, skill])),
+    const mainAgent = {
+        getSkills: () => allSkills,
     };
 
-    const filtered = subsystem.resolveAllowedSkills(skillRecord, recursiveAgent);
+    const filtered = subsystem.resolveAllowedSkills(skillRecord, mainAgent);
 
     assert.equal(filtered.length, 1, 'should exclude self');
     assert.equal(filtered[0].name, 'other-skill', 'should only include other skills');
@@ -70,11 +70,11 @@ test('resolveAllowedSkills respects allowedSkills list when provided', () => {
         { name: 'not-allowed-skill', shortName: 'not-allowed', type: 'cskill' },
     ];
 
-    const recursiveAgent = {
-        skillCatalog: new Map(allSkills.map(skill => [skill.name, skill])),
+    const mainAgent = {
+        getSkills: () => allSkills,
     };
 
-    const filtered = subsystem.resolveAllowedSkills(skillRecord, recursiveAgent);
+    const filtered = subsystem.resolveAllowedSkills(skillRecord, mainAgent);
 
     assert.equal(filtered.length, 1, 'should respect allowedSkills filter');
     assert.equal(filtered[0].name, 'allowed-skill', 'should only include allowed skill');
@@ -151,13 +151,13 @@ test('executeLoopAgentSession is used when sessionType is set', async () => {
         },
     };
 
-    const recursiveAgent = {
-        skillCatalog: new Map([['skill1', { name: 'skill1' }]]),
+    const mainAgent = {
+        getSkills: () => [{ name: 'skill1' }],
     };
 
     const result = await subsystem.executeSkillPrompt({
         skillRecord,
-        recursiveAgent,
+        mainAgent,
         promptText: 'Test loop prompt',
     });
 

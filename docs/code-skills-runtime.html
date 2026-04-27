@@ -32,9 +32,10 @@
                 </section>
 
                 <section>
-                    <h2>Registration and Generation</h2>
-                    <p>When <code>RecursiveSkilledAgent</code> registers a skill of type <code>cskill</code>, it immediately schedules a preparation step through the internal <code>mirror-code-generator</code> skill. That generation request is issued automatically with the skill directory as input. If the directory contains usable files under <code>specs/</code>, the generator can produce or refresh matching files under <code>src/</code>. If the directory does not contain specifications, the generation step may complete without producing code.</p>
-                    <p>This means that the Code Skills runtime should not be described as though generation and execution were the same phase. Generation is an earlier preparation step initiated by the top-level agent. Execution happens later inside the Code Skills subsystem, which simply loads the module that exists on disk at that point.</p>
+                    <h2>Registration and Initialization</h2>
+                    <p>When <code>MainAgent</code> registers a skill of type <code>cskill</code>, it runs a synchronous preparation step that detects whether the skill has a <code>specs/</code> directory and whether code generation is needed. No code is generated at this point.</p>
+                    <p>Code generation is performed later, when the caller explicitly invokes <code>MainAgent.initSkills()</code>. For each code skill that has <code>specs/</code> but no entrypoint under <code>src/</code>, the initialization step calls the internal <code>mirror-code-generator</code> skill to produce or refresh the generated files. If the directory does not contain specifications, the initialization step completes without producing code.</p>
+                    <p>This means that the Code Skills runtime should not be described as though generation and execution were the same phase. Generation is an explicit initialization step triggered by <code>initSkills()</code>. Execution happens later inside the Code Skills subsystem, which simply loads the module that exists on disk at that point.</p>
                 </section>
 
                 <section>
@@ -60,9 +61,9 @@
 
                             <g class="pipeline-svg__card pipeline-svg__card--spec">
                                 <rect x="270" y="30" width="200" height="110" rx="16"></rect>
-                                <text x="290" y="62" class="pipeline-svg__label">Automatic</text>
-                                <text x="290" y="84" class="pipeline-svg__label">generation request</text>
-                                <text x="290" y="108" class="pipeline-svg__text">Preparation may refresh</text>
+                                <text x="290" y="62" class="pipeline-svg__label">initSkills()</text>
+                                <text x="290" y="84" class="pipeline-svg__label">initialization request</text>
+                                <text x="290" y="108" class="pipeline-svg__text">Explicit call may refresh</text>
                                 <text x="290" y="128" class="pipeline-svg__text">derived code</text>
                             </g>
 

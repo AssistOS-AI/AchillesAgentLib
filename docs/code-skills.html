@@ -39,8 +39,9 @@
 
                 <section>
                     <h2>How Code Skills Operate in Practice</h2>
-                    <p>A Code Skill is discovered through <code>cskill.md</code>. When the skill is registered, <code>RecursiveSkilledAgent</code> automatically requests a generation pass through the internal <code>mirror-code-generator</code> skill. If the skill directory contains a <code>specs/</code> folder, that generation pass can produce or refresh files under <code>src/</code>. If no such specifications exist, the runtime can still execute a maintained module directly from <code>src/</code>, provided that the required entrypoint is present. The authoring patterns for these two cases are described in <a href="code-skills-authoring.html">Authoring</a>.</p>
-                    <p>The execution contract is stricter than the current page previously suggested. The subsystem looks for <code>src/index.mjs</code> first and then for <code>src/index.js</code>. It imports the located module dynamically and requires it to export an <code>action(args)</code> function. The user prompt is passed through as <code>args.promptText</code>, together with the shared runtime references such as <code>llmAgent</code>, <code>recursiveAgent</code>, <code>context</code>, <code>sessionMemory</code>, <code>user</code>, and attachments. The subsystem therefore loads and executes code from disk; it does not execute the descriptor itself. The exact loading and argument rules are documented in <a href="code-skills-runtime.html">Runtime</a>.</p>
+                    <p>A Code Skill is discovered through <code>cskill.md</code>. The execution contract is stricter than other skill families. The subsystem looks for <code>src/index.mjs</code> first and then for <code>src/index.js</code>. It imports the located module dynamically and requires it to export an <code>action(args)</code> function. The user prompt is passed through as <code>args.promptText</code>, together with the shared runtime references such as <code>llmAgent</code>, <code>context</code>, <code>user</code>, and attachments. The subsystem therefore loads and executes code from disk; it does not execute the descriptor itself.</p>
+                    <p>When a skill directory contains a <code>specs/</code> folder but no generated code under <code>src/</code>, the code must be generated before execution. This is done by calling <code>MainAgent.initSkills()</code>, which invokes the internal <code>mirror-code-generator</code> skill for each code skill that needs it. If no such specifications exist, the runtime can still execute a maintained module directly from <code>src/</code>, provided that the required entrypoint is present. The authoring patterns for these two cases are described in <a href="code-skills-authoring.html">Authoring</a>.</p>
+                    <p>In the broader architecture, this makes Code Skills a useful intermediate form between natural-language specification and stable execution. They still belong to the skill system, they are still discovered and routed by the shared agent runtime, and they can still be orchestrated by other skills. At the same time, their local behavior is delegated to a module that must satisfy a concrete entrypoint contract. In that sense, they are a more specialized and more bounded local interpretive regime. The exact loading and argument rules are documented in <a href="code-skills-runtime.html">Runtime</a>.</p>
                     <figure class="pipeline-svg" aria-label="Code skill execution pipeline">
                         <svg viewBox="0 0 980 170" role="img" aria-hidden="true">
                             <defs>
@@ -61,9 +62,9 @@
 
                             <g class="pipeline-svg__card pipeline-svg__card--spec">
                                 <rect x="270" y="30" width="200" height="110" rx="16"></rect>
-                                <text x="290" y="62" class="pipeline-svg__label">mirror-code-</text>
-                                <text x="290" y="82" class="pipeline-svg__label">generator</text>
-                                <text x="290" y="108" class="pipeline-svg__text">Optional preparation pass</text>
+                                <text x="290" y="62" class="pipeline-svg__label">initSkills()</text>
+                                <text x="290" y="82" class="pipeline-svg__label">via mirror-code-generator</text>
+                                <text x="290" y="108" class="pipeline-svg__text">Explicit initialization pass</text>
                                 <text x="290" y="128" class="pipeline-svg__text">from specs/ to src/</text>
                             </g>
 

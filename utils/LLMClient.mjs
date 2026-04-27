@@ -1,5 +1,5 @@
 import { loadModelsConfiguration, resolveModelName, parseModelReference } from './LLMProviders/providers/modelsConfigLoader.mjs';
-export { loadModelsConfiguration, resolveModelName, parseModelReference };
+export { loadModelsConfiguration, resolveModelName, parseModelReference, modelsConfiguration };
 import { registerProvidersFromConfig } from './LLMProviders/providerBootstrap.mjs';
 import { ensureProvider } from './LLMProviders/providers/providerRegistry.mjs';
 const debugFlag = (process.env.ACHILLES_DEBUG ?? '').toLowerCase();
@@ -104,15 +104,6 @@ export function selectModelByTags(requestedTags) {
     return bestModel;
 }
 
-function mapIntentToEnvKey(intent) {
-    const normalized = String(intent || '').trim().toLowerCase();
-    if (!normalized) return null;
-    if (normalized === 'plan') return 'ACHILLES_MODEL_PLAN';
-    if (normalized === 'code') return 'ACHILLES_MODEL_CODE';
-    if (normalized === 'summary') return 'ACHILLES_MODEL_PLAN';
-    return null;
-}
-
 function normalizeRequestedTags(tags) {
     if (!Array.isArray(tags)) {
         return [];
@@ -162,15 +153,6 @@ function resolveModelString(candidate) {
     const trimmed = candidate.trim();
     if (!trimmed) return null;
 
-    const envKey = mapIntentToEnvKey(trimmed);
-    if (envKey) {
-        const mapped = String(process.env[envKey] || '').trim();
-        if (mapped) {
-            const resolvedMapped = resolveModelName(mapped, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
-            return resolvedMapped || mapped;
-        }
-    }
-
     const defaultsKey = trimmed.toLowerCase();
     const defaultMapped = modelsConfiguration.defaults?.get(defaultsKey);
     if (typeof defaultMapped === 'string' && defaultMapped.trim()) {
@@ -184,27 +166,38 @@ function resolveModelString(candidate) {
 /**
  * Resolve invocation parameters to a single model string.
  * Model input can be a concrete model name or a gateway tag.
+ *
+ * Resolution order:
+ * 1. Explicit model string (resolved via config mapping)
+ * 2. modelConfig[tag] for the first requested tag
+ * 3. Tag-based registry scoring (selectModelByTags)
+ * 4. Config defaults (plan)
+ * 5. Last-resort fallback ('plan')
  */
-export function resolveModelForInvocation({ model, tags } = {}) {
+export function resolveModelForInvocation({ model, tags, modelConfig } = {}) {
     // 1. Explicit model input (model or tag)
     const explicitModel = resolveModelString(model);
     if (explicitModel) {
         return explicitModel;
     }
 
-    // 2. Tags array: choose best known model, otherwise pass-through first tag
+    // 2. modelConfig[tag] direct lookup for first requested tag
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+        const firstTag = String(tags[0] || '').trim().toLowerCase();
+        if (firstTag && modelConfig && typeof modelConfig === 'object') {
+            const mapped = modelConfig[firstTag];
+            if (typeof mapped === 'string' && mapped.trim()) {
+                return mapped.trim();
+            }
+        }
+    }
+
+    // 3. Tags array: choose best known model via registry scoring, otherwise pass-through first tag
     if (tags && Array.isArray(tags) && tags.length > 0) {
         const selected = selectModelByTags(tags);
         if (selected) return selected;
         const firstTag = String(tags[0] || '').trim();
         if (firstTag) return firstTag;
-    }
-
-    // 3. Default model from env (plan)
-    const configuredPlan = String(process.env.ACHILLES_MODEL_PLAN || '').trim();
-    if (configuredPlan) {
-        const resolvedPlan = resolveModelName(configuredPlan, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
-        return resolvedPlan || configuredPlan;
     }
 
     // 4. Config defaults
@@ -433,7 +426,7 @@ export function createDefaultLLMInvokerStrategy() {
         }
 
         // Resolve to a single model name — no cascade
-        const modelName = resolveModelForInvocation({ model, tags });
+        const modelName = resolveModelForInvocation({ model, tags, modelConfig: invocation.modelConfig });
 
         const record = modelRecordMap?.get(modelName) || null;
         const requestedTags = normalizeRequestedTags(tags);

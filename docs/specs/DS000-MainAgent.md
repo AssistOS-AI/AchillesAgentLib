@@ -1,0 +1,137 @@
+# DS000 - MainAgent Overview
+
+## Purpose
+
+MainAgent is the primary entry point for achillesAgentLib. It manages skill discovery, session lifecycle, and LLM-powered task execution.
+
+## Architecture
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                        MainAgent                            │
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────────────────┐    │
+│  │  Skill Registry  │  │       Session Manager        │    │
+│  │  _skills (Map)   │  │       _sessions (Map)        │    │
+│  │  _skillAliases   │  │                              │    │
+│  │     (Map)        │  │  create / reuse / delete     │    │
+│  └────────┬─────────┘  └──────────────┬───────────────┘    │
+│           │                           │                    │
+│  ┌────────▼───────────────────────────▼───────────────┐    │
+│  │              Execution Layer                        │    │
+│  │                                                     │    │
+│  │  executePrompt()  →  LoopAgentSession              │    │
+│  │  executeSkill()   →  Subsystem → Skill execution   │    │
+│  └────────┬──────────────────────────┬────────────────┘    │
+│           │                          │                     │
+│  ┌────────▼─────────┐  ┌─────────────▼────────────────┐   │
+│  │  SubsystemFactory │  │     SecuritySupervisor       │   │
+│  │  (lazy creation)  │  │  (tool approval + output)    │   │
+│  └────────┬─────────┘  └──────────────────────────────┘   │
+│           │                                                │
+│  ┌────────▼──────────────────────────────────────────┐    │
+│  │                  Subsystems                        │    │
+│  │  orchestrator | dcg | cskill | mcp | dbtable      │    │
+│  │  | anthropic                                       │    │
+│  └───────────────────────────────────────────────────┘    │
+│                                                           │
+│  Internal: LLMAgent (created automatically)              │
+│  Internal: Logger (unified info/warn/debug)              │
+│  Internal: modelConfig (tag → model mapping)             │
+└───────────────────────────────────────────────────────────┘
+```
+
+## Directory Structure
+
+```
+MainAgent/
+├── index.mjs
+├── MainAgent.mjs
+├── services/
+│   ├── discoverSkills.mjs
+│   └── SubsystemFactory.mjs
+└── supervisor/
+    └── SecuritySupervisor.mjs
+```
+
+## Constructor Behavior
+
+MainAgent creates its own LLMAgent internally. The caller does not provide an LLM instance.
+
+**Accepted parameters:**
+- `startDir` — root directory for skill discovery (defaults to current working directory)
+- `supervisor` — tool approval controller (creates default if omitted)
+- `logger` — unified logger with info/warn/debug methods (creates default if omitted)
+- `llmAgentOptions` — options forwarded to the internal LLMAgent constructor
+- `modelConfig` — object mapping tags to model names (e.g., `{ thinking: 'claude-sonnet-4', fast: 'gpt-4o-mini' }`)
+
+**What happens on construction:**
+1. Creates internal LLMAgent with modelConfig
+2. Creates or accepts unified logger
+3. Initializes skill registry and alias map
+4. Initializes session map
+5. Creates SubsystemFactory with internal LLMAgent and modelConfig
+6. Creates default SecuritySupervisor if none provided
+7. Discovers and registers internal skills from the package's `skills/` directory
+8. Discovers and registers user skills from startDir
+
+## Model Configuration
+
+MainAgent accepts a `modelConfig` parameter that maps semantic tags to model names. This configuration is forwarded to the internal LLMAgent and used by all subsystems for model selection.
+
+**Default tags:**
+| Tag | Default Model | Purpose |
+|-----|---------------|---------|
+| `coding` | `code` | Code generation tasks |
+| `fast` | `fast` | Quick responses |
+| `free` | `fast` | Free-tier model |
+| `long-context` | `deep` | Large context windows |
+| `research` | `deep` | Deep analysis |
+| `thinking` | `plan` | Reasoning and planning |
+| `writing` | `write` | Text composition |
+| `vision` | `plan` | Vision-capable model |
+
+**Example:**
+```javascript
+const agent = new MainAgent({
+    startDir: '/path/to/project',
+    modelConfig: {
+        thinking: 'claude-sonnet-4',
+        fast: 'gpt-4o-mini',
+        code: 'claude-sonnet-4',
+        writing: 'gpt-4o',
+        research: 'claude-3-opus',
+    },
+});
+```
+
+## Core Capabilities
+
+- **Skill discovery** — scans downward from startDir for skills directories
+- **Skill aliasing** — each skill is accessible by canonical name and short name
+- **Session management** — creates, reuses, and deletes agentic sessions
+- **Prompt execution** — sends user messages to LLM via loop sessions
+- **Direct skill execution** — runs a specific skill by name
+- **Subsystem access** — lazy creation and caching of subsystem instances
+- **Supervised tool approval** — delegates tool authorization to supervisor
+- **Model configuration** — semantic tag-to-model mapping for all LLM calls
+
+## Rules
+
+- MainAgent does NOT accept an external LLMAgent instance
+- MainAgent does NOT accept a dbAdapter parameter
+- MainAgent does NOT accept a separate debugLogger parameter
+- Skill discovery is downward-only; no upward search
+- Sessions are never recreated; existing sessions are reused
+- Model selection is resolved via LLMAgent.modelConfig and getModelByTag()
+- The modelConfig is forwarded to all subsystems through SubsystemFactory
+
+## What MainAgent Does NOT Do
+
+- Does NOT resolve which model to use (delegated to LLMAgent.getModelByTag)
+- Does NOT handle human review modes
+- Does NOT manage conversation summaries
+- Does NOT perform FlexSearch or text-based skill search
+- Does NOT expose processing callbacks
+- Does NOT filter skills or expose internal skill visibility controls
+- Does NOT reload skills after initial discovery

@@ -253,11 +253,15 @@ class LoopAgentSession {
                 ? options.maxStepsPerTurn
                 : 8,
             maxErrors: Number.isFinite(options.maxErrors) ? options.maxErrors : 5,
-            model: options.model || 'plan',
+            model: options.model || null,
+            tags: options.tags || null,
             maxRetriesPerTurn: Number.isFinite(options.maxRetriesPerTurn)
                 ? options.maxRetriesPerTurn
                 : 3,
         };
+
+        this.supervisor = options.supervisor || null;
+        this._alwaysApproveCache = new Map();
 
         this.turns = [];
         this.history = [];
@@ -750,6 +754,7 @@ class LoopAgentSession {
         const raw = await this.agent.complete({
             prompt: plannerPrompt,
             model: this.options.model,
+            tags: this.options.tags,
             context: {
                 intent: 'agentic-session-planner',
                 stepIndex,
@@ -817,10 +822,37 @@ class LoopAgentSession {
             })
             : toolPrompt;
 
-
         const promptPreview = String(resolvedPrompt ?? '').slice(0, 200);
         debugLog(`[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${promptPreview}"`);
         this._debug('[LoopSession]', 'Calling tool', { tool: toolName, prompt: resolvedPrompt });
+
+        if (this.supervisor) {
+            const cacheKey = `alwaysApprove:${toolName}`;
+            if (this._alwaysApproveCache.has(cacheKey)) {
+                this._debug('[LoopSession]', 'Tool approved via alwaysApprove cache', { tool: toolName });
+            } else {
+                const decision = await this.supervisor.approve({
+                    toolName,
+                    toolPrompt: resolvedPrompt,
+                });
+
+                if (decision === 'alwaysApprove') {
+                    this._alwaysApproveCache.set(cacheKey, true);
+                    this._debug('[LoopSession]', 'Tool always approved and cached', { tool: toolName });
+                } else if (decision === 'deny') {
+                    this._debug('[LoopSession]', 'Tool denied by supervisor', { tool: toolName });
+                    return JSON.stringify({
+                        success: false,
+                        error: `Tool "${toolName}" was denied by supervisor.`,
+                    });
+                }
+            }
+
+            const outputWriter = this.supervisor.getOutputWriter();
+            if (outputWriter && typeof outputWriter.write === 'function') {
+                await outputWriter.write(`Executing tool: ${toolName}`);
+            }
+        }
 
         // Attach session to agent temporarily to support tools that need session context
         this.agent.currentSession = this;
