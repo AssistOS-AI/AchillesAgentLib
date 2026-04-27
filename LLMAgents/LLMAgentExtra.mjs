@@ -49,8 +49,9 @@ ${prompt}`
         const response = await agent.invokerStrategy({
             prompt,
             history: conversation,
-            model: model || agent.getModelByTag('thinking'),
+            model,
             tags,
+            modelConfig: agent.modelConfig,
             agent,
             context,
             ...invokerExtras,
@@ -139,7 +140,7 @@ async function extraDoTask(agent, agentContext, description, options = {}) {
 
     return agent.complete({
         prompt,
-        model: model || agent.getModelByTag('thinking'),
+        model,
         tags,
         context: { intent: 'task-run' },
         ...rest,
@@ -162,7 +163,7 @@ async function extraDoTaskWithReview(agent, agentContext, description, options =
 
     return agent.complete({
         prompt,
-        model: model || agent.getModelByTag('thinking'),
+        model,
         tags,
         context: { intent: 'task-review', maxIterations },
         ...rest,

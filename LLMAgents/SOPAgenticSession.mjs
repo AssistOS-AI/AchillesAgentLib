@@ -225,7 +225,8 @@ class SOPAgenticSession {
         const planOnlyFlag = options.planOnly ?? options.generatePlanOnly ?? false;
         this.options = {
             ...options,
-            model: options.model || 'plan',
+            model: options.model || null,
+            tags: options.tags || null,
             planOnly: planOnlyFlag,
         };
         this.executionInterpreterOptions = options.interpreterOptions || {};
@@ -329,7 +330,7 @@ class SOPAgenticSession {
                 agent: this.agent,
                 skillsDescription: preparationSkillsDescription,
                 commandsRegistry: preparationCommandsRegistry,
-                options: { model: this.options.model },
+                options: { model: this.options.model, tags: this.options.tags },
                 preparationText: this.preparation.text,
                 userPrompt,
                 retries: this.preparation.retries ?? 1,
@@ -495,6 +496,9 @@ class SOPAgenticSession {
         }
         if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmModel')) {
             interpreterOptions.llmModel = this.options.model;
+        }
+        if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmTags')) {
+            interpreterOptions.llmTags = this.options.tags;
         }
         this._lastFinalAnswer = null;
         let interpreter;
@@ -688,6 +692,9 @@ ${trimmed}`;
         };
         if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmModel')) {
             planOptions.llmModel = this.options.model;
+        }
+        if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmTags')) {
+            planOptions.llmTags = this.options.tags;
         }
         const interpreter = new LightSOPLangInterpreter(
             englishSource,

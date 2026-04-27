@@ -253,7 +253,8 @@ class LoopAgentSession {
                 ? options.maxStepsPerTurn
                 : 8,
             maxErrors: Number.isFinite(options.maxErrors) ? options.maxErrors : 5,
-            model: options.model || 'plan',
+            model: options.model || null,
+            tags: options.tags || null,
             maxRetriesPerTurn: Number.isFinite(options.maxRetriesPerTurn)
                 ? options.maxRetriesPerTurn
                 : 3,
@@ -753,6 +754,7 @@ class LoopAgentSession {
         const raw = await this.agent.complete({
             prompt: plannerPrompt,
             model: this.options.model,
+            tags: this.options.tags,
             context: {
                 intent: 'agentic-session-planner',
                 stepIndex,

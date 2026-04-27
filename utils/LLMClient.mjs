@@ -166,15 +166,33 @@ function resolveModelString(candidate) {
 /**
  * Resolve invocation parameters to a single model string.
  * Model input can be a concrete model name or a gateway tag.
+ *
+ * Resolution order:
+ * 1. Explicit model string (resolved via config mapping)
+ * 2. modelConfig[tag] for the first requested tag
+ * 3. Tag-based registry scoring (selectModelByTags)
+ * 4. Config defaults (plan)
+ * 5. Last-resort fallback ('plan')
  */
-export function resolveModelForInvocation({ model, tags } = {}) {
+export function resolveModelForInvocation({ model, tags, modelConfig } = {}) {
     // 1. Explicit model input (model or tag)
     const explicitModel = resolveModelString(model);
     if (explicitModel) {
         return explicitModel;
     }
 
-    // 2. Tags array: choose best known model, otherwise pass-through first tag
+    // 2. modelConfig[tag] direct lookup for first requested tag
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+        const firstTag = String(tags[0] || '').trim().toLowerCase();
+        if (firstTag && modelConfig && typeof modelConfig === 'object') {
+            const mapped = modelConfig[firstTag];
+            if (typeof mapped === 'string' && mapped.trim()) {
+                return mapped.trim();
+            }
+        }
+    }
+
+    // 3. Tags array: choose best known model via registry scoring, otherwise pass-through first tag
     if (tags && Array.isArray(tags) && tags.length > 0) {
         const selected = selectModelByTags(tags);
         if (selected) return selected;
@@ -182,14 +200,14 @@ export function resolveModelForInvocation({ model, tags } = {}) {
         if (firstTag) return firstTag;
     }
 
-    // 3. Config defaults
+    // 4. Config defaults
     const defaultModel = modelsConfiguration.defaults?.get('plan');
     if (defaultModel) {
         const resolved = resolveModelName(defaultModel, modelsConfiguration.models, modelsConfiguration.qualifiedModels);
         return resolved || defaultModel;
     }
 
-    // 4. Last-resort model input
+    // 5. Last-resort model input
     return 'plan';
 }
 
@@ -408,7 +426,7 @@ export function createDefaultLLMInvokerStrategy() {
         }
 
         // Resolve to a single model name — no cascade
-        const modelName = resolveModelForInvocation({ model, tags });
+        const modelName = resolveModelForInvocation({ model, tags, modelConfig: invocation.modelConfig });
 
         const record = modelRecordMap?.get(modelName) || null;
         const requestedTags = normalizeRequestedTags(tags);

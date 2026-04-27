@@ -27,6 +27,10 @@ const DEFAULT_AGENT_NAME = 'DefaultLLMAgent';
  * Interpretation methods (`interpretMessage`, `resolveConfirmation`, `detectIntents`)
  * and execution methods (`executePrompt`) all route through this hub.
  *
+ * Model resolution is delegated low-level to the invoker strategy.
+ * Callers pass `model` (concrete name or tag string) and/or `tags` (array).
+ * The `modelConfig` maps semantic tags to model names and is passed to the invoker.
+ *
  * Traffic counters (_inputCounter, _outputCounter) are updated automatically
  * inside extraComplete() for performance metrics used by the evals suite.
  */
@@ -80,24 +84,6 @@ class LLMAgent {
     }
 
     /**
-     * Resolve a semantic tag to a concrete model name.
-     *
-     * Looks up the tag in modelConfig. If found, returns the mapped model.
-     * If not found, returns the tag itself (normalized to lowercase, trimmed).
-     * Returns null for non-string or empty input.
-     *
-     * @param {string} tag - Semantic tag like 'thinking', 'fast', 'code'
-     * @returns {string|null} Model name or the tag itself as fallback
-     */
-    getModelByTag(tag) {
-        if (!tag || typeof tag !== 'string') {
-            return null;
-        }
-        const normalized = tag.trim().toLowerCase();
-        return this.modelConfig[normalized] || normalized;
-    }
-
-    /**
      * Replace the current modelConfig entirely.
      * Pass null to reset to defaults from LLMConfig.json.
      *
@@ -123,9 +109,10 @@ class LLMAgent {
      * @param {string[]} [options.intents=['accept','cancel','update']] - Allowed intents
      * @param {string|null} [options.instructions] - Extra guidance for LLM fallback
      * @param {string|null} [options.model] - Override model for LLM fallback
+     * @param {Array|null} [options.tags] - Semantic tags for model selection
      * @returns {Object} { intent, confidence, updates?, ideas?, raw }
      */
-    async interpretMessage(message, { intents = ['accept', 'cancel', 'update'], instructions = null, model = null } = {}) {
+    async interpretMessage(message, { intents = ['accept', 'cancel', 'update'], instructions = null, model = null, tags = null } = {}) {
         // Stage 1: fast heuristic matching
         const heuristic = classifyIntent(message, { intents });
         if (heuristic.intent !== 'unknown' && (!intents.length || intents.includes(heuristic.intent))) {
@@ -141,7 +128,8 @@ class LLMAgent {
         const raw = await this.complete({
             prompt,
             history: [{ role: 'user', message }],
-            model: model || this.getModelByTag('thinking'),
+            model,
+            tags,
             context: { intent: 'classify-message', expectedIntents: intents },
         });
 
@@ -188,9 +176,10 @@ class LLMAgent {
      * @param {Object} options
      * @param {string|null} [options.actionContext] - Context for LLM fallback prompt
      * @param {string|null} [options.model] - Override model for LLM fallback
+     * @param {Array|null} [options.tags] - Semantic tags for model selection
      * @returns {Object} { decision: 'yes'|'no'|'unclear', confidence: number }
      */
-    async resolveConfirmation(userInput, { actionContext = null, model = null } = {}) {
+    async resolveConfirmation(userInput, { actionContext = null, model = null, tags = null } = {}) {
         if (!userInput || typeof userInput !== 'string') {
             return { decision: 'unclear', confidence: 0 };
         }
@@ -217,7 +206,8 @@ class LLMAgent {
         try {
             const response = await this.complete({
                 prompt,
-                model: model || this.getModelByTag('thinking'),
+                model,
+                tags,
                 context: { intent: 'resolve-confirmation' },
             });
 
@@ -295,7 +285,7 @@ class LLMAgent {
      * @returns {string} Raw LLM response text
      */
     async complete(options = {}) {
-        return extraComplete(this, options);
+        return await extraComplete(this, options);
     }
 
     /**
@@ -383,7 +373,7 @@ ${promptText}`
             : '';
 
         const result = await extraDoTask(this, agentContext, promptText, {
-            model: model || this.getModelByTag('thinking'),
+            model,
             tags,
             ...rest,
         });
@@ -432,11 +422,13 @@ ${promptText}`
      * @param {string} userPrompt - The user's request
      * @param {Object} options
      * @param {string|null} [options.model] - Model name or tag
+     * @param {Array|null} [options.tags] - Semantic tags for model selection
      * @returns {Object} Parsed JSON with skill/intent analysis
      */
     async detectIntents(skillsDescription, userPrompt, options = {}) {
         const {
             model = null,
+            tags = null,
             ...rest
         } = options;
 
@@ -444,7 +436,8 @@ ${promptText}`
 
         const result = await this.complete({
             prompt,
-            model: model || this.getModelByTag('thinking'),
+            model,
+            tags,
             context: { intent: 'detect-intents' },
             ...rest,
         });
@@ -472,6 +465,7 @@ ${promptText}`
      * @param {number} [options.maxStepsPerTurn] - Max tool calls per turn (default 8)
      * @param {number} [options.maxErrors] - Max errors before abort (default 5)
      * @param {string} [options.model] - Model for planner decisions
+     * @param {Array|null} [options.tags] - Semantic tags for model selection
      * @param {Object} [options.supervisor] - Tool approval controller
      * @returns {LoopAgentSession} Started session
      */
@@ -508,6 +502,7 @@ ${promptText}`
      * @param {Object} options
      * @param {boolean} [options.generatePlanOnly=false] - Only generate plan, don't execute
      * @param {boolean} [options.planOnly=false] - Alias for generatePlanOnly
+     * @param {Array|null} [options.tags] - Semantic tags for model selection
      * @returns {SOPAgenticSession} Started session
      */
     async startSOPLangAgentSession(skillsDescription, initialPrompt, options = {}) {

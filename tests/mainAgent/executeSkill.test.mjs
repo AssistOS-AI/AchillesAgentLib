@@ -95,6 +95,6 @@ describe('MainAgent executeSkill', () => {
         });
 
         assert.deepStrictEqual(agent.llmAgent.modelConfig, customConfig);
-        assert.strictEqual(agent.llmAgent.getModelByTag('thinking'), 'custom-thinking-model');
+        assert.strictEqual(agent.llmAgent.modelConfig.thinking, 'custom-thinking-model');
     });
 });

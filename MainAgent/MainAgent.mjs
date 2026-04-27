@@ -190,7 +190,7 @@ export class MainAgent {
                         : (promptText != null ? JSON.stringify(promptText) : '');
 
                     const result = await this.executeSkill(skillRecord.name, safePrompt, {
-                        model: this.llmAgent.getModelByTag('thinking'),
+                        model: 'plan',
                     });
                     const output = result?.result;
                     if (output == null) return '';
