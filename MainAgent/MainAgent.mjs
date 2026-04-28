@@ -21,9 +21,11 @@ export class MainAgent {
         logger = null,
         llmAgentOptions = {},
         modelConfig = null,
+        disableInternalSkills = false,
     } = {}) {
         this.startDir = startDir;
         this.logger = logger || createLogger();
+        this.disableInternalSkills = Boolean(disableInternalSkills);
 
         this.llmAgent = new LLMAgent({ ...llmAgentOptions, modelConfig });
 
@@ -42,9 +44,11 @@ export class MainAgent {
     }
 
     _discoverAndRegister() {
-        const internalSkills = discoverSkillsFromRoot(INTERNAL_SKILLS_DIR, {
-            logger: this.logger,
-        });
+        const internalSkills = this.disableInternalSkills
+            ? []
+            : discoverSkillsFromRoot(INTERNAL_SKILLS_DIR, {
+                logger: this.logger,
+            });
 
         for (const record of internalSkills) {
             record.isInternal = true;
@@ -54,6 +58,7 @@ export class MainAgent {
         this.logger.debug('MainAgent:internalSkills', {
             count: internalSkills.length,
             skills: internalSkills.map(s => s.name),
+            disabled: this.disableInternalSkills,
         });
 
         const userSkills = discoverSkills(this.startDir, {
@@ -189,7 +194,7 @@ export class MainAgent {
      */
     async initSkills() {
         const skills = this.getSkills();
-        for (const skillRecord of skills) {
+        const initTasks = skills.map(async (skillRecord) => {
             const subsystem = this.subsystemFactory.get(skillRecord.type);
             if (subsystem && typeof subsystem.initSkill === 'function') {
                 try {
@@ -198,7 +203,9 @@ export class MainAgent {
                     this.logger.warn(`[MainAgent] Failed to initialize skill ${skillRecord.name}: ${error.message}`);
                 }
             }
-        }
+        });
+
+        await Promise.all(initTasks);
     }
 
     _buildToolsForSession() {

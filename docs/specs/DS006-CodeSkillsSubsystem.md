@@ -4,6 +4,8 @@
 
 The `CodeSkillsSubsystem` manages **code skills** (cskills) — JavaScript/ESM modules that execute user-defined logic. Code skills are defined by a `cskill.md` descriptor file and implemented in `src/index.mjs` (or `src/index.js`). The subsystem handles **eager code generation**: when a skill has a `specs/` directory but no generated code, `initSkills()` invokes `mirror-code-generator` to generate the code before any execution.
 
+This generation step requires that a skill named `mirror-code-generator` is registered in MainAgent. By default this is provided as an internal skill; if internal skills are disabled, the caller must provide an equivalent user skill with the same name.
+
 ## Architecture
 
 ```

@@ -23,9 +23,11 @@ Skill discovery uses two functions:
 
 ## Internal Skills Discovery
 
-MainAgent always discovers internal skills from the package's own `skills/` directory. This directory is resolved relative to the MainAgent class file location, not relative to the caller's working directory.
+By default, MainAgent discovers internal skills from the package's own `skills/` directory. This directory is resolved relative to the MainAgent class file location, not relative to the caller's working directory.
 
-Internal skills are discovered first, before user skills. If a user skill has the same canonical name as an internal skill, the user skill overwrites the internal one.
+If `disableInternalSkills` is set to `true` in the MainAgent constructor, this internal-skills discovery step is skipped.
+
+When enabled, internal skills are discovered first, before user skills. If a user skill has the same canonical name as an internal skill, the user skill overwrites the internal one.
 
 Each skill record has an `isInternal` boolean property set to true for internal skills and false for user-discovered skills.
 
@@ -73,6 +75,7 @@ MainAgent._discoverAndRegister()
     ▼
 1. Discover internal skills from package skills/ directory
    (resolved relative to MainAgent.mjs file location)
+   (skipped when `disableInternalSkills = true`)
     │
     ▼
 2. For each internal skill:
@@ -93,7 +96,7 @@ MainAgent._discoverAndRegister()
 
 When two skills with the same canonical name are discovered, the second skill overwrites the first in both the skills map and the alias map. A debug-level warning is logged showing both directory paths.
 
-User skills always take precedence over internal skills because they are registered second.
+When internal skills are enabled, user skills always take precedence over internal skills because they are registered second.
 
 ## Lookup Behavior
 
@@ -106,7 +109,7 @@ Skill lookup always goes through the alias map. This means both canonical names 
 - Does NOT generate code for cskills (CodeSkillsSubsystem handles lazy generation on first execution)
 - Does NOT use FlexSearch or text-based search
 - Does NOT search upward through parent directories
-- Does NOT support additional skill roots beyond startDir and the internal skills directory
+- Does NOT support additional skill roots beyond startDir and the optional internal skills directory
 - Does NOT support skill filtering
 
 ## Testable Functionality
@@ -136,7 +139,8 @@ Test files should be created in tests/mainAgent/
 - Recurses into nested subdirectories without descriptors
 
 **Internal skills discovery tests should cover:**
-- Internal skills are always discovered regardless of startDir
+- By default, internal skills are discovered regardless of startDir
+- Internal skills are not discovered when disableInternalSkills is true
 - Internal skills directory is resolved relative to MainAgent.mjs
 - Internal skills are registered before user skills
 - Internal skills have isInternal = true

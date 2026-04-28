@@ -64,6 +64,7 @@ MainAgent creates its own LLMAgent internally. The caller does not provide an LL
 - `logger` — unified logger with info/warn/debug methods (creates default if omitted)
 - `llmAgentOptions` — options forwarded to the internal LLMAgent constructor
 - `modelConfig` — object mapping tags to model names (e.g., `{ thinking: 'claude-sonnet-4', fast: 'gpt-4o-mini' }`)
+- `disableInternalSkills` — boolean flag (default `false`); when true, skips registration of package-internal skills from `skills/`
 
 **What happens on construction:**
 1. Creates internal LLMAgent with modelConfig
@@ -72,7 +73,7 @@ MainAgent creates its own LLMAgent internally. The caller does not provide an LL
 4. Initializes session map
 5. Creates SubsystemFactory with internal LLMAgent and modelConfig
 6. Creates default SecuritySupervisor if none provided
-7. Discovers and registers internal skills from the package's `skills/` directory
+7. Discovers and registers internal skills from the package's `skills/` directory (unless `disableInternalSkills` is true)
 8. Discovers and registers user skills from startDir
 
 ## Model Configuration
@@ -133,5 +134,4 @@ const agent = new MainAgent({
 - Does NOT manage conversation summaries
 - Does NOT perform FlexSearch or text-based skill search
 - Does NOT expose processing callbacks
-- Does NOT filter skills or expose internal skill visibility controls
 - Does NOT reload skills after initial discovery

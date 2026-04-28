@@ -97,4 +97,16 @@ describe('MainAgent executeSkill', () => {
         assert.deepStrictEqual(agent.llmAgent.modelConfig, customConfig);
         assert.strictEqual(agent.llmAgent.modelConfig.thinking, 'custom-thinking-model');
     });
+
+    it('throws when internal skills are disabled and an internal skill is requested', async () => {
+        const agent = new MainAgent({
+            startDir: tempDir,
+            disableInternalSkills: true,
+        });
+
+        await assert.rejects(
+            async () => agent.executeSkill('mirror-code-generator', tempDir),
+            { message: /Skill "mirror-code-generator" not found/ }
+        );
+    });
 });

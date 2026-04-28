@@ -12,13 +12,13 @@ Every subsystem must implement these methods:
 |--------|---------|
 | `parseSkillDescriptor` | Parse the skill's markdown file and return a structured descriptor. |
 | `prepareSkill` | Fast, synchronous setup. Populates the skill record with metadata. Called automatically during discovery. Must not perform I/O or LLM calls. |
-| `initSkill` | Async, one-time heavy initialization (e.g., code generation). Called explicitly via `MainAgent.initSkills()`. Safe to call multiple times — already-initialized skills are skipped. |
+| `initSkill` | Async, one-time heavy initialization (e.g., code generation). Called explicitly via `MainAgent.initSkills()`. MainAgent dispatches these calls in parallel across skills and waits for all to settle. Safe to call multiple times — already-initialized skills are skipped. |
 | `executeSkillPrompt` | Run the skill with the given prompt and return the result. |
 
 ## Subsystem Lifecycle
 
 1. **Discovery** — `MainAgent` finds skill files on disk, calls `parseSkillDescriptor` and `prepareSkill` for each.
-2. **Initialization** — Caller invokes `MainAgent.initSkills()` to perform expensive setup like code generation.
+2. **Initialization** — Caller invokes `MainAgent.initSkills()` to perform expensive setup like code generation. The initialization calls are started in parallel across discovered skills, then awaited together.
 3. **Execution** — Skills are run on demand via `MainAgent.executeSkill()`, which delegates to the appropriate subsystem.
 
 ## Subsystems

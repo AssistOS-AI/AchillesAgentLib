@@ -166,5 +166,41 @@ describe('Internal Skills Discovery', () => {
             assert.strictEqual(byShortName, byCanonical);
             assert.strictEqual(byShortName.isInternal, true);
         });
+
+        it('does not register internal skills when disableInternalSkills is true', () => {
+            agent = new MainAgent({
+                startDir: '/tmp/nonexistent-dir',
+                disableInternalSkills: true,
+            });
+
+            const internalSkills = agent.getSkills().filter(s => s.isInternal);
+            assert.strictEqual(internalSkills.length, 0);
+            assert.strictEqual(agent.getSkillRecord('mirror-code-generator'), null);
+        });
+
+        it('still discovers user skills when disableInternalSkills is true', () => {
+            const tempDir = fs.mkdtempSync('/tmp/mainagent-test-');
+            const skillsDir = path.join(tempDir, 'skills');
+            const testSkillDir = path.join(skillsDir, 'test-user-skill');
+            fs.mkdirSync(testSkillDir, { recursive: true });
+            fs.writeFileSync(path.join(testSkillDir, 'cskill.md'), '# Test User Skill\n\nTest skill.\n');
+
+            try {
+                agent = new MainAgent({
+                    startDir: tempDir,
+                    disableInternalSkills: true,
+                });
+
+                const skills = agent.getSkills();
+                const internalSkills = skills.filter(s => s.isInternal);
+                const userSkills = skills.filter(s => !s.isInternal);
+
+                assert.strictEqual(internalSkills.length, 0);
+                assert.ok(userSkills.length > 0, 'Should have user skills');
+                assert.ok(userSkills.every(s => s.isInternal === false));
+            } finally {
+                fs.rmSync(tempDir, { recursive: true, force: true });
+            }
+        });
     });
 });
