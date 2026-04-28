@@ -40,14 +40,14 @@ function makeMockMainAgent(executeSkillResult = null) {
     };
 }
 
-describe('CodeSkillsSubsystem initSkill', () => {
+describe('CodeSkillsSubsystem buildSkill', () => {
     let tempDir;
     let subsystem;
 
     beforeEach(async () => {
         tempDir = await fs.mkdtemp('/tmp/code-skills-init-');
         subsystem = new CodeSkillsSubsystem({
-            llmAgent: { modelConfig: { plan: 'plan', code: 'code' } },
+            mainAgent: makeMockMainAgent(),
             modelConfig: { plan: 'plan', code: 'code' },
         });
     });
@@ -58,7 +58,7 @@ describe('CodeSkillsSubsystem initSkill', () => {
 
     it('skips initialization when skillDir is missing', async () => {
         const skillRecord = makeSkillRecord({ skillDir: null });
-        await subsystem.initSkill(skillRecord, makeMockMainAgent());
+        await subsystem.buildSkill(skillRecord, makeMockMainAgent());
         // Should not throw
     });
 
@@ -68,7 +68,7 @@ describe('CodeSkillsSubsystem initSkill', () => {
         await fs.writeFile(path.join(skillDir, 'src', 'index.mjs'), 'export async function action() { return "ok"; }');
 
         const skillRecord = makeSkillRecord({ skillDir });
-        await subsystem.initSkill(skillRecord, makeMockMainAgent());
+        await subsystem.buildSkill(skillRecord, makeMockMainAgent());
 
         // Code was not regenerated
         const content = await fs.readFile(path.join(skillDir, 'src', 'index.mjs'), 'utf-8');
@@ -81,7 +81,7 @@ describe('CodeSkillsSubsystem initSkill', () => {
         await fs.writeFile(path.join(skillDir, 'src', 'index.js'), 'module.exports.action = async () => "ok";');
 
         const skillRecord = makeSkillRecord({ skillDir });
-        await subsystem.initSkill(skillRecord, makeMockMainAgent());
+        await subsystem.buildSkill(skillRecord, makeMockMainAgent());
 
         const content = await fs.readFile(path.join(skillDir, 'src', 'index.js'), 'utf-8');
         assert.strictEqual(content, 'module.exports.action = async () => "ok";');
@@ -92,7 +92,7 @@ describe('CodeSkillsSubsystem initSkill', () => {
         await fs.mkdir(skillDir, { recursive: true });
 
         const skillRecord = makeSkillRecord({ skillDir });
-        await subsystem.initSkill(skillRecord, makeMockMainAgent());
+        await subsystem.buildSkill(skillRecord, makeMockMainAgent());
 
         // No code generated, no error
         const srcDir = path.join(skillDir, 'src');
@@ -115,7 +115,7 @@ describe('CodeSkillsSubsystem initSkill', () => {
         // Simulate prepareSkill having set needsGeneration
         skillRecord.preparedConfig = { needsGeneration: true, hasSpecs: true };
 
-        await subsystem.initSkill(skillRecord, mainAgent);
+        await subsystem.buildSkill(skillRecord, mainAgent);
 
         // mirror-code-generator was called
         assert.ok(mainAgent.executeSkill.called || true);
@@ -141,10 +141,10 @@ describe('CodeSkillsSubsystem initSkill', () => {
         const skillRecord = makeSkillRecord({ skillDir });
         skillRecord.preparedConfig = { needsGeneration: true, hasSpecs: true };
 
-        // Fire two concurrent initSkill calls
+        // Fire two concurrent buildSkill calls
         await Promise.all([
-            subsystem.initSkill(skillRecord, mockMainAgent),
-            subsystem.initSkill(skillRecord, mockMainAgent),
+            subsystem.buildSkill(skillRecord, mockMainAgent),
+            subsystem.buildSkill(skillRecord, mockMainAgent),
         ]);
 
         // Should only call executeSkill once due to deduplication
@@ -168,7 +168,7 @@ describe('CodeSkillsSubsystem initSkill', () => {
         };
 
         const skillRecord = makeSkillRecord({ skillDir });
-        await subsystem.initSkill(skillRecord, mockMainAgent);
+        await subsystem.buildSkill(skillRecord, mockMainAgent);
 
         assert.strictEqual(called, false);
     });

@@ -23,9 +23,9 @@ Skill discovery uses two functions:
 
 ## Internal Skills Discovery
 
-By default, MainAgent discovers internal skills from the package's own `skills/` directory. This directory is resolved relative to the MainAgent class file location, not relative to the caller's working directory.
+By default, MainAgent skips internal skills from the package's own `skills/` directory.
 
-If `disableInternalSkills` is set to `true` in the MainAgent constructor, this internal-skills discovery step is skipped.
+When `disableInternalSkills` is set to `false` in the MainAgent constructor, internal-skills discovery is enabled. The internal skills directory is resolved relative to the MainAgent class file location, not relative to the caller's working directory.
 
 When enabled, internal skills are discovered first, before user skills. If a user skill has the same canonical name as an internal skill, the user skill overwrites the internal one.
 
@@ -75,7 +75,7 @@ MainAgent._discoverAndRegister()
     ▼
 1. Discover internal skills from package skills/ directory
    (resolved relative to MainAgent.mjs file location)
-   (skipped when `disableInternalSkills = true`)
+   (executed only when `disableInternalSkills = false`)
     │
     ▼
 2. For each internal skill:
@@ -109,7 +109,7 @@ Skill lookup always goes through the alias map. This means both canonical names 
 - Does NOT generate code for cskills (CodeSkillsSubsystem handles lazy generation on first execution)
 - Does NOT use FlexSearch or text-based search
 - Does NOT search upward through parent directories
-- Does NOT support additional skill roots beyond startDir and the optional internal skills directory
+- Does NOT support additional skill roots beyond startDir and the optional package internal skills directory
 - Does NOT support skill filtering
 
 ## Testable Functionality
@@ -139,8 +139,8 @@ Test files should be created in tests/mainAgent/
 - Recurses into nested subdirectories without descriptors
 
 **Internal skills discovery tests should cover:**
-- By default, internal skills are discovered regardless of startDir
-- Internal skills are not discovered when disableInternalSkills is true
+- Internal skills are not discovered by default
+- Internal skills are discovered when disableInternalSkills is false
 - Internal skills directory is resolved relative to MainAgent.mjs
 - Internal skills are registered before user skills
 - Internal skills have isInternal = true

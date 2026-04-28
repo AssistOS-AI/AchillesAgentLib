@@ -15,8 +15,8 @@ const SUBSYSTEM_REGISTRY = new Map([
 ]);
 
 export class SubsystemFactory {
-    constructor({ llmAgent = null, modelConfig = null } = {}) {
-        this.llmAgent = llmAgent;
+    constructor({ mainAgent = null, modelConfig = null } = {}) {
+        this.mainAgent = mainAgent;
         this.modelConfig = modelConfig;
         this.instances = new Map();
     }
@@ -37,11 +37,7 @@ export class SubsystemFactory {
     }
 
     _createInstance(type, SubsystemClass) {
-        if (type === 'anthropic') {
-            return new SubsystemClass({ modelConfig: this.modelConfig });
-        }
-
-        return new SubsystemClass({ llmAgent: this.llmAgent, modelConfig: this.modelConfig });
+        return new SubsystemClass({ mainAgent: this.mainAgent, modelConfig: this.modelConfig });
     }
 
     has(type) {
@@ -52,8 +48,8 @@ export class SubsystemFactory {
         this.instances.clear();
     }
 
-    setLLMAgent(llmAgent) {
-        this.llmAgent = llmAgent;
+    setMainAgent(mainAgent) {
+        this.mainAgent = mainAgent;
     }
 
     static register(type, SubsystemClass) {

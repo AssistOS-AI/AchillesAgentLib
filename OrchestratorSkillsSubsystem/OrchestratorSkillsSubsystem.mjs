@@ -66,9 +66,9 @@ function buildContextualSystemPrompt(basePrompt, context) {
 }
 
 export class OrchestratorSkillsSubsystem {
-    constructor({ llmAgent = null, modelConfig = null } = {}) {
+    constructor({ mainAgent = null, modelConfig = null } = {}) {
         this.type = 'orchestrator';
-        this.llmAgent = llmAgent;
+        this.mainAgent = mainAgent;
         this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
@@ -120,7 +120,7 @@ export class OrchestratorSkillsSubsystem {
      * @param {Object} skillRecord - The skill record to initialize
      * @param {MainAgent} mainAgent - The main agent instance
      */
-    async initSkill(skillRecord, mainAgent) {
+    async buildSkill(skillRecord, mainAgent) {
         // No initialization needed for orchestrator skills.
     }
 
@@ -218,6 +218,7 @@ export class OrchestratorSkillsSubsystem {
     }
 
     buildCommandsRegistry(allowedSkills, tools) {
+        const llmAgent = this.mainAgent?.llmAgent || null;
         return {
             executeCommand: async (payload, response) => {
                 const { command, args } = payload;
@@ -230,10 +231,10 @@ export class OrchestratorSkillsSubsystem {
                 try {
                     if (Array.isArray(args)) {
                         const prompt = args.join(' ');
-                        const result = await skillAction(this.llmAgent, prompt);
+                        const result = await skillAction(llmAgent, prompt);
                         return response.success(result);
                     }
-                    const result = await skillAction(this.llmAgent, args);
+                    const result = await skillAction(llmAgent, args);
                     return response.success(result);
                 } catch (error) {
                     return response.fail(error?.message || String(error));
@@ -247,6 +248,10 @@ export class OrchestratorSkillsSubsystem {
     }
 
     async executeLoopAgentSession({skillRecord, mainAgent, promptText, options}) {
+        const llmAgent = this.mainAgent?.llmAgent;
+        if (!llmAgent || typeof llmAgent.startLoopAgentSession !== 'function') {
+            throw new Error('OrchestratorSkillsSubsystem requires mainAgent.llmAgent.startLoopAgentSession.');
+        }
         const allowedSkills = this.resolveAllowedSkills(skillRecord, mainAgent);
         const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, mainAgent, allowedSkills);
         const tools = await this.buildSkillsAsTools(allowedSkills, mainAgent, options);
@@ -271,7 +276,7 @@ export class OrchestratorSkillsSubsystem {
             preparation,
         };
 
-        const session = await this.llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
+        const session = await llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
         const result = session.getLastResult();
 
         return {
@@ -283,6 +288,10 @@ export class OrchestratorSkillsSubsystem {
     }
 
     async executeSOPAgentSession({skillRecord, mainAgent, promptText, options}) {
+        const llmAgent = this.mainAgent?.llmAgent;
+        if (!llmAgent || typeof llmAgent.startSOPLangAgentSession !== 'function') {
+            throw new Error('OrchestratorSkillsSubsystem requires mainAgent.llmAgent.startSOPLangAgentSession.');
+        }
         const allowedSkills = this.resolveAllowedSkills(skillRecord, mainAgent);
         const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, mainAgent, allowedSkills);
         const tools = await this.buildSkillsAsTools(allowedSkills, mainAgent, options);
@@ -318,7 +327,7 @@ export class OrchestratorSkillsSubsystem {
             },
         };
 
-        const session = await this.llmAgent.startSOPLangAgentSession(skillsDescription, promptText, sessionOptions);
+        const session = await llmAgent.startSOPLangAgentSession(skillsDescription, promptText, sessionOptions);
         const variables = await session.getVariables();
         const result = session.getLastResult();
 

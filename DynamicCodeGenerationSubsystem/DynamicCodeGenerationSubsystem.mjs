@@ -75,11 +75,12 @@ function unwrapCodeFence(payload) {
 function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'code' }) {
     return async (invocation) => {
         const input = invocation?.input;
+        const runtimeLLMAgent = invocation?.llmAgent || llmAgent;
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
 
-        if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
+        if (!runtimeLLMAgent || typeof runtimeLLMAgent.executePrompt !== 'function') {
             throw new Error(`Dynamic code generation skill "${skillName}" requires an LLMAgent with an "executePrompt" method.`);
         }
 
@@ -103,7 +104,7 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'c
         ].join('\n');
 
         const decision = await withTimeout(
-            llmAgent.executePrompt(decisionPrompt, {
+            runtimeLLMAgent.executePrompt(decisionPrompt, {
                 model: llmModel,
                 context: { intent: 'dynamic-code-generation-skill-default', skillName },
                 responseShape: 'json',
@@ -195,8 +196,8 @@ async function executeCodeSnippet({ skillName, code }) {
 }
 
 export class DynamicCodeGenerationSubsystem {
-    constructor({ llmAgent, modelConfig = null }) {
-        this.llmAgent = llmAgent;
+    constructor({ mainAgent, modelConfig = null }) {
+        this.mainAgent = mainAgent;
         this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
         this.executors = new Map();
     }
@@ -229,7 +230,7 @@ export class DynamicCodeGenerationSubsystem {
         const executor = createDefaultExecutor({
             skillName: skillRecord.name,
             prompt,
-            llmAgent: this.llmAgent,
+            llmAgent: this.mainAgent?.llmAgent,
             llmModel,
         });
 
@@ -244,7 +245,7 @@ export class DynamicCodeGenerationSubsystem {
      * @param {Object} skillRecord - The skill record to initialize
      * @param {MainAgent} mainAgent - The main agent instance
      */
-    async initSkill(skillRecord, mainAgent) {
+    async buildSkill(skillRecord, mainAgent) {
         // No initialization needed for dynamic code generation skills.
     }
 
@@ -267,7 +268,7 @@ export class DynamicCodeGenerationSubsystem {
         }
 
         const result = await executor({
-            llmAgent: this.llmAgent,
+            llmAgent: mainAgent?.llmAgent,
             input,
             promptText: String(promptText ?? '').trim(),
             context: options.context || {},

@@ -109,8 +109,8 @@ class MockDBAdapter {
 const shared = {
     initialized: false,
     errorReason: null,
-    llmAgent: null,
-    dbAdapter: null,
+    mainAgent: { llmAgent: null },
+dbAdapter: null,
 };
 
 async function initializeShared() {
@@ -236,8 +236,8 @@ test('DBTableSkillsSubsystem: Initialize with config', async (t) => {
     const llmAgent = shared.llmAgent || new MockLLMAgent();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB,
+mainAgent: { llmAgent },
+dbAdapter: mockDB,
         config: {
             skillsPath: './test-skills',
             generatedPath: './test-generated'
@@ -245,7 +245,7 @@ test('DBTableSkillsSubsystem: Initialize with config', async (t) => {
     });
 
     assert.ok(subsystem);
-    assert.equal(subsystem.llmAgent, llmAgent);
+    assert.equal(subsystem.mainAgent.llmAgent, llmAgent);
     assert.equal(subsystem.dbAdapter, mockDB);
     assert.equal(subsystem.skillsPath, './test-skills');
     assert.equal(subsystem.generatedPath, './test-generated');
@@ -258,8 +258,8 @@ test('DBTableSkillsSubsystem: Prepare skill from tskill.md', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -305,8 +305,8 @@ test('DBTableSkillsSubsystem: Execute SELECT operation', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -351,8 +351,8 @@ test('DBTableSkillsSubsystem: Execute CREATE operation', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -397,8 +397,8 @@ test('DBTableSkillsSubsystem: Validate required fields', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -437,8 +437,8 @@ test('MainAgent: Extend to support dbtable skill type', async (t) => {
 
     // Manually add DBTable subsystem support
     const dbTableSubsystem = new DBTableSkillsSubsystem({
-        llmAgent: shared.llmAgent || new MockLLMAgent(),
-        dbAdapter: shared.dbAdapter
+        mainAgent: { llmAgent: shared.llmAgent || new MockLLMAgent() },
+dbAdapter: shared.dbAdapter
     });
 
     mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
@@ -457,8 +457,8 @@ test('MainAgent: Register tskill.md skill manually', async (t) => {
 
     // Add DBTable subsystem
     const dbTableSubsystem = new DBTableSkillsSubsystem({
-        llmAgent: shared.llmAgent || new MockLLMAgent(),
-        dbAdapter: shared.dbAdapter
+        mainAgent: { llmAgent: shared.llmAgent || new MockLLMAgent() },
+dbAdapter: shared.dbAdapter
     });
 
     mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
@@ -515,8 +515,8 @@ test('E2E: Full workflow from skill discovery to execution', async (t) => {
 
     // Add DBTable subsystem
     const dbTableSubsystem = new DBTableSkillsSubsystem({
-        llmAgent: shared.llmAgent,
-        dbAdapter: shared.dbAdapter
+        mainAgent: { llmAgent: shared.llmAgent },
+dbAdapter: shared.dbAdapter
     });
     mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
 
@@ -549,8 +549,8 @@ test('Field Processing: Verify presenter formatting', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -607,8 +607,8 @@ test('Field Processing: Verify resolver normalization', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -663,8 +663,8 @@ test('Field Processing: Verify validator enforcement', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -738,8 +738,8 @@ test('Reference validation: blocks writes with non-existent foreign IDs', async 
     };
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB,
+mainAgent: { llmAgent },
+dbAdapter: mockDB,
     });
 
     const parsedSkill = {
@@ -801,8 +801,8 @@ test('Field Processing: Verify derived field computation', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -855,8 +855,8 @@ test('E2E: Mock-based full workflow (works now)', async (t) => {
 
     // Add DBTable subsystem
     const dbTableSubsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
@@ -918,8 +918,8 @@ test('E2E: Test CREATE operation workflow', async (t) => {
     });
 
     const dbTableSubsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
@@ -968,8 +968,8 @@ test('E2E: Test UPDATE operation workflow', async (t) => {
     });
 
     const dbTableSubsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
@@ -1033,8 +1033,8 @@ test('E2E: Test DELETE operation workflow', async (t) => {
     });
 
     const dbTableSubsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     mainAgent.subsystemFactory.instances.set('dbtable', dbTableSubsystem);
@@ -1099,8 +1099,8 @@ test('Error: Missing tskill.md file', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -1128,8 +1128,8 @@ test('Error: Missing prompt argument', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -1163,8 +1163,8 @@ test('Error: Executor not prepared', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord = {
@@ -1193,8 +1193,8 @@ test('Function caching: Same skill prepared twice uses cache', async (t) => {
     const mockDB = new MockDBAdapter();
 
     const subsystem = new DBTableSkillsSubsystem({
-        llmAgent,
-        dbAdapter: mockDB
+mainAgent: { llmAgent },
+dbAdapter: mockDB
     });
 
     const skillRecord1 = {

@@ -49,7 +49,10 @@ describe('MainAgent executeSkill', () => {
     });
 
     it('returns skill result for mirror-code-generator', async () => {
-        const agent = new MainAgent({ startDir: tempDir });
+        const agent = new MainAgent({
+            startDir: tempDir,
+            disableInternalSkills: false,
+        });
         const skill = agent.getSkillRecord('mirror-code-generator');
         if (!skill) {
             return;
@@ -63,7 +66,10 @@ describe('MainAgent executeSkill', () => {
     });
 
     it('resolves skill by short name', async () => {
-        const agent = new MainAgent({ startDir: tempDir });
+        const agent = new MainAgent({
+            startDir: tempDir,
+            disableInternalSkills: false,
+        });
         const skill = agent.getSkillRecord('mirror-code-generator');
         if (!skill) {
             return;
@@ -76,8 +82,11 @@ describe('MainAgent executeSkill', () => {
     });
 
     it('passes options through to subsystem', async () => {
-        const agent = new MainAgent({ startDir: tempDir });
-        const customOptions = { context: { sessionId: 'test-session' } };
+        const agent = new MainAgent({
+            startDir: tempDir,
+            disableInternalSkills: false,
+        });
+        const customOptions = { context: { requestId: 'test-request' } };
         const result = await agent.executeSkill('mirror-code-generator', tempDir, customOptions);
 
         assert.ok(result);

@@ -5,7 +5,7 @@ import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/O
 import { StubLLMAgent } from '../helpers/stubLLMAgent.mjs';
 
 test('resolveAllowedSkills allows all skill types except self when no allowlist', () => {
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: new StubLLMAgent() });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
 
     const skillRecord = {
         name: 'orchestrator-skill',
@@ -35,7 +35,7 @@ test('resolveAllowedSkills allows all skill types except self when no allowlist'
 });
 
 test('resolveAllowedSkills excludes self from allowed skills', () => {
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: new StubLLMAgent() });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
 
     const skillRecord = {
         name: 'self-orchestrator',
@@ -58,7 +58,7 @@ test('resolveAllowedSkills excludes self from allowed skills', () => {
 });
 
 test('resolveAllowedSkills respects allowedSkills list when provided', () => {
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: new StubLLMAgent() });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
 
     const skillRecord = {
         name: 'orchestrator-skill',
@@ -81,7 +81,7 @@ test('resolveAllowedSkills respects allowedSkills list when provided', () => {
 });
 
 test('prepareSkill parses descriptor sections correctly', () => {
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: new StubLLMAgent() });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
 
     const skillRecord = {
         descriptor: {
@@ -107,7 +107,7 @@ test('prepareSkill parses descriptor sections correctly', () => {
     });
 
 test('buildToolDescriptions generates descriptions from skill descriptor', () => {
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: new StubLLMAgent() });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
 
     const allowedSkills = [
         {
@@ -135,11 +135,11 @@ test('buildToolDescriptions generates descriptions from skill descriptor', () =>
 
 test('executeLoopAgentSession is used when sessionType is set', async () => {
     const subsystem = new OrchestratorSkillsSubsystem({
-        llmAgent: {
+        mainAgent: { llmAgent: {
             startLoopAgentSession: async () => ({
                 getLastResult: () => 'Loop result',
             }),
-        },
+        } },
     });
 
     const skillRecord = {

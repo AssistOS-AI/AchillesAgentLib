@@ -2,7 +2,7 @@
 
 ## Overview
 
-Subsystems are specialized execution engines, each responsible for one type of skill. They sit between `MainAgent` and the actual skill logic, handling discovery, preparation, initialization, and execution.
+Subsystems are specialized execution engines, each responsible for one type of skill. They sit between `MainAgent` and the actual skill logic, handling discovery, preparation, build-time setup, and execution.
 
 ## Mandatory Interface
 
@@ -12,13 +12,13 @@ Every subsystem must implement these methods:
 |--------|---------|
 | `parseSkillDescriptor` | Parse the skill's markdown file and return a structured descriptor. |
 | `prepareSkill` | Fast, synchronous setup. Populates the skill record with metadata. Called automatically during discovery. Must not perform I/O or LLM calls. |
-| `initSkill` | Async, one-time heavy initialization (e.g., code generation). Called explicitly via `MainAgent.initSkills()`. MainAgent dispatches these calls in parallel across skills and waits for all to settle. Safe to call multiple times — already-initialized skills are skipped. |
+| `buildSkill` | Async, one-time heavy build step (e.g., code generation). Called explicitly via `MainAgent.buildSkills()`. MainAgent dispatches these calls in parallel across skills and waits for all to settle. Safe to call multiple times — already-built skills are skipped. |
 | `executeSkillPrompt` | Run the skill with the given prompt and return the result. |
 
 ## Subsystem Lifecycle
 
 1. **Discovery** — `MainAgent` finds skill files on disk, calls `parseSkillDescriptor` and `prepareSkill` for each.
-2. **Initialization** — Caller invokes `MainAgent.initSkills()` to perform expensive setup like code generation. The initialization calls are started in parallel across discovered skills, then awaited together.
+2. **Build** — Caller invokes `MainAgent.buildSkills()` to perform expensive setup like code generation. Build calls are started in parallel across discovered skills, then awaited together.
 3. **Execution** — Skills are run on demand via `MainAgent.executeSkill()`, which delegates to the appropriate subsystem.
 
 ## Subsystems
@@ -47,11 +47,11 @@ Manages database table operations with LLM-powered query interpretation, validat
 
 Simple passthrough for basic skills — starts an agentic loop session with the skill's content as system prompt. Defined by `skill.md`.
 
-## prepareSkill vs initSkill
+## prepareSkill vs buildSkill
 
-| Aspect | `prepareSkill` | `initSkill` |
+| Aspect | `prepareSkill` | `buildSkill` |
 |--------|---------------|-------------|
-| **When** | Automatically during discovery | Explicitly via `MainAgent.initSkills()` |
+| **When** | Automatically during discovery | Explicitly via `MainAgent.buildSkills()` |
 | **Nature** | Sync, fast | Async, potentially heavy |
 | **I/O** | No | Yes |
 | **LLM calls** | No | Yes |

@@ -64,13 +64,19 @@ describe('Internal Skills Discovery', () => {
         });
 
         it('internal skills are always discovered regardless of startDir', () => {
-            agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+            agent = new MainAgent({
+                startDir: '/tmp/nonexistent-dir',
+                disableInternalSkills: false,
+            });
             const internalSkills = agent.getSkills().filter(s => s.isInternal);
             assert.ok(internalSkills.length > 0, 'Should have internal skills');
         });
 
         it('internal skills directory is resolved relative to MainAgent.mjs', () => {
-            agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+            agent = new MainAgent({
+                startDir: '/tmp/nonexistent-dir',
+                disableInternalSkills: false,
+            });
             const internalSkills = agent.getSkills().filter(s => s.isInternal);
             for (const skill of internalSkills) {
                 assert.ok(
@@ -88,7 +94,10 @@ describe('Internal Skills Discovery', () => {
             fs.writeFileSync(path.join(testSkillDir, 'cskill.md'), '# Test User Skill\n\nTest skill.\n');
 
             try {
-                agent = new MainAgent({ startDir: tempDir });
+                agent = new MainAgent({
+                    startDir: tempDir,
+                    disableInternalSkills: false,
+                });
                 const skills = agent.getSkills();
                 const internalSkills = skills.filter(s => s.isInternal);
                 const userSkills = skills.filter(s => !s.isInternal);
@@ -101,7 +110,10 @@ describe('Internal Skills Discovery', () => {
         });
 
         it('internal skills have isInternal = true', () => {
-            agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+            agent = new MainAgent({
+                startDir: '/tmp/nonexistent-dir',
+                disableInternalSkills: false,
+            });
             const internalSkills = agent.getSkills().filter(s => s.isInternal);
             assert.ok(internalSkills.length > 0);
             assert.ok(internalSkills.every(s => s.isInternal === true));
@@ -115,7 +127,10 @@ describe('Internal Skills Discovery', () => {
             fs.writeFileSync(path.join(testSkillDir, 'cskill.md'), '# Test User Skill\n\nTest skill.\n');
 
             try {
-                agent = new MainAgent({ startDir: tempDir });
+                agent = new MainAgent({
+                    startDir: tempDir,
+                    disableInternalSkills: false,
+                });
                 const userSkills = agent.getSkills().filter(s => !s.isInternal);
                 assert.ok(userSkills.length > 0);
                 assert.ok(userSkills.every(s => s.isInternal === false));
@@ -135,7 +150,10 @@ describe('Internal Skills Discovery', () => {
             fs.writeFileSync(path.join(userSkillDir, 'cskill.md'), '# Overridden Skill\n\nUser version.\n');
 
             try {
-                agent = new MainAgent({ startDir: tempDir });
+                agent = new MainAgent({
+                    startDir: tempDir,
+                    disableInternalSkills: false,
+                });
                 const skill = agent.getSkillRecord(internalSkill.shortName);
                 assert.ok(skill);
                 assert.strictEqual(skill.isInternal, false, 'User skill should override internal');
@@ -147,7 +165,10 @@ describe('Internal Skills Discovery', () => {
 
         it('internal skills count matches expected number', () => {
             const expectedSkills = ['bash', 'edit', 'glob', 'grep', 'mirror-code-generator', 'read', 'webfetch', 'write'];
-            agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+            agent = new MainAgent({
+                startDir: '/tmp/nonexistent-dir',
+                disableInternalSkills: false,
+            });
             const internalSkills = agent.getSkills().filter(s => s.isInternal);
             const internalNames = internalSkills.map(s => s.shortName).sort();
 
@@ -156,7 +177,10 @@ describe('Internal Skills Discovery', () => {
         });
 
         it('internal skills are accessible by short name and canonical name', () => {
-            agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+            agent = new MainAgent({
+                startDir: '/tmp/nonexistent-dir',
+                disableInternalSkills: false,
+            });
 
             const byShortName = agent.getSkillRecord('mirror-code-generator');
             const byCanonical = agent.getSkillRecord('mirror-code-generator-cskill');
@@ -172,6 +196,14 @@ describe('Internal Skills Discovery', () => {
                 startDir: '/tmp/nonexistent-dir',
                 disableInternalSkills: true,
             });
+
+            const internalSkills = agent.getSkills().filter(s => s.isInternal);
+            assert.strictEqual(internalSkills.length, 0);
+            assert.strictEqual(agent.getSkillRecord('mirror-code-generator'), null);
+        });
+
+        it('disables internal skills by default', () => {
+            agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
 
             const internalSkills = agent.getSkills().filter(s => s.isInternal);
             assert.strictEqual(internalSkills.length, 0);

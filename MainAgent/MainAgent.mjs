@@ -4,7 +4,6 @@ import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
 import { createLogger } from '../utils/DebugLogger.mjs';
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 
-import { DEFAULT_SESSION_ID } from './constants.mjs';
 import { discoverSkills, discoverSkillsFromRoot } from './services/discoverSkills.mjs';
 import { SubsystemFactory } from './services/SubsystemFactory.mjs';
 import { SecuritySupervisor } from './supervisor/SecuritySupervisor.mjs';
@@ -21,7 +20,7 @@ export class MainAgent {
         logger = null,
         llmAgentOptions = {},
         modelConfig = null,
-        disableInternalSkills = false,
+        disableInternalSkills = true,
     } = {}) {
         this.startDir = startDir;
         this.logger = logger || createLogger();
@@ -31,12 +30,12 @@ export class MainAgent {
 
         this._skills = new Map();
         this._skillAliases = new Map();
-        this._sessions = new Map();
+        this._session = null;
 
         this.supervisor = supervisor || new SecuritySupervisor({ logger: this.logger });
 
         this.subsystemFactory = new SubsystemFactory({
-            llmAgent: this.llmAgent,
+            mainAgent: this,
             modelConfig: this.llmAgent.modelConfig,
         });
 
@@ -134,32 +133,26 @@ export class MainAgent {
 
     async executePrompt(message, options = {}) {
         const {
-            sessionId = null,
             model = null,
             tags = null,
             systemPrompt = null,
         } = options;
 
-        const resolvedSessionId = sessionId || DEFAULT_SESSION_ID;
-        let session = this._sessions.get(resolvedSessionId);
-
-        if (!session) {
+        if (!this._session) {
             const tools = this._buildToolsForSession();
-            session = await this.llmAgent.startLoopAgentSession(tools, message, {
+            this._session = await this.llmAgent.startLoopAgentSession(tools, message, {
                 model,
                 tags,
                 systemPrompt,
                 supervisor: this.supervisor,
             });
-            this._sessions.set(resolvedSessionId, session);
         } else {
-            await session.newPrompt(message);
+            await this._session.newPrompt(message);
         }
 
         return {
-            result: session.getLastResult(),
-            sessionId: resolvedSessionId,
-            status: session.status,
+            result: this._session.getLastResult(),
+            status: this._session.status,
         };
     }
 
@@ -183,29 +176,29 @@ export class MainAgent {
     }
 
     /**
-     * Initialize all skills — async, heavy one-time setup.
+     * Build all skills — async, heavy one-time setup.
      *
      * Unlike `prepareSkill` (called automatically during registration for fast,
-     * synchronous config parsing), `initSkills` performs expensive operations
+     * synchronous config parsing), `buildSkills` performs expensive operations
      * like code generation from specs/ for code skills.
      *
-     * Must be called explicitly before executing skills that require initialization.
-     * Safe to call multiple times — skills that are already initialized are skipped.
+     * Must be called explicitly before executing skills that require build-time preparation.
+     * Safe to call multiple times — skills that are already built are skipped.
      */
-    async initSkills() {
+    async buildSkills() {
         const skills = this.getSkills();
-        const initTasks = skills.map(async (skillRecord) => {
+        const buildTasks = skills.map(async (skillRecord) => {
             const subsystem = this.subsystemFactory.get(skillRecord.type);
-            if (subsystem && typeof subsystem.initSkill === 'function') {
+            if (subsystem && typeof subsystem.buildSkill === 'function') {
                 try {
-                    await subsystem.initSkill(skillRecord, this);
+                    await subsystem.buildSkill(skillRecord, this);
                 } catch (error) {
-                    this.logger.warn(`[MainAgent] Failed to initialize skill ${skillRecord.name}: ${error.message}`);
+                    this.logger.warn(`[MainAgent] Failed to build skill ${skillRecord.name}: ${error.message}`);
                 }
             }
         });
 
-        await Promise.all(initTasks);
+        await Promise.all(buildTasks);
     }
 
     _buildToolsForSession() {
@@ -256,24 +249,8 @@ export class MainAgent {
         return this.subsystemFactory.get(type);
     }
 
-    deleteSession(sessionId) {
-        return this._sessions.delete(sessionId);
-    }
-
-    hasSession(sessionId) {
-        return this._sessions.has(sessionId);
-    }
-
-    getActiveSessions() {
-        return Array.from(this._sessions.keys()).filter(key => key !== DEFAULT_SESSION_ID);
-    }
-
-    clearSessions() {
-        this._sessions.clear();
-    }
-
     shutdown() {
-        this._sessions.clear();
+        this._session = null;
     }
 }
 

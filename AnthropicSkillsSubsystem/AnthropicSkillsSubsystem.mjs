@@ -36,9 +36,9 @@ function listFiles(rootDir, baseDir) {
 
 
 export class AnthropicSkillsSubsystem {
-    constructor({ llmAgent = null, modelConfig = null } = {}) {
+    constructor({ mainAgent = null, modelConfig = null } = {}) {
         this.type = 'anthropic';
-        this.llmAgent = llmAgent;
+        this.mainAgent = mainAgent;
         this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
     }
 
@@ -72,7 +72,7 @@ export class AnthropicSkillsSubsystem {
      * @param {Object} skillRecord - The skill record to initialize
      * @param {MainAgent} mainAgent - The main agent instance
      */
-    async initSkill(skillRecord, mainAgent) {
+    async buildSkill(skillRecord, mainAgent) {
         // No initialization needed for Anthropic skills.
     }
 
@@ -82,9 +82,9 @@ export class AnthropicSkillsSubsystem {
         promptText,
         options = {},
     }) {
-        this.llmAgent = mainAgent?.llmAgent || this.llmAgent;
-        if (!this.llmAgent) {
-            throw new Error('AnthropicSkillsSubsystem requires an llmAgent to execute skills.');
+        const llmAgent = this.mainAgent?.llmAgent;
+        if (!llmAgent) {
+            throw new Error('AnthropicSkillsSubsystem requires mainAgent.llmAgent to execute skills.');
         }
 
         const internalSkills = mainAgent.getSkills()
@@ -104,7 +104,7 @@ export class AnthropicSkillsSubsystem {
             model: options?.model || this.modelConfig.plan || 'plan',
             systemPrompt: systemPrompt || undefined,
         };
-        const session = await this.llmAgent.startLoopAgentSession(tools, promptText, sessionOptions);
+        const session = await llmAgent.startLoopAgentSession(tools, promptText, sessionOptions);
         const result = session.getLastResult();
 
         return {

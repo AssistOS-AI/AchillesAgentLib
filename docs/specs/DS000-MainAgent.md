@@ -12,9 +12,9 @@ MainAgent is the primary entry point for achillesAgentLib. It manages skill disc
 │                                                             │
 │  ┌──────────────────┐  ┌──────────────────────────────┐    │
 │  │  Skill Registry  │  │       Session Manager        │    │
-│  │  _skills (Map)   │  │       _sessions (Map)        │    │
+│  │  _skills (Map)   │  │      _session (single)       │    │
 │  │  _skillAliases   │  │                              │    │
-│  │     (Map)        │  │  create / reuse / delete     │    │
+│  │     (Map)        │  │    create / reuse / clear    │    │
 │  └────────┬─────────┘  └──────────────┬───────────────┘    │
 │           │                           │                    │
 │  ┌────────▼───────────────────────────▼───────────────┐    │
@@ -64,16 +64,16 @@ MainAgent creates its own LLMAgent internally. The caller does not provide an LL
 - `logger` — unified logger with info/warn/debug methods (creates default if omitted)
 - `llmAgentOptions` — options forwarded to the internal LLMAgent constructor
 - `modelConfig` — object mapping tags to model names (e.g., `{ thinking: 'claude-sonnet-4', fast: 'gpt-4o-mini' }`)
-- `disableInternalSkills` — boolean flag (default `false`); when true, skips registration of package-internal skills from `skills/`
+- `disableInternalSkills` — boolean flag (default `true`); when true, skips registration of package-internal skills from `skills/`
 
 **What happens on construction:**
 1. Creates internal LLMAgent with modelConfig
 2. Creates or accepts unified logger
 3. Initializes skill registry and alias map
-4. Initializes session map
-5. Creates SubsystemFactory with internal LLMAgent and modelConfig
+4. Initializes a single session holder
+5. Creates SubsystemFactory with MainAgent and modelConfig
 6. Creates default SecuritySupervisor if none provided
-7. Discovers and registers internal skills from the package's `skills/` directory (unless `disableInternalSkills` is true)
+7. Discovers and registers internal skills from the package's `skills/` directory (only when `disableInternalSkills` is false)
 8. Discovers and registers user skills from startDir
 
 ## Model Configuration
@@ -110,7 +110,7 @@ const agent = new MainAgent({
 
 - **Skill discovery** — scans downward from startDir for skills directories
 - **Skill aliasing** — each skill is accessible by canonical name and short name
-- **Session management** — creates, reuses, and deletes agentic sessions
+- **Session management** — creates and reuses one agentic session
 - **Prompt execution** — sends user messages to LLM via loop sessions
 - **Direct skill execution** — runs a specific skill by name
 - **Subsystem access** — lazy creation and caching of subsystem instances
@@ -123,7 +123,7 @@ const agent = new MainAgent({
 - MainAgent does NOT accept a dbAdapter parameter
 - MainAgent does NOT accept a separate debugLogger parameter
 - Skill discovery is downward-only; no upward search
-- Sessions are never recreated; existing sessions are reused
+- MainAgent stores only one active session; executePrompt reuses it after first creation
 - Model selection is resolved via LLMAgent.modelConfig and getModelByTag()
 - The modelConfig is forwarded to all subsystems through SubsystemFactory
 
@@ -135,3 +135,4 @@ const agent = new MainAgent({
 - Does NOT perform FlexSearch or text-based skill search
 - Does NOT expose processing callbacks
 - Does NOT reload skills after initial discovery
+- Does NOT expose sessionId-based APIs or multi-session routing

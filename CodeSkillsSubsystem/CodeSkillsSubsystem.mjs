@@ -44,8 +44,8 @@ async function dirExists(dirPath) {
 }
 
 export class CodeSkillsSubsystem {
-  constructor({ llmAgent, modelConfig = null }) {
-    this.llmAgent = llmAgent;
+  constructor({ mainAgent, modelConfig = null }) {
+    this.mainAgent = mainAgent;
     this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
     this._generating = new Map();
   }
@@ -101,13 +101,13 @@ export class CodeSkillsSubsystem {
    * Performs one-time setup that is too expensive for prepareSkill().
    * For code skills, this generates JavaScript from specs/ if no entrypoint exists.
    *
-   * Must be called explicitly via `MainAgent.initSkills()` before executing
+   * Must be called explicitly via `MainAgent.buildSkills()` before executing
    * skills that have specs/ but no generated code.
    *
    * @param {Object} skillRecord - The skill record to initialize
    * @param {MainAgent} mainAgent - The main agent instance
    */
-  async initSkill(skillRecord, mainAgent) {
+  async buildSkill(skillRecord, mainAgent) {
     const skillDir = skillRecord.skillDir;
     if (!skillDir) return;
 
@@ -141,7 +141,7 @@ export class CodeSkillsSubsystem {
   }
 
   async executeSkillPrompt({ skillRecord, mainAgent, promptText, options }) {
-    this.llmAgent = mainAgent.llmAgent;
+    const llmAgent = mainAgent.llmAgent;
     const specifications = this.getSpecifications(skillRecord);
 
     if (!specifications.inputFormat) {
@@ -152,7 +152,7 @@ export class CodeSkillsSubsystem {
       promptText
     };
     debugLog(`Executing skill "${skillRecord.shortName}" with prompt: ${args.promptText.substring(0, 200)}...`);
-    args.llmAgent = this.llmAgent;
+    args.llmAgent = llmAgent;
 
     const executionContext = options?.context || {};
     Object.assign(args, executionContext);
@@ -182,8 +182,12 @@ export class CodeSkillsSubsystem {
 
   async extractArguments(userPrompt, specifications) {
     debugLog('Extracting arguments with LLM.');
+    const llmAgent = this.mainAgent?.llmAgent;
+    if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
+      throw new Error('Argument extraction failed: missing mainAgent.llmAgent.');
+    }
     const prompt = buildArgumentExtractionPrompt(userPrompt, specifications.inputFormat);
-    const response = await this.llmAgent.executePrompt(prompt, { responseShape: 'json', model: this.modelConfig.plan || 'plan' });
+    const response = await llmAgent.executePrompt(prompt, { responseShape: 'json', model: this.modelConfig.plan || 'plan' });
     if (response.error || !response.args) {
       throw new Error(`Argument extraction failed: ${response.error || 'LLM did not return an "args" object.'}`);
     }
@@ -210,7 +214,7 @@ export class CodeSkillsSubsystem {
     }
 
     if (!mainFilePath) {
-      throw new Error(`Execution failed: No valid entrypoint found. Tried: ${possibleMainFiles.map(f => join(outputPath, f)).join(', ')}. Run initSkills() to generate code from specs/.`);
+      throw new Error(`Execution failed: No valid entrypoint found. Tried: ${possibleMainFiles.map(f => join(outputPath, f)).join(', ')}. Run buildSkills() to generate code from specs/.`);
     }
 
     try {

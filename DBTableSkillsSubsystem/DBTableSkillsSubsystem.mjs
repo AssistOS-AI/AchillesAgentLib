@@ -308,8 +308,8 @@ function buildCrudFailureMessage(operation, entityName, error) {
  * Main DBTableSkillsSubsystem class
  */
 export class DBTableSkillsSubsystem {
-    constructor({ llmAgent, dbAdapter, config = {}, modelConfig = null }) {
-        this.llmAgent = llmAgent;
+    constructor({ mainAgent, dbAdapter, config = {}, modelConfig = null }) {
+        this.mainAgent = mainAgent;
         this.dbAdapter = dbAdapter;
         this.skillsPath = config.skillsPath || './skills';
         this.generatedPath = config.generatedPath || './generated';
@@ -948,7 +948,7 @@ export class DBTableSkillsSubsystem {
                     debugLog(`[DBTableSkills] Regenerating "${name}" - ${regenReason}`);
 
                     // Generate code via specs and mirror-code-generator
-                    await generateCodeViaSpecs(name, skillDir, parsedSkill, this.llmAgent);
+                    await generateCodeViaSpecs(name, skillDir, parsedSkill, this.mainAgent?.llmAgent);
 
                     // Re-import to get compiled functions
                     const newModuleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
@@ -968,7 +968,7 @@ export class DBTableSkillsSubsystem {
 
             if (generatedPath) {
                 // Generate code via specs and mirror-code-generator
-                await generateCodeViaSpecs(name, skillDir, parsedSkill, this.llmAgent);
+                await generateCodeViaSpecs(name, skillDir, parsedSkill, this.mainAgent?.llmAgent);
 
                 const moduleUrl = pathToFileURL(generatedPath).href + '?t=' + Date.now();
                 const imported = await import(moduleUrl);
@@ -1014,7 +1014,7 @@ export class DBTableSkillsSubsystem {
      * @param {Object} skillRecord - The skill record to initialize
      * @param {MainAgent} mainAgent - The main agent instance
      */
-    async initSkill(skillRecord, mainAgent) {
+    async buildSkill(skillRecord, mainAgent) {
         // No additional initialization needed for DB table skills.
     }
 
@@ -1030,7 +1030,7 @@ export class DBTableSkillsSubsystem {
             this,
             parsedSkill,
             functions,
-            this.llmAgent,
+            this.mainAgent?.llmAgent,
             this.modelConfig,
         );
 
@@ -1039,7 +1039,8 @@ export class DBTableSkillsSubsystem {
                 throw new Error(`DBTable skill "${skillRecord.name}" requires a prompt argument`);
             }
 
-            if (!this.llmAgent || typeof this.llmAgent.executePrompt !== 'function') {
+            const llmAgent = this.mainAgent?.llmAgent;
+            if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
                 throw new Error(`DBTable skill "${skillRecord.name}" requires an LLMAgent`);
             }
 

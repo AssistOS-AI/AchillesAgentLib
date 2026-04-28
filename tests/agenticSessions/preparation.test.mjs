@@ -232,7 +232,7 @@ test('SOPAgenticSession.runPreparation returns empty when preparationText is emp
 // =============================================================================
 
 test('OrchestratorSkillsSubsystem prepareSkill parses ##Preparation section', () => {
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: null });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: null } });
 
     const skillRecord = {
         name: 'test-orchestrator',
@@ -266,7 +266,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
         },
     };
 
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: stubLLMAgent });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
 
     const skillRecord = {
         name: 'test-loop-orchestrator',
@@ -308,7 +308,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
         },
     };
 
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: stubLLMAgent });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
 
     const skillRecord = {
         name: 'test-sop-orchestrator',
@@ -350,7 +350,7 @@ test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation sectio
         },
     };
 
-    const subsystem = new OrchestratorSkillsSubsystem({ llmAgent: stubLLMAgent });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
 
     const skillRecord = {
         name: 'no-prep-orchestrator',

@@ -124,9 +124,9 @@ function normaliseTools(tools = []) {
 }
 
 export class MCPSkillsSubsystem {
-    constructor({ llmAgent = null, modelConfig = null } = {}) {
+    constructor({ mainAgent = null, modelConfig = null } = {}) {
         this.type = 'mcp';
-        this.llmAgent = llmAgent;
+        this.mainAgent = mainAgent;
         this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
     }
@@ -218,7 +218,7 @@ export class MCPSkillsSubsystem {
      * @param {Object} skillRecord - The skill record to initialize
      * @param {MainAgent} mainAgent - The main agent instance
      */
-    async initSkill(skillRecord, mainAgent) {
+    async buildSkill(skillRecord, mainAgent) {
         // No initialization needed for MCP skills.
     }
 
@@ -343,7 +343,8 @@ export class MCPSkillsSubsystem {
             throw new Error(`MCP skill "${skillRecord.name}" requires at least one allowed tool.`);
         }
 
-        if (!this.llmAgent || typeof this.llmAgent.executePrompt !== 'function') {
+        const llmAgent = this.mainAgent?.llmAgent;
+        if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
             throw new Error(`MCP skill "${skillRecord.name}" requires an LLMAgent with executePrompt.`);
         }
 
@@ -357,7 +358,7 @@ export class MCPSkillsSubsystem {
 
         let rawPlan;
         try {
-            rawPlan = await this.llmAgent.executePrompt(prompt, {
+            rawPlan = await llmAgent.executePrompt(prompt, {
                 model: this.modelConfig.plan || 'plan',
                 context: {
                     intent: 'mcp-skill-plan',

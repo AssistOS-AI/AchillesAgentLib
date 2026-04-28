@@ -6,7 +6,7 @@ import { MainAgent } from '../../MainAgent/index.mjs';
 
 const nextTick = () => new Promise(resolve => setImmediate(resolve));
 
-describe('MainAgent initSkills', () => {
+describe('MainAgent buildSkills', () => {
     it('initializes all skills in parallel and waits for all to complete', async () => {
         const tempDir = fs.mkdtempSync('/tmp/mainagent-initskills-');
         const agent = new MainAgent({
@@ -24,14 +24,14 @@ describe('MainAgent initSkills', () => {
 
             agent.getSkills = () => skills;
             agent.subsystemFactory.get = () => ({
-                initSkill: async (skillRecord) => new Promise(resolve => {
+                buildSkill: async (skillRecord) => new Promise(resolve => {
                     started.push(skillRecord.name);
                     resolvers.set(skillRecord.name, resolve);
                 }),
             });
 
             let settled = false;
-            const initPromise = agent.initSkills().then(() => {
+            const initPromise = agent.buildSkills().then(() => {
                 settled = true;
             });
 
@@ -40,7 +40,7 @@ describe('MainAgent initSkills', () => {
 
             resolvers.get('alpha-cskill')();
             await nextTick();
-            assert.strictEqual(settled, false, 'Should wait for every initSkill call to finish');
+            assert.strictEqual(settled, false, 'Should wait for every buildSkill call to finish');
 
             resolvers.get('beta-cskill')();
             await initPromise;
