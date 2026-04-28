@@ -42,6 +42,11 @@ Status: done | failed | awaiting_input
 - `maxRetriesPerTurn` — retry count for validation failures (default: 3)
 - `systemPrompt` — system prompt for the session
 - `preparation` — preparation configuration for context building
+- `historyCompressionEnabled` — enables automatic history compression (default: true)
+- `historyCompressionThresholdTokens` — estimated token threshold that triggers compression (default: 6000)
+- `historyCompressionKeepRecentEntries` — number of latest history entries preserved verbatim (default: 8)
+- `historyCompressionMaxSummaryTokens` — target summary size for compression prompt (default: 1200)
+- `historyCompressionModel` — optional model override for compression (defaults to planner model)
 - `supervisor` — tool approval controller
 
 **What happens on construction:**
@@ -113,11 +118,13 @@ Each step in the loop:
 
 ## History and Tracking
 
-The session maintains three tracking structures:
+The session maintains three distinct tracking structures, each with a specific role:
 
-- **history** — chronological log of user prompts, tool calls, and results
-- **turns** — array of turn objects, each containing steps, final answer, and status
-- **toolCalls** — flat list of all tool invocations with results and variable references
+- **history** — chronological log of user prompts, tool calls, and session events. Each entry has a `type` (`user`, `tool_call`, `tool`, `awaiting_input`, `final_answer`, `cannot_complete`, `validation_failed`, `timeout`, `history_summary`). For `tool` entries, `resultRef` identifies the result stored in `toolVars`. This is the primary context source for the planner prompt.
+- **toolCalls** — flat list of all tool invocations with metadata (`tool`, `prompt`, `resultRef`). Used to quickly identify the most recent tool call for planner context. Does not store the result value itself.
+- **toolVars** — Map of `resultRef` to the actual tool result value. Single source of truth for tool outputs. Referenced by history entries and resolved via `$$resultRef` syntax in subsequent tool prompts.
+
+**turns** — array of turn objects, each containing steps, final answer, and status (used for execution tracking, not context building).
 
 Tool results are stored in `toolVars` with auto-generated references (e.g., `toolName-res-1`) that can be referenced in subsequent prompts using `$$variableName` syntax.
 
@@ -128,6 +135,19 @@ If a preparation configuration is provided, the session runs a preparation sub-s
 ## Pending Input Handling
 
 When a session is in awaiting_input status, the next `newPrompt` call checks the history for the pending tool. If the user's input is not a fresh instruction for a different tool, the session routes the input to the pending tool rather than triggering a new planner decision.
+
+## History Compression
+
+Before each new turn, the session can compress old history when the estimated history token volume passes `historyCompressionThresholdTokens`.
+
+Compression behavior:
+- Builds a prompt with the history entries to compress and resolved `resultRef` values from `toolVars`.
+- Expects a JSON response with `summary` (text) and `keepResultRefs` (array of resultRef identifiers to preserve).
+- Replaces old history with one `history_summary` entry.
+- Preserves the latest `historyCompressionKeepRecentEntries` items as-is (default: 8).
+- Prunes `toolVars` and `toolCalls` entries not referenced by `keepResultRefs` or by recent history.
+- Skips compression when a tool is pending in `awaiting_input` to avoid breaking interactive continuation.
+- If compression returns invalid JSON or empty summary, the session continues without mutating history (fail-open).
 
 ## What LoopAgentSession Does NOT Do
 
@@ -160,6 +180,13 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - Loop detection terminates on repeated tool calls
 - Awaiting input status pauses session
 - Pending input routes to correct tool
+- History compresses when threshold is exceeded
+- History compression preserves recent entries
+- History compression skips while awaiting_input is pending
+- History compression failure does not break prompt execution
+- History compression prunes toolVars and toolCalls based on keepResultRefs
+- History compression skips when JSON response is invalid
+- History compression prompt includes resultRef values from toolVars
 - Preparation runs before main prompt
 - Preparation context injected into prompts
 - final_answer tool ends session with done status

@@ -166,6 +166,12 @@ Returns `{ decision: 'yes'|'no'|'unclear', confidence: number }`.
 
 Creates a `LoopAgentSession` — a bounded multi-step execution where the LLM planner decides which tool to call at each step. The session runs until a final answer is reached or limits are hit.
 
+Notable options passed through to the loop runtime include:
+- Execution limits (`maxStepsPerTurn`, `maxErrors`, `maxRetriesPerTurn`)
+- Planner routing model/tags (`model`, `tags`)
+- Supervisor control (`supervisor`)
+- History compression controls (`historyCompressionEnabled`, `historyCompressionThresholdTokens`, `historyCompressionKeepRecentEntries`, `historyCompressionMaxSummaryTokens`, `historyCompressionModel`)
+
 **Used by:** `MainAgent.executePrompt()`, `AnthropicSkillsSubsystem`.
 
 ### startSOPLangAgentSession(skillsDescription, initialPrompt, options)
@@ -229,5 +235,6 @@ Test files should be created in tests/mainAgent/ or tests/llmAgent/
 - startLoopAgentSession creates session with tools
 - startLoopAgentSession passes supervisor through options
 - startLoopAgentSession passes model through options
+- startLoopAgentSession passes history compression options through
 - startSOPLangAgentSession creates SOP session
 - Traffic counters accumulate correctly

@@ -1,4 +1,9 @@
-import { buildAgenticSessionPlannerPrompt, buildPreparationPrompt, extractJson } from './templates/prompts.mjs';
+import {
+    buildAgenticSessionPlannerPrompt,
+    buildPreparationPrompt,
+    buildHistoryCompressionPrompt,
+    extractJson,
+} from './templates/prompts.mjs';
 import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import {
     FINAL_ANSWER_TOOL,
@@ -17,6 +22,14 @@ import {
 const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 
 const PREPARATION_CONTEXT_PREFIX = '@context_';
+const HISTORY_SUMMARY_TYPE = 'history_summary';
+const DEFAULT_HISTORY_COMPRESSION_THRESHOLD_TOKENS = 6000;
+const DEFAULT_HISTORY_COMPRESSION_KEEP_RECENT = 8;
+const DEFAULT_HISTORY_COMPRESSION_MAX_SUMMARY_TOKENS = 1200;
+
+function estimateTokens(text = '') {
+    return Math.ceil(String(text || '').length / 4);
+}
 
 function injectContextIntoPrompt(promptText, contextLines = []) {
     if (!contextLines.length) {
@@ -258,6 +271,17 @@ class LoopAgentSession {
             maxRetriesPerTurn: Number.isFinite(options.maxRetriesPerTurn)
                 ? options.maxRetriesPerTurn
                 : 3,
+            historyCompressionEnabled: options.historyCompressionEnabled !== false,
+            historyCompressionThresholdTokens: Number.isFinite(options.historyCompressionThresholdTokens)
+                ? Math.max(1, Math.floor(options.historyCompressionThresholdTokens))
+                : DEFAULT_HISTORY_COMPRESSION_THRESHOLD_TOKENS,
+            historyCompressionKeepRecentEntries: Number.isFinite(options.historyCompressionKeepRecentEntries)
+                ? Math.max(0, Math.floor(options.historyCompressionKeepRecentEntries))
+                : DEFAULT_HISTORY_COMPRESSION_KEEP_RECENT,
+            historyCompressionMaxSummaryTokens: Number.isFinite(options.historyCompressionMaxSummaryTokens)
+                ? Math.max(200, Math.floor(options.historyCompressionMaxSummaryTokens))
+                : DEFAULT_HISTORY_COMPRESSION_MAX_SUMMARY_TOKENS,
+            historyCompressionModel: options.historyCompressionModel || null,
         };
 
         this.supervisor = options.supervisor || null;
@@ -286,9 +310,134 @@ class LoopAgentSession {
         }
     }
 
+    _estimateHistoryTokens(entries = this.history) {
+        if (!Array.isArray(entries) || !entries.length) {
+            return 0;
+        }
+        return estimateTokens(JSON.stringify(entries));
+    }
+
+    _hasPendingAwaitingInput() {
+        return Boolean(getPendingAwaitingInputTool(this.history));
+    }
+
+    async _compressHistoryIfNeeded(userPrompt) {
+        if (!this.options.historyCompressionEnabled) {
+            return;
+        }
+        if (this._hasPendingAwaitingInput()) {
+            this._debug('[LoopSession]', 'History compression skipped: awaiting input pending');
+            return;
+        }
+
+        const estimatedTokens = this._estimateHistoryTokens(this.history);
+        if (estimatedTokens <= this.options.historyCompressionThresholdTokens) {
+            return;
+        }
+
+        const keepRecent = this.options.historyCompressionKeepRecentEntries;
+        const splitIndex = Math.max(0, this.history.length - keepRecent);
+        const historyToCompress = this.history.slice(0, splitIndex);
+        const recentHistory = this.history.slice(splitIndex);
+        if (!historyToCompress.length) {
+            return;
+        }
+
+        const refsToCompress = new Set();
+        for (const entry of historyToCompress) {
+            if (entry.type === 'tool' && entry.resultRef) {
+                refsToCompress.add(entry.resultRef);
+            }
+        }
+        const resultRefValues = [];
+        for (const ref of refsToCompress) {
+            if (this.toolVars.has(ref)) {
+                resultRefValues.push({ resultRef: ref, value: this.toolVars.get(ref) });
+            }
+        }
+
+        const prompt = buildHistoryCompressionPrompt({
+            history: historyToCompress,
+            resultRefValues,
+            userPrompt,
+            maxSummaryTokens: this.options.historyCompressionMaxSummaryTokens,
+        });
+
+        const raw = await this.agent.complete({
+            prompt,
+            model: this.options.historyCompressionModel || this.options.model,
+            tags: this.options.tags,
+            context: {
+                intent: 'agentic-session-history-compression',
+                historyEntries: historyToCompress.length,
+                estimatedTokens,
+            },
+        });
+
+        let parsed = null;
+        try {
+            parsed = extractJson(raw);
+        } catch {
+            parsed = null;
+        }
+
+        if (!parsed || typeof parsed !== 'object' || typeof parsed.summary !== 'string' || !parsed.summary.trim()) {
+            this._debug('[LoopSession]', 'Compression returned invalid summary; skipping');
+            return;
+        }
+
+        const summaryText = parsed.summary.trim();
+        const keepResultRefs = Array.isArray(parsed.keepResultRefs)
+            ? parsed.keepResultRefs.filter((r) => typeof r === 'string' && r.trim()).map((r) => r.trim())
+            : [];
+
+        const alwaysKeepRefs = new Set();
+        for (const entry of recentHistory) {
+            if (entry.type === 'tool' && entry.resultRef) {
+                alwaysKeepRefs.add(entry.resultRef);
+            }
+        }
+        for (const ref of keepResultRefs) {
+            alwaysKeepRefs.add(ref);
+        }
+
+        for (const ref of this.toolVars.keys()) {
+            if (!alwaysKeepRefs.has(ref)) {
+                this.toolVars.delete(ref);
+            }
+        }
+
+        this.toolCalls = this.toolCalls.filter((tc) => alwaysKeepRefs.has(tc.resultRef));
+
+        const summaryEntry = {
+            type: HISTORY_SUMMARY_TYPE,
+            summary: summaryText,
+            compressedFromCount: historyToCompress.length,
+            compressedAt: new Date().toISOString(),
+        };
+
+        this.history = [summaryEntry, ...recentHistory];
+        this._debug('[LoopSession]', 'History compressed', {
+            previousEntries: historyToCompress.length + recentHistory.length,
+            newEntries: this.history.length,
+            estimatedTokensBefore: estimatedTokens,
+            threshold: this.options.historyCompressionThresholdTokens,
+            prunedToolVars: refsToCompress.size - alwaysKeepRefs.size,
+            prunedToolCalls: this.toolCalls.length,
+        });
+    }
+
     async newPrompt(userPrompt, options = {}) {
         if (!userPrompt || typeof userPrompt !== 'string') {
             throw new Error('newPrompt requires a prompt string.');
+        }
+
+        try {
+            await this._compressHistoryIfNeeded(userPrompt);
+        } catch (error) {
+            this._debug('[LoopSession]', 'History compression failed; continuing without compression', {
+                error: error?.message || String(error),
+            });
         }
 
         // Run preparation if configured
@@ -873,16 +1022,13 @@ class LoopAgentSession {
         this.toolCalls.push({
             tool: toolName,
             prompt: toolPrompt,
-            result: result && (result.__finalAnswer || result.__cannotComplete) ? result.text : result,
             resultRef,
         });
         this.history.push({
             type: 'tool',
             tool: toolName,
             prompt: toolPrompt,
-            result: {
-                resultRef,
-            },
+            resultRef,
         });
 
         return result;

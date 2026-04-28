@@ -1,6 +1,17 @@
 import { extractJson } from '../markdown.mjs';
 import { FINAL_ANSWER_TOOL, SESSION_STATUS_AWAITING_INPUT } from '../constants.mjs';
 
+const formatValue = (value) => {
+    if (typeof value === 'string') {
+        return value;
+    }
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+};
+
 const buildInterpretMessagePrompt = (intents, instructions) => {
     const promptSections = [
         instructions || 'Interpret the user response and summarise the intent.',
@@ -162,6 +173,10 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         lines.push(`- prompt: ${lastToolCall.prompt}`);
         const lastResultRef = lastToolCall.resultRef;
         lines.push(`- resultRef: ${lastResultRef}`);
+        const lastResult = toolVars.get(lastResultRef);
+        if (lastResult !== undefined) {
+            lines.push(`- result: ${formatValue(lastResult)}`);
+        }
     }
 
     lines.push('');
@@ -184,11 +199,14 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         if (h.type === 'user') {
             lines.push(`USER: ${h.prompt}`);
         } else if (h.type === 'tool') {
-            const value = toolVars.get(h.result.resultRef);
-            lines.push(`TOOL[${h.tool}]: resultRef=${h.result.resultRef} result=${formatValue(value)}`);
+            const resultRef = h.resultRef || h.result?.resultRef;
+            const value = resultRef ? toolVars.get(resultRef) : undefined;
+            lines.push(`TOOL[${h.tool}]: resultRef=${resultRef || ''} result=${formatValue(value)}`);
             lines.push('------------------------------------------------------------');
         } else if (h.type === SESSION_STATUS_AWAITING_INPUT) {
             lines.push(`AWAITING_INPUT[${h.tool}]: ${h.answer} (step=${h.step || 'confirmation'})`);
+        } else if (h.type === 'history_summary') {
+            lines.push(`HISTORY_SUMMARY: ${h.summary || ''}`);
         } else if (h.type === 'final_answer') {
             lines.push(`FINAL: ${h.answer}`);
         } else if (h.type === 'cannot_complete') {
@@ -263,6 +281,51 @@ const buildPreparationPrompt = (preparationText, userPrompt) => {
     return parts.join('\n');
 };
 
+const buildHistoryCompressionPrompt = ({
+    history = [],
+    resultRefValues = [],
+    userPrompt = '',
+    maxSummaryTokens = 1200,
+}) => {
+    const targetTokens = Number.isFinite(maxSummaryTokens)
+        ? Math.max(200, Math.floor(maxSummaryTokens))
+        : 1200;
+
+    const lines = [];
+    lines.push('You are compressing a long agent session history for future planning turns.');
+    lines.push(`Produce a concise summary around ${targetTokens} tokens or less.`);
+    lines.push('Preserve only durable, actionable context.');
+    lines.push('');
+    lines.push('Must preserve:');
+    lines.push('- User goals and requested outcomes');
+    lines.push('- Important tool outcomes and side effects');
+    lines.push('- Open constraints, failures, and unresolved points');
+    lines.push('- Pending interaction details, if any');
+    lines.push('');
+    lines.push('Respond ONLY with JSON in this exact shape:');
+    lines.push('{');
+    lines.push('  "summary": "string",');
+    lines.push('  "keepResultRefs": ["resultRef-1", "resultRef-2"]');
+    lines.push('}');
+    lines.push('');
+    lines.push('Rules for keepResultRefs:');
+    lines.push('- Include only resultRef identifiers whose values are needed for future tool calls.');
+    lines.push('- Use only resultRef values from the provided resultRef list below.');
+    lines.push('- Omit irrelevant resultRef values so they can be safely pruned.');
+    lines.push('');
+    lines.push('Current user prompt:');
+    lines.push(String(userPrompt || ''));
+    lines.push('');
+    lines.push('History entries to compress (oldest to newest):');
+    lines.push(JSON.stringify(history, null, 2));
+    if (resultRefValues && resultRefValues.length) {
+        lines.push('');
+        lines.push('Result refs and values available for those history entries:');
+        lines.push(JSON.stringify(resultRefValues, null, 2));
+    }
+    return lines.join('\n');
+};
+
 export {
     buildInterpretMessagePrompt,
     buildDoTaskPrompt,
@@ -271,15 +334,6 @@ export {
     buildResolveConfirmationPrompt,
     buildAgenticSessionPlannerPrompt,
     buildPreparationPrompt,
+    buildHistoryCompressionPrompt,
     extractJson,
 };
-    const formatValue = (value) => {
-        if (typeof value === 'string') {
-            return value;
-        }
-        try {
-            return JSON.stringify(value);
-        } catch {
-            return String(value);
-        }
-    };

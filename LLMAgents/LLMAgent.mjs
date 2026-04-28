@@ -466,6 +466,11 @@ ${promptText}`
      * @param {number} [options.maxErrors] - Max errors before abort (default 5)
      * @param {string} [options.model] - Model for planner decisions
      * @param {Array|null} [options.tags] - Semantic tags for model selection
+     * @param {boolean} [options.historyCompressionEnabled=true] - Compress old history before planning turns
+     * @param {number} [options.historyCompressionThresholdTokens=6000] - Estimated-token threshold for compression
+     * @param {number} [options.historyCompressionKeepRecentEntries=8] - Number of most recent history entries to retain
+     * @param {number} [options.historyCompressionMaxSummaryTokens=1200] - Target summary budget for compression prompt
+     * @param {string|null} [options.historyCompressionModel] - Model override for compression (defaults to planner model)
      * @param {Object} [options.supervisor] - Tool approval controller
      * @returns {LoopAgentSession} Started session
      */
