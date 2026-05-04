@@ -10,7 +10,7 @@ import {
     normalizeResponsePayload,
 } from './constants.mjs';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
+const DEBUG_LOGGER = DEBUG_ACTIVE ? getDebugLogger() : null;
 
 
 function injectContextIntoPrompt(promptText, contextLines = []) {
@@ -25,7 +25,9 @@ function injectContextIntoPrompt(promptText, contextLines = []) {
 }
 
 function debugLog(...args) {
-    if (DEBUG_ENABLED) console.log(...args);
+    if (DEBUG_LOGGER) {
+        DEBUG_LOGGER.log(...args);
+    }
 }
 
 
@@ -485,8 +487,7 @@ class SOPAgenticSession {
                     try {
                         originalOnFail(failures);
                     } catch (error) {
-                        // eslint-disable-next-line no-console
-                        console.error('[SOPAgenticSession] execution onFail handler threw:', error);
+                        debugLog('[SOPAgenticSession] execution onFail handler threw:', error);
                     }
                 }
             },
@@ -511,8 +512,7 @@ class SOPAgenticSession {
             await interpreter.ready;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            // eslint-disable-next-line no-console
-            console.error('[SOPAgenticSession] Plan execution failed:', message);
+            debugLog('[SOPAgenticSession] Plan execution failed:', message);
             this.lastExecution = {
                 variables: {},
                 lastAnswer: null,
@@ -685,8 +685,7 @@ ${trimmed}`;
                         }
                     }
                 } catch (logError) {
-                    // eslint-disable-next-line no-console
-                    console.error('[LightSOPLang] Failed to log plan diff:', logError);
+                    debugLog('[LightSOPLang] Failed to log plan diff:', logError);
                 }
             },
         };

@@ -958,7 +958,7 @@ export class DBTableSkillsSubsystem {
                     functions = rawFunctions.global ? rawFunctions : { global: rawFunctions };
                 }
             } catch (error) {
-                console.error(`Error loading generated skill "${name}":`, error);
+                debugWarn(`Error loading generated skill "${name}":`, error);
                 // Fall through to fresh generation
             }
         }
@@ -1214,8 +1214,8 @@ return {
         try {
             return this.attachValidationGuards(eval(contextCode), resolvedSkill);
         } catch (e) {
-            console.error('Error evaluating context code:', e);
-            console.error('Code was:', contextCode);
+            debugWarn('Error evaluating context code:', e);
+            debugWarn('Code was:', contextCode);
             throw e;
         }
     }

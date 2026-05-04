@@ -24,6 +24,8 @@ import { cancelEuristic } from './cancelHeuristic.mjs';
 import { createCommandResponder } from './responseBuilder.mjs';
 import { FINAL_ANSWER_TOOL, CANNOT_COMPLETE_TOOL } from '../LLMAgents/constants.mjs';
 
+const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
+
 function ensureCommandsRegistry(commandsRegistry) {
     if (!commandsRegistry || typeof commandsRegistry !== 'object') {
         throw new Error('commandsRegistry must be an object');
@@ -432,8 +434,9 @@ export class LightSOPLangInterpreter {
         try {
             this.onFail(failureDetails);
         } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error('onFail handler threw an error:', error);
+            if (DEBUG_ENABLED) {
+                console.error('onFail handler threw an error:', error);
+            }
         }
 
         return false;

@@ -801,7 +801,6 @@ class LoopAgentSession {
                         prompt: toolPrompt,
                         error: error.message,
                     });
-                    console.error(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" failed with prompt "${toolPrompt}":`, error.message);
                     this._debug('[LoopSession]', 'Tool error', {
                         tool: toolName,
                         prompt: toolPrompt,
