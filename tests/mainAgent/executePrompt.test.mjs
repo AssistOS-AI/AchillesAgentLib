@@ -38,4 +38,50 @@ describe('MainAgent executePrompt', () => {
 
         agent.shutdown();
     });
+
+    it('forwards AbortSignal to session newPrompt on reused sessions', async () => {
+        const agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+
+        const capturedSignals = [];
+        const session = {
+            status: 'running',
+            async newPrompt(_message, options = {}) {
+                capturedSignals.push(options.signal || null);
+            },
+            getLastResult() {
+                return 'ok';
+            },
+        };
+
+        agent.llmAgent.startLoopAgentSession = async () => session;
+
+        await agent.executePrompt('first');
+        const controller = new AbortController();
+        await agent.executePrompt('second', { signal: controller.signal });
+
+        assert.equal(capturedSignals.length, 1);
+        assert.equal(capturedSignals[0], controller.signal);
+
+        agent.shutdown();
+    });
+
+    it('cancelCurrentSession forwards reason to session cancel', async () => {
+        const agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+
+        let cancelReason = null;
+        const session = {
+            status: 'running',
+            async newPrompt() {},
+            getLastResult() { return 'ok'; },
+            cancel(reason) { cancelReason = reason; },
+        };
+
+        agent.llmAgent.startLoopAgentSession = async () => session;
+        await agent.executePrompt('hello');
+
+        agent.cancelCurrentSession('esc');
+
+        assert.equal(cancelReason, 'esc');
+        agent.shutdown();
+    });
 });

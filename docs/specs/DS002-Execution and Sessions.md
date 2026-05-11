@@ -6,7 +6,7 @@ Primary method for user-to-LLM communication. Manages a single session lifecycle
 
 **Parameters:**
 - message — the user's text input
-- options — optional object containing model, tags, and systemPrompt
+- options — optional object containing model, tags, systemPrompt, and signal
 
 **Session resolution:**
 - MainAgent keeps one in-memory LoopAgentSession instance
@@ -27,7 +27,7 @@ Check if _session exists
     │   4. Store session in _session
     │
     └─► [session exists]
-        1. Call _session.newPrompt(message)
+        1. Call _session.newPrompt(message, { signal })
         2. History from previous turns is preserved
     │
     ▼
@@ -81,6 +81,11 @@ MainAgent stores one LoopAgentSession in `_session`.
 **Shutdown:**
 - shutdown clears `_session`
 
+**Interruption:**
+- When an AbortSignal aborts or `cancelCurrentSession()` is called, the active session enters `interrupted` status
+- The session appends an interruption event to history, so later planning turns can observe the interruption context
+- A new user prompt exits `interrupted` state and returns the session to normal execution
+
 ## Model and Tags Passthrough
 
 MainAgent does NOT resolve which model to use. The model and tags parameters pass through unchanged:
@@ -113,6 +118,7 @@ Test files should be created in tests/mainAgent/
 - Passes model parameter through unchanged
 - Passes tags parameter through unchanged
 - Passes systemPrompt through to session
+- Passes signal through to session creation and reused session prompts
 - Returns session result
 
 **executeSkill tests should cover:**
@@ -126,3 +132,4 @@ Test files should be created in tests/mainAgent/
 - First executePrompt creates session
 - Second executePrompt reuses existing session
 - shutdown clears session
+- cancelCurrentSession marks active session interrupted

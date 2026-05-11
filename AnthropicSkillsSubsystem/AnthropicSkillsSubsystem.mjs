@@ -103,6 +103,7 @@ export class AnthropicSkillsSubsystem {
         const sessionOptions = {
             model: options?.model || this.modelConfig.plan || 'plan',
             systemPrompt: systemPrompt || undefined,
+            signal: options?.signal || null,
         };
         const session = await llmAgent.startLoopAgentSession(tools, promptText, sessionOptions);
         const result = session.getLastResult();

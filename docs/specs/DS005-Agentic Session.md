@@ -48,6 +48,7 @@ Status: done | failed | awaiting_input
 - `historyCompressionMaxSummaryTokens` — target summary size for compression prompt (default: 1200)
 - `historyCompressionModel` — optional model override for compression (defaults to planner model)
 - `supervisor` — tool approval controller
+- `signal` — AbortSignal forwarded to planner/model calls for cancellation
 
 **What happens on construction:**
 1. Validates agent and tools are provided
@@ -113,8 +114,20 @@ Each step in the loop:
 | running | Currently processing a prompt |
 | active | Session has completed at least one turn successfully |
 | awaiting_input | Session is waiting for user input (interactive tool) |
+| interrupted | Session was cancelled and recorded interruption context |
 | done | Session completed successfully |
 | failed | Session failed due to errors, validation, or cannot_complete |
+
+## Cancellation and Interrupt Recovery
+
+Loop sessions support cooperative cancellation through `AbortSignal` and explicit `cancel(reason)` calls.
+
+- During `newPrompt()`, the runtime creates an internal prompt-scoped abort controller and links it with the external signal.
+- Planner, intent-interpretation, and history-compression LLM calls receive the active abort signal.
+- On cancellation, the session transitions to `interrupted`, stores a system history event containing reason and timestamp, and returns `Interrupted: <reason>` as the turn result.
+- A later user prompt automatically exits `interrupted` status and resumes normal loop execution.
+
+Skill execution may not always be instantly interruptible at subsystem level; in those cases, cancellation is honored at the next safe boundary after the running skill call completes.
 
 ## History and Tracking
 
@@ -195,3 +208,5 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - Failed skill results returned as final answer
 - getLastResult returns last answer
 - getVariables returns session state
+- Cancellation marks session as interrupted and appends interruption history entry
+- New prompts recover from interrupted state

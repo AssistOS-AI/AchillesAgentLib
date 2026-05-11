@@ -1039,16 +1039,30 @@ export class DBTableSkillsSubsystem {
                 throw new Error(`DBTable skill "${skillRecord.name}" requires a prompt argument`);
             }
 
+            if (context?.signal?.aborted) {
+                const error = new Error('DBTable execution cancelled before start.');
+                error.name = 'AbortError';
+                throw error;
+            }
+
             const llmAgent = this.mainAgent?.llmAgent;
             if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
                 throw new Error(`DBTable skill "${skillRecord.name}" requires an LLMAgent`);
             }
 
-            return withTimeout(
+            const result = await withTimeout(
                 controller.execute(prompt, context),
                 SKILL_TIMEOUT_MS,
                 () => new Error(`DBTable operation timed out`),
             );
+
+            if (context?.signal?.aborted) {
+                const error = new Error('DBTable execution cancelled.');
+                error.name = 'AbortError';
+                throw error;
+            }
+
+            return result;
         };
     }
 
@@ -1516,6 +1530,7 @@ return {
             const executionContext = {
                 ...(options.context || {}),
                 sessionMemory,
+                signal: options.signal || null,
             };
             if (!executionContext.user && options.user) {
                 executionContext.user = options.user;

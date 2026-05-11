@@ -14,6 +14,7 @@ import {
     SESSION_STATUS_RUNNING,
     SESSION_STATUS_ACTIVE,
     SESSION_STATUS_AWAITING_INPUT,
+    SESSION_STATUS_INTERRUPTED,
     SESSION_STATUS_DONE,
     SESSION_STATUS_FAILED,
     normalizeResponsePayload,
@@ -102,6 +103,17 @@ function coerceStructuredToolResult(value) {
         return parsed;
     }
     return value;
+}
+
+function formatInterruptionMessage(reason = 'cancelled') {
+    const normalized = String(reason || 'cancelled').trim().toLowerCase();
+    if (!normalized || normalized === 'cancelled') {
+        return 'Interrupted by user';
+    }
+    if (normalized === 'esc' || normalized === 'escape' || normalized === 'external-signal' || normalized === 'user') {
+        return 'Interrupted by user';
+    }
+    return `Interrupted: ${reason}`;
 }
 
 function getPendingAwaitingInputTool(history = []) {
@@ -302,6 +314,9 @@ class LoopAgentSession {
         this.toolVars = new Map();
         this.toolVarCounter = 0;
         this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
+        this._currentAbortController = null;
+        this._currentAbortSignal = null;
+        this._cancelReason = null;
     }
 
     _debug(...args) {
@@ -321,7 +336,76 @@ class LoopAgentSession {
         return Boolean(getPendingAwaitingInputTool(this.history));
     }
 
+    _isAbortError(error) {
+        return Boolean(error && (
+            error.name === 'AbortError'
+            || error.code === 'ABORT_ERR'
+            || /aborted|cancelled|canceled/i.test(error.message || '')
+        ));
+    }
+
+    _createPromptAbortController(externalSignal = null) {
+        const controller = new AbortController();
+        this._currentAbortController = controller;
+        this._currentAbortSignal = controller.signal;
+        this._cancelReason = null;
+        if (externalSignal && typeof externalSignal.addEventListener === 'function') {
+            externalSignal.addEventListener('abort', () => {
+                const externalReason = externalSignal.reason;
+                this.cancel(typeof externalReason === 'string' && externalReason.trim()
+                    ? externalReason
+                    : 'external-signal');
+            }, { once: true });
+        }
+        return controller.signal;
+    }
+
+    _clearPromptAbortController() {
+        this._currentAbortController = null;
+        this._currentAbortSignal = null;
+    }
+
+    _ensureNotCancelled() {
+        if (this.status !== SESSION_STATUS_INTERRUPTED) {
+            return;
+        }
+        const error = new Error(this._cancelReason || 'Operation cancelled.');
+        error.name = 'AbortError';
+        throw error;
+    }
+
+    _markInterrupted(reason = 'cancelled', turn = null) {
+        const message = formatInterruptionMessage(reason);
+        this.status = SESSION_STATUS_INTERRUPTED;
+        this.lastAnswer = message;
+        this._cancelReason = reason;
+        if (turn) {
+            turn.finalAnswer = message;
+            turn.status = SESSION_STATUS_INTERRUPTED;
+        }
+        const lastEntry = this.history[this.history.length - 1];
+        if (!(lastEntry && lastEntry.type === 'system' && lastEntry.event === SESSION_STATUS_INTERRUPTED)) {
+            this.history.push({
+                type: 'system',
+                event: SESSION_STATUS_INTERRUPTED,
+                by: 'user',
+                reason,
+                message,
+                at: new Date().toISOString(),
+            });
+        }
+        return message;
+    }
+
+    cancel(reason = 'cancelled') {
+        this._markInterrupted(String(reason || 'cancelled'));
+        if (this._currentAbortController) {
+            this._currentAbortController.abort(this._cancelReason);
+        }
+    }
+
     async _compressHistoryIfNeeded(userPrompt) {
+        this._ensureNotCancelled();
         if (!this.options.historyCompressionEnabled) {
             return;
         }
@@ -367,12 +451,14 @@ class LoopAgentSession {
             prompt,
             model: this.options.historyCompressionModel || this.options.model,
             tags: this.options.tags,
+            signal: this._currentAbortSignal,
             context: {
                 intent: 'agentic-session-history-compression',
                 historyEntries: historyToCompress.length,
                 estimatedTokens,
             },
         });
+        this._ensureNotCancelled();
 
         let parsed = null;
         try {
@@ -432,9 +518,18 @@ class LoopAgentSession {
             throw new Error('newPrompt requires a prompt string.');
         }
 
+        if (this.status === SESSION_STATUS_INTERRUPTED) {
+            this.status = SESSION_STATUS_ACTIVE;
+        }
+        const runSignal = options.signal || this.options.signal || null;
+        const promptSignal = this._createPromptAbortController(runSignal);
+
         try {
             await this._compressHistoryIfNeeded(userPrompt);
         } catch (error) {
+            if (this._isAbortError(error) || this.status === SESSION_STATUS_INTERRUPTED) {
+                throw error;
+            }
             this._debug('[LoopSession]', 'History compression failed; continuing without compression', {
                 error: error?.message || String(error),
             });
@@ -448,7 +543,12 @@ class LoopAgentSession {
             const prepResult = await LoopAgentSession.runPreparation({
                 agent: this.agent,
                 tools: preparationTools,
-                options: { model: this.options.model, maxStepsPerTurn: this.options.maxStepsPerTurn },
+                options: {
+                    model: this.options.model,
+                    tags: this.options.tags,
+                    maxStepsPerTurn: this.options.maxStepsPerTurn,
+                    signal: promptSignal,
+                },
                 preparationText: this.preparation.text,
                 userPrompt,
                 retries: this.preparation.retries ?? 1,
@@ -488,8 +588,19 @@ class LoopAgentSession {
         this.history.push({ type: 'user', prompt: userPrompt });
         this.status = SESSION_STATUS_RUNNING;
 
-        const answer = await this._runLoopForPrompt(userPrompt, turn);
-        this.lastAnswer = answer;
+        let answer = null;
+        try {
+            answer = await this._runLoopForPrompt(userPrompt, turn);
+            this.lastAnswer = answer;
+        } catch (error) {
+            if (this._isAbortError(error) || this.status === SESSION_STATUS_INTERRUPTED) {
+                answer = this._markInterrupted(this._cancelReason || 'cancelled', turn);
+            } else {
+                throw error;
+            }
+        } finally {
+            this._clearPromptAbortController();
+        }
  
         const invariantAnswer = this.getLastResult();
         if (invariantAnswer !== this.lastAnswer) {
@@ -566,6 +677,9 @@ class LoopAgentSession {
                 });
                 throw new Error('Preparation loop requires user input.');
             }
+            if (session.status === SESSION_STATUS_INTERRUPTED) {
+                throw new Error('Preparation loop interrupted.');
+            }
             const resultText = coerceResultToText(session.getLastResult());
             const contextEntries = parseContextVariables(resultText, contextPrefix);
             const contextLines = buildContextPieceLines(contextEntries);
@@ -591,6 +705,7 @@ class LoopAgentSession {
         });
 
         for (let stepIndex = 0; stepIndex < maxStepsPerTurn; stepIndex += 1) {
+            this._ensureNotCancelled();
             const decision = await this._requestDecision(userPrompt, turn, stepIndex);
             turn.steps.push({ type: 'planner_decision', decision });
             this._debug('[LoopSession]', 'Planner decision', { stepIndex, decision });
@@ -611,6 +726,7 @@ class LoopAgentSession {
 
                 try {
                     const toolResult = await this._executeTool(toolName, toolPrompt, turn);
+                    this._ensureNotCancelled();
                     const structuredToolResult = coerceStructuredToolResult(toolResult);
                     // Debug: log tool result type and key properties
                     debugLog(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, structuredType=${typeof structuredToolResult}, requiresConfirmation=${structuredToolResult?.requiresConfirmation}, requiresInput=${structuredToolResult?.requiresInput}`);
@@ -794,6 +910,9 @@ class LoopAgentSession {
                         return final;
                     }
                 } catch (error) {
+                    if (this._isAbortError(error) || this.status === SESSION_STATUS_INTERRUPTED) {
+                        throw error;
+                    }
                     this.errorCount += 1;
                     turn.steps.push({
                         type: 'tool_error',
@@ -851,6 +970,7 @@ class LoopAgentSession {
     }
 
     async _requestDecision(userPrompt, turn, stepIndex) {
+        this._ensureNotCancelled();
         const pendingTool = getPendingAwaitingInputTool(this.history);
         if (pendingTool) {
             const explicitDifferentToolMention = Object.keys(this.tools || {}).some((toolName) =>
@@ -861,7 +981,7 @@ class LoopAgentSession {
 
             if (!explicitDifferentToolMention) {
                 const interpretation = this.agent && typeof this.agent.interpretMessage === 'function'
-                    ? await this.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'] })
+                    ? await this.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'], signal: this._currentAbortSignal })
                     : { intent: 'unknown', confidence: 0 };
                 const shouldContinuePending = interpretation?.intent === 'accept'
                     || interpretation?.intent === 'cancel'
@@ -903,6 +1023,7 @@ class LoopAgentSession {
             prompt: plannerPrompt,
             model: this.options.model,
             tags: this.options.tags,
+            signal: this._currentAbortSignal,
             context: {
                 intent: 'agentic-session-planner',
                 stepIndex,
@@ -955,6 +1076,7 @@ class LoopAgentSession {
     }
 
     async _executeTool(toolName, toolPrompt) {
+        this._ensureNotCancelled();
         const toolEntry = this.tools[toolName];
         if (!toolEntry || typeof toolEntry.handler !== 'function') {
             throw new Error(`Unknown tool: ${toolName}`);
@@ -1006,7 +1128,11 @@ class LoopAgentSession {
         this.agent.currentSession = this;
         let result;
         try {
-            result = await toolEntry.handler(this.agent, resolvedPrompt);
+            result = await toolEntry.handler(this.agent, resolvedPrompt, {
+                signal: this._currentAbortSignal,
+                reason: this._cancelReason,
+                session: this,
+            });
         } finally {
             this.agent.currentSession = null;
         }

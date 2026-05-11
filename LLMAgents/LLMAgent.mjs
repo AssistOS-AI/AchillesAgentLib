@@ -112,7 +112,7 @@ class LLMAgent {
      * @param {Array|null} [options.tags] - Semantic tags for model selection
      * @returns {Object} { intent, confidence, updates?, ideas?, raw }
      */
-    async interpretMessage(message, { intents = ['accept', 'cancel', 'update'], instructions = null, model = null, tags = null } = {}) {
+    async interpretMessage(message, { intents = ['accept', 'cancel', 'update'], instructions = null, model = null, tags = null, signal = null } = {}) {
         // Stage 1: fast heuristic matching
         const heuristic = classifyIntent(message, { intents });
         if (heuristic.intent !== 'unknown' && (!intents.length || intents.includes(heuristic.intent))) {
@@ -130,6 +130,7 @@ class LLMAgent {
             history: [{ role: 'user', message }],
             model,
             tags,
+            signal,
             context: { intent: 'classify-message', expectedIntents: intents },
         });
 
@@ -179,7 +180,7 @@ class LLMAgent {
      * @param {Array|null} [options.tags] - Semantic tags for model selection
      * @returns {Object} { decision: 'yes'|'no'|'unclear', confidence: number }
      */
-    async resolveConfirmation(userInput, { actionContext = null, model = null, tags = null } = {}) {
+    async resolveConfirmation(userInput, { actionContext = null, model = null, tags = null, signal = null } = {}) {
         if (!userInput || typeof userInput !== 'string') {
             return { decision: 'unclear', confidence: 0 };
         }
@@ -208,6 +209,7 @@ class LLMAgent {
                 prompt,
                 model,
                 tags,
+                signal,
                 context: { intent: 'resolve-confirmation' },
             });
 
@@ -429,6 +431,7 @@ ${promptText}`
         const {
             model = null,
             tags = null,
+            signal = null,
             ...rest
         } = options;
 
@@ -438,6 +441,7 @@ ${promptText}`
             prompt,
             model,
             tags,
+            signal,
             context: { intent: 'detect-intents' },
             ...rest,
         });
@@ -482,14 +486,14 @@ ${promptText}`
             throw new Error('startLoopAgentSession requires an initial prompt string.');
         }
 
-        const { initialExpected = null, ...sessionOptions } = options || {};
+        const { initialExpected = null, signal = null, ...sessionOptions } = options || {};
 
         const session = new LoopAgentSession({
             agent: this,
             tools,
             options: sessionOptions,
         });
-        await session.newPrompt(initialPrompt, { expected: initialExpected });
+        await session.newPrompt(initialPrompt, { expected: initialExpected, signal });
         return session;
     }
 
@@ -521,6 +525,7 @@ ${promptText}`
         const {
             generatePlanOnly = false,
             planOnly = false,
+            signal = null,
             ...rest
         } = options || {};
 
@@ -534,7 +539,7 @@ ${promptText}`
             skillsDescription,
             options: sessionOptions,
         });
-        await session.newPrompt(initialPrompt);
+        await session.newPrompt(initialPrompt, { signal });
         return session;
     }
 

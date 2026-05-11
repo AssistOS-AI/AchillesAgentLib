@@ -116,6 +116,7 @@ const agent = new MainAgent({
 - **Subsystem access** — lazy creation and caching of subsystem instances
 - **Supervised tool approval** — delegates tool authorization to supervisor
 - **Model configuration** — semantic tag-to-model mapping for all LLM calls
+- **Session interruption control** — exposes `cancelCurrentSession(reason)` to interrupt the active agentic session
 
 ## Rules
 
@@ -136,3 +137,9 @@ const agent = new MainAgent({
 - Does NOT expose processing callbacks
 - Does NOT reload skills after initial discovery
 - Does NOT expose sessionId-based APIs or multi-session routing
+
+## Session Interruption Behavior
+
+- `cancelCurrentSession(reason)` delegates interruption to both the active session instance and the LLMAgent transport cancellation path.
+- Interrupted sessions persist an interruption event in their history and enter `interrupted` status.
+- A subsequent `executePrompt()` call reuses the same session object and resumes execution from normal active flow.

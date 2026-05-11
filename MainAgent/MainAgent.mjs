@@ -136,6 +136,7 @@ export class MainAgent {
             model = null,
             tags = null,
             systemPrompt = null,
+            signal = null,
         } = options;
 
         if (!this._session) {
@@ -145,9 +146,10 @@ export class MainAgent {
                 tags,
                 systemPrompt,
                 supervisor: this.supervisor,
+                signal,
             });
         } else {
-            await this._session.newPrompt(message);
+            await this._session.newPrompt(message, { signal });
         }
 
         return {
@@ -156,7 +158,22 @@ export class MainAgent {
         };
     }
 
+    cancelCurrentSession(reason = 'cancelled') {
+        if (this._session && typeof this._session.cancel === 'function') {
+            this._session.cancel(reason);
+        }
+        if (this.llmAgent && typeof this.llmAgent.cancel === 'function') {
+            this.llmAgent.cancel();
+        }
+    }
+
     async executeSkill(skillName, prompt, options = {}) {
+        if (options?.signal?.aborted) {
+            const error = new Error('Skill execution cancelled before start.');
+            error.name = 'AbortError';
+            throw error;
+        }
+
         const skillRecord = this.getSkillRecord(skillName);
         if (!skillRecord) {
             throw new Error(`Skill "${skillName}" not found.`);
@@ -208,13 +225,14 @@ export class MainAgent {
         for (const skillRecord of allSkills) {
             const toolName = sanitiseName(skillRecord.shortName || skillRecord.name);
             tools[toolName] = {
-                handler: async (agent, promptText) => {
+                handler: async (agent, promptText, executionOptions = {}) => {
                     const safePrompt = typeof promptText === 'string'
                         ? promptText
                         : (promptText != null ? JSON.stringify(promptText) : '');
 
                     const result = await this.executeSkill(skillRecord.name, safePrompt, {
                         model: 'plan',
+                        signal: executionOptions?.signal || null,
                     });
                     const output = result?.result;
                     if (output == null) return '';

@@ -7,6 +7,11 @@ import {
     FINAL_ANSWER_DESCRIPTION,
     CANNOT_COMPLETE_TOOL,
     CANNOT_COMPLETE_DESCRIPTION,
+    SESSION_STATUS_IDLE,
+    SESSION_STATUS_RUNNING,
+    SESSION_STATUS_ACTIVE,
+    SESSION_STATUS_AWAITING_INPUT,
+    SESSION_STATUS_INTERRUPTED,
     normalizeResponsePayload,
 } from './constants.mjs';
 
@@ -87,6 +92,17 @@ function coerceStructuredResult(value) {
         }
     }
     return value;
+}
+
+function formatInterruptionMessage(reason = 'cancelled') {
+    const normalized = String(reason || 'cancelled').trim().toLowerCase();
+    if (!normalized || normalized === 'cancelled') {
+        return 'Interrupted by user';
+    }
+    if (normalized === 'esc' || normalized === 'escape' || normalized === 'external-signal' || normalized === 'user') {
+        return 'Interrupted by user';
+    }
+    return `Interrupted: ${reason}`;
 }
 
 function isInteractiveToolResult(value) {
@@ -255,6 +271,91 @@ class SOPAgenticSession {
             : 3;
         this.lastRunFailures = [];
         this.pendingTool = null;
+        this.status = SESSION_STATUS_IDLE;
+        this._currentAbortController = null;
+        this._currentAbortSignal = null;
+        this._cancelReason = null;
+    }
+
+    _isAbortError(error) {
+        return Boolean(error && (
+            error.name === 'AbortError'
+            || error.code === 'ABORT_ERR'
+            || /aborted|cancelled|canceled/i.test(error.message || '')
+        ));
+    }
+
+    _createPromptAbortController(externalSignal = null) {
+        const controller = new AbortController();
+        this._currentAbortController = controller;
+        this._currentAbortSignal = controller.signal;
+        this._cancelReason = null;
+        if (externalSignal && typeof externalSignal.addEventListener === 'function') {
+            externalSignal.addEventListener('abort', () => {
+                this.cancel('external-signal');
+            }, { once: true });
+        }
+        return controller.signal;
+    }
+
+    _clearPromptAbortController() {
+        this._currentAbortController = null;
+        this._currentAbortSignal = null;
+    }
+
+    _ensureNotCancelled() {
+        if (this.status !== SESSION_STATUS_INTERRUPTED) {
+            return;
+        }
+        const error = new Error(this._cancelReason || 'Operation cancelled.');
+        error.name = 'AbortError';
+        throw error;
+    }
+
+    _markInterrupted(reason = 'cancelled') {
+        const message = formatInterruptionMessage(reason);
+        this.status = SESSION_STATUS_INTERRUPTED;
+        this._cancelReason = reason;
+        this.pendingTool = null;
+        this.lastExecution = {
+            variables: this.lastExecution?.variables || {},
+            lastAnswer: message,
+        };
+        const lastEntry = this.history[this.history.length - 1];
+        if (!(lastEntry && lastEntry.type === 'system' && lastEntry.event === SESSION_STATUS_INTERRUPTED)) {
+            this.history.push({
+                type: 'system',
+                event: SESSION_STATUS_INTERRUPTED,
+                by: 'user',
+                reason,
+                message,
+                at: new Date().toISOString(),
+            });
+        }
+        return message;
+    }
+
+    _getRecentInterruptions(limit = 5) {
+        if (!Array.isArray(this.history) || !this.history.length) {
+            return [];
+        }
+        const interruptions = this.history
+            .filter((entry) => entry?.type === 'system' && entry?.event === SESSION_STATUS_INTERRUPTED)
+            .slice(-limit)
+            .map((entry) => ({
+                by: entry.by || 'user',
+                reason: entry.reason || null,
+                message: entry.message || null,
+                at: entry.at || null,
+            }));
+        return interruptions;
+    }
+
+    cancel(reason = 'cancelled') {
+        this._markInterrupted(String(reason || 'cancelled'));
+        if (this._currentAbortController) {
+            this._currentAbortController.abort(this._cancelReason);
+        }
     }
 
     static async runPreparation({
@@ -292,7 +393,7 @@ class SOPAgenticSession {
             debugLog('[SOPAgenticSession] Preparation session start', {
                 promptLength: String(preparationPrompt || '').length,
             });
-            await session.newPrompt(preparationPrompt);
+            await session.newPrompt(preparationPrompt, { signal: options.signal || null });
             const failures = Array.isArray(session.lastRunFailures) ? session.lastRunFailures : [];
             if (failures.length) {
                 debugLog('[SOPAgenticSession] Preparation session failures', {
@@ -313,11 +414,17 @@ class SOPAgenticSession {
         return runWithRetry(attemptRun, retries);
     }
  
-     async newPrompt(userPrompt) {
+     async newPrompt(userPrompt, promptOptions = {}) {
 
         if (!userPrompt || typeof userPrompt !== 'string') {
             throw new Error('newPrompt requires a prompt string.');
         }
+        if (this.status === SESSION_STATUS_INTERRUPTED) {
+            this.status = SESSION_STATUS_ACTIVE;
+        }
+        const runSignal = promptOptions.signal || this.options.signal || null;
+        this._createPromptAbortController(runSignal);
+        this.status = SESSION_STATUS_RUNNING;
 
         let preparationContext = [];
         // Run preparation if configured
@@ -332,7 +439,7 @@ class SOPAgenticSession {
                 agent: this.agent,
                 skillsDescription: preparationSkillsDescription,
                 commandsRegistry: preparationCommandsRegistry,
-                options: { model: this.options.model, tags: this.options.tags },
+                options: { model: this.options.model, tags: this.options.tags, signal: this._currentAbortSignal },
                 preparationText: this.preparation.text,
                 userPrompt,
                 retries: this.preparation.retries ?? 1,
@@ -354,7 +461,7 @@ class SOPAgenticSession {
         const pendingTool = this.pendingTool || getPendingToolFromHistory(this.history);
         if (pendingTool) {
             const interpretation = this.agent && typeof this.agent.interpretMessage === 'function'
-                ? await this.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'] })
+                ? await this.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'], signal: this._currentAbortSignal })
                 : { intent: 'unknown', confidence: 0 };
             const shouldContinuePending = interpretation?.intent === 'accept'
                 || interpretation?.intent === 'cancel'
@@ -369,71 +476,104 @@ class SOPAgenticSession {
                     routeReason: 'pending_awaiting_input',
                     tool: pendingTool,
                 });
-                const runResult = await this._runPlan(this.currentPlan);
-                this.lastRunFailures = runResult?.failures || [];
-                const answer = this.getLastResult();
-                if (this.lastExecution && answer !== this.lastExecution.lastAnswer) {
-                    throw new Error('SOPAgenticSession invariant violated: getLastResult() mismatch with lastExecution.lastAnswer.');
+                try {
+                    const runResult = await this._runPlan(this.currentPlan);
+                    this.lastRunFailures = runResult?.failures || [];
+                    const answer = this.getLastResult();
+                    if (this.lastExecution && answer !== this.lastExecution.lastAnswer) {
+                        throw new Error('SOPAgenticSession invariant violated: getLastResult() mismatch with lastExecution.lastAnswer.');
+                    }
+                    this.status = this.pendingTool ? SESSION_STATUS_AWAITING_INPUT : SESSION_STATUS_ACTIVE;
+                    return { plan: this.currentPlan, answer };
+                } catch (error) {
+                    if (this._isAbortError(error) || this.status === SESSION_STATUS_INTERRUPTED) {
+                        const answer = this._markInterrupted(this._cancelReason || 'cancelled');
+                        return { plan: this.currentPlan, answer };
+                    }
+                    throw error;
+                } finally {
+                    this._clearPromptAbortController();
                 }
+            }
+        }
+ 
+        try {
+            while (true) {
+                const baseInstructions = buildSOPAgenticInstructions({
+                    currentPlan: this.currentPlan,
+                    userPrompt,
+                    systemPrompt: this.systemPrompt,
+                    preparationContext,
+                    interruptedEvents: this._getRecentInterruptions(),
+                });
+    
+                const feedbackBlock = this._buildExecutionFeedbackComment(lastFeedback);
+                const englishInstructions = feedbackBlock
+                    ? `${baseInstructions}\n\n${feedbackBlock}`
+                    : baseInstructions;
+    
+                this._ensureNotCancelled();
+                const plan = await this._generatePlanFromEnglish(englishInstructions);
+    
+                this.currentPlan = plan || '';
+                this.lastExecution = null;
+                this.history.push({
+                    prompt: userPrompt,
+                    plan: this.currentPlan,
+                });
+    
+                if (!this.commandsRegistry || this.options.planOnly) {
+                    break;
+                }
+    
+                const runResult = await this._runPlan(this.currentPlan);
+                const hasFailures = runResult?.hasFailures;
+                const failures = runResult?.failures || [];
+                this.lastRunFailures = failures;
+    
+                if (!hasFailures) {
+                    break;
+                }
+    
+                if (attempt + 1 < maxAttempts) {
+                }
+                attempt += 1;
+                if (attempt >= maxAttempts) {
+                    debugLog('[SOPAgenticSession] Maximum plan attempts reached; stopping retries.');
+                    break;
+                }
+    
+                lastFeedback = {
+                    failures,
+                    variables: this.lastExecution?.variables || {},
+                };
+            }
+        } catch (error) {
+            if (this._isAbortError(error) || this.status === SESSION_STATUS_INTERRUPTED) {
+                const answer = this._markInterrupted(this._cancelReason || 'cancelled');
+                this._clearPromptAbortController();
                 return { plan: this.currentPlan, answer };
             }
+            this._clearPromptAbortController();
+            throw error;
         }
  
-        while (true) {
-            const baseInstructions = buildSOPAgenticInstructions({
-                currentPlan: this.currentPlan,
-                userPrompt,
-                systemPrompt: this.systemPrompt,
-                preparationContext,
-            });
- 
-            const feedbackBlock = this._buildExecutionFeedbackComment(lastFeedback);
-            const englishInstructions = feedbackBlock
-                ? `${baseInstructions}\n\n${feedbackBlock}`
-                : baseInstructions;
- 
-            const plan = await this._generatePlanFromEnglish(englishInstructions);
- 
-            this.currentPlan = plan || '';
-            this.lastExecution = null;
-            this.history.push({
-                prompt: userPrompt,
-                plan: this.currentPlan,
-            });
- 
-            if (!this.commandsRegistry || this.options.planOnly) {
-                break;
+        try {
+            const answer = this.getLastResult();
+            if (this.lastExecution && answer !== this.lastExecution.lastAnswer) {
+                throw new Error('SOPAgenticSession invariant violated: getLastResult() mismatch with lastExecution.lastAnswer.');
             }
- 
-            const runResult = await this._runPlan(this.currentPlan);
-            const hasFailures = runResult?.hasFailures;
-            const failures = runResult?.failures || [];
-            this.lastRunFailures = failures;
- 
-            if (!hasFailures) {
-                break;
+            this.status = this.pendingTool ? SESSION_STATUS_AWAITING_INPUT : SESSION_STATUS_ACTIVE;
+            return { plan: this.currentPlan, answer };
+        } catch (error) {
+            if (this._isAbortError(error) || this.status === SESSION_STATUS_INTERRUPTED) {
+                const answer = this._markInterrupted(this._cancelReason || 'cancelled');
+                return { plan: this.currentPlan, answer };
             }
- 
-            if (attempt + 1 < maxAttempts) {
-            }
-            attempt += 1;
-            if (attempt >= maxAttempts) {
-                debugLog('[SOPAgenticSession] Maximum plan attempts reached; stopping retries.');
-                break;
-            }
- 
-            lastFeedback = {
-                failures,
-                variables: this.lastExecution?.variables || {},
-            };
+            throw error;
+        } finally {
+            this._clearPromptAbortController();
         }
- 
-        const answer = this.getLastResult();
-        if (this.lastExecution && answer !== this.lastExecution.lastAnswer) {
-            throw new Error('SOPAgenticSession invariant violated: getLastResult() mismatch with lastExecution.lastAnswer.');
-        }
- 
-        return { plan: this.currentPlan, answer };
      }
  
      getLastResult() {
@@ -446,7 +586,7 @@ class SOPAgenticSession {
             lastPlan: this.currentPlan,
             lastAnswer: this.getLastResult(),
             variables: this.lastExecution?.variables || {},
-            status: this.lastExecution ? 'active' : 'idle',
+            status: this.status,
         };
     }
 
@@ -500,6 +640,9 @@ class SOPAgenticSession {
         }
         if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmTags')) {
             interpreterOptions.llmTags = this.options.tags;
+        }
+        if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmSignal')) {
+            interpreterOptions.llmSignal = this._currentAbortSignal;
         }
         this._lastFinalAnswer = null;
         let interpreter;
@@ -694,6 +837,9 @@ ${trimmed}`;
         }
         if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmTags')) {
             planOptions.llmTags = this.options.tags;
+        }
+        if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmSignal')) {
+            planOptions.llmSignal = this._currentAbortSignal;
         }
         const interpreter = new LightSOPLangInterpreter(
             englishSource,

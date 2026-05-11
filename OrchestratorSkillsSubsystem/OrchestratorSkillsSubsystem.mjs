@@ -173,16 +173,18 @@ export class OrchestratorSkillsSubsystem {
         const tools = {};
         const forwardedContext = options?.context || {};
         const skillModel = this.modelConfig?.plan || options?.model || null;
+        const forwardedSignal = options?.signal || null;
 
         for (const skillRecord of allowedSkills) {
             const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
-            tools[toolName] = async (agent, promptText) => {
+            tools[toolName] = async (agent, promptText, executionOptions = {}) => {
                 const safePrompt = typeof promptText === 'string'
                     ? promptText
                     : (promptText != null ? JSON.stringify(promptText) : '');
 
                 const execOptions = {
                     context: forwardedContext,
+                    signal: executionOptions?.signal || forwardedSignal,
                 };
                 if (skillModel) execOptions.model = skillModel;
                 const executionResult = await mainAgent.executeSkill(skillRecord.name, safePrompt, execOptions);
@@ -217,8 +219,9 @@ export class OrchestratorSkillsSubsystem {
         return toolsWithDescriptions;
     }
 
-    buildCommandsRegistry(allowedSkills, tools) {
+    buildCommandsRegistry(allowedSkills, tools, options = {}) {
         const llmAgent = this.mainAgent?.llmAgent || null;
+        const forwardedSignal = options?.signal || null;
         return {
             executeCommand: async (payload, response) => {
                 const { command, args } = payload;
@@ -229,12 +232,13 @@ export class OrchestratorSkillsSubsystem {
                 }
 
                 try {
+                    const executionOptions = { signal: forwardedSignal };
                     if (Array.isArray(args)) {
                         const prompt = args.join(' ');
-                        const result = await skillAction(llmAgent, prompt);
+                        const result = await skillAction(llmAgent, prompt, executionOptions);
                         return response.success(result);
                     }
-                    const result = await skillAction(llmAgent, args);
+                    const result = await skillAction(llmAgent, args, executionOptions);
                     return response.success(result);
                 } catch (error) {
                     return response.fail(error?.message || String(error));
@@ -274,6 +278,7 @@ export class OrchestratorSkillsSubsystem {
             model: options?.model || this.modelConfig.plan || 'plan',
             maxStepsPerTurn: 20,
             preparation,
+            signal: options?.signal || null,
         };
 
         const session = await llmAgent.startLoopAgentSession(toolsWithDescriptions, promptText, sessionOptions);
@@ -296,10 +301,10 @@ export class OrchestratorSkillsSubsystem {
         const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, mainAgent, allowedSkills);
         const tools = await this.buildSkillsAsTools(allowedSkills, mainAgent, options);
         const skillsDescription = this.buildToolDescriptions(allowedSkills);
-        const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools);
+        const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools, options);
         const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, mainAgent, options);
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
-        const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools);
+        const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools, options);
 
         const preparation = skillRecord.preparedConfig?.preparation
             ? {
@@ -325,6 +330,7 @@ export class OrchestratorSkillsSubsystem {
             interpreterOptions: {
                 llmModel: options?.planModel || options?.model || this.modelConfig.plan || 'plan',
             },
+            signal: options?.signal || null,
         };
 
         const session = await llmAgent.startSOPLangAgentSession(skillsDescription, promptText, sessionOptions);

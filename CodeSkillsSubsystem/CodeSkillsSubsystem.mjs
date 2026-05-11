@@ -155,6 +155,15 @@ export class CodeSkillsSubsystem {
     args.llmAgent = llmAgent;
 
     const executionContext = options?.context || {};
+    if (options?.signal) {
+      executionContext.signal = options.signal;
+      args.signal = options.signal;
+      if (options.signal.aborted) {
+        const error = new Error('Skill execution cancelled.');
+        error.name = 'AbortError';
+        throw error;
+      }
+    }
     Object.assign(args, executionContext);
     args.context = executionContext;
 

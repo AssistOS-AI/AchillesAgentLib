@@ -76,6 +76,11 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'c
     return async (invocation) => {
         const input = invocation?.input;
         const runtimeLLMAgent = invocation?.llmAgent || llmAgent;
+        if (invocation?.signal?.aborted) {
+            const error = new Error('Dynamic code generation execution cancelled before start.');
+            error.name = 'AbortError';
+            throw error;
+        }
         if (typeof input !== 'string' || !input.trim()) {
             throw new Error(`Dynamic code generation skill "${skillName}" requires the "${CODE_ARGUMENT_NAME}" argument.`);
         }
@@ -106,6 +111,7 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'c
         const decision = await withTimeout(
             runtimeLLMAgent.executePrompt(decisionPrompt, {
                 model: llmModel,
+                signal: invocation?.signal || null,
                 context: { intent: 'dynamic-code-generation-skill-default', skillName },
                 responseShape: 'json',
             }),
@@ -138,6 +144,12 @@ function createDefaultExecutor({ skillName, prompt = '', llmAgent, llmModel = 'c
             });
         } else {
             throw new Error(`Dynamic code generation skill "${skillName}" received unsupported mode "${decision.mode}".`);
+        }
+
+        if (invocation?.signal?.aborted) {
+            const error = new Error('Dynamic code generation execution cancelled.');
+            error.name = 'AbortError';
+            throw error;
         }
 
         return outcome;
@@ -274,6 +286,7 @@ export class DynamicCodeGenerationSubsystem {
             context: options.context || {},
             user: options.context?.user || null,
             attachments: options.context?.attachments || [],
+            signal: options.signal || null,
         });
 
         return {

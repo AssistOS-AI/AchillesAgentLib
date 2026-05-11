@@ -329,7 +329,7 @@ export class MCPSkillsSubsystem {
         };
     }
 
-    async generatePlan({ skillRecord, promptText, tools }) {
+    async generatePlan({ skillRecord, promptText, tools, signal = null }) {
         const allowList = skillRecord?.preparedConfig?.allowedTools || [];
         const filteredTools = this.filterTools(allowList, tools);
         const planLimit = skillRecord.preparedConfig?.planLimit || DEFAULT_PLAN_LIMIT;
@@ -360,6 +360,7 @@ export class MCPSkillsSubsystem {
         try {
             rawPlan = await llmAgent.executePrompt(prompt, {
                 model: this.modelConfig.plan || 'plan',
+                signal,
                 context: {
                     intent: 'mcp-skill-plan',
                     skillName: skillRecord.name,
@@ -417,6 +418,12 @@ export class MCPSkillsSubsystem {
     }
 
     async executeSkillPrompt({ skillRecord, promptText, options = {} }) {
+        if (options?.signal?.aborted) {
+            const error = new Error('MCP skill execution cancelled before start.');
+            error.name = 'AbortError';
+            throw error;
+        }
+
         let tools = normaliseTools(options.availableTools);
 
         const clientFactoryUrl = options.agentClientBaseUrl;
@@ -481,6 +488,7 @@ export class MCPSkillsSubsystem {
                 skillRecord,
                 promptText,
                 tools,
+                signal: options?.signal || null,
             });
 
             this.debugLogger?.log('MCPSkillsSubsystem:executeSkillPrompt', {

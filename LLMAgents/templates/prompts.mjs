@@ -205,6 +205,8 @@ const buildAgenticSessionPlannerPrompt = (options) => {
             lines.push('------------------------------------------------------------');
         } else if (h.type === SESSION_STATUS_AWAITING_INPUT) {
             lines.push(`AWAITING_INPUT[${h.tool}]: ${h.answer} (step=${h.step || 'confirmation'})`);
+        } else if (h.type === 'system' && h.event === 'interrupted') {
+            lines.push(`SYSTEM_INTERRUPTED: reason=${h.reason || 'cancelled'} message=${h.message || ''}`);
         } else if (h.type === 'history_summary') {
             lines.push(`HISTORY_SUMMARY: ${h.summary || ''}`);
         } else if (h.type === 'final_answer') {

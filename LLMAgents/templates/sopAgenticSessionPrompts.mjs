@@ -9,7 +9,13 @@ const FINAL_RESPONSE_NOTE = [
     '- When an argument is a literal string containing spaces, wrap it in double quotes (e.g., @step tool "foo bar" $var).',
 ].join('\n');
 
-const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', systemPrompt = '', preparationContext = [] }) => {
+const buildSOPAgenticInstructions = ({
+    currentPlan = '',
+    userPrompt = '',
+    systemPrompt = '',
+    preparationContext = [],
+    interruptedEvents = [],
+}) => {
     const rawPrompt = typeof userPrompt === 'string' ? userPrompt : '';
     const promptText = rawPrompt.trim();
     const existingPlan = typeof currentPlan === 'string' ? currentPlan.trim() : '';
@@ -20,6 +26,11 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
         systemLines.push('');
     }
     const prepLines = Array.isArray(preparationContext) ? preparationContext.filter(Boolean) : [];
+    const interruptionLines = Array.isArray(interruptedEvents)
+        ? interruptedEvents
+            .filter((event) => event && typeof event === 'object')
+            .map((event) => `- interrupted by ${event.by || 'user'}: ${event.reason || event.message || 'cancelled'}`)
+        : [];
 
     if (!existingPlan) {
         return [
@@ -33,6 +44,13 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
                     'Note: Each loaded file is provided as two variables: a path variable and a content variable.',
                     'Example: @spec_DS001_Vision assign "docs/specs/DS001-Vision.md" and @spec_DS001_VisionContent assign ...',
                     'You can reference these variables in your plan as $spec_DS001_Vision (path) and $spec_DS001_VisionContent (content).',
+                    '',
+                ]
+                : []),
+            ...(interruptionLines.length
+                ? [
+                    'Recent interruption context:',
+                    ...interruptionLines,
                     '',
                 ]
                 : []),
@@ -62,6 +80,11 @@ const buildSOPAgenticInstructions = ({ currentPlan = '', userPrompt = '', system
         lines.push('Note: Each loaded file is provided as two variables: a path variable and a content variable.');
         lines.push('Example: @spec_DS001_Vision assign "docs/specs/DS001-Vision.md" and @spec_DS001_VisionContent assign ...');
         lines.push('You can reference these variables in your plan as $spec_DS001_Vision (path) and $spec_DS001_VisionContent (content).');
+    }
+    if (interruptionLines.length) {
+        lines.push('');
+        lines.push('Recent interruption context:');
+        lines.push(...interruptionLines);
     }
     lines.push('');
     lines.push('Current plan:');

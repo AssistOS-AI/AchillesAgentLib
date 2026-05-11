@@ -170,6 +170,7 @@ Notable options passed through to the loop runtime include:
 - Execution limits (`maxStepsPerTurn`, `maxErrors`, `maxRetriesPerTurn`)
 - Planner routing model/tags (`model`, `tags`)
 - Supervisor control (`supervisor`)
+- Cancellation signal (`signal`)
 - History compression controls (`historyCompressionEnabled`, `historyCompressionThresholdTokens`, `historyCompressionKeepRecentEntries`, `historyCompressionMaxSummaryTokens`, `historyCompressionModel`)
 
 **Used by:** `MainAgent.executePrompt()`, `AnthropicSkillsSubsystem`.
@@ -194,7 +195,7 @@ Private methods called automatically by `extraComplete()`. Accumulate character 
 
 ### cancel()
 
-Aborts all in-flight LLM requests by calling `cancelRequests()` from `LLMClient`. Used as a safety mechanism for timeouts or shutdown scenarios.
+Aborts all in-flight LLM requests by calling `cancelRequests()` from `LLMClient`. Used as a safety mechanism for timeouts, UI interruption, or shutdown scenarios. Session runtimes may also invoke this method when they transition to an interrupted state.
 
 ## Model and Tags
 
@@ -236,5 +237,6 @@ Test files should be created in tests/mainAgent/ or tests/llmAgent/
 - startLoopAgentSession passes supervisor through options
 - startLoopAgentSession passes model through options
 - startLoopAgentSession passes history compression options through
+- startLoopAgentSession passes signal through
 - startSOPLangAgentSession creates SOP session
 - Traffic counters accumulate correctly
