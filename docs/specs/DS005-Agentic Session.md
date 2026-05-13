@@ -141,6 +141,8 @@ The session maintains three distinct tracking structures, each with a specific r
 
 Tool results are stored in `toolVars` with auto-generated references (e.g., `toolName-res-1`) that can be referenced in subsequent prompts using `$$variableName` syntax.
 
+LoopAgentSession exposes `getConversationSnapshot()` for delegated skill execution. The snapshot contains `history`, resolved `toolResults`, `status`, and `lastAnswer`, and is cloned so downstream consumers cannot mutate the live session state. Tool call records remain available through `history`; the separate internal `toolCalls` index is not included in the snapshot.
+
 ## Preparation
 
 If a preparation configuration is provided, the session runs a preparation sub-session before processing the main prompt. The preparation executes tools to build context, and the resulting context variables are injected into both the system prompt and the user prompt.

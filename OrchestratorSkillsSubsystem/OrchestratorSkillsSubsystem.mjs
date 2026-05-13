@@ -61,8 +61,26 @@ function buildLoopSystemPrompt(skillRecord) {
 }
 
 function buildContextualSystemPrompt(basePrompt, context) {
-    if (!context || typeof context !== 'object') return basePrompt;
-    return basePrompt;
+    if (!context || typeof context !== 'object' || !context.parentSession || typeof context.parentSession !== 'object') {
+        return basePrompt;
+    }
+
+    return [
+        basePrompt,
+        '',
+        'Parent MainAgent conversation context follows. Use it to resolve follow-up references, confirmations, prior user messages, prior assistant replies, and prior tool calls.',
+        '<parent-session-context>',
+        stringifyContextValue(context.parentSession),
+        '</parent-session-context>',
+    ].join('\n');
+}
+
+function stringifyContextValue(value) {
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch {
+        return String(value);
+    }
 }
 
 export class OrchestratorSkillsSubsystem {

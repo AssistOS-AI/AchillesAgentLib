@@ -142,4 +142,35 @@ Public report.
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
     });
+
+    it('passes parent loop session snapshot to skill execution options', async () => {
+        const agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+        agent._skills.set('admin-flow-orchestrator', {
+            name: 'admin-flow-orchestrator',
+            shortName: 'admin-flow',
+            type: 'orchestrator',
+            descriptor: { rawContent: 'Admin flow' },
+        });
+
+        let capturedOptions = null;
+        agent.executeSkill = async (_skillName, _prompt, options = {}) => {
+            capturedOptions = options;
+            return { result: 'ok' };
+        };
+
+        const tools = agent._buildToolsForSession();
+        await tools['admin-flow'].handler(null, 'continue', {
+            session: {
+                getConversationSnapshot: () => ({
+                    type: 'loop',
+                    history: [{ type: 'user', prompt: 'previous' }],
+                    toolResults: [],
+                }),
+            },
+        });
+
+        assert.deepEqual(capturedOptions.context.parentSession.history, [
+            { type: 'user', prompt: 'previous' },
+        ]);
+    });
 });

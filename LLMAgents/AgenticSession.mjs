@@ -94,6 +94,17 @@ function formatLogValue(value) {
     }
 }
 
+function cloneSerializable(value) {
+    if (value === null || value === undefined) {
+        return value;
+    }
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch {
+        return String(value);
+    }
+}
+
 function coerceStructuredToolResult(value) {
     if (!value || typeof value !== 'string') {
         return value;
@@ -612,6 +623,19 @@ class LoopAgentSession {
  
     getLastResult() {
         return this.lastAnswer;
+    }
+
+    getConversationSnapshot() {
+        return {
+            type: 'loop',
+            status: this.status,
+            lastAnswer: this.lastAnswer,
+            history: cloneSerializable(this.history),
+            toolResults: Array.from(this.toolVars.entries()).map(([resultRef, value]) => ({
+                resultRef,
+                value: cloneSerializable(value),
+            })),
+        };
     }
  
     async getVariables() {

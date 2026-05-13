@@ -263,10 +263,18 @@ export class MainAgent {
                     const safePrompt = typeof promptText === 'string'
                         ? promptText
                         : (promptText != null ? JSON.stringify(promptText) : '');
+                    const parentSession = executionOptions?.session || null;
+                    const parentSessionContext = parentSession && typeof parentSession.getConversationSnapshot === 'function'
+                        ? parentSession.getConversationSnapshot()
+                        : null;
+                    const context = parentSessionContext
+                        ? { parentSession: parentSessionContext }
+                        : {};
 
                     const result = await this.executeSkill(skillRecord.name, safePrompt, {
                         model: 'plan',
                         signal: executionOptions?.signal || null,
+                        context,
                     });
                     const output = result?.result;
                     if (output == null) return '';

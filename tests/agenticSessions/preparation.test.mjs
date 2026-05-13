@@ -295,6 +295,53 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
     assert.equal(capturedOptions.preparation.retries, 1);
 });
 
+test('OrchestratorSkillsSubsystem forwards parent loop history into loop system prompt', async () => {
+    let capturedPrompt = null;
+    let capturedOptions = null;
+
+    const stubLLMAgent = {
+        startLoopAgentSession: async (_tools, prompt, options) => {
+            capturedPrompt = prompt;
+            capturedOptions = options;
+            return {
+                status: 'done',
+                getLastResult: () => 'Loop completed',
+            };
+        },
+    };
+
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
+    const skillRecord = {
+        name: 'test-loop-orchestrator',
+        preparedConfig: {
+            sessionType: 'loop',
+            instructions: 'Execute the task',
+            preparation: null,
+            allowedSkills: [],
+        },
+    };
+
+    await subsystem.executeLoopAgentSession({
+        skillRecord,
+        mainAgent: { getSkills: () => [] },
+        promptText: 'Current admin request',
+        options: {
+            context: {
+                parentSession: {
+                    type: 'loop',
+                    history: [{ type: 'user', prompt: 'Previous admin request' }],
+                    toolResults: [{ resultRef: 'admin-flow-res-1', value: 'Previous admin answer' }],
+                },
+            },
+        },
+    });
+
+    assert.equal(capturedPrompt, 'Current admin request');
+    assert.match(capturedOptions.systemPrompt, /<parent-session-context>/);
+    assert.match(capturedOptions.systemPrompt, /Previous admin request/);
+    assert.match(capturedOptions.systemPrompt, /Previous admin answer/);
+});
+
 test('OrchestratorSkillsSubsystem injects preparation context into SOP session', async () => {
     let capturedOptions = null;
 
@@ -335,6 +382,52 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
     assert.ok(capturedOptions.preparation, 'preparation option should be passed');
     assert.equal(capturedOptions.preparation.text, 'Load data context');
     assert.equal(capturedOptions.preparation.retries, 1);
+});
+
+test('OrchestratorSkillsSubsystem forwards parent loop history into SOP system prompt', async () => {
+    let capturedPrompt = null;
+    let capturedOptions = null;
+
+    const stubLLMAgent = {
+        startSOPLangAgentSession: async (_skillsDescription, prompt, options) => {
+            capturedPrompt = prompt;
+            capturedOptions = options;
+            return {
+                getVariables: async () => ({}),
+                getLastResult: () => 'SOP completed',
+            };
+        },
+    };
+
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
+    const skillRecord = {
+        name: 'test-sop-orchestrator',
+        preparedConfig: {
+            sessionType: null,
+            instructions: 'Plan and execute',
+            preparation: null,
+            allowedSkills: [],
+        },
+    };
+
+    await subsystem.executeSOPAgentSession({
+        skillRecord,
+        mainAgent: { getSkills: () => [] },
+        promptText: 'Current SOP request',
+        options: {
+            context: {
+                parentSession: {
+                    type: 'loop',
+                    history: [{ type: 'user', prompt: 'Earlier user turn' }],
+                    toolResults: [],
+                },
+            },
+        },
+    });
+
+    assert.equal(capturedPrompt, 'Current SOP request');
+    assert.match(capturedOptions.systemPrompt, /<parent-session-context>/);
+    assert.match(capturedOptions.systemPrompt, /Earlier user turn/);
 });
 
 test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation section', async () => {

@@ -40,6 +40,7 @@ Return session result
 - Tool names are sanitised short names
 - Tool descriptions come from the skill descriptor
 - Orchestrator-owned skills remain executable through executeSkill so the orchestrator can call them, but they are not exposed as top-level tools during executePrompt sessions
+- When a tool is called from a LoopAgentSession, the handler passes a parent session snapshot through `options.context.parentSession` so executed skills can receive the current conversation history and resolved tool results
 
 ## executeSkill
 

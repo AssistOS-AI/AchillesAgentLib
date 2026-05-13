@@ -46,6 +46,36 @@ function buildLargeHistory(count = 30) {
     return history;
 }
 
+test('LoopAgentSession exposes conversation snapshot with history and tool results', () => {
+    const agent = createStubAgent();
+    const session = new LoopAgentSession({
+        agent,
+        tools: createMinimalTools(),
+        options: {},
+    });
+
+    session.status = 'active';
+    session.lastAnswer = 'Previous answer';
+    session.history = [
+        { type: 'user', prompt: 'Show leads' },
+        { type: 'final_answer', answer: 'Lead list' },
+    ];
+    session.toolVars.set('admin-flow-res-1', { result: 'Lead list' });
+
+    const snapshot = session.getConversationSnapshot();
+
+    assert.equal(snapshot.type, 'loop');
+    assert.equal(snapshot.status, 'active');
+    assert.equal(snapshot.lastAnswer, 'Previous answer');
+    assert.deepEqual(snapshot.history, session.history);
+    assert.deepEqual(snapshot.toolResults, [
+        { resultRef: 'admin-flow-res-1', value: { result: 'Lead list' } },
+    ]);
+
+    snapshot.history[0].prompt = 'mutated';
+    assert.equal(session.history[0].prompt, 'Show leads');
+});
+
 // =============================================================================
 // History Compression Tests
 // =============================================================================

@@ -113,6 +113,7 @@ const agent = new MainAgent({
 - **Session management** — creates and reuses one agentic session
 - **Prompt execution** — sends user messages to LLM via loop sessions
 - **Orchestrated tool hiding** — hides skills explicitly owned by orchestrator allowlists from top-level prompt sessions
+- **Parent session context forwarding** — passes the active loop session snapshot to skill tools through execution context
 - **Direct skill execution** — runs a specific skill by name
 - **Subsystem access** — lazy creation and caching of subsystem instances
 - **Supervised tool approval** — delegates tool authorization to supervisor
