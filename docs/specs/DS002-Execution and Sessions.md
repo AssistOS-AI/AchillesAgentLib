@@ -35,10 +35,11 @@ Return session result
 ```
 
 **Tool building for sessions:**
-- ALL registered skills are exposed as tools (user skills and optionally internal skills)
+- Registered skills are exposed as tools unless they are explicitly listed in an orchestrator skill's Allowed Skills or Allowed Preparation Skills sections
 - Each tool has a handler that calls executeSkill internally
 - Tool names are sanitised short names
 - Tool descriptions come from the skill descriptor
+- Orchestrator-owned skills remain executable through executeSkill so the orchestrator can call them, but they are not exposed as top-level tools during executePrompt sessions
 
 ## executeSkill
 

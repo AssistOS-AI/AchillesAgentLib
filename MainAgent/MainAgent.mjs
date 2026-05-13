@@ -30,6 +30,7 @@ export class MainAgent {
 
         this._skills = new Map();
         this._skillAliases = new Map();
+        this._orchestratorAllowedSkills = new Set();
         this._session = null;
 
         this.supervisor = supervisor || new SecuritySupervisor({ logger: this.logger });
@@ -72,6 +73,38 @@ export class MainAgent {
         this.logger.debug('MainAgent:userSkills', {
             count: userSkills.length,
             skills: userSkills.map(s => s.name),
+        });
+
+        this._refreshOrchestratedSkillIndex();
+    }
+
+    _refreshOrchestratedSkillIndex() {
+        const orchestratorAllowedSkills = new Set();
+
+        for (const skillRecord of this._skills.values()) {
+            if (skillRecord.type !== 'orchestrator') {
+                continue;
+            }
+
+            const declaredSkillNames = [
+                ...(skillRecord.preparedConfig?.allowedSkills || []),
+                ...(skillRecord.preparedConfig?.allowedPrepSkills || []),
+            ];
+
+            for (const declaredName of declaredSkillNames) {
+                const targetRecord = this.getSkillRecord(declaredName);
+                if (!targetRecord || targetRecord.name === skillRecord.name) {
+                    continue;
+                }
+                orchestratorAllowedSkills.add(targetRecord.name);
+            }
+        }
+
+        this._orchestratorAllowedSkills = orchestratorAllowedSkills;
+
+        this.logger.debug('MainAgent:orchestratedSkills', {
+            count: orchestratorAllowedSkills.size,
+            skills: Array.from(orchestratorAllowedSkills),
         });
     }
 
@@ -220,7 +253,8 @@ export class MainAgent {
 
     _buildToolsForSession() {
         const tools = {};
-        const allSkills = this.getSkills();
+        const allSkills = this.getSkills()
+            .filter((skillRecord) => !this._orchestratorAllowedSkills.has(skillRecord.name));
 
         for (const skillRecord of allSkills) {
             const toolName = sanitiseName(skillRecord.shortName || skillRecord.name);

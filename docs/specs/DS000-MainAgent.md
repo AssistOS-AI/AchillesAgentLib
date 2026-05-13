@@ -112,6 +112,7 @@ const agent = new MainAgent({
 - **Skill aliasing** — each skill is accessible by canonical name and short name
 - **Session management** — creates and reuses one agentic session
 - **Prompt execution** — sends user messages to LLM via loop sessions
+- **Orchestrated tool hiding** — hides skills explicitly owned by orchestrator allowlists from top-level prompt sessions
 - **Direct skill execution** — runs a specific skill by name
 - **Subsystem access** — lazy creation and caching of subsystem instances
 - **Supervised tool approval** — delegates tool authorization to supervisor
@@ -124,6 +125,7 @@ const agent = new MainAgent({
 - MainAgent does NOT accept a dbAdapter parameter
 - MainAgent does NOT accept a separate debugLogger parameter
 - Skill discovery is downward-only; no upward search
+- Skills listed in an orchestrator's Allowed Skills or Allowed Preparation Skills sections are not exposed as top-level tools during executePrompt sessions
 - MainAgent stores only one active session; executePrompt reuses it after first creation
 - Model selection is resolved via LLMAgent.modelConfig and getModelByTag()
 - The modelConfig is forwarded to all subsystems through SubsystemFactory

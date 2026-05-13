@@ -1,5 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { MainAgent } from '../../MainAgent/index.mjs';
 
@@ -83,5 +85,61 @@ describe('MainAgent executePrompt', () => {
 
         assert.equal(cancelReason, 'esc');
         agent.shutdown();
+    });
+
+    it('does not expose skills owned by orchestrator allowlists as top-level tools', async () => {
+        const tempDir = fs.mkdtempSync('/tmp/mainagent-orchestrated-tools-');
+        try {
+            const skillsDir = path.join(tempDir, 'skills');
+            fs.mkdirSync(path.join(skillsDir, 'admin-flow'), { recursive: true });
+            fs.mkdirSync(path.join(skillsDir, 'load-admin-context'), { recursive: true });
+            fs.mkdirSync(path.join(skillsDir, 'update-lead'), { recursive: true });
+            fs.mkdirSync(path.join(skillsDir, 'public-report'), { recursive: true });
+
+            fs.writeFileSync(path.join(skillsDir, 'admin-flow', 'oskill.md'), `# admin-flow
+
+## Description
+Admin orchestration entrypoint.
+
+## Allowed Skills
+- update-lead
+
+## Allowed Preparation Skills
+- load-admin-context
+`);
+            fs.writeFileSync(path.join(skillsDir, 'load-admin-context', 'cskill.md'), `# load-admin-context
+
+## Description
+Load admin context.
+`);
+            fs.writeFileSync(path.join(skillsDir, 'update-lead', 'cskill.md'), `# update-lead
+
+## Description
+Update a lead.
+`);
+            fs.writeFileSync(path.join(skillsDir, 'public-report', 'cskill.md'), `# public-report
+
+## Description
+Public report.
+`);
+
+            const agent = new MainAgent({ startDir: tempDir });
+            let exposedToolNames = [];
+            agent.llmAgent.startLoopAgentSession = async (tools) => {
+                exposedToolNames = Object.keys(tools).sort();
+                return {
+                    status: 'done',
+                    getLastResult() {
+                        return 'ok';
+                    },
+                };
+            };
+
+            await agent.executePrompt('admin request');
+
+            assert.deepEqual(exposedToolNames, ['admin-flow', 'public-report']);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 });
