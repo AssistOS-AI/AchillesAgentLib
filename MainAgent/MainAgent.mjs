@@ -281,7 +281,9 @@ export class MainAgent {
                     if (typeof output === 'string') return output;
                     try { return JSON.stringify(output); } catch { return String(output); }
                 },
-                description: skillRecord.descriptor?.rawContent || skillRecord.descriptor?.name || skillRecord.name,
+                description: skillRecord.type === 'orchestrator'
+                    ? (skillRecord.descriptor?.sections?.description || skillRecord.descriptor?.name || skillRecord.name)
+                    : (skillRecord.descriptor?.rawContent || skillRecord.descriptor?.name || skillRecord.name),
             };
         }
 

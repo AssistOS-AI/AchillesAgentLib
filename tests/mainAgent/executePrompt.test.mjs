@@ -143,6 +143,51 @@ Public report.
         }
     });
 
+    it('uses only the Description section for top-level orchestrator tool descriptions', async () => {
+        const tempDir = fs.mkdtempSync('/tmp/mainagent-orchestrator-description-');
+        try {
+            const skillsDir = path.join(tempDir, 'skills');
+            fs.mkdirSync(path.join(skillsDir, 'admin-flow'), { recursive: true });
+            fs.mkdirSync(path.join(skillsDir, 'load-admin-context'), { recursive: true });
+            fs.mkdirSync(path.join(skillsDir, 'manage-owner-info'), { recursive: true });
+
+            fs.writeFileSync(path.join(skillsDir, 'admin-flow', 'oskill.md'), `# admin-flow
+
+## Description
+Admin orchestration entrypoint for webAdmin requests.
+
+## Preparation
+- Execute load-admin-context before planning.
+
+## Allowed Preparation Skills
+- load-admin-context
+
+## Instructions
+- Use manage-owner-info when owner details must change.
+
+## Allowed Skills
+- manage-owner-info
+`);
+            fs.writeFileSync(path.join(skillsDir, 'load-admin-context', 'cskill.md'), `# load-admin-context
+
+## Description
+Load admin context.
+`);
+            fs.writeFileSync(path.join(skillsDir, 'manage-owner-info', 'cskill.md'), `# manage-owner-info
+
+## Description
+Manage owner info.
+`);
+
+            const agent = new MainAgent({ startDir: tempDir });
+            const description = agent._buildToolsForSession()['admin-flow'].description;
+
+            assert.equal(description, 'Admin orchestration entrypoint for webAdmin requests.');
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     it('passes parent loop session snapshot to skill execution options', async () => {
         const agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
         agent._skills.set('admin-flow-orchestrator', {
