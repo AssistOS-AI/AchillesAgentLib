@@ -198,6 +198,7 @@ Manage owner info.
         });
 
         let capturedOptions = null;
+        const supervisor = { approve: async () => 'approve' };
         agent.executeSkill = async (_skillName, _prompt, options = {}) => {
             capturedOptions = options;
             return { result: 'ok' };
@@ -211,11 +212,13 @@ Manage owner info.
                     history: [{ type: 'user', prompt: 'previous' }],
                     toolResults: [],
                 }),
+                supervisor,
             },
         });
 
         assert.deepEqual(capturedOptions.context.parentSession.history, [
             { type: 'user', prompt: 'previous' },
         ]);
+        assert.equal(capturedOptions.supervisor, supervisor);
     });
 });

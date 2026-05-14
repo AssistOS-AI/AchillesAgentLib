@@ -203,6 +203,7 @@ export class OrchestratorSkillsSubsystem {
                 const execOptions = {
                     context: forwardedContext,
                     signal: executionOptions?.signal || forwardedSignal,
+                    supervisor: executionOptions?.session?.supervisor || options?.supervisor || mainAgent?.supervisor || null,
                 };
                 if (skillModel) execOptions.model = skillModel;
                 const executionResult = await mainAgent.executeSkill(skillRecord.name, safePrompt, execOptions);
@@ -296,6 +297,7 @@ export class OrchestratorSkillsSubsystem {
             model: options?.model || this.modelConfig.plan || 'plan',
             maxStepsPerTurn: 20,
             preparation,
+            supervisor: options?.supervisor || mainAgent?.supervisor || null,
             signal: options?.signal || null,
         };
 

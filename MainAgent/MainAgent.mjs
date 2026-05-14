@@ -170,6 +170,7 @@ export class MainAgent {
             tags = null,
             systemPrompt = null,
             signal = null,
+            supervisor = this.supervisor,
         } = options;
 
         if (!this._session) {
@@ -178,7 +179,7 @@ export class MainAgent {
                 model,
                 tags,
                 systemPrompt,
-                supervisor: this.supervisor,
+                supervisor,
                 signal,
             });
         } else {
@@ -267,6 +268,7 @@ export class MainAgent {
                     const parentSessionContext = parentSession && typeof parentSession.getConversationSnapshot === 'function'
                         ? parentSession.getConversationSnapshot()
                         : null;
+                    const supervisor = parentSession?.supervisor || this.supervisor;
                     const context = parentSessionContext
                         ? { parentSession: parentSessionContext }
                         : {};
@@ -274,6 +276,7 @@ export class MainAgent {
                     const result = await this.executeSkill(skillRecord.name, safePrompt, {
                         model: 'plan',
                         signal: executionOptions?.signal || null,
+                        supervisor,
                         context,
                     });
                     const output = result?.result;

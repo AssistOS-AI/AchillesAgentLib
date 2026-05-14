@@ -558,6 +558,7 @@ class LoopAgentSession {
                     model: this.options.model,
                     tags: this.options.tags,
                     maxStepsPerTurn: this.options.maxStepsPerTurn,
+                    supervisor: this.supervisor,
                     signal: promptSignal,
                 },
                 preparationText: this.preparation.text,
@@ -736,6 +737,7 @@ class LoopAgentSession {
 
             if (decision && typeof decision.tool === 'string') {
                 const toolName = decision.tool;
+                await this._emitToolReason(decision, stepIndex);
                 const rawToolPrompt = decision.toolPrompt || userPrompt;
                 // Coerce to string — planner may return toolPrompt as an object
                 const toolPrompt = typeof rawToolPrompt === 'string'
@@ -991,6 +993,33 @@ class LoopAgentSession {
         this.history.push({ type: 'timeout', message: fallback });
         this.failedTurns.push(turn);
         return fallback;
+    }
+
+    async _emitToolReason(decision, stepIndex) {
+        const toolName = String(decision?.tool || '').trim();
+        if (!toolName || toolName === FINAL_ANSWER_TOOL || toolName === CANNOT_COMPLETE_TOOL) {
+            return;
+        }
+        const reason = String(decision?.reason || '').trim();
+        if (!reason || !this.supervisor || typeof this.supervisor.getOutputWriter !== 'function') {
+            return;
+        }
+        try {
+            const outputWriter = this.supervisor.getOutputWriter();
+            if (outputWriter && typeof outputWriter.write === 'function') {
+                await outputWriter.write({
+                    type: 'tool_reason',
+                    tool: toolName,
+                    reason,
+                    stepIndex,
+                });
+            }
+        } catch (error) {
+            this._debug('[LoopSession]', 'Tool reason output failed', {
+                tool: toolName,
+                error: error?.message || String(error),
+            });
+        }
     }
 
     async _requestDecision(userPrompt, turn, stepIndex) {

@@ -76,6 +76,71 @@ test('LoopAgentSession exposes conversation snapshot with history and tool resul
     assert.equal(session.history[0].prompt, 'Show leads');
 });
 
+test('LoopAgentSession emits planner tool reason before tool execution', async () => {
+    const events = [];
+    let plannerCallCount = 0;
+    const agent = createStubAgent({
+        onComplete: async (options = {}) => {
+            if (options?.context?.intent !== 'agentic-session-planner') {
+                return JSON.stringify({ summary: 'Compressed history.', keepResultRefs: [] });
+            }
+            plannerCallCount += 1;
+            if (plannerCallCount === 1) {
+                return JSON.stringify({
+                    tool: 'echo',
+                    toolPrompt: 'hello',
+                    reason: 'Read data before answering',
+                });
+            }
+            return JSON.stringify({
+                tool: 'final_answer',
+                toolPrompt: 'Done',
+                reason: 'Finish the answer',
+            });
+        },
+    });
+
+    const session = new LoopAgentSession({
+        agent,
+        tools: {
+            echo: {
+                description: 'Echo tool',
+                handler: async (_agent, payload) => {
+                    events.push({ type: 'tool', payload });
+                    return payload;
+                },
+            },
+        },
+        options: {
+            supervisor: {
+                async approve() { return 'approve'; },
+                getOutputWriter() {
+                    return {
+                        write: async (message) => {
+                            if (!message || typeof message !== 'object') {
+                                return;
+                            }
+                            events.push({ type: 'progress', message });
+                        },
+                    };
+                },
+            },
+        },
+    });
+
+    await session.newPrompt('Do work');
+
+    assert.equal(events.length, 2);
+    assert.equal(events[0].type, 'progress');
+    assert.deepEqual(events[0].message, {
+        type: 'tool_reason',
+        tool: 'echo',
+        reason: 'Read data before answering',
+        stepIndex: 0,
+    });
+    assert.deepEqual(events[1], { type: 'tool', payload: 'hello' });
+});
+
 // =============================================================================
 // History Compression Tests
 // =============================================================================

@@ -53,6 +53,8 @@ Controls tool approval during loop session execution and provides output writing
 - approve — receives tool choice information, returns approval decision
 - getOutputWriter — returns an object with a write method for real-time output
 
+Loop sessions write structured progress events through the supervisor output writer before executing a non-terminal tool selected by the planner. The event shape is `{ type: "tool_reason", tool, reason, stepIndex }`, where `reason` is the planner decision reason. Reserved terminal tools such as `final_answer` and `cannot_complete` must not emit progress events.
+
 **Approval decisions:**
 - approve — execute the tool normally
 - alwaysApprove — execute the tool and cache the approval for future identical calls
@@ -93,3 +95,4 @@ Test files should be created in tests/mainAgent/
 - getOutputWriter returns object with write method
 - Default output writer write is no-op
 - Supervisor is passed to loop session creation
+- Loop sessions emit planner tool reasons before tool execution

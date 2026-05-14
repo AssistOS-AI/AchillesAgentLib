@@ -281,18 +281,20 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
     const mainAgent = {
         getSkills: () => [],
     };
+    const supervisor = { approve: async () => 'approve' };
 
     const result = await subsystem.executeLoopAgentSession({
         skillRecord,
         mainAgent,
         promptText: 'Do something',
-        options: { tier: 'fast' },
+        options: { tier: 'fast', supervisor },
     });
 
     assert.equal(result.session, 'loop');
     assert.ok(capturedOptions.preparation, 'preparation option should be passed');
     assert.equal(capturedOptions.preparation.text, 'Load user context');
     assert.equal(capturedOptions.preparation.retries, 1);
+    assert.equal(capturedOptions.supervisor, supervisor);
 });
 
 test('OrchestratorSkillsSubsystem forwards parent loop history into loop system prompt', async () => {
