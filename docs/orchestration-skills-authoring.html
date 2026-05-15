@@ -34,6 +34,7 @@
                 <section>
                     <h2>Descriptor Surface</h2>
                     <p>The source file for this skill family is <code>oskill.md</code>. The subsystem reads the descriptor through the generic skill document parser and then looks only for a bounded set of section families. In the current implementation, these section families are instructions, preparation, allowed skills, allowed preparation skills, description, and session type. Several aliases are accepted for some headings, but the underlying contract remains the same.</p>
+                    <p>The optional <code>Help</code> section is not part of the orchestration prompt contract. It exists for user-facing invocation guidance, such as autocomplete panels that need to show when and how a person should call the orchestrator.</p>
                     <p>Unlike DBTable Skills, this family does not derive a generated runtime module. The descriptor remains the central maintained artifact. For that reason, authoring quality matters directly. The headings should not be decorative. They should correspond to execution choices that the subsystem actually uses.</p>
                     <p>The most important practical consequence concerns omission. If <code>Allowed Skills</code> is omitted or left empty, the subsystem does not block execution. Instead, it exposes all discovered skills except the orchestrator itself. If tighter control is intended, the allowlist should therefore be declared explicitly.</p>
                     <p>Declared allowlists also define top-level ownership. Skills named in <code>Allowed Skills</code> or <code>Allowed-Prep-Skills</code> remain callable by the orchestrator, but MainAgent does not expose them as separate top-level tools during ordinary prompt sessions.</p>
@@ -56,7 +57,11 @@
 - spec-reviewer
 
 ## Description
-Coordinate a small document-review workflow through a bounded set of skills.</code></pre>
+Coordinate a small document-review workflow through a bounded set of skills.
+
+## Help
+Invoke this orchestrator with the review task and the documents or scope to inspect.
+Example input: review the architecture specs</code></pre>
                     <p>This template does not declare a session type, so the subsystem will execute it through the SOP path. It also omits a preparation stage, so no separate preparation block will run before the main session starts.</p>
                 </section>
 
@@ -84,6 +89,10 @@ Coordinate a small document-review workflow through a bounded set of skills.</co
 ## Description
 Analyze specification files, create backlog tasks for the detected problems,
 and enrich those tasks with bounded solution options.
+
+## Help
+Invoke this orchestrator with the spec review request and any files or folders to inspect.
+Example input: review docs/specs for stale contracts
 
 ## Session
 loop

@@ -35,6 +35,7 @@
                     <h2>Descriptor Surface</h2>
                     <p>The source descriptor for this family is <code>mskill.md</code>. During preparation, the subsystem reads the descriptor through the generic skill document parser and then extracts three bounded section families: planning instructions, allowed tools, and an optional script. Several aliases are accepted. <code>Instructions</code>, <code>Guidance</code>, <code>System-Prompt</code>, <code>Overview</code>, and <code>MCP-Guidance</code> all map to the same instruction surface. <code>Allowed-Tools</code>, <code>Tool-Allowlist</code>, <code>Tool-Allow-List</code>, and <code>Tools</code> all map to the allowlist. <code>Plan SOPlang</code>, <code>Script</code>, and <code>Plan-Script</code> all map to the optional script section.</p>
                     <p>The practical role of these sections is narrower than general documentation prose might suggest. The instructions become planning guidance. The allowlist determines which MCP tools are admissible. The script section, when present, bypasses LLM planning and becomes the source of the plan itself. No broader hidden contract is inferred from the descriptor.</p>
+                    <p>An optional <code>Help</code> section may be included to explain how a user should invoke the skill. It is informational metadata for hosts and is not used as a substitute for planning instructions or tool allowlists.</p>
                     <p>Tool names in the allowlist are normalized through the same name sanitization logic used elsewhere in the library. This means the descriptor should still use the real MCP tool names, but minor differences in punctuation or casing are normalized internally before matching.</p>
                 </section>
 
@@ -51,7 +52,11 @@
 
 ## Allowed Tools
 
-- inventoryLookup</code></pre>
+- inventoryLookup
+
+## Help
+Invoke this skill with the inventory question or lookup request.
+Example input: show stock movement for SKU-123</code></pre>
                     <p>This matches the fixture used in the repository tests. The descriptor does not force execution. It only constrains the planning surface to the allowed MCP tools and supplies the guidance used during plan generation.</p>
                 </section>
 

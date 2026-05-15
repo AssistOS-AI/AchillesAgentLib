@@ -60,6 +60,8 @@ The main entry point and coordinator for skill-based execution.
 | `oskill.md` | orchestrator | OrchestratorSkillsSubsystem |
 | `tskill.md` | dbtable | DBTableSkillsSubsystem |
 
+All skill descriptor families may include an optional `## Help` section. The runtime does not use this section for planning or execution; host UIs may use it as user-facing invocation guidance in command menus and autocomplete surfaces.
+
 **Key Methods:**
 ```javascript
 // Execute with automatic skill selection

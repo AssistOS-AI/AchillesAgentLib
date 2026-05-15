@@ -34,7 +34,8 @@
                 <section>
                     <h2>Descriptor Contract</h2>
                     <p>The source descriptor for this family is <code>cskill.md</code>. It is parsed through the generic skill document parser, so ordinary markdown sections are preserved as descriptor sections. In the current Code Skills subsystem, the one section that is enforced directly at execution time is <code>Input Format</code>. If that section is missing, the subsystem throws an error and refuses to execute the skill.</p>
-                    <p>Other sections such as <code>Description</code>, <code>Summary</code>, <code>Output Format</code>, <code>Constraints</code>, or examples remain useful because they document the public contract of the capability and can also guide generation workflows. They should not, however, be presented as mandatory runtime switches unless the code actually enforces them. The subsystem itself does not currently require a fixed list beyond the presence of <code>Input Format</code>.</p>
+                    <p>Other sections such as <code>Description</code>, <code>Summary</code>, <code>Help</code>, <code>Output Format</code>, <code>Constraints</code>, or examples remain useful because they document the public contract of the capability and can also guide generation workflows. They should not, however, be presented as mandatory runtime switches unless the code actually enforces them. The subsystem itself does not currently require a fixed list beyond the presence of <code>Input Format</code>.</p>
+                    <p>The optional <code>Help</code> section is user-facing invocation guidance. It should explain how a person should call the skill, including expected parameters or example command text. Host UIs may display it in autocomplete menus, but the Code Skills subsystem does not treat it as execution logic.</p>
                     <p>This means that the descriptor should be written as an interface contract rather than as implementation prose. It should explain what the skill expects, what it returns, and which constraints the executable module is meant to respect.</p>
                 </section>
 
@@ -102,6 +103,10 @@
 
 ## Description
 Executes bounded file-system operations through a stable module.
+
+## Help
+Invoke this skill with an operation name, a target path, and optional parameters.
+Example input: read ./README.md
 
 ## Input Format
 - First token: operation name.

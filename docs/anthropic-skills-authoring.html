@@ -35,6 +35,7 @@
                     <h2>Descriptor Format</h2>
                     <p>The normative descriptor file for this family is <code>SKILL.md</code> in uppercase. The subsystem reads that file through a dedicated parser rather than through the generic markdown parser used by the other skill families. The parser supports optional frontmatter delimited by <code>---</code>. If frontmatter contains <code>name:</code>, that value becomes the skill name. Otherwise the first top-level heading becomes the name. If neither is present, the folder name becomes the fallback skill name.</p>
                     <p>The body of the file is then split into sections by markdown headings. Unlike some of the other families, the subsystem does not enforce a narrow fixed set of section names here. What matters is that the raw body remains coherent enough to serve as a loop-session system prompt. This means the file should be written as operational guidance rather than as loose narrative description.</p>
+                    <p>An optional <code>Help</code> section may be included for user-facing invocation guidance. Hosts may display it in command completion UI, but the Anthropic Skills subsystem still uses the raw body as operational guidance.</p>
                     <p>The practical consequence is that instructional quality matters directly. Since the raw body becomes part of the session prompt, vague text becomes a runtime problem rather than merely a documentation issue.</p>
                 </section>
 
@@ -77,6 +78,10 @@ This skill evaluates plain-text PDF content against a checklist.
 
 ## Inputs
 - **pdf_text**: The PDF content pasted as plain text.
+
+## Help
+Invoke this skill with the PDF text and the check that should be performed.
+Example input: check this pasted PDF text against the checklist
 
 ## Steps
 1. Use `get-resource` to read `resources/checklist.md`.

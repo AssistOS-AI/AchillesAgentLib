@@ -36,7 +36,7 @@
                     <h2>1. Structural Requirements</h2>
                     <p>The parser expects the document title to follow the form <code># SomeName Skill</code>. It also expects a <code>## Fields</code> section containing at least one field subsection written as <code>### field_name</code>. If these elements are absent, the document cannot be treated as a valid DBTable skill because the subsystem has no stable basis on which to derive record-level behavior.</p>
                     <p>The sections <code>## Table Purpose</code> and a declaration of a primary key are not strictly mandatory for the parser to proceed, but their absence produces warnings. This distinction is important. A file can remain syntactically acceptable while still being incomplete from an operational perspective. In practice, a maintainable production skill should normally include both, because the table purpose clarifies the semantics of the entity and the primary key stabilizes record identity across create, update, select, and delete operations.</p>
-                    <p>Additional sections such as <code>## Business Rules</code>, <code>## Relationships</code>, <code>## Role Access Policy</code>, <code>## Delete Guard</code>, <code>## Interactive Fields</code>, and <code>## List Extra Fields</code> are optional. The same applies to field-level subsections such as aliases, presenters, resolvers, validators, enumerators, derivators, default values, and labels. These elements should be introduced only when the intended runtime behavior depends on them. Their purpose is not ornamental. Each optional section adds executable meaning to the generated module.</p>
+                    <p>Additional sections such as <code>## Help</code>, <code>## Business Rules</code>, <code>## Relationships</code>, <code>## Role Access Policy</code>, <code>## Delete Guard</code>, <code>## Interactive Fields</code>, and <code>## List Extra Fields</code> are optional. The same applies to field-level subsections such as aliases, presenters, resolvers, validators, enumerators, derivators, default values, and labels. These elements should be introduced only when the intended runtime behavior depends on them. The <code>Help</code> section is the exception: it is informational user guidance for hosts and does not add generated table behavior.</p>
                 </section>
 
                 <section>
@@ -47,6 +47,10 @@
 
 ## Table Purpose
 Store inventory records for equipment and materials.
+
+## Help
+Invoke this skill with a record operation and the fields involved.
+Example input: create name="Hammer"
 
 ## Fields
 
@@ -75,6 +79,10 @@ Must be between 2 and 200 characters.
 
 ## Table Purpose
 Manage customer records including contact information and status.
+
+## Help
+Invoke this skill with a customer record operation and the relevant values.
+Example input: update customer_id=1 email=user@example.com
 
 ## Fields
 
