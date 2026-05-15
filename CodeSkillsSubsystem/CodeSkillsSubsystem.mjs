@@ -140,7 +140,8 @@ export class CodeSkillsSubsystem {
     }
   }
 
-  async executeSkillPrompt({ skillRecord, mainAgent, promptText, options }) {
+  async executeSkillPrompt({ skillRecord, promptText, options }) {
+    const mainAgent = this.mainAgent;
     const llmAgent = mainAgent.llmAgent;
     const specifications = this.getSpecifications(skillRecord);
 
@@ -151,6 +152,7 @@ export class CodeSkillsSubsystem {
     const args = {
       promptText
     };
+    args.mainAgent = mainAgent;
     debugLog(`Executing skill "${skillRecord.shortName}" with prompt: ${args.promptText.substring(0, 200)}...`);
     args.llmAgent = llmAgent;
 

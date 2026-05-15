@@ -220,7 +220,6 @@ export class MainAgent {
 
         return subsystem.executeSkillPrompt({
             skillRecord,
-            mainAgent: this,
             promptText: prompt,
             options,
         });

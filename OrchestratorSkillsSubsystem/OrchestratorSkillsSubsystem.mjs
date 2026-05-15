@@ -270,18 +270,18 @@ export class OrchestratorSkillsSubsystem {
         };
     }
 
-    async executeLoopAgentSession({skillRecord, mainAgent, promptText, options}) {
+    async executeLoopAgentSession({skillRecord, promptText, options}) {
         const llmAgent = this.mainAgent?.llmAgent;
         if (!llmAgent || typeof llmAgent.startLoopAgentSession !== 'function') {
             throw new Error('OrchestratorSkillsSubsystem requires mainAgent.llmAgent.startLoopAgentSession.');
         }
-        const allowedSkills = this.resolveAllowedSkills(skillRecord, mainAgent);
-        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, mainAgent, allowedSkills);
-        const tools = await this.buildSkillsAsTools(allowedSkills, mainAgent, options);
+        const allowedSkills = this.resolveAllowedSkills(skillRecord, this.mainAgent);
+        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, this.mainAgent, allowedSkills);
+        const tools = await this.buildSkillsAsTools(allowedSkills, this.mainAgent, options);
         const descriptions = this.buildToolDescriptions(allowedSkills);
 
         const toolsWithDescriptions = this.buildToolsWithDescriptions(allowedSkills, tools, descriptions);
-        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, mainAgent, options);
+        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, this.mainAgent, options);
         const prepDescriptions = this.buildToolDescriptions(allowedPrepSkills);
         const prepToolsWithDescriptions = this.buildToolsWithDescriptions(allowedPrepSkills, prepTools, prepDescriptions);
 
@@ -297,7 +297,7 @@ export class OrchestratorSkillsSubsystem {
             model: options?.model || this.modelConfig.plan || 'plan',
             maxStepsPerTurn: 20,
             preparation,
-            supervisor: options?.supervisor || mainAgent?.supervisor || null,
+            supervisor: options?.supervisor || this.mainAgent?.supervisor || null,
             signal: options?.signal || null,
         };
 
@@ -312,17 +312,17 @@ export class OrchestratorSkillsSubsystem {
         };
     }
 
-    async executeSOPAgentSession({skillRecord, mainAgent, promptText, options}) {
+    async executeSOPAgentSession({skillRecord, promptText, options}) {
         const llmAgent = this.mainAgent?.llmAgent;
         if (!llmAgent || typeof llmAgent.startSOPLangAgentSession !== 'function') {
             throw new Error('OrchestratorSkillsSubsystem requires mainAgent.llmAgent.startSOPLangAgentSession.');
         }
-        const allowedSkills = this.resolveAllowedSkills(skillRecord, mainAgent);
-        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, mainAgent, allowedSkills);
-        const tools = await this.buildSkillsAsTools(allowedSkills, mainAgent, options);
+        const allowedSkills = this.resolveAllowedSkills(skillRecord, this.mainAgent);
+        const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, this.mainAgent, allowedSkills);
+        const tools = await this.buildSkillsAsTools(allowedSkills, this.mainAgent, options);
         const skillsDescription = this.buildToolDescriptions(allowedSkills);
         const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools, options);
-        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, mainAgent, options);
+        const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, this.mainAgent, options);
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
         const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools, options);
 
@@ -368,7 +368,6 @@ export class OrchestratorSkillsSubsystem {
 
     async executeSkillPrompt({
         skillRecord,
-        mainAgent,
         promptText,
         options = {},
     }) {
@@ -377,14 +376,12 @@ export class OrchestratorSkillsSubsystem {
         if (sessionType === 'loop') {
             return this.executeLoopAgentSession({
                 skillRecord,
-                mainAgent,
                 promptText,
                 options,
             });
         }
         return this.executeSOPAgentSession({
             skillRecord,
-            mainAgent,
             promptText,
             options,
         });

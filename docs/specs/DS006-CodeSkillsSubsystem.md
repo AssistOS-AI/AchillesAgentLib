@@ -49,7 +49,7 @@ Called explicitly via `MainAgent.buildSkills()`. For each code skill:
 ### 4. Execution (`executeSkillPrompt`)
 
 ```
-executeSkillPrompt({ skillRecord, mainAgent, promptText, options })
+executeSkillPrompt({ skillRecord, promptText, options })
   → executeCodeFromDisk(skillDir, args)
       → dynamic import src/index.mjs
       → call module.action(args)

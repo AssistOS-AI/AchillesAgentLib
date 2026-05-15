@@ -139,7 +139,7 @@ test('executeLoopAgentSession is used when sessionType is set', async () => {
             startLoopAgentSession: async () => ({
                 getLastResult: () => 'Loop result',
             }),
-        } },
+        }, getSkills: () => [{ name: 'skill1' }] },
     });
 
     const skillRecord = {
@@ -151,13 +151,8 @@ test('executeLoopAgentSession is used when sessionType is set', async () => {
         },
     };
 
-    const mainAgent = {
-        getSkills: () => [{ name: 'skill1' }],
-    };
-
     const result = await subsystem.executeSkillPrompt({
         skillRecord,
-        mainAgent,
         promptText: 'Test loop prompt',
     });
 

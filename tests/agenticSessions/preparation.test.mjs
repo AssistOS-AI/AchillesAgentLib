@@ -266,7 +266,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
         },
     };
 
-    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent, getSkills: () => [] } });
 
     const skillRecord = {
         name: 'test-loop-orchestrator',
@@ -278,14 +278,10 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
         },
     };
 
-    const mainAgent = {
-        getSkills: () => [],
-    };
     const supervisor = { approve: async () => 'approve' };
 
     const result = await subsystem.executeLoopAgentSession({
         skillRecord,
-        mainAgent,
         promptText: 'Do something',
         options: { tier: 'fast', supervisor },
     });
@@ -312,7 +308,7 @@ test('OrchestratorSkillsSubsystem forwards parent loop history into loop system 
         },
     };
 
-    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent, getSkills: () => [] } });
     const skillRecord = {
         name: 'test-loop-orchestrator',
         preparedConfig: {
@@ -325,7 +321,6 @@ test('OrchestratorSkillsSubsystem forwards parent loop history into loop system 
 
     await subsystem.executeLoopAgentSession({
         skillRecord,
-        mainAgent: { getSkills: () => [] },
         promptText: 'Current admin request',
         options: {
             context: {
@@ -357,7 +352,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
         },
     };
 
-    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent, getSkills: () => [] } });
 
     const skillRecord = {
         name: 'test-sop-orchestrator',
@@ -369,13 +364,8 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
         },
     };
 
-    const mainAgent = {
-        getSkills: () => [],
-    };
-
     const result = await subsystem.executeSOPAgentSession({
         skillRecord,
-        mainAgent,
         promptText: 'Process data',
         options: { tier: 'deep' },
     });
@@ -401,7 +391,7 @@ test('OrchestratorSkillsSubsystem forwards parent loop history into SOP system p
         },
     };
 
-    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent, getSkills: () => [] } });
     const skillRecord = {
         name: 'test-sop-orchestrator',
         preparedConfig: {
@@ -414,7 +404,6 @@ test('OrchestratorSkillsSubsystem forwards parent loop history into SOP system p
 
     await subsystem.executeSOPAgentSession({
         skillRecord,
-        mainAgent: { getSkills: () => [] },
         promptText: 'Current SOP request',
         options: {
             context: {
@@ -445,7 +434,7 @@ test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation sectio
         },
     };
 
-    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent } });
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent, getSkills: () => [] } });
 
     const skillRecord = {
         name: 'no-prep-orchestrator',
@@ -457,13 +446,8 @@ test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation sectio
         },
     };
 
-    const mainAgent = {
-        getSkills: () => [],
-    };
-
     await subsystem.executeLoopAgentSession({
         skillRecord,
-        mainAgent,
         promptText: 'Test',
         options: {},
     });

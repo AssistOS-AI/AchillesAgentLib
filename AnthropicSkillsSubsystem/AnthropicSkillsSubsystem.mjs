@@ -78,7 +78,6 @@ export class AnthropicSkillsSubsystem {
 
     async executeSkillPrompt({
         skillRecord,
-        mainAgent,
         promptText,
         options = {},
     }) {
@@ -87,12 +86,12 @@ export class AnthropicSkillsSubsystem {
             throw new Error('AnthropicSkillsSubsystem requires mainAgent.llmAgent to execute skills.');
         }
 
-        const internalSkills = mainAgent.getSkills()
+        const internalSkills = this.mainAgent.getSkills()
             .filter((record) => Boolean(record?.isInternal && record?.preparedConfig?.modulePath));
 
         const tools = buildAnthropicTools({
             skillRecord,
-            mainAgent,
+            mainAgent: this.mainAgent,
             options,
             internalSkills,
         });

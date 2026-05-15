@@ -172,4 +172,37 @@ describe('CodeSkillsSubsystem buildSkill', () => {
 
         assert.strictEqual(called, false);
     });
+
+    it('passes mainAgent to cskill module execution args', async () => {
+        const skillDir = path.join(tempDir, 'main-agent-execution');
+        await fs.mkdir(path.join(skillDir, 'src'), { recursive: true });
+        await fs.writeFile(
+            path.join(skillDir, 'src', 'index.mjs'),
+            'export async function action(args) { return args.mainAgent?.marker === "main-agent" ? args.promptText : "missing"; }'
+        );
+
+        const skillRecord = makeSkillRecord({
+            skillDir,
+            descriptor: {
+                name: 'Main Agent Test Skill',
+                rawContent: '# Main Agent Test Skill\n\n## Input Format\nPlain text.',
+                sections: {
+                    'input-format': 'Plain text.',
+                },
+            },
+        });
+        const mainAgent = {
+            marker: 'main-agent',
+            llmAgent: { modelConfig: { plan: 'plan', code: 'code' } },
+        };
+        subsystem.mainAgent = mainAgent;
+
+        const result = await subsystem.executeSkillPrompt({
+            skillRecord,
+            promptText: 'hello',
+            options: {},
+        });
+
+        assert.strictEqual(result.result, 'hello');
+    });
 });

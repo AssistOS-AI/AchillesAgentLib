@@ -261,7 +261,7 @@ export class DynamicCodeGenerationSubsystem {
         // No initialization needed for dynamic code generation skills.
     }
 
-    async executeSkillPrompt({ skillRecord, mainAgent, promptText, options = {} }) {
+    async executeSkillPrompt({ skillRecord, promptText, options = {} }) {
         const executor = this.executors.get(skillRecord.name);
         if (!executor) {
             throw new Error(`Executor not prepared for dynamic code generation skill "${skillRecord.name}".`);
@@ -280,7 +280,7 @@ export class DynamicCodeGenerationSubsystem {
         }
 
         const result = await executor({
-            llmAgent: mainAgent?.llmAgent,
+            llmAgent: this.mainAgent?.llmAgent,
             input,
             promptText: String(promptText ?? '').trim(),
             context: options.context || {},
