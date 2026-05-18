@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic Knowledge Units · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Agentic Knowledge Units"}
+        ]'></div>
+
+    <main class="content">
+        <section class="lead">
+            <h1>Agentic Knowledge Units</h1>
+            <p>Agentic Knowledge Units provide deterministic local project memory for AchillesAgentLib. The module is exported as an additive utility and is not wired into <code>MainAgent</code> by default.</p>
+        </section>
+
+        <section>
+            <h2>Runtime Boundary</h2>
+            <p>The implementation lives under <code>AgenticKnowledgeUnits/</code>. Callers instantiate the facade directly when they need filesystem-backed Knowledge Units, JSONL aggregate indexes, lexical search, ContextPack construction, or repair checks. The module does not call <code>LLMAgent</code>, search providers, embeddings, vector stores, or external services.</p>
+            <p>The architecture keeps the public surface small while splitting implementation work across private collaborators for storage, locks, atomic writes, indexing, tokenization, ranking, context packing, and doctor recovery.</p>
+        </section>
+
+        <section>
+            <h2>Source Files</h2>
+            <p>The canonical design material remains in the repository source files. <code>docs/specs/DS008-AgenticKnowledgeUnits.md</code> is the governing v1 contract, and <code>docs/agentic-knowledge-units-architecture.md</code> contains the Mermaid architecture and class diagrams. The documentation page links through the HTML navigation so the static site does not depend on raw Markdown serving.</p>
+        </section>
+
+        <section>
+            <h2>Public Import</h2>
+            <p>The stable public import is the package subpath:</p>
+            <pre><code>import { AgenticKnowledgeUnits } from 'ploinky-agent-lib/AgenticKnowledgeUnits';</code></pre>
+            <p>The root package barrel also exposes the named <code>AgenticKnowledgeUnits</code> export for callers that already import from the main library surface.</p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

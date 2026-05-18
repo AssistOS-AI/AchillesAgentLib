@@ -1,0 +1,130 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { AKU_DIRNAME, SENSITIVE_PATH_PARTS } from './constants.mjs';
+import { AKU_ERROR_CODES, AKUError } from './errors.mjs';
+
+export function resolveRootDir(rootDir = process.cwd()) {
+    return path.resolve(rootDir);
+}
+
+export function resolveAkuRoot(rootDir = process.cwd()) {
+    return path.join(resolveRootDir(rootDir), AKU_DIRNAME);
+}
+
+export function normalizeRelativePath(input) {
+    if (typeof input !== 'string' || !input.trim()) {
+        throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Path must be a non-empty relative string', { path: input });
+    }
+    if (input.includes('\0')) {
+        throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Path contains a null byte', { path: input });
+    }
+    if (path.isAbsolute(input) || /^[a-zA-Z]:[\\/]/.test(input) || input.startsWith('\\\\')) {
+        throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Absolute paths are not allowed here', { path: input });
+    }
+    const normalized = path.posix.normalize(input.replace(/\\/g, '/'));
+    if (normalized === '.' || normalized.startsWith('../') || normalized === '..') {
+        throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Path escapes the trusted root', { path: input });
+    }
+    return normalized;
+}
+
+export function assertSafeIdSegment(value, label = 'path segment') {
+    const text = String(value || '');
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(text)) {
+        throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, `Unsafe ${label}: ${value}`, { value });
+    }
+    return text;
+}
+
+export function isWithin(parent, child) {
+    const relative = path.relative(parent, child);
+    return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+export async function assertNoSymlinkInExistingPath(targetPath, rootPath) {
+    const root = path.resolve(rootPath);
+    const target = path.resolve(targetPath);
+    if (!isWithin(root, target)) {
+        throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Resolved path escapes the trusted root', {
+            root,
+            target,
+        });
+    }
+
+    const relativeParts = path.relative(root, target).split(path.sep).filter(Boolean);
+    let cursor = root;
+    for (const part of relativeParts) {
+        cursor = path.join(cursor, part);
+        try {
+            const stat = await fs.lstat(cursor);
+            if (stat.isSymbolicLink()) {
+                throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Symlinks are not allowed inside AKU paths', {
+                    path: cursor,
+                });
+            }
+        } catch (error) {
+            if (error instanceof AKUError) {
+                throw error;
+            }
+            if (error?.code === 'ENOENT') {
+                break;
+            }
+            throw error;
+        }
+    }
+}
+
+export async function resolveSafeRelative(rootPath, input, options = {}) {
+    const relative = normalizeRelativePath(input);
+    rejectSensitivePath(relative, options);
+    const absolute = path.resolve(rootPath, relative);
+    const root = path.resolve(rootPath);
+    if (!isWithin(root, absolute)) {
+        throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Path escapes the trusted root', {
+            root,
+            input,
+            absolute,
+        });
+    }
+    await assertNoSymlinkInExistingPath(absolute, root);
+    try {
+        const realRoot = await fs.realpath(root);
+        const realTarget = await fs.realpath(absolute);
+        if (!isWithin(realRoot, realTarget)) {
+            throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Real path escapes the trusted root', {
+                root: realRoot,
+                target: realTarget,
+            });
+        }
+    } catch (error) {
+        if (error instanceof AKUError) {
+            throw error;
+        }
+        if (error?.code !== 'ENOENT') {
+            throw error;
+        }
+    }
+    return { relative, absolute };
+}
+
+export function rejectSensitivePath(relativePath, options = {}) {
+    if (options.allowSensitivePaths) {
+        return;
+    }
+    const parts = normalizeRelativePath(relativePath).split('/').map(part => part.toLowerCase());
+    for (const part of parts) {
+        if (SENSITIVE_PATH_PARTS.has(part)) {
+            throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Sensitive paths are excluded from AKU indexing', {
+                path: relativePath,
+            });
+        }
+    }
+}
+
+export function displayPathFromAkuRoot(akuRoot, absolutePath) {
+    return path.relative(akuRoot, absolutePath).replace(/\\/g, '/');
+}
+
+export function projectDisplayPath(rootDir, absolutePath) {
+    return path.relative(rootDir, absolutePath).replace(/\\/g, '/');
+}

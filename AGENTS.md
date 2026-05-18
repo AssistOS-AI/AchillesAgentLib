@@ -8,6 +8,8 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 
 For any work under `docs/`, follow `DOCUMENTATION_SPECIFICATION.md`. That file defines the current editorial and technical standard for documentation pages and should be treated as the authoritative guide for future documentation changes.
 
+Design specifications live under `docs/specs/`. `docs/specs/matrix.md` lists the current DS set. Agentic Knowledge Units are shipped as an additive local memory utility under `AgenticKnowledgeUnits/`; the v1 implementation follows `docs/specs/DS008-AgenticKnowledgeUnits.md`, with Mermaid architecture and class diagrams in `docs/agentic-knowledge-units-architecture.md`.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                            MainAgent                                    │

@@ -8,6 +8,7 @@ export * from './AnthropicSkillsSubsystem/index.mjs';
 export * from './MCPSkillsSubsystem/index.mjs';
 export * from './OrchestratorSkillsSubsystem/index.mjs';
 export * from './DBTableSkillsSubsystem/index.mjs';
+export { AgenticKnowledgeUnits, AKUError, AKU_ERROR_CODES } from './AgenticKnowledgeUnits/index.mjs';
 export * from './services/index.mjs';
 export * from './jwt/index.mjs';
 export { callSearch, extractSearchQuery } from './utils/SearchProviders/search.mjs';

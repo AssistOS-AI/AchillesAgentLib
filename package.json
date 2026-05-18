@@ -9,6 +9,7 @@
         ".": "./index.mjs",
         "./LLMAgents": "./LLMAgents/index.mjs",
         "./MainAgent": "./MainAgent/index.mjs",
+        "./AgenticKnowledgeUnits": "./AgenticKnowledgeUnits/index.mjs",
         "./DBTableSkillsSubsystem": "./DBTableSkillsSubsystem/index.mjs",
         "./InteractiveSkillsSubsystem": "./InteractiveSkillsSubsystem/index.mjs",
         "./InteractiveSkillsSubsystem/*": "./InteractiveSkillsSubsystem/*",
