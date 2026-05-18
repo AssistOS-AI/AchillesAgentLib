@@ -153,21 +153,16 @@ export function discoverSkills(startDir, { logger = console } = {}) {
     const resolvedStartDir = startDir ? path.resolve(startDir) : process.cwd();
     const roots = collectSkillsDescending(resolvedStartDir);
 
-    logger.debug('MainAgent:discoverSkills', {
-        startDir: resolvedStartDir,
-        rootsFound: roots.length,
-        roots,
-    });
+    logger.debug(`MainAgent:discoverSkills: ${resolvedStartDir}: found ${roots.length} skill dirs`);
 
     const allSkills = [];
     for (const root of roots) {
         const skills = discoverFromRoot(root, { logger });
+        logger.debug(`MainAgent:discoverSkillsFromDir: ${root}: found ${skills.length} skills`);
         allSkills.push(...skills);
     }
 
-    logger.debug('MainAgent:discoverSkills:complete', {
-        totalSkills: allSkills.length,
-    });
+    logger.debug(`MainAgent:discoverSkills: ${resolvedStartDir}: found ${allSkills.length} skills total`);
 
     return allSkills;
 }
@@ -177,15 +172,9 @@ export function discoverSkillsFromRoot(skillsDir, { logger = console } = {}) {
         return [];
     }
 
-    logger.debug('MainAgent:discoverSkillsFromRoot', {
-        skillsDir,
-    });
-
     const skills = discoverFromRoot(skillsDir, { logger });
 
-    logger.debug('MainAgent:discoverSkillsFromRoot:complete', {
-        totalSkills: skills.length,
-    });
+    logger.debug(`MainAgent:discoverSkillsFromDir: ${skillsDir}: found ${skills.length} skills`);
 
     return skills;
 }

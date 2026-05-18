@@ -13,6 +13,13 @@ const INTERNAL_SKILLS_DIR = path.resolve(
     '../skills'
 );
 
+function joinSkillNames(skills) {
+    const names = skills
+        .map((skill) => skill?.name)
+        .filter(Boolean);
+    return names.length ? names.join(', ') : 'none';
+}
+
 export class MainAgent {
     constructor({
         startDir = process.cwd(),
@@ -56,11 +63,7 @@ export class MainAgent {
             this._registerSkill(record);
         }
 
-        this.logger.debug('MainAgent:internalSkills', {
-            count: internalSkills.length,
-            skills: internalSkills.map(s => s.name),
-            disabled: this.disableInternalSkills,
-        });
+        this.logger.debug(`MainAgent:internalSkills: disabled=${this.disableInternalSkills}, found ${internalSkills.length} skills: ${joinSkillNames(internalSkills)}`);
 
         const userSkills = discoverSkills(this.startDir, {
             logger: this.logger,
@@ -71,10 +74,7 @@ export class MainAgent {
             this._registerSkill(record);
         }
 
-        this.logger.debug('MainAgent:userSkills', {
-            count: userSkills.length,
-            skills: userSkills.map(s => s.name),
-        });
+        this.logger.debug(`MainAgent:workspaceSkills: found ${userSkills.length} skills: ${joinSkillNames(userSkills)}`);
 
         this._refreshOrchestratedSkillIndex();
         this.debugSkillRegistrationSummary({ phase: 'constructor' });
@@ -89,18 +89,24 @@ export class MainAgent {
             skillDir: skill.skillDir,
         }));
         const availableSkills = skills.filter((skill) => !this._orchestratorAllowedSkills.has(skill.name));
+        const phase = context.phase ? ` phase=${context.phase}` : '';
 
-        this.logger.debug('MainAgent:registeredSkills', {
-            ...context,
-            registeredCount: skills.length,
-            availableCount: availableSkills.length,
-            orchestratedHiddenCount: this._orchestratorAllowedSkills.size,
-            aliasCount: this._skillAliases.size,
-            duplicateCount: this._duplicateSkillEvents.length,
-            duplicates: this._duplicateSkillEvents,
-            availableSkills,
-            allRegisteredSkills: skills,
-        });
+        if (Array.isArray(context.additionalRoots) && context.additionalRoots.length) {
+            const rootSummary = context.additionalRoots
+                .map((root) => `${root.skillRoot}: ${root.discoveredCount} skills`)
+                .join('; ');
+            this.logger.debug(`MainAgent:additionalSkillRoots:${phase}: ${rootSummary}`);
+        }
+
+        this.logger.debug(`MainAgent:registeredSkills:${phase}: registered=${skills.length}, available=${availableSkills.length}, orchestratedHidden=${this._orchestratorAllowedSkills.size}, aliases=${this._skillAliases.size}, duplicates=${this._duplicateSkillEvents.length}`);
+        this.logger.debug(`MainAgent:availableSkills:${phase}: ${joinSkillNames(availableSkills)}`);
+        this.logger.debug(`MainAgent:allRegisteredSkills:${phase}: ${joinSkillNames(skills)}`);
+        if (this._duplicateSkillEvents.length) {
+            const duplicates = this._duplicateSkillEvents
+                .map((entry) => `${entry.name}: ${entry.existing.skillDir} -> ${entry.replacement.skillDir}`)
+                .join('; ');
+            this.logger.debug(`MainAgent:duplicateSkills:${phase}: ${duplicates}`);
+        }
     }
 
     _refreshOrchestratedSkillIndex() {
@@ -127,10 +133,8 @@ export class MainAgent {
 
         this._orchestratorAllowedSkills = orchestratorAllowedSkills;
 
-        this.logger.debug('MainAgent:orchestratedSkills', {
-            count: orchestratorAllowedSkills.size,
-            skills: Array.from(orchestratorAllowedSkills),
-        });
+        const skills = Array.from(orchestratorAllowedSkills);
+        this.logger.debug(`MainAgent:orchestratedSkills: hiding ${skills.length} skills from top-level tool surface: ${skills.length ? skills.join(', ') : 'none'}`);
     }
 
     _registerSkill(skillRecord) {
@@ -171,10 +175,7 @@ export class MainAgent {
                 },
             };
             this._duplicateSkillEvents.push(duplicateEvent);
-            this.logger.debug('MainAgent:duplicateSkill', {
-                ...duplicateEvent,
-                resolution: 'replacement registered',
-            });
+            this.logger.debug(`MainAgent:duplicateSkill: ${name}: replacing ${existing.skillDir} with ${skillDir}`);
         }
 
         this._skills.set(name, skillRecord);
