@@ -31,6 +31,7 @@ export class MainAgent {
         this._skills = new Map();
         this._skillAliases = new Map();
         this._orchestratorAllowedSkills = new Set();
+        this._duplicateSkillEvents = [];
         this._session = null;
 
         this.supervisor = supervisor || new SecuritySupervisor({ logger: this.logger });
@@ -76,6 +77,20 @@ export class MainAgent {
         });
 
         this._refreshOrchestratedSkillIndex();
+
+        this.logger.debug('MainAgent:registeredSkills', {
+            count: this._skills.size,
+            aliasCount: this._skillAliases.size,
+            duplicateCount: this._duplicateSkillEvents.length,
+            duplicates: this._duplicateSkillEvents,
+            skills: Array.from(this._skills.values()).map((skill) => ({
+                name: skill.name,
+                shortName: skill.shortName,
+                type: skill.type,
+                isInternal: Boolean(skill.isInternal),
+                skillDir: skill.skillDir,
+            })),
+        });
     }
 
     _refreshOrchestratedSkillIndex() {
@@ -121,10 +136,34 @@ export class MainAgent {
         ].filter(Boolean));
 
         if (this._skills.has(name)) {
-            this.logger.debug('MainAgent:duplicateSkill', {
+            const existing = this._skills.get(name);
+            const duplicateEvent = {
                 name,
-                existingDir: this._skills.get(name).skillDir,
-                newDir: skillDir,
+                type,
+                shortName,
+                existing: {
+                    skillDir: existing.skillDir,
+                    type: existing.type,
+                    shortName: existing.shortName,
+                    isInternal: Boolean(existing.isInternal),
+                },
+                replacement: {
+                    skillDir,
+                    type,
+                    shortName,
+                    isInternal: Boolean(skillRecord.isInternal),
+                },
+                registered: {
+                    skillDir,
+                    type,
+                    shortName,
+                    isInternal: Boolean(skillRecord.isInternal),
+                },
+            };
+            this._duplicateSkillEvents.push(duplicateEvent);
+            this.logger.debug('MainAgent:duplicateSkill', {
+                ...duplicateEvent,
+                resolution: 'replacement registered',
             });
         }
 
