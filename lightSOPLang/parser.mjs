@@ -1,6 +1,6 @@
 import { tokenize } from './tokenizer.mjs';
 
-function stripComments(line) {
+function splitInlineComment(line) {
     let inSingle = false;
     let inDouble = false;
     let escaped = false;
@@ -24,10 +24,166 @@ function stripComments(line) {
             continue;
         }
         if (char === '#' && !inSingle && !inDouble) {
-            return line.slice(0, index);
+            return {
+                code: line.slice(0, index),
+                comment: line.slice(index + 1).trim(),
+            };
         }
     }
-    return line;
+    return { code: line, comment: '' };
+}
+
+function stripComments(line) {
+    return splitInlineComment(line).code;
+}
+
+function isDeclarationLine(line) {
+    return line.trimStart().startsWith('@');
+}
+
+function isCommentLine(line) {
+    return line.trimStart().startsWith('#');
+}
+
+function parseCommentLine(line) {
+    return line.trimStart().slice(1).trim();
+}
+
+function buildAssociatedCommentMap(lines) {
+    const commentByDeclarationLine = new Map();
+    const associatedCommentLines = new Set();
+
+    for (let index = 0; index < lines.length; index += 1) {
+        if (!isCommentLine(lines[index])) {
+            continue;
+        }
+
+        const start = index;
+        const comments = [];
+        while (index < lines.length && isCommentLine(lines[index])) {
+            comments.push(parseCommentLine(lines[index]));
+            index += 1;
+        }
+
+        if (index < lines.length && isDeclarationLine(lines[index])) {
+            commentByDeclarationLine.set(index + 1, comments);
+            for (let commentIndex = start; commentIndex < index; commentIndex += 1) {
+                associatedCommentLines.add(commentIndex);
+            }
+        }
+
+        index -= 1;
+    }
+
+    return {
+        commentByDeclarationLine,
+        associatedCommentLines,
+    };
+}
+
+function splitDeclarationBlocks(lines) {
+    const blocks = [];
+    let currentBlock = null;
+    const {
+        commentByDeclarationLine,
+        associatedCommentLines,
+    } = buildAssociatedCommentMap(lines);
+
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index];
+        if (associatedCommentLines.has(index)) {
+            continue;
+        }
+        if (isDeclarationLine(line)) {
+            if (currentBlock) {
+                blocks.push(currentBlock);
+            }
+            const lineNumber = index + 1;
+            currentBlock = {
+                lineNumber,
+                headerLine: line,
+                continuationLines: [],
+                commentLines: commentByDeclarationLine.get(lineNumber) || [],
+            };
+            continue;
+        }
+
+        if (!currentBlock) {
+            const stripped = stripComments(line);
+            if (stripped.trim()) {
+                throw new Error(`Line ${index + 1}: declaration must start with @`);
+            }
+            continue;
+        }
+
+        currentBlock.continuationLines.push(line);
+    }
+
+    if (currentBlock) {
+        blocks.push(currentBlock);
+    }
+
+    return blocks;
+}
+
+function trimBlankEdges(lines) {
+    let start = 0;
+    let end = lines.length;
+
+    while (start < end && !lines[start].trim()) {
+        start += 1;
+    }
+    while (end > start && !lines[end - 1].trim()) {
+        end -= 1;
+    }
+
+    return lines.slice(start, end);
+}
+
+function buildContinuationArgument(continuationLines) {
+    const contentLines = trimBlankEdges(continuationLines);
+    if (!contentLines.length) {
+        return null;
+    }
+    return {
+        type: 'literal',
+        value: contentLines.join('\n'),
+    };
+}
+
+function parseAssignHereDoc(continuationLines, lineNumber) {
+    const contentLines = trimBlankEdges(continuationLines);
+    const beginMatch = contentLines[0]?.trim().match(/^--begin-(.+)--$/);
+    if (!beginMatch) {
+        return null;
+    }
+
+    const token = beginMatch[1];
+    const endMarker = `--end-${token}--`;
+    const bodyLines = [];
+    let endIndex = -1;
+
+    for (let index = 1; index < contentLines.length; index += 1) {
+        if (contentLines[index].trim() === endMarker) {
+            endIndex = index;
+            break;
+        }
+        bodyLines.push(contentLines[index]);
+    }
+
+    if (endIndex === -1) {
+        throw new Error(`Line ${lineNumber + 1}: missing ${endMarker} for here-doc`);
+    }
+
+    const trailingContent = contentLines.slice(endIndex + 1).some(line => line.trim());
+    if (trailingContent) {
+        throw new Error(`Line ${lineNumber + endIndex + 2}: unexpected content after ${endMarker}`);
+    }
+
+    return {
+        type: 'literal',
+        value: bodyLines.join('\n'),
+    };
 }
 
 export function buildArgumentDescriptor(token) {
@@ -62,15 +218,20 @@ export function parseCode(code) {
 
     const declarations = new Map();
     const lines = code.split(/\r?\n/);
+    const blocks = splitDeclarationBlocks(lines);
 
-    for (let index = 0; index < lines.length; index += 1) {
-        const line = lines[index];
-        const stripped = stripComments(line);
+    for (const block of blocks) {
+        const splitHeader = splitInlineComment(block.headerLine);
+        const stripped = splitHeader.code;
         const trimmed = stripped.trim();
         if (!trimmed) {
             continue;
         }
-        const declarationLine = index + 1;
+        const commentLines = block.commentLines.slice();
+        if (splitHeader.comment) {
+            commentLines.push(splitHeader.comment);
+        }
+        const declarationLine = block.lineNumber;
         const tokens = tokenize(trimmed, declarationLine);
         if (!tokens.length) {
             continue;
@@ -95,29 +256,19 @@ export function parseCode(code) {
             throw new Error(`Line ${declarationLine}: command name missing for @${variableName}`);
         }
         let argumentDescriptors = argumentTokens.map(buildArgumentDescriptor);
+        let usedHereDoc = false;
         if (commandName === 'assign' && argumentDescriptors.length === 0) {
-            const nextLine = lines[index + 1];
-            if (typeof nextLine === 'string') {
-                const beginMatch = nextLine.trim().match(/^--begin-(.+)--$/);
-                if (beginMatch) {
-                    const token = beginMatch[1];
-                    const endMarker = `--end-${token}--`;
-                    const contentLines = [];
-                    let endIndex = -1;
-                    for (let scan = index + 2; scan < lines.length; scan += 1) {
-                        if (lines[scan].trim() === endMarker) {
-                            endIndex = scan;
-                            break;
-                        }
-                        contentLines.push(lines[scan]);
-                    }
-                    if (endIndex === -1) {
-                        throw new Error(`Line ${index + 2}: missing ${endMarker} for here-doc`);
-                    }
-                    argumentDescriptors = [{ type: 'literal', value: contentLines.join('\n') }];
-                    index = endIndex;
-                }
+            const hereDocArgument = parseAssignHereDoc(block.continuationLines, declarationLine);
+            if (hereDocArgument) {
+                argumentDescriptors = [hereDocArgument];
+                usedHereDoc = true;
             }
+        }
+        const continuationArgument = usedHereDoc
+            ? null
+            : buildContinuationArgument(block.continuationLines);
+        if (continuationArgument) {
+            argumentDescriptors.push(continuationArgument);
         }
         const dependencies = new Set(
             argumentDescriptors
@@ -132,6 +283,8 @@ export function parseCode(code) {
             dependencies,
             signature: buildSignature(commandName, argumentDescriptors),
             lineNumber: declarationLine,
+            comment: commentLines.join('\n').trim(),
+            commentLines,
         });
     }
 

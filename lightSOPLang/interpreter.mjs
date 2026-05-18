@@ -528,7 +528,9 @@ export class LightSOPLangInterpreter {
         ));
 
         lines.push('Emit LightSOPLang code. Format: @varName command arg1 arg2');
-        lines.push('Args: space-separated, NO parentheses/commas. Quote strings with spaces. Use $var to reference previous results.');
+        lines.push('Args on the declaration line are space-separated, NO parentheses/commas. Quote strings with spaces. Use $var to reference previous results.');
+        lines.push('For long text, put it on the following lines; all lines until the next @ declaration become one clean multiline literal argument.');
+        lines.push('Before user-visible tool steps, add a short # progress comment immediately above the declaration.');
         lines.push('Example: @sum add 5 3');
         lines.push('@upper uppercase "hello world"');
         lines.push('@combined concat $sum $upper');
@@ -719,6 +721,9 @@ export class LightSOPLangInterpreter {
             raw: input,
             variable: variable.name,
             variableState: variable,
+            lineNumber: variable.lineNumber,
+            comment: variable.comment,
+            commentLines: Array.isArray(variable.commentLines) ? variable.commentLines.slice() : [],
         };
 
         this.executionMonitor.beforeExecuteCommand(variable.command, input);

@@ -21,6 +21,9 @@ test('assign command builds values from literals and variables', async () => {
         'line1',
         'line2',
         '--end-token-two--',
+        '@clean assign',
+        'plain multiline',
+        'without markers',
     ].join('\n');
 
     const interpreter = new LightSOPLangInterpreter(code, registry);
@@ -30,4 +33,5 @@ test('assign command builds values from literals and variables', async () => {
     assert.equal(interpreter.getVarValue('second'), 'prefix hello');
     assert.equal(interpreter.getVarValue('third'), 'prefix hello tail');
     assert.equal(interpreter.getVarValue('multiline'), 'line1\nline2');
+    assert.equal(interpreter.getVarValue('clean'), 'plain multiline\nwithout markers');
 });

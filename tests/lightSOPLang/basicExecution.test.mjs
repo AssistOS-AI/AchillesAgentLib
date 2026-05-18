@@ -48,3 +48,55 @@ test('LightSOPLang basic execution and dependency resolution', async (t) => {
         ]);
     });
 });
+
+test('LightSOPLang treats lines until the next @ declaration as a clean multiline argument', async () => {
+    const payloads = [];
+    const registry = createRegistry(async (payload, response) => {
+        payloads.push(payload);
+        if (payload.command === 'emit') {
+            return response.success(payload.args[0] ?? '');
+        }
+        if (payload.command === 'combine') {
+            return response.success(payload.args.join('\n---\n'));
+        }
+        throw new Error(`Unknown command ${payload.command}`);
+    }, [
+        { name: 'emit', description: 'Outputs provided literal' },
+        { name: 'combine', description: 'Combines parameters' },
+    ]);
+
+    const code = [
+        '@prompt emit',
+        'Write a short answer.',
+        '# Keep markdown headings as text, not comments.',
+        'Use clean multiline text.',
+        '@combined combine $prompt',
+        'Append this instruction without escaping newlines.',
+    ].join('\n');
+
+    const interpreter = new LightSOPLangInterpreter(code, registry);
+    await interpreter.ready;
+
+    assert.deepEqual(payloads[0].args, [
+        [
+            'Write a short answer.',
+            '# Keep markdown headings as text, not comments.',
+            'Use clean multiline text.',
+        ].join('\n'),
+    ]);
+    assert.deepEqual(payloads[1].args, [
+        [
+            'Write a short answer.',
+            '# Keep markdown headings as text, not comments.',
+            'Use clean multiline text.',
+        ].join('\n'),
+        'Append this instruction without escaping newlines.',
+    ]);
+    assert.equal(interpreter.getVarValue('combined'), [
+        'Write a short answer.',
+        '# Keep markdown headings as text, not comments.',
+        'Use clean multiline text.',
+        '---',
+        'Append this instruction without escaping newlines.',
+    ].join('\n'));
+});

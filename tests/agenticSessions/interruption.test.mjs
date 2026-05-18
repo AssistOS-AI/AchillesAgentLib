@@ -118,3 +118,57 @@ test('SOPAgenticSession marks interrupted and resumes on next prompt', async () 
     assert.equal(resumedResult.answer, 'resumed');
     assert.equal(session.status, SESSION_STATUS_ACTIVE);
 });
+
+test('SOPAgenticSession emits associated SOP comments as tool_reason progress', async () => {
+    const progressEvents = [];
+    const executed = [];
+    const agent = {
+        name: 'StubLLMAgent',
+        __toolState: new Map(),
+        executePrompt: async () => [
+            '# Fetch the requested information',
+            '# using the echo skill',
+            '@first echo hello',
+            '# Prepare local text only',
+            '@local assign',
+            'not shown as progress',
+            '# Final response is not a progress event',
+            '@lastAnswer final_answer $first',
+        ].join('\n'),
+    };
+
+    const session = new SOPAgenticSession({
+        agent,
+        skillsDescription: {
+            echo: 'Echo utility',
+        },
+        options: {
+            supervisor: {
+                getOutputWriter: () => ({
+                    write: async (message) => {
+                        progressEvents.push(message);
+                    },
+                }),
+            },
+            commandsRegistry: {
+                executeCommand: async (payload, responder) => {
+                    executed.push(payload);
+                    return responder.success((payload.args || []).join(' '));
+                },
+                listCommands: () => [{ name: 'echo', description: 'Echo utility' }],
+            },
+        },
+    });
+
+    const result = await session.newPrompt('run plan');
+
+    assert.equal(result.answer, 'hello');
+    assert.deepEqual(progressEvents, [{
+        type: 'tool_reason',
+        tool: 'echo',
+        reason: 'Fetch the requested information\nusing the echo skill',
+        stepIndex: 3,
+    }]);
+    assert.equal(executed.length, 1);
+    assert.equal(executed[0].comment, 'Fetch the requested information\nusing the echo skill');
+});

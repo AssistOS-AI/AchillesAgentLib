@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import LightSOPLangInterpreter from '../../lightSOPLang/index.mjs';
+import { parseCode } from '../../lightSOPLang/parser.mjs';
 
 test('LightSOPLang parser rejects duplicate variable declarations', async () => {
     const code = [
@@ -31,4 +32,44 @@ test('Comment parser keeps hashes inside quotes untouched', async () => {
     await interpreter.ready;
     assert.equal(interpreter.getVarValue('x'), 'value#hash');
     assert.equal(interpreter.getVarValue('y'), '#tag');
+});
+
+test('Comment parser associates contiguous leading and inline comments with declarations', () => {
+    const declarations = parseCode([
+        '# Load input context',
+        '# before calling the skill',
+        '@context emit value # inline detail',
+        '',
+        '# detached comment',
+        '',
+        '@next emit ok',
+    ].join('\n'));
+
+    assert.equal(declarations.get('context').comment, [
+        'Load input context',
+        'before calling the skill',
+        'inline detail',
+    ].join('\n'));
+    assert.deepEqual(declarations.get('context').commentLines, [
+        'Load input context',
+        'before calling the skill',
+        'inline detail',
+    ]);
+    assert.equal(declarations.get('next').comment, '');
+});
+
+test('Comment parser keeps hash-leading multiline text when it is not immediately before a declaration', () => {
+    const declarations = parseCode([
+        '@prompt emit',
+        '# Markdown heading stays literal',
+        'body text',
+        '# Progress for next command',
+        '@next emit done',
+    ].join('\n'));
+
+    assert.equal(declarations.get('prompt').arguments[0].value, [
+        '# Markdown heading stays literal',
+        'body text',
+    ].join('\n'));
+    assert.equal(declarations.get('next').comment, 'Progress for next command');
 });

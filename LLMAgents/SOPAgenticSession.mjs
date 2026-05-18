@@ -252,6 +252,7 @@ class SOPAgenticSession {
             || options.planGenerator
             || this.executionInterpreterOptions
             || {};
+        this.supervisor = options.supervisor || null;
         this._unwrappedCommandsRegistry = options.commandsRegistry || null;
         this.commandsRegistry = options.commandsRegistry && typeof options.commandsRegistry === 'object'
             ? this._wrapExecutionRegistry(options.commandsRegistry)
@@ -439,7 +440,12 @@ class SOPAgenticSession {
                 agent: this.agent,
                 skillsDescription: preparationSkillsDescription,
                 commandsRegistry: preparationCommandsRegistry,
-                options: { model: this.options.model, tags: this.options.tags, signal: this._currentAbortSignal },
+                options: {
+                    model: this.options.model,
+                    tags: this.options.tags,
+                    signal: this._currentAbortSignal,
+                    supervisor: this.supervisor,
+                },
                 preparationText: this.preparation.text,
                 userPrompt,
                 retries: this.preparation.retries ?? 1,
@@ -860,6 +866,33 @@ ${trimmed}`;
         };
     }
 
+    async _emitCommandComment(payload) {
+        const commandName = String(payload?.command || '').trim();
+        if (!commandName || commandName === FINAL_ANSWER_TOOL || commandName === CANNOT_COMPLETE_TOOL) {
+            return;
+        }
+        const reason = String(payload?.comment || '').trim();
+        if (!reason || !this.supervisor || typeof this.supervisor.getOutputWriter !== 'function') {
+            return;
+        }
+        try {
+            const outputWriter = this.supervisor.getOutputWriter();
+            if (outputWriter && typeof outputWriter.write === 'function') {
+                await outputWriter.write({
+                    type: 'tool_reason',
+                    tool: commandName,
+                    reason,
+                    stepIndex: Number.isFinite(payload?.lineNumber) ? payload.lineNumber : null,
+                });
+            }
+        } catch (error) {
+            debugLog('[SOPAgenticSession] Tool reason output failed', {
+                tool: commandName,
+                error: error?.message || String(error),
+            });
+        }
+    }
+
     _wrapExecutionRegistry(registry) {
         if (typeof registry.executeCommand !== 'function' || typeof registry.listCommands !== 'function') {
             throw new Error('commandsRegistry must provide executeCommand and listCommands functions.');
@@ -881,6 +914,7 @@ ${trimmed}`;
                     this._lastFinalAnswer = text;
                     return responder.fail(text);
                 }
+                await this._emitCommandComment(payload);
                 const wrappedResponder = {
                     success: async (data) => {
                         const interactive = isInteractiveToolResult(data);

@@ -7,6 +7,7 @@ const FINAL_RESPONSE_NOTE = [
     '- Do not include additional final responses outside of this command.',
     '- Do not prefix the value with phrases like "The result is" unless the user explicitly asked for that wording.',
     '- When an argument is a literal string containing spaces, wrap it in double quotes (e.g., @step tool "foo bar" $var).',
+    '- For long text arguments, put the text on the lines after the declaration; all lines until the next @ declaration become one clean multiline literal argument.',
 ].join('\n');
 
 const buildSOPAgenticInstructions = ({
@@ -61,6 +62,8 @@ const buildSOPAgenticInstructions = ({
             'Instructions:',
             '- Emit ONLY valid LightSOPLang code.',
             '- Use descriptive variable names and preserve context between steps.',
+            '- Before each user-visible tool/skill step, add a short # comment explaining what is about to happen; this comment is shown as progress in the UI.',
+            '- Do not add progress comments before assign, final_answer, or cannot_complete.',
             '- IMPORTANT: Do NOT use variable interpolation inside strings (e.g., "Result: $var"). Pass variables as separate arguments (e.g., "Result:" $var).',
             FINAL_RESPONSE_NOTE,
         ].join('\n');
@@ -99,6 +102,8 @@ const buildSOPAgenticInstructions = ({
     lines.push('- For clearly new behaviour, introduce NEW variables instead of overwriting old ones.');
     lines.push('- If the new requirement changes the behaviour of an existing step, you may update that step\'s declaration.');
     lines.push('- When you update declarations, the runtime will automatically recalculate the affected variables based on dependencies.');
+    lines.push('- Before each user-visible tool/skill step, add a short # comment explaining what is about to happen; this comment is shown as progress in the UI.');
+    lines.push('- Do not add progress comments before assign, final_answer, or cannot_complete.');
     lines.push('- Avoid deleting existing steps unless they are clearly obsolete for all requirements.');
     lines.push('- IMPORTANT: Do NOT use variable interpolation inside strings (e.g., "Result: $var"). Pass variables as separate arguments (e.g., "Result:" $var).');
     lines.push(FINAL_RESPONSE_NOTE);

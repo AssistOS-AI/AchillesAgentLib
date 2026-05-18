@@ -293,6 +293,42 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
     assert.equal(capturedOptions.supervisor, supervisor);
 });
 
+test('OrchestratorSkillsSubsystem passes supervisor into SOP session', async () => {
+    let capturedOptions = null;
+
+    const stubLLMAgent = {
+        startSOPLangAgentSession: async (_skillsDescription, _prompt, options) => {
+            capturedOptions = options;
+            return {
+                getVariables: async () => ({ lastAnswer: 'SOP completed' }),
+                getLastResult: () => 'SOP completed',
+            };
+        },
+    };
+
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: stubLLMAgent, getSkills: () => [] } });
+
+    const skillRecord = {
+        name: 'test-sop-orchestrator',
+        preparedConfig: {
+            sessionType: 'sop',
+            instructions: 'Execute the task',
+            allowedSkills: [],
+        },
+    };
+
+    const supervisor = { approve: async () => 'approve' };
+
+    const result = await subsystem.executeSOPAgentSession({
+        skillRecord,
+        promptText: 'Do something',
+        options: { tier: 'fast', supervisor },
+    });
+
+    assert.equal(result.session, 'sop');
+    assert.equal(capturedOptions.supervisor, supervisor);
+});
+
 test('OrchestratorSkillsSubsystem forwards parent loop history into loop system prompt', async () => {
     let capturedPrompt = null;
     let capturedOptions = null;

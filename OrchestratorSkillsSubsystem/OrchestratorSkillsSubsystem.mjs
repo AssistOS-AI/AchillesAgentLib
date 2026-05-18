@@ -350,6 +350,7 @@ export class OrchestratorSkillsSubsystem {
             interpreterOptions: {
                 llmModel: options?.planModel || options?.model || this.modelConfig.plan || 'plan',
             },
+            supervisor: options?.supervisor || this.mainAgent?.supervisor || null,
             signal: options?.signal || null,
         };
 
