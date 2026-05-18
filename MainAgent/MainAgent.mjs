@@ -77,19 +77,29 @@ export class MainAgent {
         });
 
         this._refreshOrchestratedSkillIndex();
+        this.debugSkillRegistrationSummary({ phase: 'constructor' });
+    }
+
+    debugSkillRegistrationSummary(context = {}) {
+        const skills = Array.from(this._skills.values()).map((skill) => ({
+            name: skill.name,
+            shortName: skill.shortName,
+            type: skill.type,
+            isInternal: Boolean(skill.isInternal),
+            skillDir: skill.skillDir,
+        }));
+        const availableSkills = skills.filter((skill) => !this._orchestratorAllowedSkills.has(skill.name));
 
         this.logger.debug('MainAgent:registeredSkills', {
-            count: this._skills.size,
+            ...context,
+            registeredCount: skills.length,
+            availableCount: availableSkills.length,
+            orchestratedHiddenCount: this._orchestratorAllowedSkills.size,
             aliasCount: this._skillAliases.size,
             duplicateCount: this._duplicateSkillEvents.length,
             duplicates: this._duplicateSkillEvents,
-            skills: Array.from(this._skills.values()).map((skill) => ({
-                name: skill.name,
-                shortName: skill.shortName,
-                type: skill.type,
-                isInternal: Boolean(skill.isInternal),
-                skillDir: skill.skillDir,
-            })),
+            availableSkills,
+            allRegisteredSkills: skills,
         });
     }
 
