@@ -278,6 +278,54 @@ class SOPAgenticSession {
         this._cancelReason = null;
     }
 
+    replaceSkillSurface({ skillsDescription, commandsRegistry } = {}, metadata = {}) {
+        if (!skillsDescription || typeof skillsDescription !== 'object') {
+            throw new Error('replaceSkillSurface requires a skillsDescription object.');
+        }
+        [FINAL_ANSWER_TOOL, CANNOT_COMPLETE_TOOL].forEach((reserved) => {
+            if (Object.prototype.hasOwnProperty.call(skillsDescription, reserved)) {
+                throw new Error(`Tool name "${reserved}" is reserved by the agent runtime.`);
+            }
+        });
+        if (commandsRegistry !== undefined && commandsRegistry !== null) {
+            if (typeof commandsRegistry.executeCommand !== 'function' || typeof commandsRegistry.listCommands !== 'function') {
+                throw new Error('commandsRegistry must provide executeCommand and listCommands functions.');
+            }
+        }
+
+        this._userSkillsDescription = { ...skillsDescription };
+        this.skillsDescription = {
+            ...skillsDescription,
+            [FINAL_ANSWER_TOOL]: FINAL_ANSWER_DESCRIPTION,
+            [CANNOT_COMPLETE_TOOL]: CANNOT_COMPLETE_DESCRIPTION,
+        };
+        this._unwrappedCommandsRegistry = commandsRegistry || null;
+        this.commandsRegistry = commandsRegistry && typeof commandsRegistry === 'object'
+            ? this._wrapExecutionRegistry(commandsRegistry)
+            : null;
+        this.planCommandsRegistry = this._createPlanCommandsRegistry();
+        this._recordToolsRefreshed(metadata);
+        return {
+            skillsDescription: this.skillsDescription,
+            commandsRegistry: this.commandsRegistry,
+        };
+    }
+
+    _recordToolsRefreshed(metadata = {}) {
+        const normalizeList = (value) => Array.isArray(value)
+            ? value.filter((entry) => typeof entry === 'string' && entry.trim())
+            : [];
+        this.history.push({
+            type: 'system',
+            event: 'tools_refreshed',
+            message: 'Available tools have been refreshed.',
+            added: normalizeList(metadata.added),
+            updated: normalizeList(metadata.updated),
+            removed: normalizeList(metadata.removed),
+            at: new Date().toISOString(),
+        });
+    }
+
     _isAbortError(error) {
         return Boolean(error && (
             error.name === 'AbortError'

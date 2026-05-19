@@ -1,5 +1,6 @@
 import { join, resolve } from 'node:path';
 import { stat, readdir } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { buildArgumentExtractionPrompt } from './prompts.mjs';
 import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
@@ -211,12 +212,12 @@ export class CodeSkillsSubsystem {
     let modulePath = null;
 
     for (const fileName of possibleMainFiles) {
-      const testPath = join(outputPath, fileName);
-      try {
-        const fileStat = await stat(testPath);
-        if (fileStat.isFile()) {
-          mainFilePath = testPath;
-          modulePath = `file://${testPath}`;
+        const testPath = join(outputPath, fileName);
+        try {
+          const fileStat = await stat(testPath);
+          if (fileStat.isFile()) {
+            mainFilePath = testPath;
+          modulePath = `${pathToFileURL(testPath).href}?mtime=${Math.trunc(fileStat.mtimeMs)}`;
           break;
         }
       } catch {

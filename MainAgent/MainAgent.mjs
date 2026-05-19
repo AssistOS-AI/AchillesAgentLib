@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
@@ -18,6 +19,32 @@ function joinSkillNames(skills) {
         .map((skill) => skill?.name)
         .filter(Boolean);
     return names.length ? names.join(', ') : 'none';
+}
+
+function isPathInside(candidate, root) {
+    if (!candidate || !root) {
+        return false;
+    }
+    const relative = path.relative(path.resolve(root), path.resolve(candidate));
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function getSourceMtimeMs(filePath) {
+    try {
+        return fs.statSync(filePath).mtimeMs;
+    } catch {
+        return null;
+    }
+}
+
+function getSkillFingerprint(skillRecord) {
+    return [
+        skillRecord?.type || '',
+        skillRecord?.filePath || '',
+        Number.isFinite(skillRecord?._sourceMtimeMs)
+            ? skillRecord._sourceMtimeMs
+            : getSourceMtimeMs(skillRecord?.filePath),
+    ].join('|');
 }
 
 export class MainAgent {
@@ -139,6 +166,7 @@ export class MainAgent {
 
     _registerSkill(skillRecord) {
         const { name, type, shortName, descriptor, skillDir } = skillRecord;
+        skillRecord._sourceMtimeMs = getSourceMtimeMs(skillRecord.filePath);
 
         const baseName = sanitiseName(descriptor?.name || shortName);
         const aliases = new Set([
@@ -299,6 +327,72 @@ export class MainAgent {
         });
 
         await Promise.all(buildTasks);
+    }
+
+    refreshSkills() {
+        const beforeSkills = this.getSkills();
+        const beforeByName = new Map(beforeSkills.map((skill) => [skill.name, skill]));
+        const beforeWorkspaceSkills = beforeSkills.filter((skill) => this._isWorkspaceSkillRecord(skill));
+        const beforeWorkspaceNames = new Set(beforeWorkspaceSkills.map((skill) => skill.name));
+        const preservedSkills = beforeSkills.filter((skill) => !this._isWorkspaceSkillRecord(skill));
+        const workspaceSkills = discoverSkills(this.startDir, {
+            logger: this.logger,
+        });
+
+        for (const record of workspaceSkills) {
+            record.isInternal = false;
+        }
+
+        const workspaceNames = new Set(workspaceSkills.map((skill) => skill.name));
+        const added = workspaceSkills
+            .filter((skill) => !beforeByName.has(skill.name))
+            .map((skill) => skill.name)
+            .sort();
+        const updated = workspaceSkills
+            .filter((skill) => beforeByName.has(skill.name) && getSkillFingerprint(beforeByName.get(skill.name)) !== getSkillFingerprint(skill))
+            .map((skill) => skill.name)
+            .sort();
+        const removed = Array.from(beforeWorkspaceNames)
+            .filter((name) => !workspaceNames.has(name))
+            .sort();
+
+        this._skills = new Map();
+        this._skillAliases = new Map();
+        this._orchestratorAllowedSkills = new Set();
+        this._duplicateSkillEvents = [];
+
+        for (const record of preservedSkills) {
+            this._registerSkill(record);
+        }
+        for (const record of workspaceSkills) {
+            this._registerSkill(record);
+        }
+
+        this._refreshOrchestratedSkillIndex();
+
+        const summary = {
+            registered: this._skills.size,
+            added,
+            updated,
+            removed,
+        };
+
+        this._refreshCurrentSessionTools(summary);
+        this.debugSkillRegistrationSummary({ phase: 'refreshSkills' });
+
+        return summary;
+    }
+
+    _isWorkspaceSkillRecord(skillRecord) {
+        return Boolean(skillRecord?.skillDir && !skillRecord.isInternal && isPathInside(skillRecord.skillDir, this.startDir));
+    }
+
+    _refreshCurrentSessionTools(summary = {}) {
+        if (!this._session || typeof this._session.replaceTools !== 'function') {
+            return false;
+        }
+        this._session.replaceTools(this._buildToolsForSession(), summary);
+        return true;
     }
 
     _buildToolsForSession() {

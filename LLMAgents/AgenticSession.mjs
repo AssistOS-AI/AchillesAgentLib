@@ -330,6 +330,41 @@ class LoopAgentSession {
         this._cancelReason = null;
     }
 
+    replaceTools(tools, metadata = {}) {
+        if (!tools || typeof tools !== 'object') {
+            throw new Error('replaceTools requires a tools object.');
+        }
+        [FINAL_ANSWER_TOOL, CANNOT_COMPLETE_TOOL].forEach((reserved) => {
+            if (Object.prototype.hasOwnProperty.call(tools, reserved)) {
+                throw new Error(`Tool name "${reserved}" is reserved by the agent runtime.`);
+            }
+        });
+
+        this._userTools = { ...tools };
+        this.tools = {
+            ...tools,
+            [FINAL_ANSWER_TOOL]: this._buildFinalAnswerTool(),
+            [CANNOT_COMPLETE_TOOL]: this._buildCannotCompleteTool(),
+        };
+        this._recordToolsRefreshed(metadata);
+        return this.tools;
+    }
+
+    _recordToolsRefreshed(metadata = {}) {
+        const normalizeList = (value) => Array.isArray(value)
+            ? value.filter((entry) => typeof entry === 'string' && entry.trim())
+            : [];
+        this.history.push({
+            type: 'system',
+            event: 'tools_refreshed',
+            message: 'Available tools have been refreshed.',
+            added: normalizeList(metadata.added),
+            updated: normalizeList(metadata.updated),
+            removed: normalizeList(metadata.removed),
+            at: new Date().toISOString(),
+        });
+    }
+
     _debug(...args) {
         if (this.debugLogger) {
             this.debugLogger.log(...args);
