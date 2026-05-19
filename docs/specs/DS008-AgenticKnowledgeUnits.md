@@ -12,9 +12,9 @@ summary: Deterministic local-first Knowledge Unit storage, indexing, search, and
 
 Agentic Knowledge Units, abbreviated as AKU, define a deterministic local memory library for AchillesAgentLib. The library stores work products as local Knowledge Units, maintains aggregated root-level indexes, ranks short structured records with BM25F-style lexical search, and builds compact ContextPack objects for agents that need reusable context.
 
-AKU is not an LLM feature, a semantic retrieval system, a vector database, or a replacement for the existing skill subsystems. It is a local filesystem-backed utility library that future agents, skills, and host applications may call when they need durable project memory. External agents decide what deserves to be stored, validated, updated, forked, discarded, or deleted. AKU provides the deterministic infrastructure for persisting, indexing, searching, repairing, and packaging that material.
+AKU is not an LLM feature, a semantic retrieval system, a vector database, a prompt interpreter, or a replacement for the existing skill subsystems. It is a local filesystem-backed utility library that callers may use when they need durable project memory. External callers decide what deserves to be stored, validated, updated, forked, discarded, or deleted. AKU provides the deterministic infrastructure for persisting, indexing, searching, repairing, and packaging that material.
 
-This specification is the design contract for the first AchillesAgentLib implementation. Code changes that implement AKU must update this specification and the companion architecture document when behavior, module layout, public APIs, storage format, ranking semantics, or recovery behavior changes.
+This specification is the design contract for the first AchillesAgentLib implementation. Code changes that implement AKU must update this specification when behavior, module layout, public APIs, storage format, ranking semantics, recovery behavior, testing obligations, or migration policy changes. DS008 is the canonical architecture, implementation, and behavioral contract for AKU; companion overview pages may summarize it, but they must not carry unique requirements.
 
 ## Core Content
 
@@ -60,6 +60,8 @@ V1 implementation work must explicitly reject the following shortcuts unless thi
 
 The durable source of truth must be the `.aku/kus/` tree and the KU-owned files under it. Root aggregated indexes are authoritative search caches, not the only durable state. If index files are missing, inconsistent, corrupt, or disagree with `index-meta.json`, AKU must prefer rebuilding from KU folders over trusting partial search state.
 
+A folder path alone is not enough by itself to create or select a KU. Folder context should enter AKU only through explicit caller intent, such as `registerFolderScope()` on an existing workstream KU or `initKU()` for a new folder/workstream KU followed by `registerFolderScope()`. This prevents accidental memory creation and prevents a broad directory from being recursively promoted into agent context.
+
 The root `.aku` folder should contain:
 
 ```txt
@@ -71,6 +73,7 @@ The root `.aku` folder should contain:
   ku-index.jsonl
   documents-index.jsonl
   files-index.jsonl
+  links-index.jsonl
   results-index.jsonl
   events-index.jsonl
   pending/
@@ -82,6 +85,7 @@ The root `.aku` folder should contain:
       documents/
       results/
       support/
+      links/
       sessions/
       code/
       data/
@@ -101,6 +105,7 @@ The v1 `index-meta.json` schema must include:
     "ku": 0,
     "document": 0,
     "file": 0,
+    "link": 0,
     "result": 0,
     "event": 0
   },
@@ -121,7 +126,7 @@ The v1 `index-meta.json` schema must include:
 
 ### Public API Contract
 
-The public API should remain class-based for ergonomic use inside AchillesAgentLib and host applications:
+The public API should remain class-based for ergonomic use inside AchillesAgentLib callers:
 
 ```js
 import { AgenticKnowledgeUnits } from 'ploinky-agent-lib/AgenticKnowledgeUnits';
@@ -149,6 +154,9 @@ setKUStatus(kuId, status, reason)
 recordEvent(kuId, event)
 recordDocument(kuId, document)
 registerFile(kuId, file)
+registerFolderScope(kuId, folder)
+linkKU(sourceKuId, targetKuId, link)
+unlinkKU(sourceKuId, linkId, reason)
 recordResult(kuId, result)
 recordRun(kuId, run)
 recordValidation(kuId, validation)
@@ -166,14 +174,20 @@ doctor(options)
 
 search(query, options)
 buildContextPack(query, options)
+buildScopedContextPack(query, options)
+resolveContextGraph(seedKuIds, options)
 
 listKUs(filter)
 listDocuments(filter)
 listFiles(filter)
+listFolderScopes(filter)
+listKULinks(kuId, filter)
 listResults(filter)
 ```
 
 `search()` and `buildContextPack()` may execute synchronously internally after `loadAKU()` has built the memory index, but their public shape should be async for API consistency and to allow optional detail loading.
+
+`registerFolderScope()` records a folder boundary as metadata on a caller-selected KU; it must not scan or ingest every file in that folder. `linkKU()` and `unlinkKU()` manage source-owned directional relationship records. `resolveContextGraph()` returns bounded graph metadata for explicit seed KUs, while `buildScopedContextPack()` is the only public pack-building API that may combine active KU, referenced KUs, folder scope, and bounded link hints in one ContextPack.
 
 All mutating methods must acquire the relevant lock, update the source files, update aggregated indexes or schedule a batch rebuild, and refresh in-memory state consistently. Methods that only rank already-loaded data must not touch KU folders unless explicit options request details.
 
@@ -240,6 +254,29 @@ actor
 source_operation
 ```
 
+`ku_type` is an open caller-defined string. AKU must not reject an otherwise valid KU only because its `ku_type` is not in a known catalog. The implementation should normalize it as data by trimming surrounding whitespace, rejecting or replacing an empty value with a deterministic default, bounding unreasonable length, and treating it only as metadata, never as a path, filename, code symbol, permission, or execution hint.
+
+Recommended v1 `ku_type` values for common interoperability are:
+
+| KU Type | Usage |
+|---|---|
+| `experiment` | Simulations, benchmarks, tests, runs, empirical validations. |
+| `specification` | Technical, functional, architectural, or API specifications. |
+| `scientific_article` | Articles, position papers, whitepapers. |
+| `internal_document` | Internal reports, analysis notes, strategies. |
+| `architecture_decision` | Technical decisions and justifications. |
+| `research_note` | Ideas, hypotheses, conceptual notes. |
+| `data_analysis` | Data analysis, checks, interpretations. |
+| `code_work` | Code development, refactoring, tests. |
+| `validation` | Conceptual, technical, or documentary validations. |
+| `meeting_outcome` | Structured outcome of a meeting. |
+| `business_analysis` | Pitch, commercial analysis, offer, strategy. |
+| `grant_or_deliverable` | Proposals, deliverables, consortium materials. |
+| `reusable_pattern` | Reusable technical or methodological pattern. |
+| `failure_note` | Informative failure worth preserving. |
+
+The recommended catalog above is not closed. Callers may use domain-specific type strings when they better describe the durable unit. A folder or workstream KU is a modeling role anchored by a folder-scope record and links; its `ku_type` may be a recommended value or a caller-defined value such as `workstream` when that is the clearest local model.
+
 `status` describes whether the KU or record is active in the memory system. `outcome_status` describes the result of the work represented by the KU. They should remain separate because a failed experiment can be an active and valuable `failure_note`, while an obsolete accepted decision may be excluded from normal search.
 
 `record_type` must remain separate from `ku_type`, `document_type`, and `result_type`. `record_type` controls which aggregate index and rendering contract applies. The more specific type fields describe the domain meaning of the record.
@@ -248,11 +285,27 @@ source_operation
 
 File records should include path, role, status, summary, tags, keywords, hash, size, MIME type when available, and last modified time when available. Hashes should use SHA-256. The display path stored in indexes should be relative to the AKU root, while the implementation resolves absolute paths internally under a trusted root.
 
+Folder scopes are represented as file records with `file_type: "folder_scope"` and `role: "folder_scope"`. Registering a folder scope records the project-relative folder path and metadata, but it must not recursively ingest every file in the folder. Folder scopes define a retrieval boundary and workstream identity; concrete files still need explicit registration when they become evidence.
+
+When a caller models a folder or workstream that contains multiple experiments, the preferred model is one folder or workstream KU plus one KU per experiment. The folder/workstream KU stores the folder scope and stable cross-experiment context. Each experiment KU stores its own state, documents, files, results, and reusable findings. The folder/workstream KU links to experiment KUs with relations such as `contains` or `references`; experiment KUs may link back or link to each other only when there is an explicit relationship such as `derived_from`, `uses_dataset`, `contradicts`, or `validates`. The folder KU must not become a dumping ground for every experiment record.
+
+KU links are first-class records stored in `links/links.jsonl` under the source KU and denormalized into `links-index.jsonl` plus `search-index.jsonl`. A link records `source_ku_id`, `target_ku_id`, `relation`, status, title, summary, tags, keywords, timestamps, actor, and metadata. Supported initial relations are `contains`, `references`, `depends_on`, `derived_from`, `forked_from`, `supersedes`, `contradicts`, `validates`, `uses_dataset`, and `produced_result`. Links are directional and source-owned; AKU must not create reciprocal records unless the caller explicitly asks for another link. Normal search may find link records, but link traversal must not implicitly load target KU contents into context.
+
 Deletion policy must be explicit. `discardKU()` must tombstone by setting status to `discarded`, recording a discard event, and excluding the KU from normal search. `deleteKU(kuId, { confirm: true })` may physically remove the KU folder and all aggregate index records. Physical deletion must require explicit confirmation. Normal search must never include discarded records unless the caller uses an explicit recovery or audit option.
 
 ### Search Indexing
 
 `loadAKU()` should parse `search-index.jsonl` and `search-stats.json` once, validate them against `index-meta.json`, retain records in memory, and build an ephemeral postings map. Normal search must not open individual KU folders.
+
+The runtime lifecycle must preserve this order:
+
+1. read `aku.json` and `index-meta.json`;
+2. validate pending markers, hashes, counts, and schema compatibility;
+3. load `search-index.jsonl` and `search-stats.json` only when the aggregate generation is coherent;
+4. build in-memory postings from the loaded search records;
+5. invoke `doctor({ autoRepair: true })` or instruct the caller to run `doctor()`/`rebuildIndexes()` when metadata, checksums, pending markers, or parseability show a recoverable inconsistency.
+
+Successful warm search starts after step 4. A repair path must rebuild from KU folders rather than trusting partially loaded aggregate files.
 
 The v1 postings model should be simple:
 
@@ -266,7 +319,7 @@ The implementation may upgrade postings arrays to `Uint32Array` after constructi
 
 Document frequency should be global per record for v1. Per-field document frequency is a possible future enhancement, but it should not complicate the first implementation.
 
-Index rebuilds should be full rewrites after mutation batches. Incremental append logs, tombstone compaction, persistent postings, and SQLite backends are future optimizations. V1 must prioritize repairability, deterministic behavior, and readability over micro-updates.
+Index rebuilds should be full rewrites after mutation batches. Incremental append logs, tombstone compaction, persistent postings, and SQLite backends are future optimizations. V1 must prioritize repairability, deterministic behavior, and readability over micro-updates. Future optimized backends must remain rebuildable from KU folders and denormalized search records; they must not become the only durable copy of user memory.
 
 ### Tokenization And Normalization
 
@@ -288,6 +341,8 @@ Path tokenization must be separate from path safety. Search aliases may split pa
 ### BM25F Ranking
 
 AKU must implement classic BM25F-style scoring rather than summing independent BM25 scores per field. For each query term, the scorer should combine normalized field evidence before applying saturation, then combine terms.
+
+The search pipeline order is part of the ranking contract: normalize query text/tags/keywords/phrases, compile and apply hard filters, generate candidates from postings where possible, score with classic BM25F, apply bounded exact-match evidence, apply weak status and recency modifiers, enforce deterministic per-KU diversity, and return explanations through `matched_on` and optional score components. This ordering prevents late exact-match checks or status boosts from hiding hard filters or changing candidate eligibility.
 
 Default field weights should be moderate:
 
@@ -385,6 +440,8 @@ Search result diversity should be deterministic. `maxResultsPerKU` should defaul
 
 `buildContextPack()` must reuse the same ranking pipeline as `search()` and then perform budgeted selection. It must not implement a separate relevance system.
 
+`buildScopedContextPack()` is an additive wrapper for callers that have explicit scope signals such as an active KU, explicit referenced KUs, a folder path, or a bounded link graph. It should collect candidate records from active and explicit KUs first, optionally add current-folder matches, and include KU link records as lightweight relationship hints. Linked target KU summaries are excluded by default; callers must opt in with an explicit linked-summary mode. This preserves graph navigability without polluting the active context with sibling experiments or historical work.
+
 The default v1 selector should use greedy MMR-style packing:
 
 ```txt
@@ -401,6 +458,8 @@ The packer should respect:
 - preference for KU summaries and reusable findings before long details;
 - `includeState`, `includeHistory`, and detail-loading options;
 - deterministic omission accounting.
+
+ContextPack detail loading must be progressive. The default L1 pack uses search-index fields only. `includeState` may load selected `state.md` content for records that survive selection. Explicit document or result options may load selected detail records. `includeHistory` must remain explicit because `history.md` can be long and can easily swamp the prompt. The packer must decide what survives the budget before loading expensive details wherever practical.
 
 `ContextPack` should optimize primarily for character count. It may expose an approximate token estimate, but token estimation must not become a required runtime dependency.
 
@@ -472,6 +531,8 @@ release lock
 ```
 
 Multi-file operations are not atomically committed by rename alone. `index-meta.json` is the commit marker for a coherent aggregate-index generation. On startup, any pending transaction marker or metadata mismatch must cause `loadAKU()` to report recoverable inconsistency and either invoke `doctor({ autoRepair: true })` when configured or instruct the caller to run `doctor()` or `rebuildIndexes()`.
+
+For record mutations such as `recordDocument()`, `recordResult()`, `registerFile()`, `registerFolderScope()`, or `linkKU()`, the write flow must acquire the required root and KU locks, write a pending transaction marker, update the KU-owned source record, rebuild or schedule the aggregate index generation, write aggregate files and stats, write `index-meta.json` last, remove the pending marker, and release locks. Callers must never observe a new aggregate generation as coherent until the final metadata file has been committed.
 
 Windows-specific transient `EPERM`, `EACCES`, and `EBUSY` around rename, unlink, and cleanup must be retried with bounded exponential backoff.
 
@@ -604,6 +665,22 @@ Response: Public methods should be async for consistency and future extensibilit
 ### Question #10: Where should AKU integrate with `MainAgent`?
 
 Response: AKU should not be implicit in `MainAgent` v1. Explicit construction by host projects or skills avoids hidden persistence, avoids changing existing agent behavior, and respects the current AchillesAgentLib separation between runtime orchestration and supporting utilities.
+
+### Question #11: Should passing a folder path make that folder a Knowledge Unit?
+
+Response: Not automatically. A folder can be a useful workstream boundary, but creating durable memory is a semantic decision that belongs to the caller. The correct invariant is that a caller may pass a sanitized folder scope hint, while AKU records that hint only when the caller explicitly creates or selects a KU and calls `registerFolderScope()`.
+
+### Question #12: How should three experiments run from one folder be represented?
+
+Response: Use one folder or workstream KU to represent the scoped folder, then create one KU per experiment. The folder KU records the folder scope and links to the three experiment KUs, typically with `contains` or `references`. Each experiment KU owns its own notes, registered files, runs, validations, results, and reusable findings. This keeps experiment state isolated while preserving a navigable project graph.
+
+### Question #13: Why are linked target KU summaries opt-in for scoped context?
+
+Response: KU links are relationship evidence, not permission to flood the prompt. Including link records by default lets an agent see that related experiments or dependencies exist, but automatically loading linked target summaries can pollute the active experiment context with sibling or historical material. `buildScopedContextPack()` therefore includes lightweight link hints by default and requires explicit linked-summary or target-inclusion options before it loads linked KU summaries.
+
+### Question #14: Why keep AKU architecture requirements in DS008 instead of a separate architecture Markdown file?
+
+Response: AKU now has one governing contract. Keeping architecture flows, storage layout, ranking order, ContextPack behavior, recovery rules, and migration policy in DS008 prevents a separate Markdown page from drifting away from the DS. Overview HTML pages may summarize DS008 for navigation, but they must not introduce requirements that are absent from the DS.
 
 ## Conclusion
 
