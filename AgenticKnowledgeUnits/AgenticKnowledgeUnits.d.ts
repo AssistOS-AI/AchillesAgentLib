@@ -24,6 +24,10 @@ export interface AKUSearchOptions {
     status?: string | string[];
     tags?: string | string[];
     kuId?: string | string[];
+    sourceKuId?: string | string[];
+    targetKuId?: string | string[];
+    fileType?: string | string[];
+    linkRelation?: string | string[];
 }
 
 export interface ContextPackOptions extends AKUSearchOptions {
@@ -54,6 +58,9 @@ export class AgenticKnowledgeUnits {
     recordEvent(kuId: string, event?: Record<string, unknown>): Promise<Record<string, unknown>>;
     recordDocument(kuId: string, document?: Record<string, unknown>): Promise<Record<string, unknown>>;
     registerFile(kuId: string, file: Record<string, unknown>): Promise<Record<string, unknown>>;
+    registerFolderScope(kuId: string, folder: Record<string, unknown>): Promise<Record<string, unknown>>;
+    linkKU(sourceKuId: string, targetKuId: string, link?: Record<string, unknown>): Promise<Record<string, unknown>>;
+    unlinkKU(sourceKuId: string, linkId: string, reason?: string): Promise<Record<string, unknown>>;
     recordResult(kuId: string, result?: Record<string, unknown>): Promise<Record<string, unknown>>;
     recordRun(kuId: string, run?: Record<string, unknown>): Promise<Record<string, unknown>>;
     recordValidation(kuId: string, validation?: Record<string, unknown>): Promise<Record<string, unknown>>;
@@ -71,10 +78,23 @@ export class AgenticKnowledgeUnits {
 
     search(query: string | Record<string, unknown>, options?: AKUSearchOptions): Promise<Record<string, unknown>>;
     buildContextPack(query: string | Record<string, unknown>, options?: ContextPackOptions): Promise<Record<string, unknown>>;
+    buildScopedContextPack(query: string | Record<string, unknown>, options?: ContextPackOptions & {
+        activeKuId?: string;
+        explicitKuIds?: string[];
+        referencedKuIds?: string[];
+        folderPath?: string;
+        linkDepth?: number;
+        includeLinked?: boolean | 'none' | 'links' | 'summaries' | 'targets';
+        perKuCandidateLimit?: number;
+        folderCandidateLimit?: number;
+    }): Promise<Record<string, unknown>>;
+    resolveContextGraph(seedKuIds: string | string[], options?: Record<string, unknown>): Promise<Record<string, unknown>>;
 
     listKUs(filter?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
     listDocuments(filter?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
     listFiles(filter?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
+    listFolderScopes(filter?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
+    listKULinks(kuId: string | Record<string, unknown>, filter?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
     listResults(filter?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
 }
 

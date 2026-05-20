@@ -152,6 +152,7 @@ export class AKUFileStore {
         const history = await this.readKUText(kuId, KU_FILES.history, { allowMissing: true, defaultValue: '' });
         const documents = await this.readKUJsonl(kuId, KU_FILES.documents, { allowMissing: true });
         const files = await this.readKUJsonl(kuId, KU_FILES.files, { allowMissing: true });
+        const links = await this.readKUJsonl(kuId, KU_FILES.links, { allowMissing: true });
         const results = await this.readKUJsonl(kuId, KU_FILES.results, { allowMissing: true });
         const events = await this.readKUJsonl(kuId, KU_FILES.events, { allowMissing: true });
         const sessions = await this.readKUJsonl(kuId, KU_FILES.sessions, { allowMissing: true });
@@ -161,6 +162,7 @@ export class AKUFileStore {
             history,
             documents,
             files,
+            links,
             results,
             events,
             sessions,
@@ -184,21 +186,50 @@ export class AKUFileStore {
     }
 
     async describeProjectFile(relativePath) {
+        const described = await this.describeProjectEntry(relativePath);
+        if (described.kind !== 'file' && described.kind !== 'missing') {
+            throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Registered file path is not a regular file', {
+                path: relativePath,
+            });
+        }
+        const { kind, ...rest } = described;
+        return rest;
+    }
+
+    async describeProjectDirectory(relativePath) {
+        const described = await this.describeProjectEntry(relativePath);
+        if (described.kind !== 'directory' && described.kind !== 'missing') {
+            throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Registered folder scope path is not a directory', {
+                path: relativePath,
+            });
+        }
+        const { kind, hash, size, ...rest } = described;
+        return {
+            ...rest,
+            hash: null,
+            size: null,
+        };
+    }
+
+    async describeProjectEntry(relativePath) {
         const resolved = await resolveSafeRelative(this.rootDir, relativePath, {
             allowSensitivePaths: this.allowSensitivePaths,
         });
         try {
             const stat = await fs.stat(resolved.absolute);
-            if (!stat.isFile()) {
-                throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Registered file path is not a regular file', {
+            const isFile = stat.isFile();
+            const isDirectory = stat.isDirectory();
+            if (!isFile && !isDirectory) {
+                throw new AKUError(AKU_ERROR_CODES.AKU_PATH_ESCAPE, 'Registered path is not a file or directory', {
                     path: relativePath,
                 });
             }
-            const hash = await hashFile(resolved.absolute);
+            const hash = isFile ? await hashFile(resolved.absolute) : null;
             return {
+                kind: isFile ? 'file' : 'directory',
                 path: projectDisplayPath(this.rootDir, resolved.absolute),
                 hash,
-                size: stat.size,
+                size: isFile ? stat.size : null,
                 mtime: stat.mtime.toISOString(),
             };
         } catch (error) {
@@ -207,6 +238,7 @@ export class AKUFileStore {
             }
             if (error?.code === 'ENOENT') {
                 return {
+                    kind: 'missing',
                     path: resolved.relative,
                     hash: null,
                     size: null,

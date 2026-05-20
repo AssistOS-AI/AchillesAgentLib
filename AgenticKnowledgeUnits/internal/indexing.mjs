@@ -25,6 +25,7 @@ export class AKUIndexBuilder {
         const kuRecords = [];
         const documentRecords = [];
         const fileRecords = [];
+        const linkRecords = [];
         const resultRecords = [];
         const eventRecords = [];
         const searchRecords = [];
@@ -44,6 +45,11 @@ export class AKUIndexBuilder {
             for (const file of ku.files) {
                 const record = buildFileRecord(stripSensitiveFields(file), manifest);
                 fileRecords.push(record);
+                searchRecords.push(record);
+            }
+            for (const link of ku.links ?? []) {
+                const record = buildLinkRecord(stripSensitiveFields(link), manifest);
+                linkRecords.push(record);
                 searchRecords.push(record);
             }
             for (const result of ku.results) {
@@ -66,6 +72,7 @@ export class AKUIndexBuilder {
             [ROOT_FILES.kuIndex]: stringifyJsonl(sortRecords(kuRecords)),
             [ROOT_FILES.documentsIndex]: stringifyJsonl(sortRecords(documentRecords)),
             [ROOT_FILES.filesIndex]: stringifyJsonl(sortRecords(fileRecords)),
+            [ROOT_FILES.linksIndex]: stringifyJsonl(sortRecords(linkRecords)),
             [ROOT_FILES.resultsIndex]: stringifyJsonl(sortRecords(resultRecords)),
             [ROOT_FILES.eventsIndex]: stringifyJsonl(sortRecords(eventRecords)),
         };
@@ -74,6 +81,7 @@ export class AKUIndexBuilder {
             ku: kuRecords.length,
             document: documentRecords.length,
             file: fileRecords.length,
+            link: linkRecords.length,
             result: resultRecords.length,
             event: eventRecords.length,
         };
@@ -230,6 +238,30 @@ export function buildFileRecord(file, manifest) {
         mtime: file.mtime ?? null,
         created_at: file.created_at ?? manifest.created_at,
         updated_at: file.updated_at ?? file.created_at ?? manifest.updated_at,
+    });
+}
+
+export function buildLinkRecord(link, manifest) {
+    return compactSearchRecord({
+        search_id: `link:${manifest.ku_id}:${link.link_id}`,
+        record_type: RECORD_TYPES.link,
+        ku_id: manifest.ku_id,
+        source_ku_id: link.source_ku_id ?? manifest.ku_id,
+        target_ku_id: link.target_ku_id,
+        ku_type: manifest.ku_type,
+        ku_status: manifest.status,
+        link_id: link.link_id,
+        relation: link.relation,
+        status: link.status ?? manifest.status,
+        title: link.title,
+        summary: link.summary ?? link.reason,
+        type: link.relation ?? 'link',
+        path: `kus/${manifest.ku_id}/links/${link.link_id}`,
+        tags: mergeArrays(manifest.tags, link.tags),
+        keywords: mergeArrays(manifest.keywords, link.keywords, [link.relation, link.target_ku_id]),
+        reusable_findings: [],
+        created_at: link.created_at ?? manifest.created_at,
+        updated_at: link.updated_at ?? link.created_at ?? manifest.updated_at,
     });
 }
 

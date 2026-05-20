@@ -25,7 +25,25 @@ export class ContextPackBuilder {
             limit: candidateLimit,
             maxResultsPerKU: 0,
         });
-        const candidates = [...searchResult.results];
+        return this.buildFromCandidates(query, searchResult.results, {
+            ...options,
+            budgetChars,
+            lambda,
+            candidateLimit,
+            maxResultsPerKU,
+            quotas,
+        });
+    }
+
+    async buildFromCandidates(query, candidateRecords = [], options = {}) {
+        const budgetChars = options.budgetChars ?? this.defaultBudgetChars;
+        const lambda = options.lambda ?? CONTEXT_PACK_DEFAULTS.lambda;
+        const maxResultsPerKU = options.maxResultsPerKU ?? CONTEXT_PACK_DEFAULTS.maxResultsPerKU;
+        const quotas = {
+            ...CONTEXT_PACK_DEFAULTS.quotas,
+            ...(options.quotas ?? {}),
+        };
+        const candidates = [...candidateRecords];
         const selected = [];
         const omitted = [];
         const perKu = new Map();
@@ -115,6 +133,9 @@ export class ContextPackBuilder {
             matched_on: result.matched_on ?? [],
             loaded_level: 'L1',
         };
+        if (result.scope) {
+            item.scope = result.scope;
+        }
 
         if (options.includeState && result.record_type === 'ku') {
             const details = await this.loadDetails(result, { includeState: true });

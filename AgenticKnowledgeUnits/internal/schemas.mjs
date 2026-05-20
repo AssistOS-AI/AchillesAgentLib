@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import {
     AKU_SCHEMA_VERSION,
+    KU_LINK_RELATIONS,
     RECORD_TYPES,
     SENSITIVE_FIELD_NAMES,
     STATUSES,
@@ -88,6 +89,18 @@ export function validateKuId(kuId) {
         );
     }
     return String(kuId);
+}
+
+export function normalizeKULinkRelation(relation = 'references') {
+    const normalized = String(relation || 'references').trim().toLowerCase();
+    if (!KU_LINK_RELATIONS.includes(normalized)) {
+        throw new AKUError(
+            AKU_ERROR_CODES.AKU_SCHEMA_ERROR,
+            `Invalid KU link relation: ${relation}`,
+            { relation },
+        );
+    }
+    return normalized;
 }
 
 export function normalizeRecordId(prefix, value, clock) {
@@ -293,6 +306,38 @@ export function normalizeFileRecord(file = {}, context = {}) {
         updated_at: file.updated_at ?? file.created_at ?? now,
         actor: file.actor ?? context.actor ?? null,
         metadata: stripSensitiveFields(file.metadata ?? {}),
+    });
+}
+
+export function normalizeKULink(link = {}, context = {}) {
+    const now = isoNow(context.clock);
+    const sourceKuId = validateKuId(link.source_ku_id ?? link.sourceKuId ?? context.kuId);
+    const targetKuId = validateKuId(link.target_ku_id ?? link.targetKuId);
+    if (sourceKuId === targetKuId && link.allow_self !== true && link.allowSelf !== true) {
+        throw new AKUError(
+            AKU_ERROR_CODES.AKU_SCHEMA_ERROR,
+            'KU links must point at a different KU',
+            { sourceKuId, targetKuId },
+        );
+    }
+    const relation = normalizeKULinkRelation(link.relation ?? link.type);
+    return stripUndefined({
+        link_id: normalizeRecordId('link', link.link_id ?? link.id, context.clock),
+        ku_id: sourceKuId,
+        source_ku_id: sourceKuId,
+        target_ku_id: targetKuId,
+        record_type: RECORD_TYPES.link,
+        relation,
+        status: normalizeStatus(link.status ?? 'active'),
+        title: cleanString(link.title ?? `${relation} ${targetKuId}`),
+        summary: cleanString(link.summary ?? link.description ?? link.reason),
+        reason: link.reason ?? null,
+        tags: asArray(link.tags).map(String),
+        keywords: asArray(link.keywords).map(String),
+        created_at: link.created_at ?? now,
+        updated_at: link.updated_at ?? link.created_at ?? now,
+        actor: link.actor ?? context.actor ?? null,
+        metadata: stripSensitiveFields(link.metadata ?? {}),
     });
 }
 

@@ -17,6 +17,7 @@ import {
     normalizeDocument,
     normalizeEvent,
     normalizeFileRecord,
+    normalizeKULink,
     normalizeResult,
     normalizeSession,
     normalizeStatus,
@@ -285,6 +286,109 @@ export class AgenticKnowledgeUnits {
         return record;
     }
 
+    async registerFolderScope(kuId, folder = {}) {
+        validateKuId(kuId);
+        const described = await this.store.describeProjectDirectory(folder.path);
+        const record = normalizeFileRecord({
+            ...folder,
+            ...described,
+            file_type: folder.file_type ?? folder.type ?? 'folder_scope',
+            role: folder.role ?? 'folder_scope',
+            title: folder.title ?? `Folder scope: ${described.path}`,
+            summary: folder.summary ?? folder.description ?? '',
+        }, this.contextFor(kuId));
+        await this.withKUTransaction(kuId, 'registerFolderScope', async (tx) => {
+            const ku = await this.store.loadKU(kuId);
+            const event = normalizeEvent({
+                event_type: 'folder_scope_registered',
+                title: 'Folder scope registered',
+                summary: record.summary || record.path,
+                metadata: {
+                    path: record.path,
+                    file_id: record.file_id,
+                },
+            }, this.contextFor(kuId));
+            const manifest = touchManifest(ku.manifest, {
+                last_file_id: record.file_id,
+                last_event_id: event.event_id,
+            }, this.contextFor(kuId));
+            await this.appendKUJsonl(tx, kuId, KU_FILES.files, record);
+            await this.appendKUJsonl(tx, kuId, KU_FILES.events, event);
+            await tx.writeJson(this.store.kuFile(kuId, KU_FILES.manifest), manifest);
+        });
+        return record;
+    }
+
+    async linkKU(sourceKuId, targetKuId, link = {}) {
+        validateKuId(sourceKuId);
+        validateKuId(targetKuId);
+        await this.ensureKUExists(targetKuId);
+        const record = normalizeKULink({
+            ...link,
+            source_ku_id: sourceKuId,
+            target_ku_id: targetKuId,
+        }, this.contextFor(sourceKuId));
+        await this.withKUTransaction(sourceKuId, 'linkKU', async (tx) => {
+            const ku = await this.store.loadKU(sourceKuId);
+            const event = normalizeEvent({
+                event_type: 'ku_linked',
+                title: 'KU linked',
+                summary: record.summary || `${record.relation} ${targetKuId}`,
+                metadata: {
+                    link_id: record.link_id,
+                    target_ku_id: targetKuId,
+                    relation: record.relation,
+                },
+            }, this.contextFor(sourceKuId));
+            const manifest = touchManifest(ku.manifest, {
+                last_event_id: event.event_id,
+            }, this.contextFor(sourceKuId));
+            await this.appendKUJsonl(tx, sourceKuId, KU_FILES.links, record);
+            await this.appendKUJsonl(tx, sourceKuId, KU_FILES.events, event);
+            await tx.writeJson(this.store.kuFile(sourceKuId, KU_FILES.manifest), manifest);
+        });
+        return record;
+    }
+
+    async unlinkKU(sourceKuId, linkId, reason = '') {
+        validateKuId(sourceKuId);
+        const normalizedLinkId = String(linkId || '').trim();
+        if (!/^link_[a-z0-9][a-z0-9_-]*$/i.test(normalizedLinkId)) {
+            throw new AKUError(AKU_ERROR_CODES.AKU_SCHEMA_ERROR, `Invalid link id: ${linkId}`, { linkId });
+        }
+        let updatedLink = null;
+        await this.withKUTransaction(sourceKuId, 'unlinkKU', async (tx) => {
+            const links = await this.store.readKUJsonl(sourceKuId, KU_FILES.links, { allowMissing: true });
+            const index = links.findIndex(item => item.link_id === normalizedLinkId);
+            if (index === -1) {
+                throw new AKUError(AKU_ERROR_CODES.AKU_NOT_FOUND, `KU link not found: ${normalizedLinkId}`, {
+                    kuId: sourceKuId,
+                    linkId: normalizedLinkId,
+                });
+            }
+            updatedLink = {
+                ...links[index],
+                status: 'discarded',
+                discard_reason: reason,
+                updated_at: isoNow(this.clock),
+            };
+            links[index] = updatedLink;
+            const event = normalizeEvent({
+                event_type: 'ku_unlinked',
+                title: 'KU link discarded',
+                summary: reason,
+                metadata: {
+                    link_id: normalizedLinkId,
+                    target_ku_id: updatedLink.target_ku_id,
+                    relation: updatedLink.relation,
+                },
+            }, this.contextFor(sourceKuId));
+            await tx.writeJsonl(this.store.kuFile(sourceKuId, KU_FILES.links), links);
+            await this.appendKUJsonl(tx, sourceKuId, KU_FILES.events, event);
+        });
+        return updatedLink;
+    }
+
     async recordResult(kuId, result = {}) {
         validateKuId(kuId);
         const record = normalizeResult(result, this.contextFor(kuId));
@@ -410,6 +514,7 @@ export class AgenticKnowledgeUnits {
                     history: options.includeHistory ? source.history : '',
                     documents: options.includeRecords ? source.documents : [],
                     files: options.includeRecords ? source.files : [],
+                    links: options.includeRecords ? source.links : [],
                     results: options.includeRecords ? source.results : [],
                     events: [
                         normalizeEvent({
@@ -496,8 +601,196 @@ export class AgenticKnowledgeUnits {
         return this.listRecords('file', filter);
     }
 
+    async listFolderScopes(filter = {}) {
+        return this.listRecords('file', {
+            ...filter,
+            fileType: 'folder_scope',
+        });
+    }
+
+    async listKULinks(kuId, filter = {}) {
+        if (kuId && typeof kuId === 'object') {
+            return this.listRecords('link', kuId);
+        }
+        validateKuId(kuId);
+        return this.listRecords('link', {
+            ...filter,
+            sourceKuId: kuId,
+        });
+    }
+
     async listResults(filter = {}) {
         return this.listRecords('result', filter);
+    }
+
+    async resolveContextGraph(seedKuIds = [], options = {}) {
+        if (!this.loaded) {
+            await this.loadAKU();
+        }
+        const seeds = uniqueStrings(Array.isArray(seedKuIds) ? seedKuIds : [seedKuIds])
+            .filter(Boolean)
+            .map(validateKuId);
+        const maxDepth = Math.max(0, Number.isFinite(options.linkDepth) ? options.linkDepth : 1);
+        const includeDiscarded = Boolean(options.includeDiscarded || options.audit || options.recovery);
+        const visited = new Set(seeds);
+        const edges = [];
+        const queue = seeds.map(kuId => ({ kuId, depth: 0 }));
+
+        while (queue.length) {
+            const { kuId, depth } = queue.shift();
+            if (depth >= maxDepth) {
+                continue;
+            }
+            const links = await this.listKULinks(kuId, { includeDiscarded });
+            for (const link of links) {
+                edges.push({
+                    ...link,
+                    depth: depth + 1,
+                });
+                const target = link.target_ku_id;
+                if (target && !visited.has(target)) {
+                    visited.add(target);
+                    queue.push({ kuId: target, depth: depth + 1 });
+                }
+            }
+        }
+
+        const nodes = [];
+        for (const kuId of visited) {
+            const [record] = await this.listKUs({
+                kuId,
+                includeDiscarded,
+                includeObsolete: options.includeObsolete,
+            });
+            if (record) {
+                nodes.push(record);
+            }
+        }
+        return {
+            seeds,
+            nodes,
+            edges,
+            max_depth: maxDepth,
+        };
+    }
+
+    async buildScopedContextPack(query, options = {}) {
+        if (!this.loaded) {
+            await this.loadAKU();
+        }
+        const activeKuId = options.activeKuId ? validateKuId(options.activeKuId) : null;
+        const explicitKuIds = uniqueStrings(options.explicitKuIds ?? options.referencedKuIds ?? [])
+            .map(validateKuId);
+        const seedKuIds = uniqueStrings([activeKuId, ...explicitKuIds].filter(Boolean));
+        const candidateMap = new Map();
+        const includeLinked = options.includeLinked ?? 'links';
+        const linkDepth = includeLinked === false || includeLinked === 'none'
+            ? 0
+            : Math.max(0, Number.isFinite(options.linkDepth) ? options.linkDepth : 1);
+
+        const addCandidate = (record, scope, scoreBoost = 0) => {
+            if (!record?.search_id) {
+                return;
+            }
+            const previous = candidateMap.get(record.search_id);
+            const score = Number(((record.score ?? 0.5) + scoreBoost).toFixed(6));
+            const matchedOn = [
+                ...(record.matched_on ?? []),
+                `scope:${scope}`,
+            ];
+            const candidate = {
+                ...record,
+                score,
+                matched_on: [...new Set(matchedOn)].sort(),
+                scope: previous?.scope && previous.scope !== scope ? `${previous.scope},${scope}` : scope,
+            };
+            if (!previous || candidate.score > previous.score) {
+                candidateMap.set(record.search_id, candidate);
+            }
+        };
+
+        for (const kuId of seedKuIds) {
+            const scope = kuId === activeKuId ? 'active_ku' : 'explicit_ku';
+            const [kuRecord] = await this.listKUs({
+                kuId,
+                includeDiscarded: options.includeDiscarded,
+                includeObsolete: options.includeObsolete,
+            });
+            if (kuRecord) {
+                addCandidate(kuRecord, scope, kuId === activeKuId ? 0.75 : 0.55);
+            }
+            const scopedSearch = await this.search(query, {
+                ...options,
+                kuId,
+                explain: true,
+                limit: options.perKuCandidateLimit ?? 12,
+                maxResultsPerKU: 0,
+            });
+            for (const result of scopedSearch.results) {
+                addCandidate(result, `${scope}_evidence`, kuId === activeKuId ? 0.30 : 0.20);
+            }
+        }
+
+        if (options.folderPath) {
+            const folderSearch = await this.search(query, {
+                ...options,
+                filters: {
+                    ...(options.filters ?? {}),
+                    pathPrefix: String(options.folderPath).replace(/\\+/g, '/').replace(/^\/+/, ''),
+                },
+                explain: true,
+                limit: options.folderCandidateLimit ?? 12,
+                maxResultsPerKU: 0,
+            });
+            for (const result of folderSearch.results) {
+                addCandidate(result, 'folder_scope', 0.12);
+            }
+        }
+
+        if (seedKuIds.length && linkDepth > 0) {
+            const graph = await this.resolveContextGraph(seedKuIds, {
+                linkDepth,
+                includeDiscarded: options.includeDiscarded,
+                includeObsolete: options.includeObsolete,
+            });
+            for (const edge of graph.edges) {
+                addCandidate(edge, 'ku_link', 0.05);
+            }
+            if (includeLinked === 'summaries' || includeLinked === true || includeLinked === 'targets') {
+                const linkedKuIds = graph.nodes
+                    .map(record => record.ku_id)
+                    .filter(kuId => !seedKuIds.includes(kuId));
+                for (const kuId of linkedKuIds) {
+                    const [record] = await this.listKUs({
+                        kuId,
+                        includeDiscarded: options.includeDiscarded,
+                        includeObsolete: options.includeObsolete,
+                    });
+                    if (record) {
+                        addCandidate(record, 'linked_ku_summary', 0.08);
+                    }
+                }
+            }
+        }
+
+        const candidates = Array.from(candidateMap.values())
+            .sort((a, b) => (b.score - a.score) || String(a.search_id).localeCompare(String(b.search_id)));
+        const pack = await this.contextPackBuilder.buildFromCandidates(query, candidates, {
+            ...options,
+            explain: options.explain ?? true,
+        });
+        return finalizePackSize({
+            ...pack,
+            algorithm: 'scoped_aku_context_pack',
+            scope: {
+                active_ku_id: activeKuId,
+                explicit_ku_ids: explicitKuIds,
+                folder_path: options.folderPath ?? null,
+                link_depth: linkDepth,
+                include_linked: includeLinked,
+                candidate_count: candidates.length,
+            },
+        });
     }
 
     async listRecords(recordType, filter = {}) {
@@ -538,6 +831,19 @@ export class AgenticKnowledgeUnits {
             throw new AKUError(AKU_ERROR_CODES.AKU_NOT_FOUND, 'AKU has not been initialized', {
                 rootDir: this.rootDir,
             });
+        }
+    }
+
+    async ensureKUExists(kuId) {
+        validateKuId(kuId);
+        await this.ensureAKU();
+        try {
+            await fs.stat(this.store.kuDir(kuId));
+        } catch (error) {
+            if (error?.code === 'ENOENT') {
+                throw new AKUError(AKU_ERROR_CODES.AKU_NOT_FOUND, `KU not found: ${kuId}`, { kuId });
+            }
+            throw error;
         }
     }
 
@@ -635,6 +941,7 @@ export class AgenticKnowledgeUnits {
         await tx.replaceFile(this.store.kuFile(manifest.ku_id, KU_FILES.history), source.history ?? '');
         await tx.writeJsonl(this.store.kuFile(manifest.ku_id, KU_FILES.documents), source.documents ?? []);
         await tx.writeJsonl(this.store.kuFile(manifest.ku_id, KU_FILES.files), source.files ?? []);
+        await tx.writeJsonl(this.store.kuFile(manifest.ku_id, KU_FILES.links), source.links ?? []);
         await tx.writeJsonl(this.store.kuFile(manifest.ku_id, KU_FILES.results), source.results ?? []);
         await tx.writeJsonl(this.store.kuFile(manifest.ku_id, KU_FILES.events), source.events ?? []);
         await tx.writeJsonl(this.store.kuFile(manifest.ku_id, KU_FILES.sessions), source.sessions ?? []);
@@ -684,3 +991,25 @@ export class AgenticKnowledgeUnits {
 }
 
 export default AgenticKnowledgeUnits;
+
+function uniqueStrings(values = []) {
+    return [...new Set((Array.isArray(values) ? values : [values])
+        .map(value => String(value || '').trim())
+        .filter(Boolean))];
+}
+
+function finalizePackSize(pack) {
+    let usedChars = 0;
+    let nextPack = pack;
+    do {
+        usedChars = nextPack.used_chars;
+        nextPack = {
+            ...nextPack,
+            used_chars: JSON.stringify({
+                ...nextPack,
+                used_chars: usedChars,
+            }).length,
+        };
+    } while (nextPack.used_chars !== usedChars);
+    return nextPack;
+}
