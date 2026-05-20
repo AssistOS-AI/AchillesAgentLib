@@ -146,24 +146,32 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     return lines.join('\n');
 };
 
-const buildPreparationPrompt = (preparationText, userPrompt) => {
+const buildPreparationPrompt = (preparationText, userPrompt, preparationContext = '') => {
     const preparation = String(preparationText || '').trim();
     if (!preparation) {
         return '';
     }
     const requestText = String(userPrompt || '').trim();
+    const contextText = String(preparationContext || '').trim();
     const parts = [
         'Preparation instructions:',
         preparation,
         '',
     ];
+    if (contextText) {
+        parts.push('Orchestrator context:');
+        parts.push(contextText);
+        parts.push('');
+    }
     if (requestText) {
         parts.push('User request:');
         parts.push(requestText);
         parts.push('');
     }
     parts.push('Do NOT execute the user request in this step; use it only as context to follow the preparation instructions.');
-    parts.push('If the clarify_context tool is available and you need more context to understand the user request or clarify what is happening in the conversation, call it with one or more specific questions for the exact information you need instead of guessing.');
+    parts.push('Use the orchestrator context above as authoritative local context for this preparation step.');
+    parts.push('If the clarify_context tool is available and you need more conversation context, call it with one or more specific questions for the exact information you need. Its result is the answer to those questions, sourced only from the parent conversation context.');
+    parts.push('Do not use clarify_context to ask for information already answered by the orchestrator context. Do not output "awaiting clarification"; output only prepared context values you actually recovered.');
     parts.push('Based on the preparation instructions, output only lines in the format:');
     parts.push('@context_key := "value"');
     parts.push('Do not include any extra text.');

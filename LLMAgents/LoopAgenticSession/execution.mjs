@@ -480,6 +480,7 @@ async function newPrompt(session, SessionClass, userPrompt, options = {}) {
                 supervisor: session.supervisor,
                 signal: promptSignal,
                 parentContext: session.preparation.parentContext || null,
+                preparationContext: session.preparation.context || '',
             },
             preparationText: session.preparation.text,
             userPrompt,

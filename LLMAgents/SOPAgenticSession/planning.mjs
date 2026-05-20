@@ -422,6 +422,7 @@ async function newPrompt(session, SessionClass, userPrompt, promptOptions = {}) 
                 signal: session._currentAbortSignal,
                 supervisor: session.supervisor,
                 parentContext: session.preparation.parentContext || null,
+                preparationContext: session.preparation.context || '',
             },
             preparationText: session.preparation.text,
             userPrompt,

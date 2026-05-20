@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { LoopAgentSession } from '../../LLMAgents/LoopAgenticSession/LoopAgentSession.mjs';
+import { buildPreparationPrompt as buildLoopPreparationPrompt } from '../../LLMAgents/LoopAgenticSession/prompts.mjs';
 import { SOPAgenticSession } from '../../LLMAgents/SOPAgenticSession/SOPAgenticSession.mjs';
+import { buildPreparationPrompt as buildSOPPreparationPrompt } from '../../LLMAgents/SOPAgenticSession/prompts.mjs';
 import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 
 // Minimal stub LLM agent for testing preparation flows
@@ -161,6 +163,19 @@ test('LoopAgentSession.runPreparation retries on failure', async () => {
     // Note: due to retry logic, we expect either success or empty result
 });
 
+test('LoopAgentSession preparation prompt includes orchestrator context and clarify_context result contract', () => {
+    const prompt = buildLoopPreparationPrompt(
+        'Recover conversation context.',
+        'Create a skill.',
+        'Orchestrator description:\nSkill-management orchestrator.',
+    );
+
+    assert.match(prompt, /Orchestrator context:/);
+    assert.match(prompt, /Skill-management orchestrator/);
+    assert.match(prompt, /Its result is the answer to those questions/);
+    assert.match(prompt, /Do not output "awaiting clarification"/);
+});
+
 // =============================================================================
 // SOPAgenticSession.runPreparation tests
 // =============================================================================
@@ -227,6 +242,19 @@ test('SOPAgenticSession.runPreparation returns empty when preparationText is emp
     assert.equal(result.contextLines.length, 0);
 });
 
+test('SOPAgenticSession preparation prompt includes orchestrator context and clarify_context result contract', () => {
+    const prompt = buildSOPPreparationPrompt(
+        'Recover conversation context.',
+        'Create a skill.',
+        'Orchestrator instructions:\nUse skill-management operations.',
+    );
+
+    assert.match(prompt, /Orchestrator context:/);
+    assert.match(prompt, /Use skill-management operations/);
+    assert.match(prompt, /Its result is the answer to those questions/);
+    assert.match(prompt, /Do not finish with "awaiting clarification"/);
+});
+
 // =============================================================================
 // OrchestratorSkillsSubsystem preparation integration tests
 // =============================================================================
@@ -270,6 +298,11 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
 
     const skillRecord = {
         name: 'test-loop-orchestrator',
+        descriptor: {
+            sections: {
+                description: 'Loop orchestration description',
+            },
+        },
         preparedConfig: {
             sessionType: 'loop',
             instructions: 'Execute the task',
@@ -289,6 +322,8 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
     assert.equal(result.session, 'loop');
     assert.ok(capturedOptions.preparation, 'preparation option should be passed');
     assert.equal(capturedOptions.preparation.text, 'Load user context');
+    assert.match(capturedOptions.preparation.context, /Loop orchestration description/);
+    assert.match(capturedOptions.preparation.context, /Execute the task/);
     assert.equal(capturedOptions.preparation.retries, 1);
     assert.equal(capturedOptions.supervisor, supervisor);
 });
@@ -434,6 +469,11 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
 
     const skillRecord = {
         name: 'test-sop-orchestrator',
+        descriptor: {
+            sections: {
+                description: 'SOP orchestration description',
+            },
+        },
         preparedConfig: {
             sessionType: null, // SOP session (no loop)
             instructions: 'Plan and execute',
@@ -451,6 +491,8 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
     assert.equal(result.session, 'sop');
     assert.ok(capturedOptions.preparation, 'preparation option should be passed');
     assert.equal(capturedOptions.preparation.text, 'Load data context');
+    assert.match(capturedOptions.preparation.context, /SOP orchestration description/);
+    assert.match(capturedOptions.preparation.context, /Plan and execute/);
     assert.equal(capturedOptions.preparation.retries, 1);
 });
 

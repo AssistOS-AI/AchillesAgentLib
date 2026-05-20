@@ -61,7 +61,7 @@ async function runPreparation({
     contextPrefix = PREPARATION_CONTEXT_PREFIX,
     retries = 1,
 }) {
-    const preparationPrompt = buildPreparationPrompt(preparationText, userPrompt);
+    const preparationPrompt = buildPreparationPrompt(preparationText, userPrompt, options.preparationContext);
     if (!preparationPrompt) {
         return { contextEntries: [], contextLines: [] };
     }

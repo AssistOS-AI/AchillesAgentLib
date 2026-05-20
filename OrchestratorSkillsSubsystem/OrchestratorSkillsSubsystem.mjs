@@ -60,6 +60,25 @@ function buildLoopSystemPrompt(skillRecord) {
     return lines.join('\n');
 }
 
+function buildPreparationContext(skillRecord) {
+    const sections = skillRecord.descriptor?.sections || skillRecord.preparedConfig?.sections || {};
+    const descriptionText = pickSection(sections, SECTION_KEYS.description).trim();
+    const instructionsText = skillRecord.preparedConfig?.instructions || '';
+    const parts = [];
+    if (descriptionText) {
+        parts.push('Orchestrator description:');
+        parts.push(descriptionText);
+    }
+    if (instructionsText) {
+        if (parts.length) {
+            parts.push('');
+        }
+        parts.push('Orchestrator instructions:');
+        parts.push(instructionsText);
+    }
+    return parts.join('\n').trim();
+}
+
 export class OrchestratorSkillsSubsystem {
     constructor({ mainAgent = null, modelConfig = null } = {}) {
         this.type = 'orchestrator';
@@ -267,6 +286,7 @@ export class OrchestratorSkillsSubsystem {
         const preparation = skillRecord.preparedConfig?.preparation
             ? {
                 text: skillRecord.preparedConfig.preparation,
+                context: buildPreparationContext(skillRecord),
                 retries: 1,
                 tools: prepToolsWithDescriptions,
                 parentContext,
@@ -313,6 +333,7 @@ export class OrchestratorSkillsSubsystem {
         const preparation = skillRecord.preparedConfig?.preparation
             ? {
                 text: skillRecord.preparedConfig.preparation,
+                context: buildPreparationContext(skillRecord),
                 retries: 1,
                 skillsDescription: prepSkillsDescription,
                 commandsRegistry: prepCommandsRegistry,

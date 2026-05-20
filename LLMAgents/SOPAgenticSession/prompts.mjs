@@ -113,24 +113,32 @@ const buildSOPAgenticInstructions = ({
     return lines.join('\n');
 };
 
-const buildPreparationPrompt = (preparationText, userPrompt) => {
+const buildPreparationPrompt = (preparationText, userPrompt, preparationContext = '') => {
     const preparation = String(preparationText || '').trim();
     if (!preparation) {
         return '';
     }
     const requestText = String(userPrompt || '').trim();
+    const contextText = String(preparationContext || '').trim();
     const parts = [
         'Preparation instructions:',
         preparation,
         '',
     ];
+    if (contextText) {
+        parts.push('Orchestrator context:');
+        parts.push(contextText);
+        parts.push('');
+    }
     if (requestText) {
         parts.push('User request:');
         parts.push(requestText);
         parts.push('');
     }
     parts.push('Do NOT execute the user request in this step; use it only as context to follow the preparation instructions.');
-    parts.push('If the clarify_context command is available and you need more context to understand the user request or clarify what is happening in the conversation, call it with one or more specific questions for the exact information you need instead of guessing.');
+    parts.push('Use the orchestrator context above as authoritative local context for this preparation step.');
+    parts.push('If the clarify_context command is available and you need more conversation context, call it with one or more specific questions for the exact information you need. Its result is the answer to those questions, sourced only from the parent conversation context.');
+    parts.push('Do not use clarify_context to ask for information already answered by the orchestrator context. Do not finish with "awaiting clarification"; finish with the prepared context you actually recovered.');
     parts.push('Finish with a single final answer value.');
     parts.push('Do NOT use variable interpolation inside strings (e.g., "Result: $var"). Pass variables as separate arguments (e.g., "Result:" $var).');
     parts.push('Do not include any extra text.');
