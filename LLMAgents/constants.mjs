@@ -2,6 +2,9 @@ const FINAL_ANSWER_TOOL = 'final_answer';
 const FINAL_ANSWER_DESCRIPTION = 'Return the final response that should be shown to the user.';
 const CANNOT_COMPLETE_TOOL = 'cannot_complete';
 const CANNOT_COMPLETE_DESCRIPTION = 'Signal that the task cannot be completed and include a reason.';
+const CLARIFY_CONTEXT_TOOL = 'clarify_context';
+const CLARIFY_CONTEXT_DESCRIPTION = 'Ask clarification questions answered only from the parent MainAgent session context.';
+const CLARIFY_CONTEXT_UNAVAILABLE = 'The requested information is not available in the provided parent context.';
 
 // Session status constants
 const SESSION_STATUS_IDLE = 'idle';
@@ -41,6 +44,9 @@ export {
     FINAL_ANSWER_DESCRIPTION,
     CANNOT_COMPLETE_TOOL,
     CANNOT_COMPLETE_DESCRIPTION,
+    CLARIFY_CONTEXT_TOOL,
+    CLARIFY_CONTEXT_DESCRIPTION,
+    CLARIFY_CONTEXT_UNAVAILABLE,
     SESSION_STATUS_IDLE,
     SESSION_STATUS_RUNNING,
     SESSION_STATUS_ACTIVE,

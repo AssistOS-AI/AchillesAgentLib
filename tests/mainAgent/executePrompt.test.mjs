@@ -216,6 +216,9 @@ Manage owner info.
             },
         });
 
+        assert.deepEqual(capturedOptions.parentContext.history, [
+            { type: 'user', prompt: 'previous' },
+        ]);
         assert.deepEqual(capturedOptions.context.parentSession.history, [
             { type: 'user', prompt: 'previous' },
         ]);

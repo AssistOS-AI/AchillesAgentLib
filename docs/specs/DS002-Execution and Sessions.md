@@ -40,7 +40,9 @@ Return session result
 - Tool names are sanitised short names
 - Tool descriptions come from the skill descriptor
 - Orchestrator-owned skills remain executable through executeSkill so the orchestrator can call them, but they are not exposed as top-level tools during executePrompt sessions
-- When a tool is called from a LoopAgentSession, the handler passes a parent session snapshot through `options.context.parentSession` so executed skills can receive the current conversation history and resolved tool results
+- When a tool is called from a LoopAgentSession, the handler passes a parent session snapshot through `options.parentContext` so executed skills can receive the current conversation history and resolved tool results
+- Orchestrator sub-sessions must not inject the parent session snapshot directly into their system prompt. The parent snapshot is an internal execution context for called skills and for explicit preparation clarification, not the same thing as the sub-session's prepared context.
+- When an orchestrator skill defines `Preparation`, the preparation phase may expose the internal `clarify_context` tool/command. It answers specific questions from `options.parentContext` only, so the sub-session can load just the parent details it needs.
 
 ## executeSkill
 

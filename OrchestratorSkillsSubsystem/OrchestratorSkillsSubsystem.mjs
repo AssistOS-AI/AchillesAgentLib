@@ -60,29 +60,6 @@ function buildLoopSystemPrompt(skillRecord) {
     return lines.join('\n');
 }
 
-function buildContextualSystemPrompt(basePrompt, context) {
-    if (!context || typeof context !== 'object' || !context.parentSession || typeof context.parentSession !== 'object') {
-        return basePrompt;
-    }
-
-    return [
-        basePrompt,
-        '',
-        'Parent MainAgent conversation context follows. Use it to resolve follow-up references, confirmations, prior user messages, prior assistant replies, and prior tool calls.',
-        '<parent-session-context>',
-        stringifyContextValue(context.parentSession),
-        '</parent-session-context>',
-    ].join('\n');
-}
-
-function stringifyContextValue(value) {
-    try {
-        return JSON.stringify(value, null, 2);
-    } catch {
-        return String(value);
-    }
-}
-
 export class OrchestratorSkillsSubsystem {
     constructor({ mainAgent = null, modelConfig = null } = {}) {
         this.type = 'orchestrator';
@@ -202,6 +179,7 @@ export class OrchestratorSkillsSubsystem {
 
                 const execOptions = {
                     context: forwardedContext,
+                    parentContext: options?.parentContext || null,
                     signal: executionOptions?.signal || forwardedSignal,
                     supervisor: executionOptions?.session?.supervisor || options?.supervisor || mainAgent?.supervisor || null,
                 };
@@ -284,16 +262,21 @@ export class OrchestratorSkillsSubsystem {
         const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, this.mainAgent, options);
         const prepDescriptions = this.buildToolDescriptions(allowedPrepSkills);
         const prepToolsWithDescriptions = this.buildToolsWithDescriptions(allowedPrepSkills, prepTools, prepDescriptions);
+        const parentContext = options?.parentContext || null;
 
         const preparation = skillRecord.preparedConfig?.preparation
-            ? { text: skillRecord.preparedConfig.preparation, retries: 1, tools: prepToolsWithDescriptions }
+            ? {
+                text: skillRecord.preparedConfig.preparation,
+                retries: 1,
+                tools: prepToolsWithDescriptions,
+                parentContext,
+            }
             : null;
 
         const baseSystemPrompt = buildLoopSystemPrompt(skillRecord);
-        const contextualSystemPrompt = buildContextualSystemPrompt(baseSystemPrompt, options?.context);
 
         const sessionOptions = {
-            systemPrompt: contextualSystemPrompt,
+            systemPrompt: baseSystemPrompt,
             model: options?.model || this.modelConfig.plan || 'plan',
             maxStepsPerTurn: 20,
             preparation,
@@ -325,6 +308,7 @@ export class OrchestratorSkillsSubsystem {
         const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, this.mainAgent, options);
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
         const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools, options);
+        const parentContext = options?.parentContext || null;
 
         const preparation = skillRecord.preparedConfig?.preparation
             ? {
@@ -332,14 +316,14 @@ export class OrchestratorSkillsSubsystem {
                 retries: 1,
                 skillsDescription: prepSkillsDescription,
                 commandsRegistry: prepCommandsRegistry,
+                parentContext,
             }
             : null;
 
         const baseSystemPrompt = skillRecord.preparedConfig?.instructions || 'Plan and execute skills to satisfy the user request.';
-        const contextualSystemPrompt = buildContextualSystemPrompt(baseSystemPrompt, options?.context);
 
         const sessionOptions = {
-            systemPrompt: contextualSystemPrompt,
+            systemPrompt: baseSystemPrompt,
             model: options?.model || this.modelConfig.plan || 'plan',
             planOnly: false,
             commandsRegistry,

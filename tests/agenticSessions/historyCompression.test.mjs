@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { LoopAgentSession } from '../../LLMAgents/AgenticSession.mjs';
+import { LoopAgentSession } from '../../LLMAgents/LoopAgenticSession/LoopAgentSession.mjs';
 import { SESSION_STATUS_AWAITING_INPUT } from '../../LLMAgents/constants.mjs';
 
 function createStubAgent({ onComplete = null, onInterpretMessage = null } = {}) {

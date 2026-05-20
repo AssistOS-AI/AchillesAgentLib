@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { MainAgent } from '../../MainAgent/index.mjs';
-import { LoopAgentSession } from '../../LLMAgents/AgenticSession.mjs';
-import { SOPAgenticSession } from '../../LLMAgents/SOPAgenticSession.mjs';
+import { LoopAgentSession } from '../../LLMAgents/LoopAgenticSession/LoopAgentSession.mjs';
+import { SOPAgenticSession } from '../../LLMAgents/SOPAgenticSession/SOPAgenticSession.mjs';
 
 const tempDirs = [];
 

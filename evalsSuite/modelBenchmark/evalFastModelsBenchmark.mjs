@@ -101,7 +101,7 @@ function loadWorkingModels(maxLatencyMs = null) {
 // Dynamically import after env config
 const { LLMAgent } = await import('../../LLMAgents/LLMAgent.mjs');
 const { loadModelsConfiguration } = await import('../../utils/LLMClient.mjs');
-const { buildDetectIntentsPrompt } = await import('../../LLMAgents/templates/prompts.mjs');
+const { buildDetectIntentsPrompt } = await import('../../LLMAgents/prompts.mjs');
 
 const COLORS = {
     RESET: '\x1b[0m',

@@ -148,7 +148,7 @@ Classifies a short user message into bounded operational signals: `accept`, `can
 1. **Heuristic matching** — fast pattern-based classification via `classifyIntent()`
 2. **LLM fallback** — if heuristics are inconclusive, sends the message to the LLM for classification
 
-**Used by:** `AgenticSession.mjs` and `SOPAgenticSession.mjs` — when a tool is awaiting user input, determines whether the user's reply should continue the pending tool (accept/cancel/update) or start a fresh instruction.
+**Used by:** `LoopAgenticSession/LoopAgentSession.mjs` and `SOPAgenticSession/SOPAgenticSession.mjs` — when a tool is awaiting user input, determines whether the user's reply should continue the pending tool (accept/cancel/update) or start a fresh instruction.
 
 ### resolveConfirmation(userInput, options)
 

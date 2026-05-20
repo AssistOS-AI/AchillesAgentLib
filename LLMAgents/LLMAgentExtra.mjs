@@ -2,7 +2,7 @@
 import {
     buildDoTaskPrompt,
     buildDoTaskWithReviewPrompt,
-} from './templates/prompts.mjs';
+} from './prompts.mjs';
 import { serializeContext } from './LLMAgentHelpers.mjs';
 import { logLLMInteraction } from '../utils/LLMLogger.mjs';
 

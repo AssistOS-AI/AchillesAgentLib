@@ -420,6 +420,7 @@ export class MainAgent {
                         model: 'plan',
                         signal: executionOptions?.signal || null,
                         supervisor,
+                        parentContext: parentSessionContext,
                         context,
                     });
                     const output = result?.result;

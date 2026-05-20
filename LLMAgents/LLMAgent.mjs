@@ -9,9 +9,9 @@ import {
     buildDetectIntentsPrompt,
     buildResolveConfirmationPrompt,
     extractJson,
-} from './templates/prompts.mjs';
-import { LoopAgentSession } from './AgenticSession.mjs';
-import { SOPAgenticSession } from './SOPAgenticSession.mjs';
+} from './prompts.mjs';
+import { LoopAgentSession } from './LoopAgenticSession/LoopAgentSession.mjs';
+import { SOPAgenticSession } from './SOPAgenticSession/SOPAgenticSession.mjs';
 import { stripCodeFence } from './LLMAgentHelpers.mjs';
 import {
     extraComplete,

@@ -538,7 +538,8 @@ export class LightSOPLangInterpreter {
             lines.push(`@lastAnswer ${FINAL_ANSWER_TOOL} $combined`);
         }
         lines.push('');
-        lines.push('Rules: Use ONLY listed commands. No interpolation in strings (use separate args). No markdown fences.');
+        lines.push('Rules: Use ONLY commands listed in the Commands section below, plus assign for local text variables. No interpolation in strings (use separate args). No markdown fences.');
+        lines.push('The Commands section is the only executable tool surface. Do not use command, skill, or orchestrator names from the instructions or input context unless they appear in Commands.');
         if (supportsFinalAnswer) {
             lines.push(`If answerable without commands: @lastAnswer ${FINAL_ANSWER_TOOL} "your answer"`);
             lines.push(`Always end with @lastAnswer ${FINAL_ANSWER_TOOL} or ${CANNOT_COMPLETE_TOOL}.`);

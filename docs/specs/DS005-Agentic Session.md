@@ -147,6 +147,8 @@ LoopAgentSession exposes `getConversationSnapshot()` for delegated skill executi
 
 If a preparation configuration is provided, the session runs a preparation sub-session before processing the main prompt. The preparation executes tools to build context, and the resulting context variables are injected into both the system prompt and the user prompt.
 
+For orchestrator sub-sessions, parent MainAgent context and preparation context are separate concepts. The parent snapshot may be passed internally through `options.parentContext`, but it is not injected wholesale into the sub-session prompt. If the orchestrator has explicit preparation and the parent snapshot exists, preparation can use the internal `clarify_context` tool/command to ask targeted questions that are answered only from that parent snapshot. Only the resulting preparation output is injected into the sub-session prompts.
+
 ## Pending Input Handling
 
 When a session is in awaiting_input status, the next `newPrompt` call checks the history for the pending tool. If the user's input is not a fresh instruction for a different tool, the session routes the input to the pending tool rather than triggering a new planner decision.
