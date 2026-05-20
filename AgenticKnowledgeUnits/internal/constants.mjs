@@ -14,6 +14,7 @@ export const ROOT_FILES = Object.freeze({
     kuIndex: 'ku-index.jsonl',
     documentsIndex: 'documents-index.jsonl',
     filesIndex: 'files-index.jsonl',
+    linksIndex: 'links-index.jsonl',
     resultsIndex: 'results-index.jsonl',
     eventsIndex: 'events-index.jsonl',
 });
@@ -24,6 +25,7 @@ export const ALL_INDEX_FILES = Object.freeze([
     ROOT_FILES.kuIndex,
     ROOT_FILES.documentsIndex,
     ROOT_FILES.filesIndex,
+    ROOT_FILES.linksIndex,
     ROOT_FILES.resultsIndex,
     ROOT_FILES.eventsIndex,
 ]);
@@ -33,6 +35,7 @@ export const JSONL_INDEX_FILES = Object.freeze([
     ROOT_FILES.kuIndex,
     ROOT_FILES.documentsIndex,
     ROOT_FILES.filesIndex,
+    ROOT_FILES.linksIndex,
     ROOT_FILES.resultsIndex,
     ROOT_FILES.eventsIndex,
 ]);
@@ -44,6 +47,7 @@ export const KU_FILES = Object.freeze({
     events: 'events.jsonl',
     documents: 'documents/documents.jsonl',
     files: 'support/files.jsonl',
+    links: 'links/links.jsonl',
     results: 'results/results.jsonl',
     sessions: 'sessions/sessions.jsonl',
 });
@@ -52,6 +56,7 @@ export const KU_DIRECTORIES = Object.freeze([
     'documents',
     'results',
     'support',
+    'links',
     'sessions',
     'code',
     'data',
@@ -61,6 +66,7 @@ export const RECORD_TYPES = Object.freeze({
     ku: 'ku',
     document: 'document',
     file: 'file',
+    link: 'link',
     result: 'result',
     event: 'event',
 });
@@ -70,8 +76,22 @@ export const RECORD_TYPE_PREFERENCE = Object.freeze({
     document: 4,
     result: 3,
     file: 2,
+    link: 1.5,
     event: 1,
 });
+
+export const KU_LINK_RELATIONS = Object.freeze([
+    'contains',
+    'references',
+    'depends_on',
+    'derived_from',
+    'forked_from',
+    'supersedes',
+    'contradicts',
+    'validates',
+    'uses_dataset',
+    'produced_result',
+]);
 
 export const STATUSES = Object.freeze([
     'active',
@@ -182,6 +202,7 @@ export const CONTEXT_PACK_DEFAULTS = Object.freeze({
         document: 5,
         result: 5,
         file: 4,
+        link: 3,
         event: 2,
     }),
 });

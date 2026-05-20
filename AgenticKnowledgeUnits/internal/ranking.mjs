@@ -269,6 +269,14 @@ export class FilterCompiler {
             'resultTypes',
             'result_type',
             'result_types',
+            'fileType',
+            'fileTypes',
+            'file_type',
+            'file_types',
+            'linkRelation',
+            'linkRelations',
+            'link_relation',
+            'link_relations',
             'status',
             'statuses',
             'excludeStatus',
@@ -291,6 +299,14 @@ export class FilterCompiler {
             'kuIds',
             'ku_id',
             'ku_ids',
+            'sourceKuId',
+            'sourceKuIds',
+            'source_ku_id',
+            'source_ku_ids',
+            'targetKuId',
+            'targetKuIds',
+            'target_ku_id',
+            'target_ku_ids',
             'includeDiscarded',
             'include_discarded',
             'includeObsolete',
@@ -363,7 +379,19 @@ export class FilterCompiler {
                 if (!matchSet(record.result_type, filters.resultType ?? filters.resultTypes ?? filters.result_type ?? filters.result_types)) {
                     return false;
                 }
+                if (!matchSet(record.file_type, filters.fileType ?? filters.fileTypes ?? filters.file_type ?? filters.file_types)) {
+                    return false;
+                }
+                if (!matchSet(record.relation, filters.linkRelation ?? filters.linkRelations ?? filters.link_relation ?? filters.link_relations)) {
+                    return false;
+                }
                 if (!matchSet(record.ku_id, filters.kuId ?? filters.kuIds ?? filters.ku_id ?? filters.ku_ids)) {
+                    return false;
+                }
+                if (!matchSet(record.source_ku_id, filters.sourceKuId ?? filters.sourceKuIds ?? filters.source_ku_id ?? filters.source_ku_ids)) {
+                    return false;
+                }
+                if (!matchSet(record.target_ku_id, filters.targetKuId ?? filters.targetKuIds ?? filters.target_ku_id ?? filters.target_ku_ids)) {
                     return false;
                 }
                 const pathPrefix = filters.pathPrefix ?? filters.path_prefix;
