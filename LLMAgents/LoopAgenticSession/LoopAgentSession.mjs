@@ -64,7 +64,7 @@ class LoopAgentSession {
 
         this.agent = agent;
         this._userTools = { ...tools };
-        const parentContext = options.enableClarifyContextTool
+        const parentContext = options.preparationSession === true && options.enableClarifyContextTool
             ? getParentContext(options.parentContext)
             : null;
         this.tools = {

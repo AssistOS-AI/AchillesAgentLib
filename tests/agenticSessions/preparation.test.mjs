@@ -544,6 +544,27 @@ test('LoopAgentSession exposes clarify_context as an internal preparation-only t
     assert.match(capturedClarifyPrompt, /What was the previous request/);
 });
 
+test('LoopAgentSession does not expose clarify_context in a normal turn', () => {
+    const agent = {
+        __toolState: new Map(),
+        complete: async () => ({ tool: 'final_answer', toolPrompt: 'done' }),
+        executePrompt: async () => 'unused',
+    };
+
+    const session = new LoopAgentSession({
+        agent,
+        tools: {},
+        options: {
+            enableClarifyContextTool: true,
+            parentContext: {
+                history: [{ type: 'user', prompt: 'Earlier request' }],
+            },
+        },
+    });
+
+    assert.equal(session.tools.clarify_context, undefined);
+});
+
 test('SOPAgenticSession exposes clarify_context as an internal preparation-only command', async () => {
     let capturedClarifyPrompt = null;
     const agent = {
@@ -582,6 +603,32 @@ test('SOPAgenticSession exposes clarify_context as an internal preparation-only 
     assert.equal(result.contextText, 'The user asked to create a reporting skill.');
     assert.match(capturedClarifyPrompt, /Create a reporting skill/);
     assert.match(capturedClarifyPrompt, /What did the user ask for/);
+});
+
+test('SOPAgenticSession does not expose clarify_context in a normal turn', () => {
+    const agent = {
+        __toolState: new Map(),
+        executePrompt: async () => 'unused',
+    };
+    const commandsRegistry = {
+        executeCommand: async () => {},
+        listCommands: () => [],
+    };
+
+    const session = new SOPAgenticSession({
+        agent,
+        skillsDescription: {},
+        options: {
+            commandsRegistry,
+            enableClarifyContextCommand: true,
+            parentContext: {
+                history: [{ type: 'user', prompt: 'Earlier request' }],
+            },
+        },
+    });
+
+    assert.equal(session.skillsDescription.clarify_context, undefined);
+    assert.equal(session.commandsRegistry.listCommands().some((command) => command.name === 'clarify_context'), false);
 });
 
 test('OrchestratorSkillsSubsystem does not inject parent loop history into SOP system prompt', async () => {

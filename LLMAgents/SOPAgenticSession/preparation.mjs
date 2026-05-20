@@ -108,6 +108,7 @@ async function runPreparation({
             planOnly: false,
             systemPrompt: 'Plan and execute skills to prepare context for the user request.',
             commandsRegistry,
+            preparationSession: true,
             enableClarifyContextCommand: Boolean(getParentContext(options.parentContext)),
             parentContext: getParentContext(options.parentContext),
         };

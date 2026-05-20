@@ -76,6 +76,7 @@ async function runPreparation({
         const sessionOptions = {
             ...options,
             systemPrompt: 'Execute skills to prepare context for the user request.',
+            preparationSession: true,
             enableClarifyContextTool: Boolean(getParentContext(options.parentContext)),
             parentContext: getParentContext(options.parentContext),
         };

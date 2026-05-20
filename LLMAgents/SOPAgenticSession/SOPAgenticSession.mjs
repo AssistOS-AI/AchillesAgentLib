@@ -66,7 +66,7 @@ class SOPAgenticSession {
         this.skillsDescription = { ...skillsDescription };
         this.skillsDescription[FINAL_ANSWER_TOOL] = FINAL_ANSWER_DESCRIPTION;
         this.skillsDescription[CANNOT_COMPLETE_TOOL] = CANNOT_COMPLETE_DESCRIPTION;
-        this.parentContextForClarification = options.enableClarifyContextCommand
+        this.parentContextForClarification = options.preparationSession === true && options.enableClarifyContextCommand
             ? getParentContext(options.parentContext)
             : null;
         if (this.parentContextForClarification) {
