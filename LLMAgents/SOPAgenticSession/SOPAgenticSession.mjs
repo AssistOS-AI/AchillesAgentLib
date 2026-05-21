@@ -98,6 +98,7 @@ class SOPAgenticSession {
         this.lastExecution = null;
         this._lastFinalAnswer = null;
         this.preparationContextText = '';
+        this.preparationContextLines = [];
         this.maxPlanAttempts = Number.isFinite(options.maxPlanAttempts)
             ? options.maxPlanAttempts
             : 3;

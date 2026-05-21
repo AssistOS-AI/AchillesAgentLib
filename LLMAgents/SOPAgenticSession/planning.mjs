@@ -57,8 +57,8 @@ async function runPlan(session, planSource) {
         session.lastExecution = null;
         return { hasFailures: false, failures: [] };
     }
-    const prepContext = typeof session.preparationContextText === 'string'
-        ? session.preparationContextText.trim()
+    const prepContext = Array.isArray(session.preparationContextLines)
+        ? session.preparationContextLines.join('\n').trim()
         : '';
     const planWithContext = prepContext
         ? `${prepContext}\n${normalizedPlanSource}`
@@ -442,6 +442,7 @@ async function newPrompt(session, SessionClass, userPrompt, promptOptions = {}) 
             ? prepResult.contextText
             : '';
         preparationContext = createPrepContextPrompt(prepResult);
+        session.preparationContextLines = preparationContext;
         session.systemPrompt = session.baseSystemPrompt;
     }
 

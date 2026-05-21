@@ -271,6 +271,49 @@ test('SOPAgenticSession main and preparation prompts share LightSOPLang format i
     assert.match(preparationPrompt, new RegExp(commandPositionInstruction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
+test('SOPAgenticSession injects plain preparation context as valid SOP before execution', async () => {
+    const agent = {
+        __toolState: new Map(),
+        executePrompt: async () => [
+            '@answer assign "done"',
+            '@lastAnswer final_answer $answer',
+        ].join('\n'),
+    };
+    const commandsRegistry = {
+        executeCommand: async (payload, response) => {
+            if (payload.command === 'final_answer') {
+                return response.success(payload.args?.[0] || '');
+            }
+            return response.success(payload.args?.join(' ') || '');
+        },
+        listCommands: () => [],
+    };
+
+    const session = new SOPAgenticSession({
+        agent,
+        skillsDescription: {},
+        options: {
+            commandsRegistry,
+        },
+    });
+
+    session.preparationContextText = 'Plain preparation context that does not start with @.';
+    session.preparationContextLines = [
+        '@preparation_result assign',
+        '--begin-prep-context--',
+        session.preparationContextText,
+        '--end-prep-context--',
+    ];
+
+    await session._runPlan([
+        '@answer assign "done"',
+        '@lastAnswer final_answer $answer',
+    ].join('\n'));
+
+    assert.equal(session.getLastResult(), 'done');
+    assert.equal(session.lastExecution.variables.preparation_result, session.preparationContextText);
+});
+
 // =============================================================================
 // OrchestratorSkillsSubsystem preparation integration tests
 // =============================================================================
