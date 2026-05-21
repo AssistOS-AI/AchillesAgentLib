@@ -5,7 +5,6 @@ import {
 } from './runtime.mjs';
 import {
     coerceResultToText,
-    runWithRetry,
 } from './utils.mjs';
 
 function isValidSOPLang(source) {
@@ -42,22 +41,10 @@ function wrapPreparationContext(text) {
     ];
 }
 
-function commentLines(lines) {
-    return lines.map((line) => (line ? `# ${line}` : '#'));
-}
-
 function createPrepContextPrompt(prepResult) {
     const contextText = typeof prepResult?.contextText === 'string' ? prepResult.contextText : '';
-    const preparationPlan = prepResult?.preparationPlan || '';
     const preparationContextLines = [];
 
-    if (preparationPlan) {
-        preparationContextLines.push(...commentLines([
-            'As preparation to provide context, the following plan was executed:',
-            ...preparationPlan.split(/\r?\n/),
-            '',
-        ]));
-    }
     if (contextText) {
         if (isValidSOPLang(contextText)) {
             preparationContextLines.push(...contextText.split(/\r?\n/));
@@ -91,43 +78,51 @@ async function runPreparation({
         retries,
     });
 
-    const attemptRun = async () => {
-        const sessionOptions = {
-            ...options,
-            planOnly: false,
-            systemPrompt: 'Plan and execute skills to prepare context for the user request.',
-            commandsRegistry,
-            preparationSession: true,
-            enableClarifyContextCommand: Boolean(getParentContext(options.parentContext)),
-            parentContext: getParentContext(options.parentContext),
-        };
-        const session = new SessionClass({
-            agent,
-            skillsDescription,
-            options: sessionOptions,
-        });
-        debugLog('[SOPAgenticSession] Preparation session start', {
-            promptLength: String(preparationPrompt || '').length,
-        });
-        await session.newPrompt(preparationPrompt, { signal: options.signal || null });
-        const failures = Array.isArray(session.lastRunFailures) ? session.lastRunFailures : [];
-        if (failures.length) {
-            debugLog('[SOPAgenticSession] Preparation session failures', {
-                failureCount: failures.length,
-            });
-            throw new Error('Preparation SOP plan reported failures.');
-        }
-        const lastResult = session.getLastResult();
-        const resultText = coerceResultToText(lastResult);
-        const preparationPlan = session.currentPlan || '';
-        debugLog('[SOPAgenticSession] Preparation result parsed', {
-            rawTextLength: String(resultText || '').length,
-            contextTextLength: String(resultText || '').length,
-        });
-        return { contextText: resultText, rawText: resultText, preparationPlan };
+    const sessionOptions = {
+        ...options,
+        planOnly: false,
+        systemPrompt: 'Plan and execute skills to prepare context for the user request.',
+        commandsRegistry,
+        preparationSession: true,
+        enableClarifyContextCommand: Boolean(getParentContext(options.parentContext)),
+        parentContext: getParentContext(options.parentContext),
+        maxPlanAttempts: Number.isFinite(options.maxPlanAttempts)
+            ? options.maxPlanAttempts
+            : retries + 1,
     };
+    const session = new SessionClass({
+        agent,
+        skillsDescription,
+        options: sessionOptions,
+    });
+    debugLog('[SOPAgenticSession] Preparation session start', {
+        promptLength: String(preparationPrompt || '').length,
+    });
+    try {
+        await session.newPrompt(preparationPrompt, { signal: options.signal || null });
+    } catch (error) {
+        debugLog('[SOPAgenticSession] Preparation session error', {
+            error: error?.message || String(error),
+        });
+        throw error;
+    }
 
-    return runWithRetry(attemptRun, retries);
+    const failures = Array.isArray(session.lastRunFailures) ? session.lastRunFailures : [];
+    if (failures.length) {
+        debugLog('[SOPAgenticSession] Preparation session failures', {
+            failureCount: failures.length,
+            failures,
+        });
+        throw new Error('Preparation SOP plan reported failures.');
+    }
+    const lastResult = session.getLastResult();
+    const resultText = coerceResultToText(lastResult);
+    const preparationPlan = session.currentPlan || '';
+    debugLog('[SOPAgenticSession] Preparation result parsed', {
+        rawTextLength: String(resultText || '').length,
+        contextTextLength: String(resultText || '').length,
+    });
+    return { contextText: resultText, rawText: resultText, preparationPlan };
 }
 
 export {

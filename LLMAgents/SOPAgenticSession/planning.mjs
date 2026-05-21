@@ -503,6 +503,11 @@ async function newPrompt(session, SessionClass, userPrompt, promptOptions = {}) 
             }
 
             attempt += 1;
+            session._debug('[SOPAgenticSession] Plan attempt failed', {
+                attempt,
+                maxAttempts,
+                failures,
+            });
             if (attempt >= maxAttempts) {
                 session._debug('[SOPAgenticSession] Maximum plan attempts reached; stopping retries.');
                 break;

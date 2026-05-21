@@ -8,6 +8,10 @@ import {
     buildPreparationPrompt as buildSOPPreparationPrompt,
     buildSOPAgenticInstructions,
 } from '../../LLMAgents/SOPAgenticSession/prompts.mjs';
+import {
+    createPrepContextPrompt,
+    runPreparation as runSOPPreparation,
+} from '../../LLMAgents/SOPAgenticSession/preparation.mjs';
 import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 
 // Minimal stub LLM agent for testing preparation flows
@@ -312,6 +316,68 @@ test('SOPAgenticSession injects plain preparation context as valid SOP before ex
 
     assert.equal(session.getLastResult(), 'done');
     assert.equal(session.lastExecution.variables.preparation_result, session.preparationContextText);
+});
+
+test('SOPAgenticSession preparation context excludes the executed preparation plan', () => {
+    const contextLines = createPrepContextPrompt({
+        contextText: 'Prepared context only.',
+        preparationPlan: [
+            '# Get template',
+            '@template get-template cskill',
+            '@lastAnswer final_answer "Prepared context only."',
+        ].join('\n'),
+    });
+    const contextSource = contextLines.join('\n');
+
+    assert.match(contextSource, /Prepared context only\./);
+    assert.doesNotMatch(contextSource, /As preparation to provide context/);
+    assert.doesNotMatch(contextSource, /@template get-template cskill/);
+});
+
+test('SOPAgenticSession preparation retries inside the same session', async () => {
+    let createdSessions = 0;
+    let planCalls = 0;
+    class TrackingSOPAgenticSession extends SOPAgenticSession {
+        constructor(args) {
+            super(args);
+            createdSessions += 1;
+        }
+    }
+    const agent = {
+        __toolState: new Map(),
+        executePrompt: async () => {
+            planCalls += 1;
+            if (planCalls === 1) {
+                return [
+                    '@bad missing-tool "x"',
+                    '@lastAnswer final_answer "bad"',
+                ].join('\n');
+            }
+            return [
+                '@answer assign "Prepared context"',
+                '@lastAnswer final_answer $answer',
+            ].join('\n');
+        },
+    };
+    const commandsRegistry = {
+        executeCommand: async (_payload, response) => response.fail('unexpected external command'),
+        listCommands: () => [],
+    };
+
+    const result = await runSOPPreparation({
+        SessionClass: TrackingSOPAgenticSession,
+        agent,
+        skillsDescription: {},
+        commandsRegistry,
+        options: {},
+        preparationText: 'Recover context.',
+        userPrompt: 'Create a skill.',
+        retries: 1,
+    });
+
+    assert.equal(createdSessions, 1);
+    assert.equal(planCalls, 2);
+    assert.equal(result.contextText, 'Prepared context');
 });
 
 // =============================================================================
