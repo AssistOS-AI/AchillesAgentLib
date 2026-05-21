@@ -156,6 +156,8 @@ const buildPreparationPrompt = (preparationText, userPrompt, preparationContext 
     if (contextText) {
         parts.push('Use the orchestrator context above as authoritative local context for this preparation step.');
     }
+    parts.push('Only the value passed to "@lastAnswer final_answer <value>" is carried into the main execution step.');
+    parts.push('If you call tools during preparation and need their results later, include those results in the final answer value.');
     parts.push('If the clarify_context command is available and you need more conversation context, call it with one or more specific questions for the exact information you need. Its result is the answer to those questions, sourced only from the parent conversation context.');
     parts.push('Do not use clarify_context to ask for information already answered by the preparation instructions. Do not finish with "awaiting clarification"; finish with the prepared context you actually recovered.');
     parts.push('Finish with a single final answer value.');
