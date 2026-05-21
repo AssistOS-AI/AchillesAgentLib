@@ -8,17 +8,6 @@ import {
     runWithRetry,
 } from './utils.mjs';
 
-function encodeSopString(value = '') {
-    return JSON.stringify(String(value ?? ''));
-}
-
-function buildDirectToolPlan(toolName, userPrompt) {
-    return [
-        `@pendingResult ${toolName} ${encodeSopString(userPrompt)}`,
-        '@lastAnswer final_answer $pendingResult',
-    ].join('\n');
-}
-
 function isValidSOPLang(source) {
     if (typeof source !== 'string' || !source.trim()) {
         return false;
@@ -142,7 +131,6 @@ async function runPreparation({
 }
 
 export {
-    buildDirectToolPlan,
     createPrepContextPrompt,
     runPreparation,
 };

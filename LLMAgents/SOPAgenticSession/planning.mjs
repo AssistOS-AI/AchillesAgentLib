@@ -10,7 +10,6 @@ import {
 } from '../constants.mjs';
 import { buildSOPAgenticInstructions } from './prompts.mjs';
 import {
-    buildDirectToolPlan,
     createPrepContextPrompt,
 } from './preparation.mjs';
 import {
@@ -39,6 +38,17 @@ function deriveLastAnswerFromVariables(variables) {
         return soleValue !== undefined ? soleValue : null;
     }
     return null;
+}
+
+function encodeSopString(value = '') {
+    return JSON.stringify(String(value ?? ''));
+}
+
+function buildDirectToolPlan(toolName, userPrompt) {
+    return [
+        `@pendingResult ${toolName} ${encodeSopString(userPrompt)}`,
+        '@lastAnswer final_answer $pendingResult',
+    ].join('\n');
 }
 
 async function runPlan(session, planSource) {
