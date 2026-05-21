@@ -163,15 +163,13 @@ test('LoopAgentSession.runPreparation retries on failure', async () => {
     // Note: due to retry logic, we expect either success or empty result
 });
 
-test('LoopAgentSession preparation prompt includes orchestrator context and clarify_context result contract', () => {
+test('LoopAgentSession preparation prompt omits orchestrator context by default and includes clarify_context result contract', () => {
     const prompt = buildLoopPreparationPrompt(
         'Recover conversation context.',
         'Create a skill.',
-        'Orchestrator description:\nSkill-management orchestrator.',
     );
 
-    assert.match(prompt, /Orchestrator context:/);
-    assert.match(prompt, /Skill-management orchestrator/);
+    assert.doesNotMatch(prompt, /Orchestrator context:/);
     assert.match(prompt, /Its result is the answer to those questions/);
     assert.match(prompt, /Do not output "awaiting clarification"/);
 });
@@ -242,15 +240,13 @@ test('SOPAgenticSession.runPreparation returns empty when preparationText is emp
     assert.equal(result.contextLines.length, 0);
 });
 
-test('SOPAgenticSession preparation prompt includes orchestrator context and clarify_context result contract', () => {
+test('SOPAgenticSession preparation prompt omits orchestrator context by default and includes clarify_context result contract', () => {
     const prompt = buildSOPPreparationPrompt(
         'Recover conversation context.',
         'Create a skill.',
-        'Orchestrator instructions:\nUse skill-management operations.',
     );
 
-    assert.match(prompt, /Orchestrator context:/);
-    assert.match(prompt, /Use skill-management operations/);
+    assert.doesNotMatch(prompt, /Orchestrator context:/);
     assert.match(prompt, /Its result is the answer to those questions/);
     assert.match(prompt, /Do not finish with "awaiting clarification"/);
 });
@@ -281,7 +277,7 @@ test('OrchestratorSkillsSubsystem prepareSkill parses ##Preparation section', ()
     assert.deepEqual(skillRecord.preparedConfig.allowedSkills, ['skill1']);
 });
 
-test('OrchestratorSkillsSubsystem injects preparation context into loop session', async () => {
+test('OrchestratorSkillsSubsystem passes preparation instructions into loop session without descriptor context', async () => {
     let capturedOptions = null;
 
     const stubLLMAgent = {
@@ -322,8 +318,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into loop session'
     assert.equal(result.session, 'loop');
     assert.ok(capturedOptions.preparation, 'preparation option should be passed');
     assert.equal(capturedOptions.preparation.text, 'Load user context');
-    assert.match(capturedOptions.preparation.context, /Loop orchestration description/);
-    assert.match(capturedOptions.preparation.context, /Execute the task/);
+    assert.equal(Object.prototype.hasOwnProperty.call(capturedOptions.preparation, 'context'), false);
     assert.equal(capturedOptions.preparation.retries, 1);
     assert.equal(capturedOptions.supervisor, supervisor);
 });
@@ -452,7 +447,7 @@ test('OrchestratorSkillsSubsystem does not inject parent loop history into loop 
     assert.doesNotMatch(capturedOptions.systemPrompt, /Previous admin answer/);
 });
 
-test('OrchestratorSkillsSubsystem injects preparation context into SOP session', async () => {
+test('OrchestratorSkillsSubsystem passes preparation instructions into SOP session without descriptor context', async () => {
     let capturedOptions = null;
 
     const stubLLMAgent = {
@@ -491,8 +486,7 @@ test('OrchestratorSkillsSubsystem injects preparation context into SOP session',
     assert.equal(result.session, 'sop');
     assert.ok(capturedOptions.preparation, 'preparation option should be passed');
     assert.equal(capturedOptions.preparation.text, 'Load data context');
-    assert.match(capturedOptions.preparation.context, /SOP orchestration description/);
-    assert.match(capturedOptions.preparation.context, /Plan and execute/);
+    assert.equal(Object.prototype.hasOwnProperty.call(capturedOptions.preparation, 'context'), false);
     assert.equal(capturedOptions.preparation.retries, 1);
 });
 

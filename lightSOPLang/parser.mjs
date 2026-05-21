@@ -1,6 +1,11 @@
 import { tokenize } from './tokenizer.mjs';
 
+function normalizeLineStart(line) {
+    return String(line ?? '').replace(/^[\uFEFF\u200B\u200C\u200D]+/, '');
+}
+
 function splitInlineComment(line) {
+    line = normalizeLineStart(line);
     let inSingle = false;
     let inDouble = false;
     let escaped = false;
@@ -38,15 +43,15 @@ function stripComments(line) {
 }
 
 function isDeclarationLine(line) {
-    return line.trimStart().startsWith('@');
+    return normalizeLineStart(line).trimStart().startsWith('@');
 }
 
 function isCommentLine(line) {
-    return line.trimStart().startsWith('#');
+    return normalizeLineStart(line).trimStart().startsWith('#');
 }
 
 function parseCommentLine(line) {
-    return line.trimStart().slice(1).trim();
+    return normalizeLineStart(line).trimStart().slice(1).trim();
 }
 
 function buildAssociatedCommentMap(lines) {
