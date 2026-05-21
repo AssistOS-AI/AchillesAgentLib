@@ -4,7 +4,10 @@ import { test } from 'node:test';
 import { LoopAgentSession } from '../../LLMAgents/LoopAgenticSession/LoopAgentSession.mjs';
 import { buildPreparationPrompt as buildLoopPreparationPrompt } from '../../LLMAgents/LoopAgenticSession/prompts.mjs';
 import { SOPAgenticSession } from '../../LLMAgents/SOPAgenticSession/SOPAgenticSession.mjs';
-import { buildPreparationPrompt as buildSOPPreparationPrompt } from '../../LLMAgents/SOPAgenticSession/prompts.mjs';
+import {
+    buildPreparationPrompt as buildSOPPreparationPrompt,
+    buildSOPAgenticInstructions,
+} from '../../LLMAgents/SOPAgenticSession/prompts.mjs';
 import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 
 // Minimal stub LLM agent for testing preparation flows
@@ -249,6 +252,23 @@ test('SOPAgenticSession preparation prompt omits orchestrator context by default
     assert.doesNotMatch(prompt, /Orchestrator context:/);
     assert.match(prompt, /Its result is the answer to those questions/);
     assert.match(prompt, /Do not finish with "awaiting clarification"/);
+});
+
+test('SOPAgenticSession main and preparation prompts share LightSOPLang format instructions', () => {
+    const mainPrompt = buildSOPAgenticInstructions({
+        userPrompt: 'Create a skill.',
+    });
+    const preparationPrompt = buildSOPPreparationPrompt(
+        'Recover conversation context.',
+        'Create a skill.',
+    );
+    const sharedInstruction = 'Every executable line must use the format "@varName command arg1 arg2".';
+    const commandPositionInstruction = 'The command/tool name is the SECOND token, after the variable name.';
+
+    assert.match(mainPrompt, new RegExp(sharedInstruction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(preparationPrompt, new RegExp(sharedInstruction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(mainPrompt, new RegExp(commandPositionInstruction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(preparationPrompt, new RegExp(commandPositionInstruction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
 // =============================================================================
