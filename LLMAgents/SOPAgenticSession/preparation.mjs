@@ -1,4 +1,3 @@
-import { parseCode } from '../../lightSOPLang/parser.mjs';
 import { buildPreparationPrompt } from './prompts.mjs';
 import {
     getParentContext,
@@ -6,55 +5,6 @@ import {
 import {
     coerceResultToText,
 } from './utils.mjs';
-
-function isValidSOPLang(source) {
-    if (typeof source !== 'string' || !source.trim()) {
-        return false;
-    }
-    try {
-        parseCode(source);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-function buildHereDocToken(content, base = 'prep-context') {
-    const raw = typeof content === 'string' ? content : '';
-    let token = base;
-    let counter = 0;
-    while (raw.includes(`--begin-${token}--`) || raw.includes(`--end-${token}--`)) {
-        counter += 1;
-        token = `${base}-${counter}`;
-    }
-    return token;
-}
-
-function wrapPreparationContext(text) {
-    const token = buildHereDocToken(text);
-    const lines = typeof text === 'string' && text.length ? text.split(/\r?\n/) : [];
-    return [
-        '@preparation_result assign',
-        `--begin-${token}--`,
-        ...lines,
-        `--end-${token}--`,
-    ];
-}
-
-function createPrepContextPrompt(prepResult) {
-    const contextText = typeof prepResult?.contextText === 'string' ? prepResult.contextText : '';
-    const preparationContextLines = [];
-
-    if (contextText) {
-        if (isValidSOPLang(contextText)) {
-            preparationContextLines.push(...contextText.split(/\r?\n/));
-        } else {
-            preparationContextLines.push(...wrapPreparationContext(contextText));
-        }
-    }
-
-    return preparationContextLines;
-}
 
 async function runPreparation({
     SessionClass,
@@ -128,6 +78,5 @@ async function runPreparation({
 }
 
 export {
-    createPrepContextPrompt,
     runPreparation,
 };

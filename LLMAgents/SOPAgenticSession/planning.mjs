@@ -10,9 +10,6 @@ import {
 } from '../constants.mjs';
 import { buildSOPAgenticInstructions } from './prompts.mjs';
 import {
-    createPrepContextPrompt,
-} from './preparation.mjs';
-import {
     getPendingToolFromHistory,
     isLikelyFreshInstruction,
 } from './utils.mjs';
@@ -57,16 +54,6 @@ async function runPlan(session, planSource) {
         session.lastExecution = null;
         return { hasFailures: false, failures: [] };
     }
-    const prepContext = Array.isArray(session.preparationContextLines)
-        ? session.preparationContextLines.join('\n').trim()
-        : '';
-    const planWithContext = prepContext
-        ? `${prepContext}\n${normalizedPlanSource}`
-        : normalizedPlanSource;
-    if (planWithContext !== normalizedPlanSource) {
-        session._debug('[SOPAgenticSession] Executing plan with injected context variables:');
-        session._debug(planWithContext);
-    }
     const baseOptions = session.executionInterpreterOptions || {};
     const originalOnFail = typeof baseOptions.onFail === 'function'
         ? baseOptions.onFail
@@ -103,7 +90,7 @@ async function runPlan(session, planSource) {
     let interpreter;
     try {
         interpreter = new LightSOPLangInterpreter(
-            planWithContext,
+            normalizedPlanSource,
             session.commandsRegistry,
             interpreterOptions,
         );
@@ -441,8 +428,10 @@ async function newPrompt(session, SessionClass, userPrompt, promptOptions = {}) 
         session.preparationContextText = typeof prepResult?.contextText === 'string'
             ? prepResult.contextText
             : '';
-        preparationContext = createPrepContextPrompt(prepResult);
-        session.preparationContextLines = preparationContext;
+        preparationContext = session.preparationContextText
+            ? session.preparationContextText.split(/\r?\n/)
+            : [];
+        session.preparationContextLines = [];
         session.systemPrompt = session.baseSystemPrompt;
     }
 

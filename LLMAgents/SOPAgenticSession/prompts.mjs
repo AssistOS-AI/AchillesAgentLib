@@ -64,12 +64,8 @@ const buildSOPAgenticInstructions = ({
             ...systemLines,
             ...(prepLines.length
                 ? [
-                    'Preparation context (do not restate as user input):',
+                    'Additional context gathered during the previous preparation phase:',
                     ...prepLines,
-                    '',
-                    'Note: Each loaded file is provided as two variables: a path variable and a content variable.',
-                    'Example: @spec_DS001_Vision assign "docs/specs/DS001-Vision.md" and @spec_DS001_VisionContent assign ...',
-                    'You can reference these variables in your plan as $spec_DS001_Vision (path) and $spec_DS001_VisionContent (content).',
                     '',
                 ]
                 : []),
@@ -97,12 +93,9 @@ const buildSOPAgenticInstructions = ({
     }
     if (prepLines.length) {
         lines.push('');
-        lines.push('Preparation context (do not restate as user input):');
+        lines.push('Additional context gathered during the previous preparation phase:');
         lines.push(...prepLines);
         lines.push('');
-        lines.push('Note: Each loaded file is provided as two variables: a path variable and a content variable.');
-        lines.push('Example: @spec_DS001_Vision assign "docs/specs/DS001-Vision.md" and @spec_DS001_VisionContent assign ...');
-        lines.push('You can reference these variables in your plan as $spec_DS001_Vision (path) and $spec_DS001_VisionContent (content).');
     }
     if (interruptionLines.length) {
         lines.push('');

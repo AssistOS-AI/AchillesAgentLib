@@ -9,7 +9,6 @@ import {
     buildSOPAgenticInstructions,
 } from '../../LLMAgents/SOPAgenticSession/prompts.mjs';
 import {
-    createPrepContextPrompt,
     runPreparation as runSOPPreparation,
 } from '../../LLMAgents/SOPAgenticSession/preparation.mjs';
 import { CLARIFY_CONTEXT_UNAVAILABLE } from '../../LLMAgents/constants.mjs';
@@ -277,7 +276,20 @@ test('SOPAgenticSession main and preparation prompts share LightSOPLang format i
     assert.match(preparationPrompt, new RegExp(commandPositionInstruction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
-test('SOPAgenticSession injects plain preparation context as valid SOP before execution', async () => {
+test('SOPAgenticSession main prompt shows only preparation final answer text', () => {
+    const prompt = buildSOPAgenticInstructions({
+        userPrompt: 'Create a skill.',
+        preparationContext: ['Prepared context only.'],
+    });
+
+    assert.match(prompt, /Additional context gathered during the previous preparation phase:/);
+    assert.match(prompt, /Prepared context only\./);
+    assert.doesNotMatch(prompt, /Preparation context \(do not restate as user input\):/);
+    assert.doesNotMatch(prompt, /@preparation_result assign/);
+    assert.doesNotMatch(prompt, /Each loaded file is provided/);
+});
+
+test('SOPAgenticSession does not inject preparation context into executed plan', async () => {
     const agent = {
         __toolState: new Map(),
         executePrompt: async () => [
@@ -317,23 +329,7 @@ test('SOPAgenticSession injects plain preparation context as valid SOP before ex
     ].join('\n'));
 
     assert.equal(session.getLastResult(), 'done');
-    assert.equal(session.lastExecution.variables.preparation_result, session.preparationContextText);
-});
-
-test('SOPAgenticSession preparation context excludes the executed preparation plan', () => {
-    const contextLines = createPrepContextPrompt({
-        contextText: 'Prepared context only.',
-        preparationPlan: [
-            '# Get template',
-            '@template get-template cskill',
-            '@lastAnswer final_answer "Prepared context only."',
-        ].join('\n'),
-    });
-    const contextSource = contextLines.join('\n');
-
-    assert.match(contextSource, /Prepared context only\./);
-    assert.doesNotMatch(contextSource, /As preparation to provide context/);
-    assert.doesNotMatch(contextSource, /@template get-template cskill/);
+    assert.equal(Object.prototype.hasOwnProperty.call(session.lastExecution.variables, 'preparation_result'), false);
 });
 
 test('SOPAgenticSession preparation retries inside the same session', async () => {
