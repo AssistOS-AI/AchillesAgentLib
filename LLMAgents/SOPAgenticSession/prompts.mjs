@@ -129,28 +129,20 @@ const buildPreparationPrompt = (preparationText, userPrompt, preparationContext 
         return '';
     }
     const requestText = String(userPrompt || '').trim();
-    const contextText = String(preparationContext || '').trim();
     const parts = [
         'Preparation instructions:',
         preparation,
         '',
     ];
-    if (contextText) {
-        parts.push('Orchestrator context:');
-        parts.push(contextText);
-        parts.push('');
-    }
     if (requestText) {
         parts.push('User request:');
         parts.push(requestText);
         parts.push('');
     }
     parts.push('Do NOT execute the user request in this step; use it only as context to follow the preparation instructions.');
-    if (contextText) {
-        parts.push('Use the orchestrator context above as authoritative local context for this preparation step.');
-    }
+    parts.push('Your job is to produce a LightSOPLang plan that gathers the missing context needed by the main execution step.');
+    parts.push('Do not guess the clarified facts yourself. Plan calls to available preparation commands so the plan result becomes the clarified context.');
     parts.push('Only the value passed to "@lastAnswer final_answer <value>" is carried into the main execution step.');
-    parts.push('If you call tools during preparation and need their results later, include those results in the final answer value.');
     parts.push('If the clarify_context command is available and you need more conversation context, call it with one or more specific questions for the exact information you need. Its result is the answer to those questions, sourced only from the parent conversation context.');
     parts.push('Do not use clarify_context to ask for information already answered by the preparation instructions. Do not finish with "awaiting clarification"; finish with the prepared context you actually recovered.');
     parts.push('Finish with a single final answer value.');

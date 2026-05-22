@@ -252,9 +252,14 @@ test('SOPAgenticSession preparation prompt omits orchestrator context by default
     const prompt = buildSOPPreparationPrompt(
         'Recover conversation context.',
         'Create a skill.',
+        'This context should not be injected.',
     );
 
     assert.doesNotMatch(prompt, /Orchestrator context:/);
+    assert.doesNotMatch(prompt, /This context should not be injected/);
+    assert.doesNotMatch(prompt, /authoritative local context/);
+    assert.match(prompt, /produce a LightSOPLang plan that gathers the missing context/);
+    assert.match(prompt, /Do not guess the clarified facts yourself/);
     assert.match(prompt, /Its result is the answer to those questions/);
     assert.match(prompt, /Do not finish with "awaiting clarification"/);
 });
