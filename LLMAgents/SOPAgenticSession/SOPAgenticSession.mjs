@@ -36,6 +36,9 @@ import {
     getExecutableCommandNames,
     validatePlanCommands,
 } from './planning.mjs';
+import {
+    cloneSerializable,
+} from './utils.mjs';
 
 const DEBUG_LOGGER = DEBUG_ACTIVE ? getDebugLogger() : null;
 
@@ -153,6 +156,15 @@ class SOPAgenticSession {
 
     getLastResult() {
         return this.lastExecution?.lastAnswer ?? null;
+    }
+
+    getConversationSnapshot() {
+        return {
+            type: 'sop',
+            status: this.status,
+            lastAnswer: this.getLastResult(),
+            history: cloneSerializable(this.history),
+        };
     }
 
     async getVariables() {

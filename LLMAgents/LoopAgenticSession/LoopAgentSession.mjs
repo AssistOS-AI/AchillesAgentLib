@@ -154,10 +154,6 @@ class LoopAgentSession {
             status: this.status,
             lastAnswer: this.lastAnswer,
             history: cloneSerializable(this.history),
-            toolResults: Array.from(this.toolVars.entries()).map(([resultRef, value]) => ({
-                resultRef,
-                value: cloneSerializable(value),
-            })),
         };
     }
 

@@ -243,7 +243,7 @@ function wrapExecutionRegistry(session, registry) {
                     return responder.fail(error);
                 },
             };
-            return executeCommand(payload, wrappedResponder);
+            return executeCommand({ ...payload, session }, wrappedResponder);
         },
         listCommands: () => {
             const commands = listCommands() || [];

@@ -487,7 +487,6 @@ test('OrchestratorSkillsSubsystem passes parent context to loop preparation with
             parentContext: {
                 type: 'loop',
                 history: [{ type: 'user', prompt: 'Previous admin request' }],
-                toolResults: [{ resultRef: 'admin-flow-res-1', value: 'Previous admin answer' }],
             },
         },
     });
@@ -567,7 +566,6 @@ test('OrchestratorSkillsSubsystem does not inject parent loop history into loop 
             parentContext: {
                 type: 'loop',
                 history: [{ type: 'user', prompt: 'Previous admin request' }],
-                toolResults: [{ resultRef: 'admin-flow-res-1', value: 'Previous admin answer' }],
             },
         },
     });
@@ -654,7 +652,6 @@ test('OrchestratorSkillsSubsystem passes parent context to SOP preparation witho
             parentContext: {
                 type: 'loop',
                 history: [{ type: 'user', prompt: 'Create a reporting skill' }],
-                toolResults: [],
             },
         },
     });
@@ -832,6 +829,77 @@ test('SOPAgenticSession does not expose clarify_context in a normal turn', () =>
     assert.equal(session.commandsRegistry.listCommands().some((command) => command.name === 'clarify_context'), false);
 });
 
+test('SOPAgenticSession exposes conversation snapshot without tool results', () => {
+    const session = new SOPAgenticSession({
+        agent: {
+            __toolState: new Map(),
+            executePrompt: async () => 'unused',
+        },
+        skillsDescription: {},
+        options: {},
+    });
+    session.status = 'active';
+    session.lastExecution = {
+        lastAnswer: 'SOP answer',
+        variables: { childResult: 'value' },
+    };
+    session.history = [{ prompt: 'Create nested skill', plan: '@lastAnswer final_answer "ok"' }];
+
+    const snapshot = session.getConversationSnapshot();
+
+    assert.equal(snapshot.type, 'sop');
+    assert.equal(snapshot.status, 'active');
+    assert.equal(snapshot.lastAnswer, 'SOP answer');
+    assert.deepEqual(snapshot.history, session.history);
+    assert.equal(Object.prototype.hasOwnProperty.call(snapshot, 'toolResults'), false);
+    snapshot.history[0].prompt = 'mutated';
+    assert.equal(session.history[0].prompt, 'Create nested skill');
+});
+
+test('OrchestratorSkillsSubsystem passes current SOP session snapshot to nested skill execution', async () => {
+    let capturedOptions = null;
+    const childSkill = {
+        name: 'child-orchestrator',
+        shortName: 'child',
+        descriptor: { rawContent: 'Child skill' },
+    };
+    const mainAgent = {
+        llmAgent: {
+            __toolState: new Map(),
+            executePrompt: async () => [
+                '@childResult child "run child"',
+                '@lastAnswer final_answer $childResult',
+            ].join('\n'),
+        },
+        supervisor: null,
+        executeSkill: async (_skillName, _prompt, options) => {
+            capturedOptions = options;
+            return { result: 'nested ok' };
+        },
+    };
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent });
+    const tools = await subsystem.buildSkillsAsTools([childSkill], mainAgent, {
+        context: { workingDir: '/workspace/project' },
+        parentContext: {
+            type: 'loop',
+            history: [{ type: 'user', prompt: 'Main session prompt' }],
+        },
+    });
+    const commandsRegistry = subsystem.buildCommandsRegistry([childSkill], tools);
+    const session = new SOPAgenticSession({
+        agent: mainAgent.llmAgent,
+        skillsDescription: { child: 'Child skill' },
+        options: { commandsRegistry },
+    });
+
+    await session.newPrompt('Sub-session prompt');
+
+    assert.equal(capturedOptions.parentContext.type, 'sop');
+    assert.equal(capturedOptions.parentContext.history[0].prompt, 'Sub-session prompt');
+    assert.equal(capturedOptions.context.parentSession, capturedOptions.parentContext);
+    assert.equal(capturedOptions.context.workingDir, '/workspace/project');
+});
+
 test('MainAgent passes loop conversation snapshot as skill parentContext', async () => {
     let capturedOptions = null;
     const mainAgent = new MainAgent({
@@ -850,6 +918,7 @@ test('MainAgent passes loop conversation snapshot as skill parentContext', async
         },
     };
     mainAgent._skills.set(skillRecord.name, skillRecord);
+    mainAgent.context = { workingDir: '/workspace/project' };
     mainAgent.executeSkill = async (_skillName, _prompt, options) => {
         capturedOptions = options;
         return { result: 'ok' };
@@ -862,7 +931,6 @@ test('MainAgent passes loop conversation snapshot as skill parentContext', async
             getConversationSnapshot: () => ({
                 type: 'loop',
                 history: [{ type: 'user', prompt: 'Create a skill' }],
-                toolResults: [],
             }),
         },
     });
@@ -870,6 +938,7 @@ test('MainAgent passes loop conversation snapshot as skill parentContext', async
     assert.equal(output, 'ok');
     assert.equal(capturedOptions.parentContext.history[0].prompt, 'Create a skill');
     assert.equal(capturedOptions.context.parentSession, capturedOptions.parentContext);
+    assert.equal(capturedOptions.context.workingDir, '/workspace/project');
 });
 
 test('OrchestratorSkillsSubsystem does not inject parent loop history into SOP system prompt', async () => {
@@ -905,7 +974,6 @@ test('OrchestratorSkillsSubsystem does not inject parent loop history into SOP s
             parentContext: {
                 type: 'loop',
                 history: [{ type: 'user', prompt: 'Earlier user turn' }],
-                toolResults: [],
             },
         },
     });

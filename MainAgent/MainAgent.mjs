@@ -249,7 +249,11 @@ export class MainAgent {
             systemPrompt = null,
             signal = null,
             supervisor = this.supervisor,
+            context = null,
         } = options;
+        if (context && typeof context === 'object') {
+            this.context = context;
+        }
 
         if (!this._session) {
             const tools = this._buildToolsForSession();
@@ -412,9 +416,13 @@ export class MainAgent {
                         ? parentSession.getConversationSnapshot()
                         : null;
                     const supervisor = parentSession?.supervisor || this.supervisor;
-                    const context = parentSessionContext
-                        ? { parentSession: parentSessionContext }
+                    const runtimeContext = this.context && typeof this.context === 'object'
+                        ? this.context
                         : {};
+                    const context = {
+                        ...runtimeContext,
+                        ...(parentSessionContext ? { parentSession: parentSessionContext } : {}),
+                    };
                     this.logger.debug(`MainAgent:skillParentContext: ${toolName}: hasParentContext=${Boolean(parentSessionContext)}`);
 
                     const result = await this.executeSkill(skillRecord.name, safePrompt, {

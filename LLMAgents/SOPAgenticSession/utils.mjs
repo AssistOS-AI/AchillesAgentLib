@@ -49,6 +49,17 @@ function formatLogValue(value) {
     }
 }
 
+function cloneSerializable(value) {
+    if (value === null || value === undefined) {
+        return value;
+    }
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch {
+        return String(value);
+    }
+}
+
 function coerceStructuredResult(value) {
     if (value == null) {
         return value;
@@ -117,6 +128,7 @@ export {
     injectContextIntoPrompt,
     coerceResultToText,
     formatLogValue,
+    cloneSerializable,
     coerceStructuredResult,
     formatInterruptionMessage,
     isInteractiveToolResult,

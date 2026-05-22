@@ -141,7 +141,7 @@ The session maintains three distinct tracking structures, each with a specific r
 
 Tool results are stored in `toolVars` with auto-generated references (e.g., `toolName-res-1`) that can be referenced in subsequent prompts using `$$variableName` syntax.
 
-LoopAgentSession exposes `getConversationSnapshot()` for delegated skill execution. The snapshot contains `history`, resolved `toolResults`, `status`, and `lastAnswer`, and is cloned so downstream consumers cannot mutate the live session state. Tool call records remain available through `history`; the separate internal `toolCalls` index is not included in the snapshot.
+LoopAgentSession exposes `getConversationSnapshot()` for delegated skill execution. The snapshot contains `history`, `status`, and `lastAnswer`, and is cloned so downstream consumers cannot mutate the live session state. Tool result payloads are not included in the snapshot; tool call records remain available through `history`, while the separate internal `toolCalls` index is not included.
 
 ## Preparation
 

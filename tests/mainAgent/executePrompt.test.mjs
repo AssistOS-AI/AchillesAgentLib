@@ -210,7 +210,6 @@ Manage owner info.
                 getConversationSnapshot: () => ({
                     type: 'loop',
                     history: [{ type: 'user', prompt: 'previous' }],
-                    toolResults: [],
                 }),
                 supervisor,
             },

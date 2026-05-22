@@ -46,7 +46,7 @@ function buildLargeHistory(count = 30) {
     return history;
 }
 
-test('LoopAgentSession exposes conversation snapshot with history and tool results', () => {
+test('LoopAgentSession exposes conversation snapshot without tool results', () => {
     const agent = createStubAgent();
     const session = new LoopAgentSession({
         agent,
@@ -68,9 +68,7 @@ test('LoopAgentSession exposes conversation snapshot with history and tool resul
     assert.equal(snapshot.status, 'active');
     assert.equal(snapshot.lastAnswer, 'Previous answer');
     assert.deepEqual(snapshot.history, session.history);
-    assert.deepEqual(snapshot.toolResults, [
-        { resultRef: 'admin-flow-res-1', value: { result: 'Lead list' } },
-    ]);
+    assert.equal(Object.prototype.hasOwnProperty.call(snapshot, 'toolResults'), false);
 
     snapshot.history[0].prompt = 'mutated';
     assert.equal(session.history[0].prompt, 'Show leads');

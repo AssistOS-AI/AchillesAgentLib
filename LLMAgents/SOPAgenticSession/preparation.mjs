@@ -78,7 +78,6 @@ async function runPreparation({
         retries,
         hasParentContext: Boolean(getParentContext(options.parentContext)),
         parentHistory: Array.isArray(options.parentContext?.history) ? options.parentContext.history.length : 0,
-        parentToolResults: Array.isArray(options.parentContext?.toolResults) ? options.parentContext.toolResults.length : 0,
     });
 
     const sessionOptions = {
