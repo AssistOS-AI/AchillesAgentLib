@@ -76,6 +76,9 @@ async function runPreparation({
         preparationLength: String(preparationText || '').length,
         userPromptLength: String(userPrompt || '').length,
         retries,
+        hasParentContext: Boolean(getParentContext(options.parentContext)),
+        parentHistory: Array.isArray(options.parentContext?.history) ? options.parentContext.history.length : 0,
+        parentToolResults: Array.isArray(options.parentContext?.toolResults) ? options.parentContext.toolResults.length : 0,
     });
 
     const sessionOptions = {
@@ -84,7 +87,7 @@ async function runPreparation({
         systemPrompt: 'Plan and execute skills to prepare context for the user request.',
         commandsRegistry,
         preparationSession: true,
-        enableClarifyContextCommand: Boolean(getParentContext(options.parentContext)),
+        enableClarifyContextCommand: true,
         parentContext: getParentContext(options.parentContext),
         maxPlanAttempts: Number.isFinite(options.maxPlanAttempts)
             ? options.maxPlanAttempts

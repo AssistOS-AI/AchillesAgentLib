@@ -260,7 +260,7 @@ function wrapExecutionRegistry(session, registry) {
                     description: CANNOT_COMPLETE_DESCRIPTION,
                 });
             }
-            if (session.parentContextForClarification && !names.includes(CLARIFY_CONTEXT_TOOL)) {
+            if (session.clarifyContextAvailable && !names.includes(CLARIFY_CONTEXT_TOOL)) {
                 commands.push({
                     name: CLARIFY_CONTEXT_TOOL,
                     description: CLARIFY_CONTEXT_DESCRIPTION,

@@ -66,10 +66,11 @@ class SOPAgenticSession {
         this.skillsDescription = { ...skillsDescription };
         this.skillsDescription[FINAL_ANSWER_TOOL] = FINAL_ANSWER_DESCRIPTION;
         this.skillsDescription[CANNOT_COMPLETE_TOOL] = CANNOT_COMPLETE_DESCRIPTION;
-        this.parentContextForClarification = options.preparationSession === true && options.enableClarifyContextCommand
+        this.clarifyContextAvailable = options.preparationSession === true && options.enableClarifyContextCommand !== false;
+        this.parentContextForClarification = this.clarifyContextAvailable
             ? getParentContext(options.parentContext)
             : null;
-        if (this.parentContextForClarification) {
+        if (this.clarifyContextAvailable) {
             this.skillsDescription[CLARIFY_CONTEXT_TOOL] = CLARIFY_CONTEXT_DESCRIPTION;
         }
         const planOnlyFlag = options.planOnly ?? options.generatePlanOnly ?? false;
@@ -131,6 +132,9 @@ class SOPAgenticSession {
             [FINAL_ANSWER_TOOL]: FINAL_ANSWER_DESCRIPTION,
             [CANNOT_COMPLETE_TOOL]: CANNOT_COMPLETE_DESCRIPTION,
         };
+        if (this.clarifyContextAvailable) {
+            this.skillsDescription[CLARIFY_CONTEXT_TOOL] = CLARIFY_CONTEXT_DESCRIPTION;
+        }
         this._unwrappedCommandsRegistry = commandsRegistry || null;
         this.commandsRegistry = commandsRegistry && typeof commandsRegistry === 'object'
             ? this._wrapExecutionRegistry(commandsRegistry)

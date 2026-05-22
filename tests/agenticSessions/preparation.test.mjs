@@ -12,6 +12,8 @@ import {
     createPrepContextPrompt,
     runPreparation as runSOPPreparation,
 } from '../../LLMAgents/SOPAgenticSession/preparation.mjs';
+import { CLARIFY_CONTEXT_UNAVAILABLE } from '../../LLMAgents/constants.mjs';
+import { MainAgent } from '../../MainAgent/MainAgent.mjs';
 import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 
 // Minimal stub LLM agent for testing preparation flows
@@ -770,6 +772,40 @@ test('SOPAgenticSession exposes clarify_context as an internal preparation-only 
     assert.match(capturedClarifyPrompt, /What did the user ask for/);
 });
 
+test('SOPAgenticSession allows clarify_context during preparation without parent context', async () => {
+    let clarifyPromptCalls = 0;
+    const agent = {
+        __toolState: new Map(),
+        executePrompt: async (prompt) => {
+            if (prompt.includes('Question(s):')) {
+                clarifyPromptCalls += 1;
+                return 'unexpected';
+            }
+            return [
+                '@ctx clarify_context "What did the user ask for?"',
+                '@lastAnswer final_answer $ctx',
+            ].join('\n');
+        },
+    };
+    const commandsRegistry = {
+        executeCommand: async (_payload, response) => response.fail('unexpected external command'),
+        listCommands: () => [],
+    };
+
+    const result = await SOPAgenticSession.runPreparation({
+        agent,
+        skillsDescription: {},
+        commandsRegistry,
+        options: {},
+        preparationText: 'Use clarify_context if the parent request matters.',
+        userPrompt: 'Continue',
+        retries: 0,
+    });
+
+    assert.equal(result.contextText, CLARIFY_CONTEXT_UNAVAILABLE);
+    assert.equal(clarifyPromptCalls, 0);
+});
+
 test('SOPAgenticSession does not expose clarify_context in a normal turn', () => {
     const agent = {
         __toolState: new Map(),
@@ -794,6 +830,46 @@ test('SOPAgenticSession does not expose clarify_context in a normal turn', () =>
 
     assert.equal(session.skillsDescription.clarify_context, undefined);
     assert.equal(session.commandsRegistry.listCommands().some((command) => command.name === 'clarify_context'), false);
+});
+
+test('MainAgent passes loop conversation snapshot as skill parentContext', async () => {
+    let capturedOptions = null;
+    const mainAgent = new MainAgent({
+        startDir: process.cwd(),
+        disableInternalSkills: true,
+        logger: { debug: () => {} },
+    });
+    const skillRecord = {
+        name: 'skills-orchestrator',
+        shortName: 'skills-orchestrator',
+        type: 'orchestrator',
+        descriptor: {
+            sections: {
+                description: 'Manage skills',
+            },
+        },
+    };
+    mainAgent._skills.set(skillRecord.name, skillRecord);
+    mainAgent.executeSkill = async (_skillName, _prompt, options) => {
+        capturedOptions = options;
+        return { result: 'ok' };
+    };
+
+    const tools = mainAgent._buildToolsForSession();
+    const output = await tools['skills-orchestrator'].handler(mainAgent.llmAgent, 'Create a skill', {
+        session: {
+            supervisor: null,
+            getConversationSnapshot: () => ({
+                type: 'loop',
+                history: [{ type: 'user', prompt: 'Create a skill' }],
+                toolResults: [],
+            }),
+        },
+    });
+
+    assert.equal(output, 'ok');
+    assert.equal(capturedOptions.parentContext.history[0].prompt, 'Create a skill');
+    assert.equal(capturedOptions.context.parentSession, capturedOptions.parentContext);
 });
 
 test('OrchestratorSkillsSubsystem does not inject parent loop history into SOP system prompt', async () => {

@@ -415,6 +415,7 @@ export class MainAgent {
                     const context = parentSessionContext
                         ? { parentSession: parentSessionContext }
                         : {};
+                    this.logger.debug(`MainAgent:skillParentContext: ${toolName}: hasParentContext=${Boolean(parentSessionContext)}`);
 
                     const result = await this.executeSkill(skillRecord.name, safePrompt, {
                         model: 'plan',
