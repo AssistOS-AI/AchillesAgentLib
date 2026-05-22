@@ -176,12 +176,21 @@ export class OrchestratorSkillsSubsystem {
                 const safePrompt = typeof promptText === 'string'
                     ? promptText
                     : (promptText != null ? JSON.stringify(promptText) : '');
+                const parentSession = executionOptions?.session || null;
+                const parentSessionContext = parentSession && typeof parentSession.getConversationSnapshot === 'function'
+                    ? parentSession.getConversationSnapshot()
+                    : null;
+                const parentContext = parentSessionContext || options?.parentContext || null;
+                const context = {
+                    ...forwardedContext,
+                    ...(parentSessionContext ? { parentSession: parentSessionContext } : {}),
+                };
 
                 const execOptions = {
-                    context: forwardedContext,
-                    parentContext: options?.parentContext || null,
+                    context,
+                    parentContext,
                     signal: executionOptions?.signal || forwardedSignal,
-                    supervisor: executionOptions?.session?.supervisor || options?.supervisor || mainAgent?.supervisor || null,
+                    supervisor: parentSession?.supervisor || options?.supervisor || mainAgent?.supervisor || null,
                 };
                 if (skillModel) execOptions.model = skillModel;
                 const executionResult = await mainAgent.executeSkill(skillRecord.name, safePrompt, execOptions);
@@ -229,7 +238,10 @@ export class OrchestratorSkillsSubsystem {
                 }
 
                 try {
-                    const executionOptions = { signal: forwardedSignal };
+                    const executionOptions = {
+                        signal: forwardedSignal,
+                        session: payload?.session || null,
+                    };
                     if (Array.isArray(args)) {
                         const prompt = args.join(' ');
                         const result = await skillAction(llmAgent, prompt, executionOptions);
