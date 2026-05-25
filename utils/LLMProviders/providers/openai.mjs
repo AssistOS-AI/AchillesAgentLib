@@ -23,22 +23,32 @@ function resolveChatCompletionsURL(baseURL) {
     return `${trimmed}/v1/chat/completions`;
 }
 
+function buildHeaders({ apiKey, allowNoAuth = false, headers = {}, providerLabel }) {
+    if (!apiKey && !allowNoAuth) {
+        throw new Error(`${providerLabel} provider requires an API key.`);
+    }
+
+    return {
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        'Content-Type': 'application/json',
+        ...(headers || {}),
+    };
+}
+
 export async function callLLM(chatContext, options) {
     if (!options || typeof options !== 'object') {
         throw new Error('OpenAI provider requires invocation options.');
     }
 
-    const { model, apiKey, baseURL, signal, params, headers } = options;
+    const { model, apiKey, allowNoAuth = false, baseURL, signal, params, headers } = options;
     const providerLabel = deriveProviderLabel(baseURL);
     if (!model) {
         throw new Error(`${providerLabel} provider requires a model name.`);
     }
-    if (!apiKey) {
-        throw new Error(`${providerLabel} provider requires an API key.`);
-    }
     if (!baseURL) {
         throw new Error(`${providerLabel} provider requires a baseURL.`);
     }
+    const requestHeaders = buildHeaders({ apiKey, allowNoAuth, headers, providerLabel });
 
     const convertedContext = toOpenAIChatMessages(chatContext);
     const payload = {
@@ -52,11 +62,7 @@ export async function callLLM(chatContext, options) {
 
     const response = await fetch(resolveChatCompletionsURL(baseURL), {
         method: 'POST',
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            ...(headers || {}),
-        },
+        headers: requestHeaders,
         body: JSON.stringify(payload),
         signal,
     });
@@ -90,11 +96,11 @@ export async function* callLLMStreaming(chatContext, options) {
         throw new Error('OpenAI provider requires invocation options.');
     }
 
-    const { model, apiKey, baseURL, signal, params, headers } = options;
+    const { model, apiKey, allowNoAuth = false, baseURL, signal, params, headers } = options;
     const providerLabel = deriveProviderLabel(baseURL);
     if (!model) throw new Error(`${providerLabel} provider requires a model name.`);
-    if (!apiKey) throw new Error(`${providerLabel} provider requires an API key.`);
     if (!baseURL) throw new Error(`${providerLabel} provider requires a baseURL.`);
+    const requestHeaders = buildHeaders({ apiKey, allowNoAuth, headers, providerLabel });
 
     const convertedContext = toOpenAIChatMessages(chatContext);
     const payload = {
@@ -109,11 +115,7 @@ export async function* callLLMStreaming(chatContext, options) {
 
     const response = await fetch(resolveChatCompletionsURL(baseURL), {
         method: 'POST',
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            ...(headers || {}),
-        },
+        headers: requestHeaders,
         body: JSON.stringify(payload),
         signal,
     });

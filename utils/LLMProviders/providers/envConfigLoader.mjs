@@ -283,9 +283,14 @@ function addDirectProvider(providers, { providerKey, apiType, envNames, baseURL 
 }
 
 function resolveSoulGatewayBaseURL() {
-    const raw = process.env.SOUL_GATEWAY_BASE_URL || process.env.SOUL_GATEWAY_URL;
+    let raw = process.env.SOUL_GATEWAY_BASE_URL || process.env.SOUL_GATEWAY_URL;
     if (!raw || !String(raw).trim()) {
-        return null;
+        // Fallback: derive from Ploinky router URL (embedded auto-discovery)
+        if (process.env.PLOINKY_ROUTER_URL && String(process.env.PLOINKY_ROUTER_URL).trim()) {
+            raw = `${process.env.PLOINKY_ROUTER_URL.replace(/\/+$/, '')}/services/soul-gateway/v1`;
+        } else {
+            return null;
+        }
     }
     const trimmed = raw.replace(/\/+$/, '');
 
