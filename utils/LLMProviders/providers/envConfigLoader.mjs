@@ -283,14 +283,21 @@ function addDirectProvider(providers, { providerKey, apiType, envNames, baseURL 
 }
 
 function resolveSoulGatewayBaseURL() {
-    let raw = process.env.SOUL_GATEWAY_BASE_URL || process.env.SOUL_GATEWAY_URL;
-    if (!raw || !String(raw).trim()) {
-        // Fallback: derive from Ploinky router URL (embedded auto-discovery)
-        if (process.env.PLOINKY_ROUTER_URL && String(process.env.PLOINKY_ROUTER_URL).trim()) {
-            raw = `${process.env.PLOINKY_ROUTER_URL.replace(/\/+$/, '')}/services/soul-gateway/v1`;
-        } else {
+    const keySource = String(process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY || '').trim();
+    // Generated embedded keys must stay paired with the embedded router service.
+    // A standalone URL is honored only with an explicit operator-supplied key.
+    if (keySource === 'generated') {
+        const routerURL = String(process.env.PLOINKY_ROUTER_URL || '').trim();
+        if (!routerURL) {
             return null;
         }
+        const trimmedRouterURL = routerURL.replace(/\/+$/, '');
+        return `${trimmedRouterURL}/services/soul-gateway/v1/chat/completions`;
+    }
+
+    const raw = process.env.SOUL_GATEWAY_BASE_URL || process.env.SOUL_GATEWAY_URL;
+    if (!raw || !String(raw).trim()) {
+        return null;
     }
     const trimmed = raw.replace(/\/+$/, '');
 
