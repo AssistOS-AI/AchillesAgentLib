@@ -218,19 +218,18 @@ export class OrchestratorSkillsSubsystem {
         return descriptions;
     }
 
-    buildToolsWithDescriptions(allowedSkills, tools, descriptions) {
+    buildToolsWithDescriptions(tools, descriptions) {
         const toolsWithDescriptions = {};
-        allowedSkills.forEach(skillRecord => {
-            const toolName = Sanitiser.sanitiseName(skillRecord.shortName || skillRecord.name);
+        for (const toolName of Object.keys(tools)) {
             toolsWithDescriptions[toolName] = {
                 handler: tools[toolName],
-                description: descriptions[toolName],
+                description: descriptions[toolName] || '',
             };
-        });
+        }
         return toolsWithDescriptions;
     }
 
-    buildCommandsRegistry(allowedSkills, tools, options = {}) {
+    buildCommandsRegistry(tools, descriptions = {}, options = {}) {
         const llmAgent = this.mainAgent?.llmAgent || null;
         const forwardedSignal = options?.signal || null;
         return {
@@ -258,9 +257,9 @@ export class OrchestratorSkillsSubsystem {
                     return response.fail(error?.message || String(error));
                 }
             },
-            listCommands: () => allowedSkills.map(s => ({
-                name: Sanitiser.sanitiseName(s.shortName || s.name),
-                description: s.descriptor?.name || s.name,
+            listCommands: () => Object.keys(tools).map((name) => ({
+                name,
+                description: descriptions[name] || '',
             })),
         };
     }
@@ -314,10 +313,10 @@ export class OrchestratorSkillsSubsystem {
         Object.assign(tools, agentTools);
         Object.assign(descriptions, agentDescriptions);
 
-        const toolsWithDescriptions = this.buildToolsWithDescriptions(allowedSkills, tools, descriptions);
+        const toolsWithDescriptions = this.buildToolsWithDescriptions(tools, descriptions);
         const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, this.mainAgent, options);
         const prepDescriptions = this.buildToolDescriptions(allowedPrepSkills);
-        const prepToolsWithDescriptions = this.buildToolsWithDescriptions(allowedPrepSkills, prepTools, prepDescriptions);
+        const prepToolsWithDescriptions = this.buildToolsWithDescriptions(prepTools, prepDescriptions);
         const parentContext = options?.parentContext || null;
 
         const preparation = skillRecord.preparedConfig?.preparation
@@ -365,10 +364,10 @@ export class OrchestratorSkillsSubsystem {
         Object.assign(tools, agentTools);
         Object.assign(skillsDescription, agentDescriptions);
 
-        const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools, options);
+        const commandsRegistry = this.buildCommandsRegistry(tools, skillsDescription, options);
         const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, this.mainAgent, options);
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);
-        const prepCommandsRegistry = this.buildCommandsRegistry(allowedPrepSkills, prepTools, options);
+        const prepCommandsRegistry = this.buildCommandsRegistry(prepTools, prepSkillsDescription, options);
         const parentContext = options?.parentContext || null;
 
         const preparation = skillRecord.preparedConfig?.preparation
