@@ -38,9 +38,10 @@ Each skill record has an `isInternal` boolean property set to true for internal 
 | SKILL.md | anthropic |
 | dcgskill.md | dynamic-code-generation |
 | cskill.md | cskill |
-| mskill.md | mcp |
 | oskill.md | orchestrator |
 | tskill.md | dbtable |
+
+Note: `PloinkyAgentSkillsSubsystem` (type `ploinky`) does not participate in filesystem skill discovery. It is instantiated lazily by `OrchestratorSkillsSubsystem` when an orchestrator declares `## Allowed Agents`.
 
 ## Skill Record Structure
 

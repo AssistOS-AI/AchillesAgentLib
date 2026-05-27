@@ -132,7 +132,7 @@ Completion with memory context injection. Prepends memory segments (global, user
 - `'code'` — strips markdown code fences
 - `'json-code'` — extracts JSON object requiring a `code` field
 
-**Used by:** All subsystems (CodeSkills, DCG, MCP, DBTable, Orchestrator), evals suite.
+**Used by:** All subsystems (CodeSkills, DCG, PloinkyAgent, DBTable, Orchestrator), evals suite.
 
 ### detectIntents(skillsDescription, userPrompt, options)
 

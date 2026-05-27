@@ -13,3 +13,4 @@ This matrix lists the current AchillesAgentLib DS files. The existing DS set pre
 | [DS006](DS006-CodeSkillsSubsystem.md) | CodeSkillsSubsystem | current | Code skill descriptor, build, and execution behavior. |
 | [DS007](DS007-Subsystems.md) | Subsystems | current | Shared subsystem interface and lifecycle. |
 | [DS008](DS008-AgenticKnowledgeUnits.md) | Agentic Knowledge Units | draft | Deterministic local-first Knowledge Unit storage, indexing, search, and ContextPack construction. |
+| [DS009](DS009-PloinkyAgentSkillsSubsystem.md) | PloinkyAgentSkillsSubsystem | current | Dynamic agent coordination: orchestrator-driven discovery via `/agent-card`, agent-to-tool wrapping, and OpenAI-compatible agent invocation through `AgentHttpClient`. |

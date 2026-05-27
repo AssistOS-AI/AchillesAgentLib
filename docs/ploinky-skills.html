@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ploinky Agent Skills · Achilles Agents Docs</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="site-header"
+        data-breadcrumb='[
+            {"label":"Home","href":"index.html"},
+            {"label":"Ploinky Agent Skills"}
+        ]'></div>
+
+    <main class="content content--with-sidebar">
+        <div class="doc-layout">
+            <aside class="doc-sidebar" aria-label="Ploinky chapter navigation">
+                <p class="doc-sidebar__title">Ploinky Chapters</p>
+                <nav>
+                    <a href="ploinky-skills.html" aria-current="page">Overview</a>
+                </nav>
+            </aside>
+
+            <div class="doc-main">
+                <section class="lead">
+                    <h1>Ploinky Agent Skills</h1>
+                    <p>Ploinky Agent Skills is a dynamic coordination subsystem that enables orchestrator skills to discover and call remote Ploinky agents through the router. It does not participate in filesystem skill discovery and has no descriptor file type.</p>
+                </section>
+
+                <section>
+                    <h2>Orchestrator-Driven Discovery</h2>
+                    <p>When an orchestrator skill (<code>oskill.md</code>) includes a <code>## Allowed Agents</code> section, the <code>OrchestratorSkillsSubsystem</code> instantiates <code>PloinkyAgentSkillsSubsystem</code> on demand. The subsystem queries the Ploinky router's <code>/agent-card</code> endpoint to retrieve metadata for all available agents, then wraps each declared agent as a callable tool within the agentic session.</p>
+                </section>
+
+                <section>
+                    <h2>Agent Tool Execution</h2>
+                    <p>Each agent tool receives plain text from the orchestrator session, constructs an OpenAI-compatible payload, and sends it through <code>AgentHttpClient.chatCompletions()</code>. The response text is extracted and returned to the session. This means agents are called through the same OpenAI-compatible interface that all Ploinky agents expose, regardless of their underlying LLM provider.</p>
+                    <p>Agent tools are merged into the session's toolbelt alongside local skill tools, so the LLM can freely choose between calling a local skill or a remote agent at each step.</p>
+                </section>
+
+                <section>
+                    <h2>Descriptor Section</h2>
+                    <p>An orchestrator declares remote agents through the <code>## Allowed Agents</code> section (aliases: <code>allowed-agents</code>, <code>agents</code>, <code>agent-allowlist</code>):</p>
+                    <pre><code>## Allowed Agents
+
+- openaiAgent
+- researchAgent
+- claudeAgent</code></pre>
+                    <p>The subsystem derives each tool's description from the agent-card metadata (summary, tags, usage guidance, etc.), so the orchestrator's LLM can make informed decisions about which agent to call.</p>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+    <script src="partials-loader.js"></script>
+</body>
+</html>

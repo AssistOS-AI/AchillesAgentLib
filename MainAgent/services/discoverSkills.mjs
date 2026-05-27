@@ -7,7 +7,6 @@ const SKILL_FILE_TYPES = {
     'SKILL.md': { type: 'anthropic' },
     'dcgskill.md': { type: 'dynamic-code-generation' },
     'cskill.md': { type: 'cskill' },
-    'mskill.md': { type: 'mcp' },
     'oskill.md': { type: 'orchestrator' },
     'tskill.md': { type: 'dbtable' },
 };

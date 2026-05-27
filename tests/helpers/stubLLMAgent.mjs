@@ -23,7 +23,7 @@ class StubLLMAgent extends LLMAgent {
                 return {
                     plan: [
                         { intent: 'reporting', skill: 'llm-reporter-anthropic', run: true, input: prompt, reason: 'Primary reporting path' },
-                        { intent: 'data-fetch', skill: 'inventory-data-retrieval-mcp', run: true, input: prompt, reason: 'Retrieve supporting data' },
+                        { intent: 'data-fetch', skill: 'inventory-data-retrieval-ploinky', run: true, input: prompt, reason: 'Retrieve supporting data' },
                     ],
                     notes: '',
                 };
@@ -35,36 +35,9 @@ class StubLLMAgent extends LLMAgent {
                 return {
                     plan: [
                         { intent: 'summary', skill: 'llm-reporter-anthropic', run: true, input: prompt, reason: 'Summarise findings' },
-                        { intent: 'data-fetch', skill: 'llm-data-lookup-mcp', run: true, input: prompt, reason: 'Gather data for summary' },
+                        { intent: 'data-fetch', skill: 'llm-data-lookup-ploinky', run: true, input: prompt, reason: 'Gather data for summary' },
                     ],
                     notes: 'Default stub plan',
-                };
-            }
-        }
-
-        if (intent === 'mcp-skill-plan') {
-            if (skillName === 'inventory-data-retrieval-mcp') {
-                return {
-                    plan: [
-                        { tool: 'inventoryLookup', arguments: prompt, why: 'Default stub selection' },
-                    ],
-                    notes: '',
-                };
-            }
-            if (skillName === 'fallback-planner-orchestrator-fallback-mcp') {
-                return {
-                    plan: [
-                        { tool: 'invoiceLookup', arguments: prompt, why: 'Fallback lookup' },
-                    ],
-                    notes: '',
-                };
-            }
-            if (skillName === 'llm-data-lookup-mcp') {
-                return {
-                    plan: [
-                        { tool: 'metricScanner', arguments: prompt, why: 'Collect metrics for reporting' },
-                    ],
-                    notes: '',
                 };
             }
         }

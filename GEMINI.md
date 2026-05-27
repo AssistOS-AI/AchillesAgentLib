@@ -21,14 +21,14 @@ AchillesAgentLib is a modular, skill-based agent framework that enables LLM-powe
 │                                │                                        │
 │  ┌─────────────────────────────▼─────────────────────────────────────┐ │
 │  │                        Subsystems                                  │ │
-│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │ │
-│  │  │  anthropic  │ │ dynamic-code │ │     mcp     │  │ │
-│  │  │ (skill.md)  │ │ (dcgskill.md) │ │ (mskill.md) │  │ │
-│  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │ │
-│  │  ┌─────────────┐ ┌─────────────┐                                  │ │
-│  │  │orchestrator │ │   dbtable   │                                  │ │
-│  │  │ (oskill.md) │ │ (tskill.md) │                                  │ │
-│  │  └─────────────┘ └─────────────┘                                  │ │
+│  │  ┌─────────────┐ ┌──────────────┐ ┌─────────────┐ ┌─────────────┐  │ │
+│  │  │  anthropic  │ │ dynamic-code │ │ code-skill  │ │orchestrator │  │ │
+│  │  │ (skill.md)  │ │ (dcgskill.md) │ │ (cskill.md) │ │ (oskill.md) │  │ │
+│  │  └─────────────┘ └──────────────┘ └─────────────┘ └─────────────┘  │ │
+│  │  ┌─────────────┐ ┌─────────────┐                                   │ │
+│  │  │   dbtable   │ │  ploinky *  │                                   │ │
+│  │  │ (tskill.md) │ │ (no file)   │                                   │ │
+│  │  └─────────────┘ └─────────────┘                                   │ │
 │  └───────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -51,9 +51,11 @@ The main entry point and coordinator for skill-based execution.
 |------|------|-----------|
 | `skill.md` | anthropic | AnthropicSkillsSubsystem |
 | `dcgskill.md` | dynamic-code-generation | DynamicCodeGenerationSubsystem |
-| `mskill.md` | mcp | MCPSkillsSubsystem |
+| `cskill.md` | cskill | CodeSkillsSubsystem |
 | `oskill.md` | orchestrator | OrchestratorSkillsSubsystem |
 | `tskill.md` | dbtable | DBTableSkillsSubsystem |
+
+`PloinkyAgentSkillsSubsystem` (type `ploinky`) does not participate in filesystem skill discovery. It is instantiated lazily by `OrchestratorSkillsSubsystem` when an orchestrator declares `## Allowed Agents`.
 
 **Key Methods:**
 ```javascript
@@ -165,14 +167,6 @@ Guidelines for the LLM when creating execution plans.
 @step1 skill-one $prompt
 @step2 skill-two $step1
 @lastAnswer finalAnswer $step2
-
-## Fallback
-Fallback instructions when main plan fails.
-
-Intent: fallback-mcp
-Allowed tools:
-- read-file
-- write-file
 ```
 
 **Execution Flow:**
@@ -180,7 +174,6 @@ Allowed tools:
 2. Resolve allowed downstream skills
 3. Either execute LightSOPLang script OR generate LLM plan
 4. Execute plan steps sequentially
-5. Trigger fallback if all steps fail/skip
 
  **Key Methods:**
  ```javascript
@@ -298,35 +291,18 @@ Computed as current timestamp on creation.
 
 ---
 
-### 7. MCPSkillsSubsystem (`MCPSkillsSubsystem/MCPSkillsSubsystem.mjs`)
+### 7. PloinkyAgentSkillsSubsystem (`PloinkyAgentSkillsSubsystem/PloinkyAgentSkillsSubsystem.mjs`)
 
-Orchestrates Model Context Protocol (MCP) tools.
+Dynamic coordination subsystem that enables orchestrator skills to discover and call remote Ploinky agents through the router. Does not participate in skill discovery; instantiated lazily by `OrchestratorSkillsSubsystem` when an orchestrator declares `## Allowed Agents`.
 
-**Skill Definition (mskill.md):**
+**Usage in orchestrator (`oskill.md`):**
 ```markdown
-# FileManager
-
-Manages file operations using MCP tools.
-
-## Instructions
-Use appropriate file tools based on the operation type.
-
-## Allowed-Tools
-- list-files
-- read-file
-- write-file
-- delete-file
-
-## Light-SOP-Lang
-@prompt prompt
-@files list-files $prompt
-@lastAnswer finalAnswer $files
+## Allowed Agents
+- openaiAgent
+- researchAgent
 ```
 
-**Execution:**
-1. Filter available tools by allowlist
-2. Either execute LightSOPLang script OR generate LLM plan
-3. Schedule tool invocations based on plan
+**Execution:** Queries the router's `/agent-card` endpoint via `fetchAgentCards()`, wraps each declared agent as a callable tool via `buildAgentAsTools()`. Each agent tool sends prompt text through `AgentHttpClient.chatCompletions()` and returns response text.
 
 ---
 
@@ -397,7 +373,6 @@ OrchestratorSubsystem.executeSkillPrompt()
     ├─► [has module] → executeModuleSkill()
     ├─► [has script] → executeScriptPlan() via LightSOPLang
     └─► [LLM plan] → createPlan() → executePlanSteps()
-        └─► [all failed] → executeFallbackReact()
 ```
 
 ---
@@ -424,8 +399,6 @@ skills/
 ├── my-db-skill/
 │   ├── tskill.md           # DB table skill definition
 │   └── tskill.generated.mjs # Auto-generated functions
-├── my-mcp-skill/
-│   └── mskill.md           # MCP tool skill definition
 └── my-anthropic-skill/
     └── skill.md            # Basic Anthropic skill definition
 ```
@@ -459,8 +432,6 @@ try {
     // - Module load failure
 }
 ```
-
-Orchestrators support fallback execution when primary plans fail, providing graceful degradation.
 
 ---
 

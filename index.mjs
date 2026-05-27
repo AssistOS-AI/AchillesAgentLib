@@ -5,7 +5,7 @@ export * from './utils/MarkdownDataStore.mjs';
 export * from './MainAgent/index.mjs';
 export * from './DynamicCodeGenerationSubsystem/index.mjs';
 export * from './AnthropicSkillsSubsystem/index.mjs';
-export * from './MCPSkillsSubsystem/index.mjs';
+export * from './PloinkyAgentSkillsSubsystem/index.mjs';
 export * from './OrchestratorSkillsSubsystem/index.mjs';
 export * from './DBTableSkillsSubsystem/index.mjs';
 export { AgenticKnowledgeUnits, AKUError, AKU_ERROR_CODES } from './AgenticKnowledgeUnits/index.mjs';

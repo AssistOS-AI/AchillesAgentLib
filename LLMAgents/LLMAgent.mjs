@@ -315,7 +315,7 @@ class LLMAgent {
      * - `'code'` — strips markdown code fences
      * - `'json-code'` — extracts JSON object requiring a `code` field
      *
-     * Used by: All subsystems (CodeSkills, DCG, MCP, DBTable, Orchestrator),
+     * Used by: All subsystems (CodeSkills, DCG, PloinkyAgent, DBTable, Orchestrator),
      * evals suite, and any code that needs to send a prompt with context.
      *
      * @param {string} promptText - The user prompt

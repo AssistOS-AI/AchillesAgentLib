@@ -13,6 +13,7 @@ const SECTION_KEYS = {
     preparation: ['preparation', 'prep', 'context-prep'],
     allowedSkills: ['allowed-skills', 'skill-allowlist', 'skill-allow-list', 'skills'],
     allowedPrepSkills: ['allowed-prep-skills', 'allowed-preparation-skills', 'prep-skills'],
+    allowedAgents: ['allowed-agents', 'agents', 'agent-allowlist'],
     description: ['description'],
     sessionType: ['session', 'session type', 'session-type', 'session_type'],
 };
@@ -89,8 +90,11 @@ export class OrchestratorSkillsSubsystem {
         const sessionType = rawSessionType && rawSessionType.toLowerCase() === 'loop'
             ? 'loop'
             : null;
+        const allowedAgents = normaliseBulletList(pickSection(sections, SECTION_KEYS.allowedAgents))
+            .map((name) => Sanitiser.sanitiseName(name))
+            .filter(Boolean);
 
-        debugLog(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}"`);
+        debugLog(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}" allowedAgents=${JSON.stringify(allowedAgents)}`);
 
         skillRecord.preparedConfig = {
             type: this.type,
@@ -104,6 +108,7 @@ export class OrchestratorSkillsSubsystem {
             allowedPrepSkillsSectionPresent,
             description,
             sessionType: sessionType || null,
+            allowedAgents,
         };
     }
 
@@ -260,6 +265,41 @@ export class OrchestratorSkillsSubsystem {
         };
     }
 
+    async _buildAgentTools(skillRecord, mainAgent, options = {}) {
+        const allowedAgents = skillRecord.preparedConfig?.allowedAgents || [];
+        if (!allowedAgents.length) {
+            return { tools: {}, descriptions: {} };
+        }
+
+        const ploinkySubsystem = mainAgent.ensureSubsystem('ploinky');
+        if (!ploinkySubsystem) {
+            debugLog(`[Orchestrator] No ploinky subsystem available for agent tools in "${skillRecord.name}"`);
+            return { tools: {}, descriptions: {} };
+        }
+
+        const agentCards = await ploinkySubsystem.fetchAgentCards({
+            routerUrl: options?.routerUrl || null,
+            env: options?.env || process.env,
+            timeoutMs: options?.timeoutMs || 0,
+        });
+
+        const agentTools = ploinkySubsystem.buildAgentAsTools(allowedAgents, agentCards, {
+            timeoutMs: options?.timeoutMs || 0,
+            model: options?.model || this.modelConfig?.plan || null,
+            routerUrl: options?.routerUrl || null,
+            env: options?.env || process.env,
+        });
+
+        const tools = {};
+        const descriptions = {};
+        for (const [name, tool] of Object.entries(agentTools)) {
+            tools[name] = tool.handler;
+            descriptions[name] = tool.description;
+        }
+
+        return { tools, descriptions };
+    }
+
     async executeLoopAgentSession({skillRecord, promptText, options}) {
         const llmAgent = this.mainAgent?.llmAgent;
         if (!llmAgent || typeof llmAgent.startLoopAgentSession !== 'function') {
@@ -269,6 +309,10 @@ export class OrchestratorSkillsSubsystem {
         const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, this.mainAgent, allowedSkills);
         const tools = await this.buildSkillsAsTools(allowedSkills, this.mainAgent, options);
         const descriptions = this.buildToolDescriptions(allowedSkills);
+
+        const { tools: agentTools, descriptions: agentDescriptions } = await this._buildAgentTools(skillRecord, this.mainAgent, options);
+        Object.assign(tools, agentTools);
+        Object.assign(descriptions, agentDescriptions);
 
         const toolsWithDescriptions = this.buildToolsWithDescriptions(allowedSkills, tools, descriptions);
         const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, this.mainAgent, options);
@@ -316,6 +360,11 @@ export class OrchestratorSkillsSubsystem {
         const allowedPrepSkills = this.resolveAllowedPrepSkills(skillRecord, this.mainAgent, allowedSkills);
         const tools = await this.buildSkillsAsTools(allowedSkills, this.mainAgent, options);
         const skillsDescription = this.buildToolDescriptions(allowedSkills);
+
+        const { tools: agentTools, descriptions: agentDescriptions } = await this._buildAgentTools(skillRecord, this.mainAgent, options);
+        Object.assign(tools, agentTools);
+        Object.assign(skillsDescription, agentDescriptions);
+
         const commandsRegistry = this.buildCommandsRegistry(allowedSkills, tools, options);
         const prepTools = await this.buildSkillsAsTools(allowedPrepSkills, this.mainAgent, options);
         const prepSkillsDescription = this.buildToolDescriptions(allowedPrepSkills);

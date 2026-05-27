@@ -31,7 +31,7 @@ MainAgent is the primary entry point for achillesAgentLib. It manages skill disc
 │           │                                                │
 │  ┌────────▼──────────────────────────────────────────┐    │
 │  │                  Subsystems                        │    │
-│  │  orchestrator | dcg | cskill | mcp | dbtable      │    │
+│  │  orchestrator | dcg | cskill | ploinky | dbtable  │    │
 │  │  | anthropic                                       │    │
 │  └───────────────────────────────────────────────────┘    │
 │                                                           │

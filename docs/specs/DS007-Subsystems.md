@@ -31,9 +31,9 @@ Executes JavaScript/ESM modules. Skills are defined by a `cskill.md` file and im
 
 Runs JavaScript code dynamically — either generated at runtime by the LLM or loaded from pre-written modules. Defined by `dcgskill.md`.
 
-### MCPSkillsSubsystem (`mcp`)
+### PloinkyAgentSkillsSubsystem (`ploinky`)
 
-Orchestrates Model Context Protocol tools. Filters available tools by allowlist and executes them via LightSOPLang scripts or LLM-generated plans. Defined by `mskill.md`.
+Dynamic coordination subsystem that enables orchestrators to discover and call remote Ploinky agents through the router. Does not participate in skill discovery; instantiated lazily by `OrchestratorSkillsSubsystem` when an orchestrator declares `## Allowed Agents`. Provides `fetchAgentCards()` for router discovery and `buildAgentAsTools()` to wrap agents as callable session tools.
 
 ### OrchestratorSkillsSubsystem (`orchestrator`)
 

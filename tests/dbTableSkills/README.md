@@ -165,7 +165,6 @@ MainAgent doesn't natively support `tskill.md` files yet. The SKILL_FILE_TYPES c
 const SKILL_FILE_TYPES = {
     'skill.md': { type: 'anthropic' },
     'dcgskill.md': { type: 'dynamic-code-generation' },
-    'mskill.md': { type: 'mcp' },
     'oskill.md': { type: 'orchestrator' },
     'tskill.md': { type: 'dbtable' },  // ADD THIS LINE
 };
@@ -182,8 +181,6 @@ ensureSubsystem(type) {
     let subsystem;
     if (type === 'dynamic-code-generation') {
         subsystem = new DynamicCodeGenerationSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
-    } else if (type === 'mcp') {
-        subsystem = new MCPSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
     } else if (type === 'orchestrator') {
         subsystem = new OrchestratorSkillsSubsystem({ llmAgent: this.aggregatorAgent.llmAgent });
     } else if (type === 'dbtable') {  // ADD THIS BLOCK

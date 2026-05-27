@@ -1,14 +1,14 @@
 import { DynamicCodeGenerationSubsystem } from '../../DynamicCodeGenerationSubsystem/index.mjs';
 import { CodeSkillsSubsystem } from '../../CodeSkillsSubsystem/index.mjs';
 import { AnthropicSkillsSubsystem } from '../../AnthropicSkillsSubsystem/index.mjs';
-import { MCPSkillsSubsystem } from '../../MCPSkillsSubsystem/index.mjs';
+import { PloinkyAgentSkillsSubsystem } from '../../PloinkyAgentSkillsSubsystem/index.mjs';
 import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/index.mjs';
 import { DBTableSkillsSubsystem } from '../../DBTableSkillsSubsystem/index.mjs';
 
 const SUBSYSTEM_REGISTRY = new Map([
     ['dynamic-code-generation', DynamicCodeGenerationSubsystem],
     ['cskill', CodeSkillsSubsystem],
-    ['mcp', MCPSkillsSubsystem],
+    ['ploinky', PloinkyAgentSkillsSubsystem],
     ['orchestrator', OrchestratorSkillsSubsystem],
     ['dbtable', DBTableSkillsSubsystem],
     ['anthropic', AnthropicSkillsSubsystem],

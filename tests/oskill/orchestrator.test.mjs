@@ -14,7 +14,7 @@ test('resolveAllowedSkills allows all skill types except self when no allowlist'
 
     const allSkills = [
         { name: 'cskill-1', type: 'cskill' },
-        { name: 'mcp-1', type: 'mcp' },
+        { name: 'ploinky-1', type: 'ploinky' },
         { name: 'dbtable-1', type: 'dbtable' },
         { name: 'anthropic-1', type: 'anthropic' },
         { name: 'code-gen-1', type: 'dynamic-code-generation' },
@@ -28,7 +28,7 @@ test('resolveAllowedSkills allows all skill types except self when no allowlist'
     const filtered = subsystem.resolveAllowedSkills(skillRecord, mainAgent);
 
     const allowedTypes = filtered.map(skill => skill.type);
-    const expectedTypes = ['cskill', 'mcp', 'dbtable', 'anthropic', 'dynamic-code-generation'];
+    const expectedTypes = ['cskill', 'ploinky', 'dbtable', 'anthropic', 'dynamic-code-generation'];
 
     assert.equal(filtered.length, 5, 'should allow all skill types except self');
     assert.deepEqual(allowedTypes.sort(), expectedTypes.sort(), 'should allow all types except orchestrator self');
@@ -158,4 +158,71 @@ test('executeLoopAgentSession is used when sessionType is set', async () => {
 
     assert.equal(result.session, 'loop');
     assert.equal(result.result, 'Loop result');
+});
+
+test('prepareSkill parses Allowed Agents section', () => {
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
+
+    const skillRecord = {
+        descriptor: {
+            name: 'Test Orchestrator',
+            rawContent: 'Test body',
+            sections: {
+                instructions: 'Test instructions',
+                'allowed-agents': '- agent1\n- agent2',
+                description: 'Test description',
+            },
+        },
+    };
+
+    subsystem.prepareSkill(skillRecord);
+
+    assert.deepEqual(skillRecord.preparedConfig.allowedAgents, ['agent1', 'agent2']);
+});
+
+test('prepareSkill handles empty Allowed Agents section', () => {
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
+
+    const skillRecord = {
+        descriptor: {
+            name: 'Test Orchestrator',
+            rawContent: 'Test body',
+            sections: {
+                instructions: 'Test instructions',
+                description: 'Test description',
+            },
+        },
+    };
+
+    subsystem.prepareSkill(skillRecord);
+
+    assert.deepEqual(skillRecord.preparedConfig.allowedAgents, []);
+});
+
+test('_buildAgentTools returns empty when no allowed agents', async () => {
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
+
+    const skillRecord = {
+        name: 'test-orchestrator',
+        preparedConfig: { allowedAgents: [] },
+    };
+
+    const { tools, descriptions } = await subsystem._buildAgentTools(skillRecord, { ensureSubsystem: () => null });
+
+    assert.deepEqual(tools, {});
+    assert.deepEqual(descriptions, {});
+});
+
+test('_buildAgentTools returns empty when ploinky subsystem unavailable', async () => {
+    const subsystem = new OrchestratorSkillsSubsystem({ mainAgent: { llmAgent: new StubLLMAgent() } });
+
+    const skillRecord = {
+        name: 'test-orchestrator',
+        preparedConfig: { allowedAgents: ['agent1'] },
+    };
+
+    const { tools, descriptions } = await subsystem._buildAgentTools(skillRecord, { ensureSubsystem: () => null });
+
+    assert.deepEqual(tools, {});
+    assert.deepEqual(descriptions, {});
 });
