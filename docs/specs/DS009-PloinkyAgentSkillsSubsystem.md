@@ -112,3 +112,25 @@ If no metadata is available, the description falls back to `"Agent: <name>"`.
 | `fetchAgentCards` network failure | Propagated from `AgentHttpClient` |
 | Agent not found in cards | Tool created with fallback description, handler will fail at call time |
 | Unexpected response shape | `_extractTextFromCompletion` stringifies the response |
+
+## AgentHttpClient
+
+`AgentHttpClient` is the HTTP client used by `PloinkyAgentSkillsSubsystem` to call the Ploinky router's agent endpoints. It lives at `PloinkyAgentSkillsSubsystem/AgentHttpClient.mjs` within the `achillesAgentLib` package, so it is available inside agent containers without depending on external paths.
+
+### Exports
+
+- `createAgentHttpClient(options)` — creates a client instance with `routerUrl`, `env`, `requestHeaders`, and `timeoutMs` options
+- `getRouterUrl(env)` — resolves the router URL from `PLOINKY_ROUTER_URL` or `PLOINKY_ROUTER_HOST`/`PLOINKY_ROUTER_PORT`
+- `getAgentCardUrl(agentName, options)` — returns the URL for `/agent-card/<agent>`
+- `getAgentCardsUrl(options)` — returns the URL for `/agent-card` (aggregate)
+- `getAgentChatCompletionsUrl(agentName, options)` — returns the URL for `/v1/chat/completions/<agent>`
+
+### Client Methods
+
+- `client.agentCard(agentName?)` — fetches aggregate or single agent card
+- `client.chatCompletions(agentName, payload)` — sends a non-streaming chat completion request
+- `client.chatCompletionsStream(agentName, payload)` — returns an async iterator over SSE events
+
+### Router Endpoint Policy
+
+The `/agent-card` and `/v1/chat/completions/<agent>` routes are public at the Ploinky router level. The router acts as a transparent proxy; the target agent decides whether to accept or reject the request. No browser cookies or API keys are required at the router layer for these endpoints.

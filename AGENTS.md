@@ -418,7 +418,7 @@ Coordinate between local skills and remote agents.
 - researchAgent
 ```
 
-**Execution:** When the orchestrator session starts, the subsystem queries the router's `/agent-card` endpoint via `fetchAgentCards()`, then wraps each declared agent as a callable tool via `buildAgentAsTools()`. Each agent tool sends the session's prompt text through `AgentHttpClient.chatCompletions()` and returns the response text. Agent tools are merged into the session's toolbelt alongside local skill tools.
+**Execution:** When the orchestrator session starts, the subsystem queries the router's `/agent-card` endpoint via `fetchAgentCards()`, then wraps each declared agent as a callable tool via `buildAgentAsTools()`. Each agent tool sends the session's prompt text through `AgentHttpClient.chatCompletions()` (from `PloinkyAgentSkillsSubsystem/AgentHttpClient.mjs`) and returns the response text. Agent tools are merged into the session's toolbelt alongside local skill tools.
 
 ---
 

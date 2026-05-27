@@ -302,7 +302,7 @@ Dynamic coordination subsystem that enables orchestrator skills to discover and 
 - researchAgent
 ```
 
-**Execution:** Queries the router's `/agent-card` endpoint via `fetchAgentCards()`, wraps each declared agent as a callable tool via `buildAgentAsTools()`. Each agent tool sends prompt text through `AgentHttpClient.chatCompletions()` and returns response text.
+**Execution:** Queries the router's `/agent-card` endpoint via `fetchAgentCards()`, wraps each declared agent as a callable tool via `buildAgentAsTools()`. Each agent tool sends prompt text through `AgentHttpClient.chatCompletions()` (from `PloinkyAgentSkillsSubsystem/AgentHttpClient.mjs`) and returns response text.
 
 ---
 

@@ -33,7 +33,7 @@ Runs JavaScript code dynamically — either generated at runtime by the LLM or l
 
 ### PloinkyAgentSkillsSubsystem (`ploinky`)
 
-Dynamic coordination subsystem that enables orchestrators to discover and call remote Ploinky agents through the router. Does not participate in skill discovery; instantiated lazily by `OrchestratorSkillsSubsystem` when an orchestrator declares `## Allowed Agents`. Provides `fetchAgentCards()` for router discovery and `buildAgentAsTools()` to wrap agents as callable session tools.
+Dynamic coordination subsystem that enables orchestrators to discover and call remote Ploinky agents through the router. Does not participate in skill discovery; instantiated lazily by `OrchestratorSkillsSubsystem` when an orchestrator declares `## Allowed Agents`. Provides `fetchAgentCards()` for router discovery and `buildAgentAsTools()` to wrap agents as callable session tools. Uses `AgentHttpClient` (from `PloinkyAgentSkillsSubsystem/AgentHttpClient.mjs`) for HTTP calls to the router's `/agent-card` and `/v1/chat/completions/<agent>` endpoints.
 
 ### OrchestratorSkillsSubsystem (`orchestrator`)
 

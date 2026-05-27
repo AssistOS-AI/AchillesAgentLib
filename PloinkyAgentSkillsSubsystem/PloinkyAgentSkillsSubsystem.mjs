@@ -1,4 +1,4 @@
-import { createAgentHttpClient } from '../../../Agent/client/AgentHttpClient.mjs';
+import { createAgentHttpClient } from './AgentHttpClient.mjs';
 
 export class PloinkyAgentSkillsSubsystem {
     constructor({ mainAgent = null, modelConfig = null } = {}) {

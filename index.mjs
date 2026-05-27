@@ -8,6 +8,7 @@ export * from './AnthropicSkillsSubsystem/index.mjs';
 export * from './PloinkyAgentSkillsSubsystem/index.mjs';
 export * from './OrchestratorSkillsSubsystem/index.mjs';
 export * from './DBTableSkillsSubsystem/index.mjs';
+export * from './PloinkyAgentSkillsSubsystem/AgentHttpClient.mjs';
 export { AgenticKnowledgeUnits, AKUError, AKU_ERROR_CODES } from './AgenticKnowledgeUnits/index.mjs';
 export * from './services/index.mjs';
 export * from './jwt/index.mjs';

@@ -37,6 +37,7 @@
                     <h2>Agent Tool Execution</h2>
                     <p>Each agent tool receives plain text from the orchestrator session, constructs an OpenAI-compatible payload, and sends it through <code>AgentHttpClient.chatCompletions()</code>. The response text is extracted and returned to the session. This means agents are called through the same OpenAI-compatible interface that all Ploinky agents expose, regardless of their underlying LLM provider.</p>
                     <p>Agent tools are merged into the session's toolbelt alongside local skill tools, so the LLM can freely choose between calling a local skill or a remote agent at each step.</p>
+                    <p><code>AgentHttpClient</code> lives at <code>PloinkyAgentSkillsSubsystem/AgentHttpClient.mjs</code> within the <code>achillesAgentLib</code> package, so it is available inside agent containers without depending on external paths.</p>
                 </section>
 
                 <section>
