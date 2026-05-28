@@ -28,7 +28,7 @@ function encodeAgentName(agentName) {
 
 export function getAgentCardUrl(agentName, options = {}) {
     const routerUrl = stripTrailingSlash(options.routerUrl || getRouterUrl(options.env || process.env));
-    return `${routerUrl}/agent-card/${encodeAgentName(agentName)}`;
+    return `${routerUrl}/${encodeAgentName(agentName)}/agent-card`;
 }
 
 export function getAgentCardsUrl(options = {}) {
@@ -38,7 +38,7 @@ export function getAgentCardsUrl(options = {}) {
 
 export function getAgentChatCompletionsUrl(agentName, options = {}) {
     const routerUrl = stripTrailingSlash(options.routerUrl || getRouterUrl(options.env || process.env));
-    return `${routerUrl}/v1/chat/completions/${encodeAgentName(agentName)}`;
+    return `${routerUrl}/${encodeAgentName(agentName)}/v1/chat/completions`;
 }
 
 function selectHttpModule(url) {

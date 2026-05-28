@@ -121,9 +121,9 @@ If no metadata is available, the description falls back to `"Agent: <name>"`.
 
 - `createAgentHttpClient(options)` — creates a client instance with `routerUrl`, `env`, `requestHeaders`, and `timeoutMs` options
 - `getRouterUrl(env)` — resolves the router URL from `PLOINKY_ROUTER_URL` or `PLOINKY_ROUTER_HOST`/`PLOINKY_ROUTER_PORT`
-- `getAgentCardUrl(agentName, options)` — returns the URL for `/agent-card/<agent>`
+- `getAgentCardUrl(agentName, options)` — returns the URL for `/<agent>/agent-card`
 - `getAgentCardsUrl(options)` — returns the URL for `/agent-card` (aggregate)
-- `getAgentChatCompletionsUrl(agentName, options)` — returns the URL for `/v1/chat/completions/<agent>`
+- `getAgentChatCompletionsUrl(agentName, options)` — returns the URL for `/<agent>/v1/chat/completions`
 
 ### Client Methods
 
@@ -133,4 +133,4 @@ If no metadata is available, the description falls back to `"Agent: <name>"`.
 
 ### Router Endpoint Policy
 
-The `/agent-card` and `/v1/chat/completions/<agent>` routes are public at the Ploinky router level. The router acts as a transparent proxy; the target agent decides whether to accept or reject the request. No browser cookies or API keys are required at the router layer for these endpoints.
+The `/agent-card` and `/<agent>/v1/chat/completions` routes are public at the Ploinky router level. The router acts as a transparent proxy; the target agent decides whether to accept or reject the request. No browser cookies or API keys are required at the router layer for these endpoints.

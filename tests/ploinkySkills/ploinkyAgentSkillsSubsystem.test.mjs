@@ -33,7 +33,7 @@ describe('PloinkyAgentSkillsSubsystem', () => {
                             { name: 'agent2', payload: { 'agent-card': { tags: ['deep'], summary: 'Deep agent' } } },
                         ],
                     }));
-                } else if (req.url === '/agent-card/agent1') {
+                } else if (req.url === '/agent1/agent-card') {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({
                         agent: 'agent1',
@@ -62,7 +62,7 @@ describe('PloinkyAgentSkillsSubsystem', () => {
             assert.strictEqual(result.agents[0].name, 'agent1');
         });
 
-        it('fetches a specific agent card from /agent-card/<name>', async () => {
+        it('fetches a specific agent card from /<name>/agent-card', async () => {
             const result = await subsystem.fetchAgentCards({
                 agentName: 'agent1',
                 routerUrl: serverUrl,
@@ -87,12 +87,12 @@ describe('PloinkyAgentSkillsSubsystem', () => {
                     const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {};
                     receivedRequests.push({ url: req.url, body });
 
-                    if (req.url === '/v1/chat/completions/agent1') {
+                    if (req.url === '/agent1/v1/chat/completions') {
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({
                             choices: [{ message: { content: 'Hello from agent1' } }],
                         }));
-                    } else if (req.url === '/v1/chat/completions/agent2') {
+                    } else if (req.url === '/agent2/v1/chat/completions') {
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({
                             choices: [{ message: { content: 'Hello from agent2' } }],
@@ -168,7 +168,7 @@ describe('PloinkyAgentSkillsSubsystem', () => {
 
             assert.strictEqual(result, 'Hello from agent1');
             assert.strictEqual(receivedRequests.length, 1);
-            assert.strictEqual(receivedRequests[0].url, '/v1/chat/completions/agent1');
+            assert.strictEqual(receivedRequests[0].url, '/agent1/v1/chat/completions');
             assert.deepStrictEqual(receivedRequests[0].body.messages, [
                 { role: 'user', content: 'test prompt' },
             ]);

@@ -39,11 +39,11 @@ test('AgentHttpClient resolves router and agent endpoint URLs', () => {
     );
     assert.equal(
         getAgentChatCompletionsUrl('openaiAgent', { routerUrl: 'http://127.0.0.1:8080/' }),
-        'http://127.0.0.1:8080/v1/chat/completions/openaiAgent'
+        'http://127.0.0.1:8080/openaiAgent/v1/chat/completions'
     );
     assert.equal(
         getAgentCardUrl('openaiAgent', { routerUrl: 'http://127.0.0.1:8080/' }),
-        'http://127.0.0.1:8080/agent-card/openaiAgent'
+        'http://127.0.0.1:8080/openaiAgent/agent-card'
     );
     assert.equal(
         getAgentCardsUrl({ routerUrl: 'http://127.0.0.1:8080/' }),
@@ -67,12 +67,12 @@ test('AgentHttpClient calls router agent-card and chat completions endpoints', a
             }));
             return;
         }
-        if (req.method === 'GET' && req.url === '/agent-card/openaiAgent') {
+        if (req.method === 'GET' && req.url === '/openaiAgent/agent-card') {
             res.writeHead(200, { 'content-type': 'application/json' });
             res.end(JSON.stringify({ agent: 'openaiAgent', 'agent-card': { tags: ['fast'] } }));
             return;
         }
-        if (req.method === 'POST' && req.url === '/v1/chat/completions/openaiAgent') {
+        if (req.method === 'POST' && req.url === '/openaiAgent/v1/chat/completions') {
             const body = await readJsonBody(req);
             assert.equal(body.stream, false);
             res.writeHead(200, { 'content-type': 'application/json' });
@@ -111,15 +111,15 @@ test('AgentHttpClient calls router agent-card and chat completions endpoints', a
 
     assert.deepEqual(seen.map(entry => entry.url), [
         '/agent-card',
-        '/agent-card/openaiAgent',
-        '/v1/chat/completions/openaiAgent'
+        '/openaiAgent/agent-card',
+        '/openaiAgent/v1/chat/completions'
     ]);
     assert.ok(seen.every(entry => entry.auth === 'router-issued'));
 });
 
 test('AgentHttpClient streams chat completions SSE events through router endpoint', async () => {
     const server = http.createServer(async (req, res) => {
-        if (req.method !== 'POST' || req.url !== '/v1/chat/completions/openaiAgent') {
+        if (req.method !== 'POST' || req.url !== '/openaiAgent/v1/chat/completions') {
             res.writeHead(404);
             res.end();
             return;
