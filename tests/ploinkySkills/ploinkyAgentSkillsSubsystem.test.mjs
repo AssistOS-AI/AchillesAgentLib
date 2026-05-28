@@ -29,15 +29,15 @@ describe('PloinkyAgentSkillsSubsystem', () => {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({
                         agents: [
-                            { name: 'agent1', payload: { capabilities: { tags: ['fast'], summary: 'Fast agent' } } },
-                            { name: 'agent2', payload: { capabilities: { tags: ['deep'], summary: 'Deep agent' } } },
+                            { name: 'agent1', payload: { 'agent-card': { tags: ['fast'], summary: 'Fast agent' } } },
+                            { name: 'agent2', payload: { 'agent-card': { tags: ['deep'], summary: 'Deep agent' } } },
                         ],
                     }));
                 } else if (req.url === '/agent-card/agent1') {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({
                         agent: 'agent1',
-                        capabilities: { tags: ['fast'], summary: 'Fast agent' },
+                        'agent-card': { tags: ['fast'], summary: 'Fast agent' },
                     }));
                 } else {
                     res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -69,7 +69,7 @@ describe('PloinkyAgentSkillsSubsystem', () => {
             });
 
             assert.strictEqual(result.agent, 'agent1');
-            assert.deepStrictEqual(result.capabilities.tags, ['fast']);
+            assert.deepStrictEqual(result['agent-card'].tags, ['fast']);
         });
     });
 
@@ -101,8 +101,8 @@ describe('PloinkyAgentSkillsSubsystem', () => {
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({
                             agents: [
-                                { name: 'agent1', payload: { capabilities: { summary: 'Fast agent', tags: ['fast'] } } },
-                                { name: 'agent2', payload: { capabilities: { summary: 'Deep agent', tags: ['deep'] } } },
+                                { name: 'agent1', payload: { 'agent-card': { summary: 'Fast agent', tags: ['fast'] } } },
+                                { name: 'agent2', payload: { 'agent-card': { summary: 'Deep agent', tags: ['deep'] } } },
                             ],
                         }));
                     } else {
@@ -124,8 +124,8 @@ describe('PloinkyAgentSkillsSubsystem', () => {
         it('creates tools for each agent name', () => {
             const agentCards = {
                 agents: [
-                    { name: 'agent1', payload: { capabilities: { summary: 'Fast agent' } } },
-                    { name: 'agent2', payload: { capabilities: { summary: 'Deep agent' } } },
+                    { name: 'agent1', payload: { 'agent-card': { summary: 'Fast agent' } } },
+                    { name: 'agent2', payload: { 'agent-card': { summary: 'Deep agent' } } },
                 ],
             };
             const tools = subsystem.buildAgentAsTools(['agent1', 'agent2'], agentCards);
@@ -139,7 +139,7 @@ describe('PloinkyAgentSkillsSubsystem', () => {
         it('uses agent-card summary as tool description', () => {
             const agentCards = {
                 agents: [
-                    { name: 'agent1', payload: { capabilities: { summary: 'Fast agent', tags: ['fast'] } } },
+                    { name: 'agent1', payload: { 'agent-card': { summary: 'Fast agent', tags: ['fast'] } } },
                 ],
             };
             const tools = subsystem.buildAgentAsTools(['agent1'], agentCards);
@@ -157,7 +157,7 @@ describe('PloinkyAgentSkillsSubsystem', () => {
         it('handler sends chat completions and returns text', async () => {
             const agentCards = {
                 agents: [
-                    { name: 'agent1', payload: { capabilities: { summary: 'Fast agent' } } },
+                    { name: 'agent1', payload: { 'agent-card': { summary: 'Fast agent' } } },
                 ],
             };
             const tools = subsystem.buildAgentAsTools(['agent1'], agentCards, {
@@ -177,7 +177,7 @@ describe('PloinkyAgentSkillsSubsystem', () => {
         it('handler handles non-string prompt', async () => {
             const agentCards = {
                 agents: [
-                    { name: 'agent1', payload: { capabilities: { summary: 'Fast agent' } } },
+                    { name: 'agent1', payload: { 'agent-card': { summary: 'Fast agent' } } },
                 ],
             };
             const tools = subsystem.buildAgentAsTools(['agent1'], agentCards, {
@@ -195,7 +195,7 @@ describe('PloinkyAgentSkillsSubsystem', () => {
         it('handler handles unexpected response shape', async () => {
             const agentCards = {
                 agents: [
-                    { name: 'agent1', payload: { capabilities: { summary: 'Fast agent' } } },
+                    { name: 'agent1', payload: { 'agent-card': { summary: 'Fast agent' } } },
                 ],
             };
             const tools = subsystem.buildAgentAsTools(['agent1'], agentCards, {

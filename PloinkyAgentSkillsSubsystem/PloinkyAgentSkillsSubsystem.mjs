@@ -49,29 +49,30 @@ export class PloinkyAgentSkillsSubsystem {
 
     _buildAgentDescription(card, agentName) {
         const parts = [];
-        if (card?.payload?.capabilities?.summary) {
-            parts.push(card.payload.capabilities.summary);
+        const ac = card?.payload?.['agent-card'];
+        if (ac?.summary) {
+            parts.push(ac.summary);
         }
-        if (card?.payload?.capabilities?.description) {
-            parts.push(card.payload.capabilities.description);
+        if (ac?.description) {
+            parts.push(ac.description);
         }
-        if (card?.payload?.capabilities?.tags?.length) {
-            parts.push(`Tags: ${card.payload.capabilities.tags.join(', ')}`);
+        if (ac?.tags?.length) {
+            parts.push(`Tags: ${ac.tags.join(', ')}`);
         }
-        if (card?.payload?.capabilities?.whenToUse) {
-            parts.push(`Use when: ${card.payload.capabilities.whenToUse}`);
+        if (ac?.whenToUse) {
+            parts.push(`Use when: ${ac.whenToUse}`);
         }
-        if (card?.payload?.capabilities?.whenNotToUse) {
-            parts.push(`Avoid when: ${card.payload.capabilities.whenNotToUse}`);
+        if (ac?.whenNotToUse) {
+            parts.push(`Avoid when: ${ac.whenNotToUse}`);
         }
-        if (card?.payload?.capabilities?.inputConventions) {
-            parts.push(`Input: ${card.payload.capabilities.inputConventions}`);
+        if (ac?.inputConventions) {
+            parts.push(`Input: ${ac.inputConventions}`);
         }
-        if (card?.payload?.capabilities?.outputConventions) {
-            parts.push(`Output: ${card.payload.capabilities.outputConventions}`);
+        if (ac?.outputConventions) {
+            parts.push(`Output: ${ac.outputConventions}`);
         }
-        if (card?.payload?.capabilities?.usageGuidance) {
-            parts.push(card.payload.capabilities.usageGuidance);
+        if (ac?.usageGuidance) {
+            parts.push(ac.usageGuidance);
         }
         if (!parts.length) {
             parts.push(`Agent: ${agentName}`);

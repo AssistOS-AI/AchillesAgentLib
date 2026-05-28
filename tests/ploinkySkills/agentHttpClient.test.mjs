@@ -69,7 +69,7 @@ test('AgentHttpClient calls router agent-card and chat completions endpoints', a
         }
         if (req.method === 'GET' && req.url === '/agent-card/openaiAgent') {
             res.writeHead(200, { 'content-type': 'application/json' });
-            res.end(JSON.stringify({ agent: 'openaiAgent', capabilities: { tags: ['fast'] } }));
+            res.end(JSON.stringify({ agent: 'openaiAgent', 'agent-card': { tags: ['fast'] } }));
             return;
         }
         if (req.method === 'POST' && req.url === '/v1/chat/completions/openaiAgent') {
@@ -96,8 +96,8 @@ test('AgentHttpClient calls router agent-card and chat completions endpoints', a
         assert.equal(aggregate.agents[0].name, 'openaiAgent');
         assert.deepEqual(aggregate.agents[0].payload.anyShape, { ok: true });
 
-        const capabilities = await client.agentCard('openaiAgent');
-        assert.deepEqual(capabilities.capabilities.tags, ['fast']);
+        const agentCard = await client.agentCard('openaiAgent');
+        assert.deepEqual(agentCard['agent-card'].tags, ['fast']);
 
         const completion = await client.chatCompletions('openaiAgent', {
             model: 'demo',
