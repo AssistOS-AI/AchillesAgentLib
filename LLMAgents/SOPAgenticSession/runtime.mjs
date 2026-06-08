@@ -188,6 +188,7 @@ async function answerParentContextClarification(session, questions) {
     const result = await session.agent.executePrompt(buildClarifyContextPrompt(session.parentContextForClarification, questionText), {
         model: session.options.model || null,
         tags: session.options.tags || null,
+        reasoningEffort: session.options.reasoningEffort || null,
         signal: session._currentAbortSignal || null,
     });
     return stringifyClarificationResult(result) || CLARIFY_CONTEXT_UNAVAILABLE;

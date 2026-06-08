@@ -50,6 +50,7 @@ class LLMAgent {
             name = DEFAULT_AGENT_NAME,
             invokerStrategy = null,
             modelConfig = null,
+            reasoningEffort = null,
         } = options;
 
         if (!name || typeof name !== 'string') {
@@ -64,6 +65,7 @@ class LLMAgent {
         this.name = name;
         this.invokerStrategy = resolvedStrategy;
         this.modelConfig = modelConfig || this._buildDefaultModelConfig();
+        this.reasoningEffort = reasoningEffort || null;
         this._inputCounter = 0;
         this._outputCounter = 0;
         this._callLog = [];
@@ -290,6 +292,12 @@ class LLMAgent {
         return await extraComplete(this, options);
     }
 
+    _resolveReasoningEffort(options) {
+        const perCall = options && typeof options === 'object' ? options.reasoningEffort : null;
+        if (perCall) return perCall;
+        return this.reasoningEffort;
+    }
+
     /**
      * Abort all in-flight LLM requests.
      *
@@ -486,13 +494,14 @@ ${promptText}`
             throw new Error('startLoopAgentSession requires an initial prompt string.');
         }
 
-        const { initialExpected = null, signal = null, ...sessionOptions } = options || {};
+        const { initialExpected = null, signal = null, reasoningEffort = null, ...sessionOptions } = options || {};
 
         const session = new LoopAgentSession({
             agent: this,
             tools,
             options: sessionOptions,
         });
+        session.options.reasoningEffort = reasoningEffort || null;
         await session.newPrompt(initialPrompt, { expected: initialExpected, signal });
         return session;
     }
@@ -526,12 +535,14 @@ ${promptText}`
             generatePlanOnly = false,
             planOnly = false,
             signal = null,
+            reasoningEffort = null,
             ...rest
         } = options || {};
 
         const sessionOptions = {
             ...rest,
             planOnly: planOnly || generatePlanOnly,
+            reasoningEffort: reasoningEffort || null,
         };
 
         const session = new SOPAgenticSession({

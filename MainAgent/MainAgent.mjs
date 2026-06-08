@@ -54,13 +54,15 @@ export class MainAgent {
         logger = null,
         llmAgentOptions = {},
         modelConfig = null,
+        reasoningEffort = null,
         disableInternalSkills = true,
     } = {}) {
         this.startDir = startDir;
         this.logger = logger || createLogger();
         this.disableInternalSkills = Boolean(disableInternalSkills);
+        this.reasoningEffort = reasoningEffort || null;
 
-        this.llmAgent = new LLMAgent({ ...llmAgentOptions, modelConfig });
+        this.llmAgent = new LLMAgent({ ...llmAgentOptions, modelConfig, reasoningEffort });
 
         this._skills = new Map();
         this._skillAliases = new Map();
@@ -250,10 +252,13 @@ export class MainAgent {
             signal = null,
             supervisor = this.supervisor,
             context = null,
+            reasoningEffort = null,
         } = options;
         if (context && typeof context === 'object') {
             this.context = context;
         }
+
+        const effectiveReasoningEffort = reasoningEffort || this.reasoningEffort;
 
         if (!this._session) {
             const tools = this._buildToolsForSession();
@@ -263,6 +268,7 @@ export class MainAgent {
                 systemPrompt,
                 supervisor,
                 signal,
+                reasoningEffort: effectiveReasoningEffort,
             });
         } else {
             await this._session.newPrompt(message, { signal });

@@ -22,6 +22,7 @@ async function extraComplete(agent, options = {}) {
         model = null,
         tags = null,
         context = {},
+        reasoningEffort = null,
         ...invokerExtras
     } = options;
 
@@ -44,6 +45,9 @@ ${prompt}`
     const inputCharacters = loggedPrompt.length;
     agent._recordInputChars(inputCharacters);
 
+    const effectiveReasoningEffort = reasoningEffort
+        || (agent && typeof agent._resolveReasoningEffort === 'function' ? agent._resolveReasoningEffort(options) : null);
+
     let responseMetadata = null;
     try {
         const response = await agent.invokerStrategy({
@@ -54,6 +58,7 @@ ${prompt}`
             modelConfig: agent.modelConfig,
             agent,
             context,
+            reasoningEffort: effectiveReasoningEffort || undefined,
             ...invokerExtras,
         });
 

@@ -86,6 +86,9 @@ async function runPlan(session, planSource) {
     if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'llmSignal')) {
         interpreterOptions.llmSignal = session._currentAbortSignal;
     }
+    if (!Object.prototype.hasOwnProperty.call(interpreterOptions, 'reasoningEffort')) {
+        interpreterOptions.reasoningEffort = session.options.reasoningEffort;
+    }
     session._lastFinalAnswer = null;
     let interpreter;
     try {
@@ -222,6 +225,9 @@ ${trimmed}`;
     if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmSignal')) {
         planOptions.llmSignal = session._currentAbortSignal;
     }
+    if (!Object.prototype.hasOwnProperty.call(planOptions, 'reasoningEffort')) {
+        planOptions.reasoningEffort = session.options.reasoningEffort;
+    }
     const interpreter = new LightSOPLangInterpreter(
         englishSource,
         session.planCommandsRegistry,
@@ -352,7 +358,7 @@ function buildExecutionFeedbackComment(feedback) {
 
 async function runPendingTool(session, userPrompt, pendingTool) {
     const interpretation = session.agent && typeof session.agent.interpretMessage === 'function'
-        ? await session.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'], signal: session._currentAbortSignal })
+        ? await session.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'], signal: session._currentAbortSignal, reasoningEffort: session.options.reasoningEffort || null })
         : { intent: 'unknown', confidence: 0 };
     const shouldContinuePending = interpretation?.intent === 'accept'
         || interpretation?.intent === 'cancel'
@@ -416,6 +422,7 @@ async function newPrompt(session, SessionClass, userPrompt, promptOptions = {}) 
             options: {
                 model: session.options.model,
                 tags: session.options.tags,
+                reasoningEffort: session.options.reasoningEffort,
                 signal: session._currentAbortSignal,
                 supervisor: session.supervisor,
                 parentContext: session.preparation.parentContext || null,

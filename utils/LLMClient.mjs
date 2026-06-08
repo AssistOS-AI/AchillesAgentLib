@@ -412,6 +412,7 @@ export function createDefaultLLMInvokerStrategy() {
             signal = null,
             invocationOptions = {},
             responseValidator = null,
+            reasoningEffort = null,
         } = invocation;
 
         if (!prompt || typeof prompt !== 'string') {
@@ -438,9 +439,15 @@ export function createDefaultLLMInvokerStrategy() {
             mergedHeaders['X-Soul-Agent'] = process.env.AGENT_NAME;
         }
 
+        // Merge reasoningEffort into params if specified
+        const mergedParams = { ...(invocationOptions.params || {}), ...params };
+        if (reasoningEffort && typeof reasoningEffort === 'string') {
+            mergedParams.reasoning_effort = reasoningEffort.toLowerCase();
+        }
+
         const invocationConfig = {
             ...invocationOptions,
-            params: { ...(invocationOptions.params || {}), ...params },
+            params: mergedParams,
             headers: mergedHeaders,
         };
 

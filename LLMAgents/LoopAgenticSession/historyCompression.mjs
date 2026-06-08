@@ -55,6 +55,7 @@ async function compressHistoryIfNeeded(session, userPrompt) {
         prompt,
         model: session.options.historyCompressionModel || session.options.model,
         tags: session.options.tags,
+        reasoningEffort: session.options.reasoningEffort || null,
         signal: session._currentAbortSignal,
         context: {
             intent: 'agentic-session-history-compression',

@@ -103,6 +103,7 @@ function buildClarifyContextTool(session, parentContext) {
             const result = await session.agent.executePrompt(buildClarifyContextPrompt(parentContext, questions), {
                 model: session.options.model || null,
                 tags: session.options.tags || null,
+                reasoningEffort: session.options.reasoningEffort || null,
                 signal: session._currentAbortSignal || null,
             });
             return stringifyClarificationResult(result) || CLARIFY_CONTEXT_UNAVAILABLE;

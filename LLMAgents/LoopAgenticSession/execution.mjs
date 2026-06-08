@@ -93,7 +93,7 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
 
         if (!explicitDifferentToolMention) {
             const interpretation = session.agent && typeof session.agent.interpretMessage === 'function'
-                ? await session.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'], signal: session._currentAbortSignal })
+                ? await session.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'], signal: session._currentAbortSignal, reasoningEffort: session.options.reasoningEffort || null })
                 : { intent: 'unknown', confidence: 0 };
             const shouldContinuePending = interpretation?.intent === 'accept'
                 || interpretation?.intent === 'cancel'
@@ -131,6 +131,7 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
         prompt: plannerPrompt,
         model: session.options.model,
         tags: session.options.tags,
+        reasoningEffort: session.options.reasoningEffort,
         signal: session._currentAbortSignal,
         context: {
             intent: 'agentic-session-planner',
@@ -476,6 +477,7 @@ async function newPrompt(session, SessionClass, userPrompt, options = {}) {
             options: {
                 model: session.options.model,
                 tags: session.options.tags,
+                reasoningEffort: session.options.reasoningEffort,
                 maxStepsPerTurn: session.options.maxStepsPerTurn,
                 supervisor: session.supervisor,
                 signal: promptSignal,
