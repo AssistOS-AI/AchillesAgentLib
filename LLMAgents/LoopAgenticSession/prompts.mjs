@@ -133,6 +133,7 @@ const buildAgenticSessionPlannerPrompt = (options) => {
     lines.push(`- When you have the final response, call the reserved tool "${FINAL_ANSWER_TOOL}" with ONLY the final text in "toolPrompt" (no extra wording).`);
     lines.push(`- If the task truly cannot be completed, call the reserved tool "cannot_complete" with a short reason in "toolPrompt".`);
     lines.push('- Avoid calling the same tool repeatedly with equivalent instructions that do not change the result.');
+    lines.push('- If the most recent tool result already is the final response and fully satisfies the system prompt and output format requirements (i.e., it contains the complete answer the user expects, not just gathered context), call "final_answer" and set "toolPrompt" to the exact $$<resultRef> of that result. Otherwise, continue the normal reasoning and generate the final response.');
     lines.push('- If the user explicitly asks to use a tool by name and that tool exists in the available tools list, you MUST call it at least once before finishing.');
     lines.push('- Do NOT treat normal words (e.g., "and", "or") as tool mentions unless the user clearly refers to the tool itself (e.g., "use the and tool").');
     lines.push('- When passing literal strings as tool arguments, do NOT wrap them in extra quotes if they are already quoted in the user text; pass the value once without adding additional quotation marks.');
