@@ -10,11 +10,12 @@ import {
     SESSION_STATUS_INTERRUPTED,
 } from '../constants.mjs';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 const PREPARATION_CONTEXT_PREFIX = '@context_';
 
-function debugLog(...args) {
-    if (DEBUG_ENABLED) console.log(...args);
+function debugLog(logger, ...args) {
+    if (logger) {
+        logger.log(...args);
+    }
 }
 
 function parseContextVariables(text = '', prefix = PREPARATION_CONTEXT_PREFIX) {
@@ -66,7 +67,8 @@ async function runPreparation({
         return { contextEntries: [], contextLines: [] };
     }
 
-    debugLog(`[${getTimestamp()}] [LoopSession] Preparation start`, {
+    const logger = options.logger || null;
+    debugLog(logger, `[${getTimestamp()}] [LoopSession] Preparation start`, {
         preparationLength: String(preparationText || '').length,
         userPromptLength: String(userPrompt || '').length,
         retries,
@@ -85,12 +87,12 @@ async function runPreparation({
             tools,
             options: sessionOptions,
         });
-        debugLog(`[${getTimestamp()}] [LoopSession] Preparation session start`, {
+        debugLog(logger, `[${getTimestamp()}] [LoopSession] Preparation session start`, {
             promptLength: String(preparationPrompt || '').length,
         });
         await session.newPrompt(preparationPrompt);
         if (session.status === SESSION_STATUS_AWAITING_INPUT) {
-            debugLog(`[${getTimestamp()}] [LoopSession] Preparation awaiting input`, {
+            debugLog(logger, `[${getTimestamp()}] [LoopSession] Preparation awaiting input`, {
                 status: session.status,
             });
             throw new Error('Preparation loop requires user input.');
@@ -101,7 +103,7 @@ async function runPreparation({
         const resultText = coerceResultToText(session.getLastResult());
         const contextEntries = parseContextVariables(resultText, contextPrefix);
         const contextLines = buildContextPieceLines(contextEntries);
-        debugLog(`[${getTimestamp()}] [LoopSession] Preparation result parsed`, {
+        debugLog(logger, `[${getTimestamp()}] [LoopSession] Preparation result parsed`, {
             rawTextLength: String(resultText || '').length,
             contextEntries: contextEntries.length,
             contextLines: contextLines.length,

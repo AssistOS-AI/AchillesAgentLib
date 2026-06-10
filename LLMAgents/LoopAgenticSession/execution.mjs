@@ -21,15 +21,16 @@ import {
     injectContextIntoPrompt,
 } from './utils.mjs';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
 const MOVEMENT_INTENT_PATTERN = /\b(move|relocate|transfer|assign|muta|mută|transfera)\b/i;
 const DESTINATION_AREA_PATTERN = /\b(to|into|in|la|catre|către)\s+area\b/i;
 const MATERIAL_CUE_PATTERN = /\b(material|materials|conduit|cms|cable|consumable|fixing|crms|supply|supplies)\b/i;
 const EQUIPMENT_CUE_PATTERN = /\b(equipment|equipments|tool|tools|device|devices|asset|assets|instrument|instruments)\b/i;
 const AREA_EDIT_PATTERN = /\b(area\s+(name|location|description|type)|rename\s+area|update\s+area|edit\s+area|modify\s+area|create\s+area|delete\s+area|list\s+areas|show\s+areas)\b/i;
 
-function debugLog(...args) {
-    if (DEBUG_ENABLED) console.log(...args);
+function debugLog(session, ...args) {
+    if (session && session.debugLogger) {
+        session.debugLogger.log(...args);
+    }
 }
 
 function inferMovementTargetTool(promptText = '', tools = {}) {
@@ -217,7 +218,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                 const toolResult = await session._executeTool(toolName, toolPrompt, turn);
                 session._ensureNotCancelled();
                 const structuredToolResult = coerceStructuredToolResult(toolResult);
-                debugLog(`[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, structuredType=${typeof structuredToolResult}, requiresConfirmation=${structuredToolResult?.requiresConfirmation}, requiresInput=${structuredToolResult?.requiresInput}`);
+                debugLog(session, `[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, structuredType=${typeof structuredToolResult}, requiresConfirmation=${structuredToolResult?.requiresConfirmation}, requiresInput=${structuredToolResult?.requiresInput}`);
                 session._debug('[LoopSession]', 'Tool result', {
                     tool: toolName,
                     prompt: toolPrompt,
@@ -247,7 +248,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                             message = `Tool returned an object that cannot be displayed. Keys: ${Object.keys(structuredToolResult).join(', ')}`;
                         }
                     }
-                    debugLog(`[${getTimestamp()}] [LoopSession] Detected requiresConfirmation/Input, returning message (first 100 chars): "${String(message).substring(0, 100)}..."`);
+                    debugLog(session, `[${getTimestamp()}] [LoopSession] Detected requiresConfirmation/Input, returning message (first 100 chars): "${String(message).substring(0, 100)}..."`);
                     session._debug('[LoopSession]', 'Tool requires input/confirmation', { tool: toolName, message });
                     turn.finalAnswer = message;
                     turn.status = SESSION_STATUS_AWAITING_INPUT;
@@ -271,7 +272,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                     } catch {
                         resultStr = `Tool returned a successful result that cannot be displayed. Keys: ${Object.keys(structuredToolResult).join(', ')}`;
                     }
-                    debugLog(`[${getTimestamp()}] [LoopSession] Detected successful skill result, returning as final answer`);
+                    debugLog(session, `[${getTimestamp()}] [LoopSession] Detected successful skill result, returning as final answer`);
                     session._debug('[LoopSession]', 'Tool success result returned as final answer', { tool: toolName });
                     turn.finalAnswer = resultStr;
                     turn.status = SESSION_STATUS_DONE;
@@ -290,7 +291,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                     } catch {
                         resultStr = `Tool returned a failed result that cannot be displayed. Keys: ${Object.keys(structuredToolResult).join(', ')}`;
                     }
-                    debugLog(`[${getTimestamp()}] [LoopSession] Detected failed skill result, returning as final answer`);
+                    debugLog(session, `[${getTimestamp()}] [LoopSession] Detected failed skill result, returning as final answer`);
                     session._debug('[LoopSession]', 'Tool failed result returned as final answer', { tool: toolName });
                     turn.finalAnswer = resultStr;
                     turn.status = SESSION_STATUS_FAILED;
@@ -500,7 +501,7 @@ async function newPrompt(session, SessionClass, userPrompt, options = {}) {
         ? options.maxRetries
         : session.options.maxRetriesPerTurn;
 
-    debugLog(`[${getTimestamp()}] [LoopSession] New prompt: "${userPrompt}"`);
+    debugLog(session, `[${getTimestamp()}] [LoopSession] New prompt: "${userPrompt}"`);
     session._debug('[LoopSession]', 'New prompt', { prompt: userPrompt, expected });
 
     const turn = {

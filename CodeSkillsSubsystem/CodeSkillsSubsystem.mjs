@@ -4,18 +4,6 @@ import { pathToFileURL } from 'node:url';
 import { buildArgumentExtractionPrompt } from './prompts.mjs';
 import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
-
-function debugLog(message, ...args) {
-  if (DEBUG_ENABLED) {
-    console.log(`[CodeSkills DEBUG] ${message}`, ...args);
-  }
-}
-
-function debugError(...args) {
-  if (DEBUG_ENABLED) console.error(...args);
-}
-
 function camelCaseKeys(obj) {
   if (!obj) return {};
   const newObj = {};
@@ -45,9 +33,10 @@ async function dirExists(dirPath) {
 }
 
 export class CodeSkillsSubsystem {
-  constructor({ mainAgent, modelConfig = null }) {
+  constructor({ mainAgent, modelConfig = null, logger = null }) {
     this.mainAgent = mainAgent;
     this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
+    this.logger = logger;
     this._generating = new Map();
   }
 
@@ -130,7 +119,7 @@ export class CodeSkillsSubsystem {
       const specsDir = join(skillDir, 'specs');
       if (await dirExists(specsDir)) {
         const result = await mainAgent.executeSkill('mirror-code-generator', skillDir);
-        debugLog(`Code generated for "${skillRecord.shortName}": ${JSON.stringify(result?.result)}`);
+        this.logger?.log(`[CodeSkills] Code generated for "${skillRecord.shortName}": ${JSON.stringify(result?.result)}`);
         if (skillRecord.preparedConfig) {
           skillRecord.preparedConfig.needsGeneration = false;
         }
@@ -154,7 +143,7 @@ export class CodeSkillsSubsystem {
       promptText
     };
     args.mainAgent = mainAgent;
-    debugLog(`Executing skill "${skillRecord.shortName}" with prompt: ${args.promptText.substring(0, 200)}...`);
+    this.logger?.log(`[CodeSkills] Executing skill "${skillRecord.shortName}" with prompt: ${args.promptText.substring(0, 200)}...`);
     args.llmAgent = llmAgent;
 
     const executionContext = options?.context || {};
@@ -172,7 +161,7 @@ export class CodeSkillsSubsystem {
 
     const outputPath = skillRecord.skillDir;
     const result = await this.executeCodeFromDisk(outputPath, args);
-    debugLog(`Execution completed, result: ${JSON.stringify(result).substring(0, 200)}`);
+    this.logger?.log(`[CodeSkills] Execution completed, result: ${JSON.stringify(result).substring(0, 200)}`);
 
     return {
       skill: skillRecord.name,
@@ -193,7 +182,7 @@ export class CodeSkillsSubsystem {
   }
 
   async extractArguments(userPrompt, specifications) {
-    debugLog('Extracting arguments with LLM.');
+    this.logger?.log('[CodeSkills] Extracting arguments with LLM.');
     const llmAgent = this.mainAgent?.llmAgent;
     if (!llmAgent || typeof llmAgent.executePrompt !== 'function') {
       throw new Error('Argument extraction failed: missing mainAgent.llmAgent.');
@@ -245,8 +234,8 @@ export class CodeSkillsSubsystem {
       return await module.action(args);
 
     } catch (error) {
-      debugError(`[CodeSkills] Dynamic import execution failed: ${error.message}`);
-      debugError(`[CodeSkills] Error stack: ${error.stack}`);
+      this.logger?.log(`[CodeSkills] Dynamic import execution failed: ${error.message}`);
+      this.logger?.log(`[CodeSkills] Error stack: ${error.stack}`);
       throw new Error(`Execution failed: ${error.message}`);
     }
   }

@@ -21,7 +21,10 @@ async function runPreparation({
         return { contextEntries: [], contextLines: [] };
     }
 
-    const debugLog = (...args) => SessionClass.debugLog(...args);
+    const logger = options.logger || null;
+    const debugLog = (...args) => {
+        if (logger) logger.log(...args);
+    };
     debugLog('[SOPAgenticSession] Preparation start', {
         preparationLength: String(preparationText || '').length,
         userPromptLength: String(userPrompt || '').length,

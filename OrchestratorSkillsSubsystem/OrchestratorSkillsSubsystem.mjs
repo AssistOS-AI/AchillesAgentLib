@@ -1,12 +1,5 @@
 import { Sanitiser } from '../utils/Sanitiser.mjs';
-import { getDebugLogger, DEBUG_ACTIVE } from '../utils/DebugLogger.mjs';
 import { parseSkillDocument } from '../utils/skillDocumentParser.mjs';
-
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
-
-function debugLog(...args) {
-    if (DEBUG_ENABLED) console.log(...args);
-}
 
 const SECTION_KEYS = {
     instructions: ['instructions', 'guidance', 'overview', 'orchestration-guidance'],
@@ -62,11 +55,11 @@ function buildLoopSystemPrompt(skillRecord) {
 }
 
 export class OrchestratorSkillsSubsystem {
-    constructor({ mainAgent = null, modelConfig = null } = {}) {
+    constructor({ mainAgent = null, modelConfig = null, logger = null } = {}) {
         this.type = 'orchestrator';
         this.mainAgent = mainAgent;
         this.modelConfig = modelConfig || { plan: 'plan', code: 'code' };
-        this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
+        this.logger = logger;
     }
 
     parseSkillDescriptor({ filePath }) {
@@ -94,7 +87,7 @@ export class OrchestratorSkillsSubsystem {
             .map((name) => Sanitiser.sanitiseName(name))
             .filter(Boolean);
 
-        debugLog(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}" allowedAgents=${JSON.stringify(allowedAgents)}`);
+        this.logger?.log(`[Orchestrator] prepareSkill "${skillRecord.name}" sections=${JSON.stringify(Object.keys(sections))} sessionType="${sessionType}" allowedAgents=${JSON.stringify(allowedAgents)}`);
 
         skillRecord.preparedConfig = {
             type: this.type,
@@ -272,7 +265,7 @@ export class OrchestratorSkillsSubsystem {
 
         const ploinkySubsystem = mainAgent.ensureSubsystem('ploinky');
         if (!ploinkySubsystem) {
-            debugLog(`[Orchestrator] No ploinky subsystem available for agent tools in "${skillRecord.name}"`);
+            this.logger?.log(`[Orchestrator] No ploinky subsystem available for agent tools in "${skillRecord.name}"`);
             return { tools: {}, descriptions: {} };
         }
 
@@ -417,7 +410,7 @@ export class OrchestratorSkillsSubsystem {
         options = {},
     }) {
         const sessionType = String(skillRecord.preparedConfig?.sessionType || '').trim().toLowerCase();
-        debugLog(`[Orchestrator] Skill "${skillRecord.name}" sessionType="${sessionType}" → ${sessionType === 'loop' ? 'LoopSession' : 'SOPSession'}`);
+        this.logger?.log(`[Orchestrator] Skill "${skillRecord.name}" sessionType="${sessionType}" → ${sessionType === 'loop' ? 'LoopSession' : 'SOPSession'}`);
         if (sessionType === 'loop') {
             return this.executeLoopAgentSession({
                 skillRecord,

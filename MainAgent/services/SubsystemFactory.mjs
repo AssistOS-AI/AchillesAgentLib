@@ -15,9 +15,10 @@ const SUBSYSTEM_REGISTRY = new Map([
 ]);
 
 export class SubsystemFactory {
-    constructor({ mainAgent = null, modelConfig = null } = {}) {
+    constructor({ mainAgent = null, modelConfig = null, logger = null } = {}) {
         this.mainAgent = mainAgent;
         this.modelConfig = modelConfig;
+        this.logger = logger;
         this.instances = new Map();
     }
 
@@ -37,7 +38,7 @@ export class SubsystemFactory {
     }
 
     _createInstance(type, SubsystemClass) {
-        return new SubsystemClass({ mainAgent: this.mainAgent, modelConfig: this.modelConfig });
+        return new SubsystemClass({ mainAgent: this.mainAgent, modelConfig: this.modelConfig, logger: this.logger });
     }
 
     has(type) {

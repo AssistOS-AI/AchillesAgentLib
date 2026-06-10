@@ -2,43 +2,88 @@
 
 ## Unified Logger
 
-MainAgent uses a single logger instance. There is no separate debug logger.
+All runtime logging flows through a single `DebugLogger` instance. There is no separate debug logger, no `console.log`, no `console.warn`, no `console.info` in the runtime chain.
 
 **Logger methods:**
-- info — always writes to console
-- warn — always writes to console
-- debug — writes to console AND to debug log file only when ACHILLES_DEBUG is enabled
+- `log(...args)` — writes to file only (when `ACHILLES_DEBUG` is enabled)
+- `debug(...args)` — writes `[DEBUG]` prefixed line to file only
+- `info(...args)` — writes `[INFO]` prefixed line to file only
+- `warn(...args)` — writes `[WARN]` prefixed line to file only
+- `close()` — closes the file stream
 
 **Default behavior:**
-- If no logger is provided, a default logger is created via createLogger()
-- The default logger writes info and warn to console always
-- Debug output is gated by the ACHILLES_DEBUG environment variable
+- If no custom logger is provided to `MainAgent`, the default is `getDebugLogger()` — the `DebugLogger` singleton
+- The `DebugLogger` singleton writes **only to file** (`debuglogs/debug-{pid}.log`) when `ACHILLES_DEBUG` is enabled
+- **Zero output to stdout/stderr** — no `console.log`, `console.warn`, `console.info`, or `console.debug` anywhere in the runtime logging chain
+
+## Custom Logger Override
+
+`MainAgent` accepts a `logger` parameter that propagates through the entire component chain:
+
+```javascript
+const agent = new MainAgent({
+    startDir: '/path/to/project',
+    logger: customLogger,  // any object with { log, debug, info, warn, close }
+});
+```
+
+**Propagation chain:**
+```
+MainAgent (logger accepted)
+  ├── SubsystemFactory → receives logger
+  │     ├── OrchestratorSkillsSubsystem → uses logger
+  │     ├── CodeSkillsSubsystem → uses logger
+  │     ├── DBTableSkillsSubsystem → uses logger
+  │     ├── DynamicCodeGenerationSubsystem → receives logger
+  │     └── AnthropicSkillsSubsystem → receives logger
+  │
+  └── LLMAgent → receives logger
+        ├── LoopAgentSession → uses logger (replaces getDebugLogger() singleton)
+        └── SOPAgenticSession → uses logger (replaces getDebugLogger() singleton)
+```
+
+**Custom logger interface:**
+```javascript
+{
+    log(...args)   // primary logging method
+    debug(...args) // optional, prefixed debug log
+    info(...args)  // optional, prefixed info log
+    warn(...args)  // optional, prefixed warn log
+    close()        // optional, cleanup
+}
+```
+
+When a custom logger is provided, **all components use it instead of the default `DebugLogger`**. This gives full control over log destination, format, and filtering.
 
 ## Debug Mode Control
 
-Controlled by the ACHILLES_DEBUG environment variable.
+Controlled by the `ACHILLES_DEBUG` environment variable. Only affects the default `DebugLogger` singleton.
 
-| ACHILLES_DEBUG value | debug() output |
+| ACHILLES_DEBUG value | `log()` output |
 |---------------------|----------------|
 | not set | nothing |
 | false | nothing |
-| true | console + debug file |
-| 1 | console + debug file |
-
-When debug is enabled, debug output is written to debuglogs/debug-{pid}.log in addition to the console.
+| true | file only (`debuglogs/debug-{pid}.log`) |
+| 1 | file only (`debuglogs/debug-{pid}.log`) |
 
 ## Debug Events
 
 The following events are logged at debug level:
 - Skill discovery: roots found, total skills discovered
 - Duplicate skill detection: canonical name conflict with both directory paths
+- Loop session: new prompt, tool calls, tool results
+- SOP session: preparation start, plan generation
+- Code skills: execution start, completion, argument extraction
+- Orchestrator: skill preparation, session type selection
 
 ## Warning Events
 
-The following events are logged at warn level (always visible):
+The following events are logged at warn level:
 - Skill descriptor parse failure
 - Skill preparation failure
 - Skill directory read failure
+- DBTable: dependency lookup failures, presenter errors, context code eval errors
+- CodeSkills: dynamic import execution failures
 
 ## SecuritySupervisor
 
@@ -60,33 +105,26 @@ Loop sessions write structured progress events through the supervisor output wri
 - alwaysApprove — execute the tool and cache the approval for future identical calls
 - deny — mark as denied, do not execute, return error to LLM
 
-## Logger Propagation
-
-The logger is passed to:
-- discoverSkills function
-- SecuritySupervisor constructor
-
-The supervisor receives the same logger instance as MainAgent.
-
 ## What Logging Does NOT Do
 
-- Does NOT have a separate debugLogger parameter
-- Does NOT write debug output to console when ACHILLES_DEBUG is false
+- Does NOT use `console.log`, `console.warn`, `console.info`, or `console.debug` for runtime logging
+- Does NOT write any output to stdout/stderr (all logging is file-only by default)
+- Does NOT use `ActionReporter`
 - Does NOT expose processing callbacks (onProcessingBegin, onProcessingProgress, onProcessingEnd)
-- Does NOT use ActionReporter
 
 ## Testable Functionality
 
-Test files should be created in tests/mainAgent/
+Test files should be created in `tests/mainAgent/`
 
 **Logger tests should cover:**
-- Default logger is created when none provided
-- Custom logger is used when provided
-- info method always outputs
-- warn method always outputs
-- debug method is silent when ACHILLES_DEBUG is false
-- debug method outputs to console and file when ACHILLES_DEBUG is true
-- Debug log file is created in debuglogs directory
+- Default `DebugLogger` singleton is used when no custom logger provided
+- Custom logger is propagated to all subsystems and sessions
+- `log()` writes to file only when `ACHILLES_DEBUG` is true
+- `log()` is silent when `ACHILLES_DEBUG` is false
+- `debug()`, `info()`, `warn()` prefix messages correctly
+- Debug log file is created in `debuglogs` directory
+- Custom logger overrides default behavior completely
+- No `console.*` calls in the runtime logging chain
 
 **Supervisor tests should cover:**
 - Default supervisor is created when none provided

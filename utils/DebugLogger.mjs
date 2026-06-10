@@ -45,7 +45,7 @@ function formatMessage(args) {
     }).join(' ');
 }
 
-class DebugLogger {
+export class DebugLogger {
     constructor(enabled) {
         this.enabled = enabled;
         this.stream = null;
@@ -74,6 +74,18 @@ class DebugLogger {
         const timestamp = new Date().toISOString();
         const line = `[${timestamp}] ${formatMessage(args)}\n`;
         stream.write(line);
+    }
+
+    debug(...args) {
+        this.log('[DEBUG]', ...args);
+    }
+
+    info(...args) {
+        this.log('[INFO]', ...args);
+    }
+
+    warn(...args) {
+        this.log('[WARN]', ...args);
     }
 
     close() {

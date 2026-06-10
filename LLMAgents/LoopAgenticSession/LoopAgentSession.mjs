@@ -1,4 +1,3 @@
-import { getDebugLogger, DEBUG_ACTIVE } from '../../utils/DebugLogger.mjs';
 import {
     FINAL_ANSWER_TOOL,
     CANNOT_COMPLETE_TOOL,
@@ -114,7 +113,7 @@ class LoopAgentSession {
         this.failedTurns = [];
         this.toolVars = new Map();
         this.toolVarCounter = 0;
-        this.debugLogger = DEBUG_ACTIVE ? getDebugLogger() : null;
+        this.debugLogger = options.logger || null;
         this._currentAbortController = null;
         this._currentAbortSignal = null;
         this._cancelReason = null;

@@ -15,10 +15,7 @@ import {
     getTimestamp,
 } from './utils.mjs';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
-
-function debugLog(...args) {
-    if (DEBUG_ENABLED) console.log(...args);
+function debugLog(session, ...args) {
 }
 
 function getParentContext(value) {
@@ -250,7 +247,7 @@ async function executeTool(session, toolName, toolPrompt) {
         : toolPrompt;
 
     const promptPreview = String(resolvedPrompt ?? '').slice(0, 200);
-    debugLog(`[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${promptPreview}"`);
+    debugLog(session, `[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${promptPreview}"`);
     session._debug('[LoopSession]', 'Calling tool', { tool: toolName, prompt: resolvedPrompt });
 
     if (session.supervisor) {

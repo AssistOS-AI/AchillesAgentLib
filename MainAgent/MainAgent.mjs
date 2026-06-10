@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { LLMAgent } from '../LLMAgents/LLMAgent.mjs';
-import { createLogger } from '../utils/DebugLogger.mjs';
+import { getDebugLogger } from '../utils/DebugLogger.mjs';
 import { Sanitiser } from '../utils/Sanitiser.mjs';
 
 import { discoverSkills, discoverSkillsFromRoot } from './services/discoverSkills.mjs';
@@ -58,11 +58,11 @@ export class MainAgent {
         disableInternalSkills = true,
     } = {}) {
         this.startDir = startDir;
-        this.logger = logger || createLogger();
+        this.logger = logger || getDebugLogger();
         this.disableInternalSkills = Boolean(disableInternalSkills);
         this.reasoningEffort = reasoningEffort || null;
 
-        this.llmAgent = new LLMAgent({ ...llmAgentOptions, modelConfig, reasoningEffort });
+        this.llmAgent = new LLMAgent({ ...llmAgentOptions, modelConfig, reasoningEffort, logger: this.logger });
 
         this._skills = new Map();
         this._skillAliases = new Map();
@@ -75,6 +75,7 @@ export class MainAgent {
         this.subsystemFactory = new SubsystemFactory({
             mainAgent: this,
             modelConfig: this.llmAgent.modelConfig,
+            logger: this.logger,
         });
 
         this._discoverAndRegister();

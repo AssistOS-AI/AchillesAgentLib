@@ -1,4 +1,3 @@
-import { getDebugLogger, DEBUG_ACTIVE } from '../../utils/DebugLogger.mjs';
 import {
     FINAL_ANSWER_TOOL,
     FINAL_ANSWER_DESCRIPTION,
@@ -39,8 +38,6 @@ import {
 import {
     cloneSerializable,
 } from './utils.mjs';
-
-const DEBUG_LOGGER = DEBUG_ACTIVE ? getDebugLogger() : null;
 
 class SOPAgenticSession {
     constructor({ agent, skillsDescription, options = {} }) {
@@ -112,6 +109,7 @@ class SOPAgenticSession {
         this._currentAbortController = null;
         this._currentAbortSignal = null;
         this._cancelReason = null;
+        this.debugLogger = options.logger || null;
     }
 
     replaceSkillSurface({ skillsDescription, commandsRegistry } = {}, metadata = {}) {
@@ -180,9 +178,9 @@ class SOPAgenticSession {
         return this.currentPlan;
     }
 
-    static debugLog(...args) {
-        if (DEBUG_LOGGER) {
-            DEBUG_LOGGER.log(...args);
+    debugLog(...args) {
+        if (this.debugLogger) {
+            this.debugLogger.log(...args);
         }
     }
 
@@ -191,7 +189,7 @@ class SOPAgenticSession {
     }
 
     _debug(...args) {
-        SOPAgenticSession.debugLog(...args);
+        this.debugLog(...args);
     }
 
     _recordToolsRefreshed(metadata = {}) {

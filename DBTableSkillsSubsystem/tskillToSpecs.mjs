@@ -15,23 +15,18 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const DEBUG_ENABLED = String(process.env.ACHILLES_DEBUG ?? '').toLowerCase() === 'true';
-
-function debugLog(...args) {
-    if (DEBUG_ENABLED) console.log(...args);
-}
-
 /**
  * Generate a spec file from a parsed tskill definition.
  * @param {string} skillDir - Directory containing tskill.md
  * @param {Object} parsedSkill - Parsed skill object from SkillParser
  * @returns {Promise<string>} Path to the generated spec file
  */
-export async function tskillToSpecs(skillDir, parsedSkill) {
+export async function tskillToSpecs(skillDir, parsedSkill, logger) {
+    const log = (...args) => { if (logger) logger.log(...args); };
     const specsDir = path.join(skillDir, 'specs');
     const specPath = path.join(specsDir, 'tskill.generated.mjs.md');
 
-    debugLog(`[DBTableSkills] Generating spec for "${parsedSkill.tableName}" → ${specPath}`);
+    log(`[DBTableSkills] Generating spec for "${parsedSkill.tableName}" → ${specPath}`);
 
     // Ensure specs directory exists
     await fs.mkdir(specsDir, { recursive: true });
@@ -44,7 +39,7 @@ export async function tskillToSpecs(skillDir, parsedSkill) {
 
     const fieldCount = Object.keys(parsedSkill.fields || {}).length;
     const derivedCount = Object.keys(parsedSkill.derivedFields || {}).length;
-    debugLog(`[DBTableSkills] Spec generated: ${fieldCount} fields, ${derivedCount} derived fields`);
+    log(`[DBTableSkills] Spec generated: ${fieldCount} fields, ${derivedCount} derived fields`);
 
     return specPath;
 }

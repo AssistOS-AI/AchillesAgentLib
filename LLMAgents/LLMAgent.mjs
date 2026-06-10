@@ -51,6 +51,7 @@ class LLMAgent {
             invokerStrategy = null,
             modelConfig = null,
             reasoningEffort = null,
+            logger = null,
         } = options;
 
         if (!name || typeof name !== 'string') {
@@ -66,6 +67,7 @@ class LLMAgent {
         this.invokerStrategy = resolvedStrategy;
         this.modelConfig = modelConfig || this._buildDefaultModelConfig();
         this.reasoningEffort = reasoningEffort || null;
+        this.logger = logger;
         this._inputCounter = 0;
         this._outputCounter = 0;
         this._callLog = [];
@@ -499,7 +501,7 @@ ${promptText}`
         const session = new LoopAgentSession({
             agent: this,
             tools,
-            options: sessionOptions,
+            options: { ...sessionOptions, logger: this.logger },
         });
         session.options.reasoningEffort = reasoningEffort || null;
         await session.newPrompt(initialPrompt, { expected: initialExpected, signal });
@@ -548,7 +550,7 @@ ${promptText}`
         const session = new SOPAgenticSession({
             agent: this,
             skillsDescription,
-            options: sessionOptions,
+            options: { ...sessionOptions, logger: this.logger },
         });
         await session.newPrompt(initialPrompt, { signal });
         return session;
