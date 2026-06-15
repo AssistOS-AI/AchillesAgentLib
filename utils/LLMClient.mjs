@@ -348,9 +348,6 @@ async function callLLMWithModelInternal(modelName, historyArray, prompt, invocat
         const actualModelName = metadata?.model?.name || inferredModelName;
 
         const agentHeaders = invocationOptions.headers || {};
-        if (process.env.AGENT_NAME && !agentHeaders['X-Soul-Agent']) {
-            agentHeaders['X-Soul-Agent'] = process.env.AGENT_NAME;
-        }
 
         return await provider.callLLM(history, {
             model: actualModelName,
@@ -435,9 +432,6 @@ export function createDefaultLLMInvokerStrategy() {
         lastInvocationDetails = { model: null, requestedTags, matchedTags };
 
         const mergedHeaders = { ...(invocationOptions.headers || {}), ...headers };
-        if (process.env.AGENT_NAME && !mergedHeaders['X-Soul-Agent']) {
-            mergedHeaders['X-Soul-Agent'] = process.env.AGENT_NAME;
-        }
 
         // Merge reasoningEffort into params if specified
         const mergedParams = { ...(invocationOptions.params || {}), ...params };

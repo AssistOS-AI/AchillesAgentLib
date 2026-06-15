@@ -172,6 +172,82 @@ describe('envConfigLoader', () => {
             assert.deepStrictEqual(config.models[1].tags, ['fast', 'cheap']);
         });
     });
+
+    describe('loadEnvConfig soul_gateway provider', () => {
+        const SOUL_KEYS = [
+            'PLOINKY_AGENT_API_KEY',
+            'SOUL_GATEWAY_API_KEY',
+            'PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY',
+            'PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY',
+            'PLOINKY_ROUTER_URL',
+            'SOUL_GATEWAY_BASE_URL',
+            'SOUL_GATEWAY_URL',
+        ];
+        const savedSoul = {};
+
+        beforeEach(() => {
+            for (const key of SOUL_KEYS) {
+                savedSoul[key] = process.env[key];
+                delete process.env[key];
+            }
+        });
+
+        afterEach(() => {
+            for (const key of SOUL_KEYS) {
+                if (savedSoul[key] === undefined) {
+                    delete process.env[key];
+                } else {
+                    process.env[key] = savedSoul[key];
+                }
+            }
+        });
+
+        it('prefers PLOINKY_AGENT_API_KEY over SOUL_GATEWAY_API_KEY when both are set', () => {
+            process.env.PLOINKY_AGENT_API_KEY = 'signed-subject-key';
+            process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
+
+            const config = loadEnvConfig();
+
+            assert.ok(config.providers.has('soul_gateway'));
+            assert.strictEqual(config.providers.get('soul_gateway').apiKeyEnv, 'PLOINKY_AGENT_API_KEY');
+        });
+
+        it('falls back to SOUL_GATEWAY_API_KEY when PLOINKY_AGENT_API_KEY is absent', () => {
+            process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
+
+            const config = loadEnvConfig();
+
+            assert.ok(config.providers.has('soul_gateway'));
+            assert.strictEqual(config.providers.get('soul_gateway').apiKeyEnv, 'SOUL_GATEWAY_API_KEY');
+        });
+
+        it('routes through the embedded router when only the SOUL_GATEWAY_API_KEY alias is generated', () => {
+            process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
+            process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY = 'generated';
+            process.env.PLOINKY_ROUTER_URL = 'http://127.0.0.1:8088';
+
+            const config = loadEnvConfig();
+
+            const provider = config.providers.get('soul_gateway');
+            assert.ok(provider);
+            assert.strictEqual(provider.baseURL, 'http://127.0.0.1:8088/services/soul-gateway/v1/chat/completions');
+        });
+
+        it('routes through the embedded router when the PLOINKY_AGENT_API_KEY alias is generated', () => {
+            process.env.PLOINKY_AGENT_API_KEY = 'signed-subject-key';
+            process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
+            process.env.PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY = 'generated';
+            process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY = 'generated';
+            process.env.PLOINKY_ROUTER_URL = 'http://127.0.0.1:8088';
+
+            const config = loadEnvConfig();
+
+            const provider = config.providers.get('soul_gateway');
+            assert.ok(provider);
+            assert.strictEqual(provider.apiKeyEnv, 'PLOINKY_AGENT_API_KEY');
+            assert.strictEqual(provider.baseURL, 'http://127.0.0.1:8088/services/soul-gateway/v1/chat/completions');
+        });
+    });
 });
 
 console.log('Running envConfigLoader tests...');

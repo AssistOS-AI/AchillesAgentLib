@@ -231,7 +231,7 @@ function parseProvidersFromEnv() {
     addDirectProvider(providers, {
         providerKey: 'soul_gateway',
         apiType: API_TYPE_SOUL_GATEWAY,
-        envNames: ['SOUL_GATEWAY_API_KEY'],
+        envNames: ['PLOINKY_AGENT_API_KEY', 'SOUL_GATEWAY_API_KEY'],
         baseURL: resolveSoulGatewayBaseURL(),
     });
 
@@ -283,10 +283,16 @@ function addDirectProvider(providers, { providerKey, apiType, envNames, baseURL 
 }
 
 function resolveSoulGatewayBaseURL() {
-    const keySource = String(process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY || '').trim();
+    // Task 2 injects the same signed key under both PLOINKY_AGENT_API_KEY and
+    // SOUL_GATEWAY_API_KEY, each with its own provenance marker. Treat the key as
+    // generated when either alias is generated so preferring PLOINKY_AGENT_API_KEY
+    // still routes through the embedded router service.
+    const agentKeySource = String(process.env.PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY || '').trim();
+    const legacyKeySource = String(process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY || '').trim();
+    const isGenerated = agentKeySource === 'generated' || legacyKeySource === 'generated';
     // Generated embedded keys must stay paired with the embedded router service.
     // A standalone URL is honored only with an explicit operator-supplied key.
-    if (keySource === 'generated') {
+    if (isGenerated) {
         const routerURL = String(process.env.PLOINKY_ROUTER_URL || '').trim();
         if (!routerURL) {
             return null;
