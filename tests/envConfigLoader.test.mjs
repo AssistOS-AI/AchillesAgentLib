@@ -212,6 +212,24 @@ describe('envConfigLoader', () => {
             assert.strictEqual(config.providers.get('soul_gateway').apiKeyEnv, 'PLOINKY_AGENT_API_KEY');
         });
 
+        it('prefers an explicit SOUL_GATEWAY_API_KEY over a generated PLOINKY_AGENT_API_KEY', () => {
+            process.env.PLOINKY_AGENT_API_KEY = 'generated-local-key';
+            process.env.SOUL_GATEWAY_API_KEY = 'sk-explicit-soul-key';
+            process.env.PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY = 'generated';
+            process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY = 'explicit';
+            process.env.PLOINKY_ROUTER_URL = 'http://127.0.0.1:8088';
+
+            const config = loadEnvConfig();
+
+            const provider = config.providers.get('soul_gateway');
+            assert.ok(provider);
+            assert.strictEqual(provider.apiKeyEnv, 'SOUL_GATEWAY_API_KEY');
+            assert.notStrictEqual(
+                provider.baseURL,
+                'http://127.0.0.1:8088/services/soul-gateway/v1/chat/completions'
+            );
+        });
+
         it('falls back to SOUL_GATEWAY_API_KEY when PLOINKY_AGENT_API_KEY is absent', () => {
             process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
 

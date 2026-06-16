@@ -7,10 +7,62 @@ import { discoverModels } from './gatewayDiscovery.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function envSourceMetadataName(name) {
+    return `PLOINKY_ENV_SOURCE_${String(name || '').replace(/[^A-Za-z0-9_]/g, '_')}`;
+}
+
+function shouldSetEnvFromDotEnv(key) {
+    if (!key) {
+        return false;
+    }
+    if (!process.env[key]) {
+        return true;
+    }
+    return process.env[envSourceMetadataName(key)] === 'generated';
+}
+
+function markDotEnvSource(key) {
+    if (!key || key.startsWith('PLOINKY_ENV_SOURCE_')) {
+        return;
+    }
+    const sourceName = envSourceMetadataName(key);
+    if (!process.env[sourceName] || process.env[sourceName] === 'generated') {
+        process.env[sourceName] = 'explicit';
+    }
+}
+
+function resolveArgValue(argv, names) {
+    for (let index = 2; index < argv.length; index += 1) {
+        const arg = argv[index];
+        if (arg === '--') {
+            continue;
+        }
+        for (const name of names) {
+            if (arg === name && index + 1 < argv.length) {
+                return argv[index + 1];
+            }
+            const prefix = `${name}=`;
+            if (arg.startsWith(prefix)) {
+                return arg.slice(prefix.length);
+            }
+        }
+    }
+    return null;
+}
+
+function resolveDotEnvStartDir() {
+    const raw = process.env.ACHILLES_ENV_START_DIR
+        || resolveArgValue(process.argv, ['--dir', '-d'])
+        || process.env.PLOINKY_CWD
+        || process.cwd();
+    return path.resolve(raw);
+}
+
 /**
  * Walk up from startDir to filesystem root looking for a .env file.
- * When found, parse KEY=VALUE lines and populate process.env
- * (without overwriting existing variables).
+ * When found, parse KEY=VALUE lines and populate process.env. Existing
+ * operator values are preserved, but generated Ploinky aliases may be
+ * replaced by the nearest project .env.
  */
 function loadDotEnvWalkUp(startDir) {
     let dir = path.resolve(startDir);
@@ -33,8 +85,9 @@ function loadDotEnvWalkUp(startDir) {
                         (val.startsWith("'") && val.endsWith("'"))) {
                         val = val.slice(1, -1);
                     }
-                    if (key && !process.env[key]) {
+                    if (shouldSetEnvFromDotEnv(key)) {
                         process.env[key] = val;
+                        markDotEnvSource(key);
                     }
                 }
             } catch {
@@ -49,7 +102,7 @@ function loadDotEnvWalkUp(startDir) {
 
 // Auto-load .env on module initialization so API keys are available
 // before any configuration loading happens.
-loadDotEnvWalkUp(process.cwd());
+loadDotEnvWalkUp(resolveDotEnvStartDir());
 
 const DEFAULT_CONFIG_FILENAME = 'LLMConfig.json';
 const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../../', DEFAULT_CONFIG_FILENAME);
