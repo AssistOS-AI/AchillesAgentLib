@@ -136,7 +136,7 @@ const agent = new MainAgent({
 - Does NOT resolve which model to use (delegated to LLMAgent.getModelByTag)
 - Does NOT handle human review modes
 - Does NOT manage conversation summaries
-- Does NOT perform FlexSearch or text-based skill search
+- Does NOT perform text-based skill search
 - Does NOT expose processing callbacks
 - Does NOT reload skills after initial discovery
 - Does NOT expose sessionId-based APIs or multi-session routing

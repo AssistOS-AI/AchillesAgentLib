@@ -50,7 +50,7 @@ AKU must not call `LLMAgent`, `callLLM`, search providers, or any external servi
 
 ### V1 Non-Goals
 
-The first implementation must not include embeddings, semantic RAG, vector databases, network services, hidden LLM calls, native SQLite as the default backend, or a dependency on FlexSearch, Fuse, Lunr, MiniSearch, or another ranking library for core relevance.
+The first implementation must not include embeddings, semantic RAG, vector databases, network services, hidden LLM calls, native SQLite as the default backend, or a dependency on Fuse, Lunr, MiniSearch, or another ranking library for core relevance.
 
 AKU may include future adapter points for persisted postings or SQLite FTS5, but the v1 default must be plain local files, JSONL indexes, in-memory postings built at load time, and a custom deterministic BM25F pipeline.
 

@@ -337,18 +337,6 @@ Sanitiser.sanitiseName('My Skill Name');  // 'my-skill-name'
 Sanitiser.sanitiseName('skill_v2.0');     // 'skill-v2-0'
 ```
 
-### FlexSearch Adapter (`SkilledAgents/search/flexsearchAdapter.mjs`)
-
-Powers skill search and selection.
-
-```javascript
-const index = createFlexSearchAdapter({ tokenize: 'forward' });
-index.add('skill-id', 'searchable text content');
-const matches = index.search('query', { limit: 5 });
-```
-
----
-
 ## Execution Flow
 
 ### 1. Without Explicit Skill
