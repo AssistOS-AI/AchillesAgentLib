@@ -229,22 +229,22 @@ async function emitToolReason(session, decision, stepIndex) {
     }
 }
 
-async function executeTool(session, toolName, toolPrompt) {
+async function executeTool(session, toolName, prompt) {
     session._ensureNotCancelled();
     const toolEntry = session.tools[toolName];
     if (!toolEntry || typeof toolEntry.handler !== 'function') {
         throw new Error(`Unknown tool: ${toolName}`);
     }
 
-    const resolvedPrompt = typeof toolPrompt === 'string'
-        ? toolPrompt.replace(/\$\$([A-Za-z0-9_-]+)/g, (match, resultRef) => {
+    const resolvedPrompt = typeof prompt === 'string'
+        ? prompt.replace(/\$\$([A-Za-z0-9_-]+)/g, (match, resultRef) => {
             if (!session.toolVars.has(resultRef)) {
                 throw new Error(`Unknown tool variable: ${resultRef}`);
             }
             const value = session.toolVars.get(resultRef);
             return typeof value === 'string' ? value : JSON.stringify(value);
         })
-        : toolPrompt;
+        : prompt;
 
     const promptPreview = String(resolvedPrompt ?? '').slice(0, 200);
     debugLog(session, `[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${promptPreview}"`);
@@ -257,7 +257,7 @@ async function executeTool(session, toolName, toolPrompt) {
         } else {
             const decision = await session.supervisor.approve({
                 toolName,
-                toolPrompt: resolvedPrompt,
+                prompt: resolvedPrompt,
             });
 
             if (decision === 'alwaysApprove') {
@@ -299,13 +299,13 @@ async function executeTool(session, toolName, toolPrompt) {
 
     session.toolCalls.push({
         tool: toolName,
-        prompt: toolPrompt,
+        prompt,
         resultRef,
     });
     session.history.push({
         type: 'tool',
         tool: toolName,
-        prompt: toolPrompt,
+        prompt,
         resultRef,
     });
 

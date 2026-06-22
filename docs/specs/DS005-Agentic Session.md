@@ -65,7 +65,7 @@ Before executing any tool, the session checks with the supervisor if one is conf
 
 **Approval flow:**
 ```
-_executeTool(toolName, toolPrompt)
+_executeTool(toolName, prompt)
     │
     ▼
 Check alwaysApprove cache for this tool
@@ -75,7 +75,7 @@ Check alwaysApprove cache for this tool
     └─► [not cached]
         │
         ▼
-        supervisor.approve({ toolName, toolPrompt })
+        supervisor.approve({ toolName, prompt })
         │
         ├─► 'approve' → execute tool
         ├─► 'alwaysApprove' → execute tool + cache approval
@@ -90,7 +90,7 @@ When denied, the session returns a structured error JSON to the planner rather t
 
 Each step in the loop:
 
-1. **Request decision** — builds a planner prompt with available tools, history, and current user prompt. LLM returns a JSON object with `tool` and `toolPrompt` fields.
+1. **Request decision** — builds a planner prompt with available tools, history, and current user prompt. LLM returns markdown with `tool`, `prompt`, and `reason` sections, which the runtime parses into the planner decision object.
 
 2. **Execute tool** — resolves tool variables in the prompt, checks supervisor approval, calls the tool handler.
 
@@ -135,7 +135,7 @@ The session maintains three distinct tracking structures, each with a specific r
 
 - **history** — chronological log of user prompts, tool calls, and session events. Each entry has a `type` (`user`, `tool_call`, `tool`, `awaiting_input`, `final_answer`, `cannot_complete`, `validation_failed`, `timeout`, `history_summary`). For `tool` entries, `resultRef` identifies the result stored in `toolVars`. This is the primary context source for the planner prompt.
 - **toolCalls** — flat list of all tool invocations with metadata (`tool`, `prompt`, `resultRef`). Used to quickly identify the most recent tool call for planner context. Does not store the result value itself.
-- **toolVars** — Map of `resultRef` to the actual tool result value. Single source of truth for tool outputs. Referenced by history entries and resolved via `$$resultRef` syntax in subsequent tool prompts.
+- **toolVars** — Map of `resultRef` to the actual tool result value. Single source of truth for tool outputs. Referenced by history entries and resolved via `$$resultRef` syntax in subsequent prompts.
 
 **turns** — array of turn objects, each containing steps, final answer, and status (used for execution tracking, not context building).
 
@@ -159,12 +159,12 @@ Before each new turn, the session can compress old history when the estimated hi
 
 Compression behavior:
 - Builds a prompt with the history entries to compress and resolved `resultRef` values from `toolVars`.
-- Expects a JSON response with `summary` (text) and `keepResultRefs` (array of resultRef identifiers to preserve).
+- Expects markdown with `summary` and `keepResultRefs` sections.
 - Replaces old history with one `history_summary` entry.
 - Preserves the latest `historyCompressionKeepRecentEntries` items as-is (default: 8).
 - Prunes `toolVars` and `toolCalls` entries not referenced by `keepResultRefs` or by recent history.
 - Skips compression when a tool is pending in `awaiting_input` to avoid breaking interactive continuation.
-- If compression returns invalid JSON or empty summary, the session continues without mutating history (fail-open).
+- If compression returns invalid markdown or empty summary, the session continues without mutating history (fail-open).
 
 ## What LoopAgentSession Does NOT Do
 
@@ -202,7 +202,7 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - History compression skips while awaiting_input is pending
 - History compression failure does not break prompt execution
 - History compression prunes toolVars and toolCalls based on keepResultRefs
-- History compression skips when JSON response is invalid
+- History compression skips when markdown response is invalid
 - History compression prompt includes resultRef values from toolVars
 - Preparation runs before main prompt
 - Preparation context injected into prompts

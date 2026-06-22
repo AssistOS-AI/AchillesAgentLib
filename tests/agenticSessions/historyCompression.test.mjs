@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import { LoopAgentSession } from '../../LLMAgents/LoopAgenticSession/LoopAgentSession.mjs';
 import { SESSION_STATUS_AWAITING_INPUT } from '../../LLMAgents/constants.mjs';
+import { parseHistoryCompressionMarkdown } from '../../LLMAgents/LoopAgenticSession/historyCompressionMarkdown.mjs';
 
 function createStubAgent({ onComplete = null, onInterpretMessage = null } = {}) {
     return {
@@ -12,7 +13,7 @@ function createStubAgent({ onComplete = null, onInterpretMessage = null } = {}) 
             if (typeof onComplete === 'function') {
                 return onComplete(options);
             }
-            return JSON.stringify({ summary: 'Compressed history.', keepResultRefs: [] });
+            return compressionMarkdown({ summary: 'Compressed history.' });
         },
         interpretMessage: async (message, opts = {}) => {
             if (typeof onInterpretMessage === 'function') {
@@ -30,6 +31,29 @@ function createMinimalTools() {
             handler: async (_agent, payload) => payload,
         },
     };
+}
+
+function plannerMarkdownDecision({ tool, prompt, reason = 'test' }) {
+    return [
+        '## tool',
+        tool,
+        '',
+        '## prompt',
+        prompt,
+        '',
+        '## reason',
+        reason,
+    ].join('\n');
+}
+
+function compressionMarkdown({ summary, keepResultRefs = [] }) {
+    return [
+        '## summary',
+        summary,
+        '',
+        '## keepResultRefs',
+        ...keepResultRefs.map((ref) => `- ${ref}`),
+    ].join('\n');
 }
 
 function buildLargeHistory(count = 30) {
@@ -80,19 +104,19 @@ test('LoopAgentSession emits planner tool reason before tool execution', async (
     const agent = createStubAgent({
         onComplete: async (options = {}) => {
             if (options?.context?.intent !== 'agentic-session-planner') {
-                return JSON.stringify({ summary: 'Compressed history.', keepResultRefs: [] });
+                return compressionMarkdown({ summary: 'Compressed history.' });
             }
             plannerCallCount += 1;
             if (plannerCallCount === 1) {
-                return JSON.stringify({
+                return plannerMarkdownDecision({
                     tool: 'echo',
-                    toolPrompt: 'hello',
+                    prompt: 'hello',
                     reason: 'Read data before answering',
                 });
             }
-            return JSON.stringify({
+            return plannerMarkdownDecision({
                 tool: 'final_answer',
-                toolPrompt: 'Done',
+                prompt: 'Done',
                 reason: 'Finish the answer',
             });
         },
@@ -139,6 +163,42 @@ test('LoopAgentSession emits planner tool reason before tool execution', async (
     assert.deepEqual(events[1], { type: 'tool', payload: 'hello' });
 });
 
+test('parseHistoryCompressionMarkdown parses summary and keepResultRefs', () => {
+    const parsed = parseHistoryCompressionMarkdown([
+        '## summary',
+        'User asked for a report.',
+        'Tools gathered data.',
+        '',
+        '## keepResultRefs',
+        '- echo-res-1',
+        '2. shell-res-2',
+        'plain-res-3',
+    ].join('\n'));
+
+    assert.deepEqual(parsed, {
+        summary: 'User asked for a report.\nTools gathered data.',
+        keepResultRefs: ['echo-res-1', 'shell-res-2', 'plain-res-3'],
+    });
+});
+
+test('parseHistoryCompressionMarkdown allows missing keepResultRefs', () => {
+    const parsed = parseHistoryCompressionMarkdown([
+        '# SUMMARY',
+        'Only durable context.',
+    ].join('\n'));
+
+    assert.deepEqual(parsed, {
+        summary: 'Only durable context.',
+        keepResultRefs: [],
+    });
+});
+
+test('parseHistoryCompressionMarkdown rejects missing summary and legacy JSON', () => {
+    assert.equal(parseHistoryCompressionMarkdown('{"summary":"legacy","keepResultRefs":[]}'), null);
+    assert.equal(parseHistoryCompressionMarkdown('## keepResultRefs\n- echo-res-1'), null);
+    assert.equal(parseHistoryCompressionMarkdown({ summary: 'not markdown' }), null);
+});
+
 // =============================================================================
 // History Compression Tests
 // =============================================================================
@@ -152,16 +212,15 @@ test('compresses history when estimated tokens exceed threshold', async () => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 compressionCallCount += 1;
-                return JSON.stringify({
+                return compressionMarkdown({
                     summary: 'User asked for a report. Tools gathered data successfully.',
-                    keepResultRefs: [],
                 });
             }
             if (intent === 'agentic-session-planner') {
                 plannerCallCount += 1;
-                return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+                return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'fallback', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'fallback' });
         },
     });
 
@@ -207,9 +266,9 @@ test('does not compress history when below threshold', async () => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 compressionCallCount += 1;
-                return JSON.stringify({ summary: 'should not happen', keepResultRefs: [] });
+                return compressionMarkdown({ summary: 'should not happen' });
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -247,12 +306,12 @@ test('skips compression when awaiting_input is pending', async () => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 compressionCallCount += 1;
-                return JSON.stringify({ summary: 'should not happen', keepResultRefs: [] });
+                return compressionMarkdown({ summary: 'should not happen' });
             }
             if (intent === 'agentic-session-planner') {
                 plannerCallCount += 1;
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -291,7 +350,7 @@ test('continues gracefully when compression LLM call fails', async () => {
                 compressionCallCount += 1;
                 throw new Error('LLM compression service unavailable');
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -329,9 +388,9 @@ test('preserves last N entries after compression', async () => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 compressionCallCount += 1;
-                return JSON.stringify({ summary: 'Summary of old history.', keepResultRefs: [] });
+                return compressionMarkdown({ summary: 'Summary of old history.' });
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -379,9 +438,9 @@ test('uses compression model override when provided', async () => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 capturedModel = options.model;
-                return JSON.stringify({ summary: 'Compressed.', keepResultRefs: [] });
+                return compressionMarkdown({ summary: 'Compressed.' });
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -415,9 +474,9 @@ test('falls back to planner model when compression model not set', async () => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 capturedModel = options.model;
-                return JSON.stringify({ summary: 'Compressed.', keepResultRefs: [] });
+                return compressionMarkdown({ summary: 'Compressed.' });
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -450,9 +509,9 @@ test('compression disabled when historyCompressionEnabled is false', async () =>
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 compressionCallCount += 1;
-                return JSON.stringify({ summary: 'should not happen', keepResultRefs: [] });
+                return compressionMarkdown({ summary: 'should not happen' });
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -480,12 +539,12 @@ test('prunes toolVars and toolCalls based on keepResultRefs', async () => {
         onComplete: async (options) => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
-                return JSON.stringify({
+                return compressionMarkdown({
                     summary: 'Old history compressed.',
                     keepResultRefs: ['echo-res-0'],
                 });
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -528,7 +587,7 @@ test('prunes toolVars and toolCalls based on keepResultRefs', async () => {
     assert.equal(recentToolCalls.length, 1, 'recent toolCall should remain');
 });
 
-test('skips compression when JSON response is invalid', async () => {
+test('skips compression when markdown response is invalid', async () => {
     let compressionCallCount = 0;
 
     const agent = createStubAgent({
@@ -536,9 +595,9 @@ test('skips compression when JSON response is invalid', async () => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 compressionCallCount += 1;
-                return 'This is not valid JSON at all';
+                return 'This is not valid compression markdown at all';
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 
@@ -564,8 +623,8 @@ test('skips compression when JSON response is invalid', async () => {
     assert.ok(result !== null && result !== undefined, 'session should still return a result');
 
     const summaryEntries = session.history.filter((h) => h.type === 'history_summary');
-    assert.equal(summaryEntries.length, 0, 'no summary entry should be added on invalid JSON');
-    assert.ok(session.history.length >= historyLengthBefore, 'history should not be truncated on invalid JSON');
+    assert.equal(summaryEntries.length, 0, 'no summary entry should be added on invalid markdown');
+    assert.ok(session.history.length >= historyLengthBefore, 'history should not be truncated on invalid markdown');
 });
 
 test('compression prompt includes resultRef values from toolVars', async () => {
@@ -576,9 +635,9 @@ test('compression prompt includes resultRef values from toolVars', async () => {
             const intent = options?.context?.intent || '';
             if (intent === 'agentic-session-history-compression') {
                 capturedPrompt = options.prompt;
-                return JSON.stringify({ summary: 'Compressed.', keepResultRefs: [] });
+                return compressionMarkdown({ summary: 'Compressed.' });
             }
-            return JSON.stringify({ tool: 'final_answer', toolPrompt: 'Done', reason: 'test' });
+            return plannerMarkdownDecision({ tool: 'final_answer', prompt: 'Done' });
         },
     });
 

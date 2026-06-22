@@ -109,7 +109,7 @@ function getPendingAwaitingInputTool(history = []) {
 function buildPendingInputDecision(toolName, userPrompt) {
     return {
         tool: toolName,
-        toolPrompt: userPrompt,
+        prompt: userPrompt,
         routeReason: 'pending_awaiting_input',
     };
 }

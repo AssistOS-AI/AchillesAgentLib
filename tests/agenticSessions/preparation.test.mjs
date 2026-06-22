@@ -15,6 +15,19 @@ import { CLARIFY_CONTEXT_UNAVAILABLE } from '../../LLMAgents/constants.mjs';
 import { MainAgent } from '../../MainAgent/MainAgent.mjs';
 import { OrchestratorSkillsSubsystem } from '../../OrchestratorSkillsSubsystem/OrchestratorSkillsSubsystem.mjs';
 
+function plannerMarkdownDecision({ tool, prompt, reason = 'test' }) {
+    return [
+        '## tool',
+        tool,
+        '',
+        '## prompt',
+        prompt,
+        '',
+        '## reason',
+        reason,
+    ].join('\n');
+}
+
 // Minimal stub LLM agent for testing preparation flows
 function createStubLLMAgent(completeHandler) {
     return {
@@ -72,11 +85,10 @@ test('LoopAgentSession.runPreparation parses @context_ variables from output', a
     const agent = createStubLLMAgent(async () => {
         callCount++;
         // First call: planner decides to call final_answer with context lines
-        return {
-            action: 'call_tool',
+        return plannerMarkdownDecision({
             tool: 'final_answer',
-            toolPrompt: '@context_user := "john"\n@context_role := "admin"',
-        };
+            prompt: '@context_user := "john"\n@context_role := "admin"',
+        });
     });
 
     const tools = {
@@ -105,10 +117,9 @@ test('LoopAgentSession.runPreparation parses @context_ variables from output', a
 });
 
 test('LoopAgentSession.runPreparation returns empty when no @context_ in output', async () => {
-    const agent = createStubLLMAgent(async () => ({
-        action: 'call_tool',
+    const agent = createStubLLMAgent(async () => plannerMarkdownDecision({
         tool: 'final_answer',
-        toolPrompt: 'Just some plain text without context variables',
+        prompt: 'Just some plain text without context variables',
     }));
 
     const result = await LoopAgentSession.runPreparation({
@@ -151,11 +162,10 @@ test('LoopAgentSession.runPreparation retries on failure', async () => {
             return { action: 'invalid' };
         }
         // Second attempt: return valid final_answer
-        return {
-            action: 'call_tool',
+        return plannerMarkdownDecision({
             tool: 'final_answer',
-            toolPrompt: '@context_retry := "success"',
-        };
+            prompt: '@context_retry := "success"',
+        });
     });
 
     const result = await LoopAgentSession.runPreparation({
@@ -667,16 +677,16 @@ test('OrchestratorSkillsSubsystem passes parent context to SOP preparation witho
 
 test('LoopAgentSession exposes clarify_context as an internal preparation-only tool', async () => {
     const plannerResponses = [
-        {
+        plannerMarkdownDecision({
             tool: 'clarify_context',
-            toolPrompt: 'What was the previous request?',
+            prompt: 'What was the previous request?',
             reason: 'need parent context',
-        },
-        {
+        }),
+        plannerMarkdownDecision({
             tool: 'final_answer',
-            toolPrompt: '@context_parent := "$$clarify_context-res-1"',
+            prompt: '@context_parent := "$$clarify_context-res-1"',
             reason: 'return context',
-        },
+        }),
     ];
     let capturedClarifyPrompt = null;
     const agent = {
@@ -712,7 +722,16 @@ test('LoopAgentSession exposes clarify_context as an internal preparation-only t
 test('LoopAgentSession does not expose clarify_context in a normal turn', () => {
     const agent = {
         __toolState: new Map(),
-        complete: async () => ({ tool: 'final_answer', toolPrompt: 'done' }),
+        complete: async () => [
+            '## tool',
+            'final_answer',
+            '',
+            '## prompt',
+            'done',
+            '',
+            '## reason',
+            'test',
+        ].join('\n'),
         executePrompt: async () => 'unused',
     };
 
@@ -1023,10 +1042,9 @@ test('OrchestratorSkillsSubsystem skips preparation when no ##Preparation sectio
 // =============================================================================
 
 test('context parsing handles various formats', async () => {
-    const agent = createStubLLMAgent(async () => ({
-        action: 'call_tool',
+    const agent = createStubLLMAgent(async () => plannerMarkdownDecision({
         tool: 'final_answer',
-        toolPrompt: [
+        prompt: [
             '@context_a := "value1"',
             '@context_b: value2',
             '@context_c = value3',

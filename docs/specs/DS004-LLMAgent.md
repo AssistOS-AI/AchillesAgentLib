@@ -138,7 +138,7 @@ Completion with memory context injection. Prepends memory segments (global, user
 
 ### detectIntents(skillsDescription, userPrompt, options)
 
-Analyzes a user prompt against a described skill space to determine which skills are relevant and what intents are present. Returns a JSON object parsed from the LLM response.
+Analyzes a user prompt against a described skill space to determine which skills are relevant and what intents are present. Returns an object parsed from markdown sections in the LLM response.
 
 **Used by:** `evalsSuite/evalDetectIntents.mjs` — evaluates intent detection accuracy.
 

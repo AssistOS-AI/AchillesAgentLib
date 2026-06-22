@@ -241,8 +241,8 @@ class LoopAgentSession {
         return requestDecision(this, userPrompt, turn, stepIndex);
     }
 
-    _executeTool(toolName, toolPrompt) {
-        return executeTool(this, toolName, toolPrompt);
+    _executeTool(toolName, prompt) {
+        return executeTool(this, toolName, prompt);
     }
 
     _buildFinalAnswerTool() {

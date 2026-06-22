@@ -31,11 +31,16 @@ test('LoopAgentSession marks interrupted and resumes on next prompt', async () =
                     signal?.addEventListener('abort', () => reject(createAbortError('aborted-during-planner')), { once: true });
                 });
             }
-            return {
-                tool: 'final_answer',
-                toolPrompt: 'resumed',
-                reason: 'resume-flow',
-            };
+            return [
+                '## tool',
+                'final_answer',
+                '',
+                '## prompt',
+                'resumed',
+                '',
+                '## reason',
+                'resume-flow',
+            ].join('\n');
         },
         interpretMessage: async () => ({ intent: 'accept', confidence: 1 }),
     };

@@ -1,5 +1,18 @@
 import { LLMAgent } from '../../LLMAgents/LLMAgent.mjs';
 
+function plannerMarkdownDecision({ tool, prompt, reason = 'test' }) {
+    return [
+        '## tool',
+        tool,
+        '',
+        '## prompt',
+        prompt,
+        '',
+        '## reason',
+        reason,
+    ].join('\n');
+}
+
 class StubLLMAgent extends LLMAgent {
     constructor({ onExecutePrompt = null } = {}) {
         super({ name: 'StubLLMAgent' });
@@ -46,32 +59,30 @@ class StubLLMAgent extends LLMAgent {
             const userPrompt = context?.userPrompt || '';
 
             if (userPrompt.includes('daily warehouse report')) {
-                return {
-                    action: 'call_tool',
+                return plannerMarkdownDecision({
                     tool: 'llm-reporter-anthropic',
-                    toolPrompt: 'Prepare daily warehouse report',
-                };
+                    prompt: 'Prepare daily warehouse report',
+                });
             }
 
             if (userPrompt.includes('invoice mismatches')) {
-                return {
-                    action: 'final_answer',
-                    text: '',
-                };
+                return plannerMarkdownDecision({
+                    tool: 'final_answer',
+                    prompt: '',
+                });
             }
 
             if (userPrompt.includes('recursive loop')) {
-                return {
-                    action: 'call_tool',
+                return plannerMarkdownDecision({
                     tool: 'llm-planner-orchestrator',
-                    toolPrompt: 'Loop forever',
-                };
+                    prompt: 'Loop forever',
+                });
             }
 
-            return {
-                action: 'final_answer',
-                text: 'Test completed',
-            };
+            return plannerMarkdownDecision({
+                tool: 'final_answer',
+                prompt: 'Test completed',
+            });
         }
 
         return {

@@ -10,8 +10,8 @@ import {
 } from '../constants.mjs';
 import {
     buildAgenticSessionPlannerPrompt,
-    extractJson,
 } from './prompts.mjs';
+import { parsePlannerDecisionMarkdown } from './plannerMarkdown.mjs';
 import {
     coerceStructuredToolResult,
     getPendingAwaitingInputTool,
@@ -148,14 +148,10 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
 
     let parsed = null;
     try {
-        if (typeof raw === 'object' && raw !== null) {
-            parsed = raw;
-        } else {
-            parsed = extractJson(raw);
-        }
+        parsed = parsePlannerDecisionMarkdown(raw);
     } catch (error) {
         parsed = null;
-        session._debug('[LoopSession]', 'Planner JSON parse error', {
+        session._debug('[LoopSession]', 'Planner markdown parse error', {
             stepIndex,
             error: error.message,
         });
@@ -166,7 +162,7 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
             stepIndex,
             parsed,
         });
-        throw new Error('Planner did not return a valid JSON object.');
+        throw new Error('Planner did not return a valid markdown decision.');
     }
 
     const validated = validateAndRepairPlannerDecision(parsed, userPrompt, session.tools);
@@ -203,25 +199,25 @@ async function runLoopForPrompt(session, userPrompt, turn) {
         if (decision && typeof decision.tool === 'string') {
             const toolName = decision.tool;
             await session._emitToolReason(decision, stepIndex);
-            const rawToolPrompt = decision.toolPrompt || userPrompt;
-            const toolPrompt = typeof rawToolPrompt === 'string'
-                ? rawToolPrompt
-                : (rawToolPrompt != null ? JSON.stringify(rawToolPrompt) : userPrompt);
+            const rawPrompt = decision.prompt || userPrompt;
+            const prompt = typeof rawPrompt === 'string'
+                ? rawPrompt
+                : (rawPrompt != null ? JSON.stringify(rawPrompt) : userPrompt);
 
             session.history.push({
                 type: 'tool_call',
                 tool: toolName,
-                prompt: toolPrompt,
+                prompt,
             });
 
             try {
-                const toolResult = await session._executeTool(toolName, toolPrompt, turn);
+                const toolResult = await session._executeTool(toolName, prompt, turn);
                 session._ensureNotCancelled();
                 const structuredToolResult = coerceStructuredToolResult(toolResult);
                 debugLog(session, `[${getTimestamp()}] [LoopSession] Tool "${toolName}" returned: type=${typeof toolResult}, structuredType=${typeof structuredToolResult}, requiresConfirmation=${structuredToolResult?.requiresConfirmation}, requiresInput=${structuredToolResult?.requiresInput}`);
                 session._debug('[LoopSession]', 'Tool result', {
                     tool: toolName,
-                    prompt: toolPrompt,
+                    prompt,
                     type: typeof toolResult,
                     structuredType: typeof structuredToolResult,
                     requiresConfirmation: structuredToolResult?.requiresConfirmation,
@@ -234,7 +230,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                 turn.steps.push({
                     type: 'tool_result',
                     tool: toolName,
-                    prompt: toolPrompt,
+                    prompt,
                     result: displayResult,
                 });
 
@@ -302,12 +298,12 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                 }
 
                 if (turn._lastToolName === toolName
-                    && turn._lastToolPrompt === toolPrompt
+                    && turn._lastPrompt === prompt
                     && String(turn._lastToolResult) === String(displayResult)) {
                     turn._sameToolRepeatCount = (turn._sameToolRepeatCount || 1) + 1;
                 } else {
                     turn._lastToolName = toolName;
-                    turn._lastToolPrompt = toolPrompt;
+                    turn._lastPrompt = prompt;
                     turn._lastToolResult = displayResult;
                     turn._sameToolRepeatCount = 1;
                 }
@@ -379,7 +375,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                     }
                     session._debug('[LoopSession]', 'Repeat tool result threshold reached', {
                         tool: toolName,
-                        prompt: toolPrompt,
+                        prompt,
                     });
                     turn.finalAnswer = final;
                     turn.status = SESSION_STATUS_DONE;
@@ -395,12 +391,12 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                 turn.steps.push({
                     type: 'tool_error',
                     tool: toolName,
-                    prompt: toolPrompt,
+                    prompt,
                     error: error.message,
                 });
                 session._debug('[LoopSession]', 'Tool error', {
                     tool: toolName,
-                    prompt: toolPrompt,
+                    prompt,
                     error: error.message,
                     errorCount: session.errorCount,
                     maxErrors,
@@ -511,7 +507,7 @@ async function newPrompt(session, SessionClass, userPrompt, options = {}) {
         status: SESSION_STATUS_RUNNING,
         usedTools: false,
         _lastToolName: null,
-        _lastToolPrompt: null,
+        _lastPrompt: null,
         _lastToolResult: null,
         _sameToolRepeatCount: 0,
         expected,

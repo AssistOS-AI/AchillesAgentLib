@@ -40,6 +40,63 @@ test('LLMAgent interpretMessage classifies user input', async () => {
     assert.equal(interpreted.updates.priority, 'urgent');
 });
 
+test('LLMAgent resolveConfirmation parses markdown fallback', async () => {
+    const agent = new LLMAgent({
+        name: 'ConfirmationAgent',
+        invokerStrategy: async ({ prompt }) => {
+            assert.match(prompt, /## decision/);
+            return [
+                '## decision',
+                'yes',
+                '',
+                '## confidence',
+                '0.82',
+            ].join('\n');
+        },
+    });
+
+    const result = await agent.resolveConfirmation('sounds good to me');
+    assert.deepEqual(result, { decision: 'yes', confidence: 0.82 });
+});
+
+test('LLMAgent detectIntents parses markdown sections', async () => {
+    const agent = new LLMAgent({
+        name: 'IntentAgent',
+        invokerStrategy: async ({ prompt }) => {
+            assert.match(prompt, /Respond ONLY with the markdown sections/);
+            return [
+                '## modifyRequirement',
+                'update NFS-001 from old value to new value',
+                '',
+                '## prioritizeRequirement',
+                'set priority to High for NFS-001',
+            ].join('\n');
+        },
+    });
+
+    const result = await agent.detectIntents({
+        modifyRequirement: 'Modify a requirement',
+        prioritizeRequirement: 'Prioritize a requirement',
+    }, 'Update NFS-001 and make it high priority');
+
+    assert.deepEqual(result, {
+        modifyRequirement: 'update NFS-001 from old value to new value',
+        prioritizeRequirement: 'set priority to High for NFS-001',
+    });
+});
+
+test('LLMAgent detectIntents rejects legacy JSON', async () => {
+    const agent = new LLMAgent({
+        name: 'IntentAgent',
+        invokerStrategy: async () => '{"modifyRequirement":"legacy"}',
+    });
+
+    await assert.rejects(
+        () => agent.detectIntents({ modifyRequirement: 'Modify a requirement' }, 'Update NFS-001'),
+        /Failed to parse markdown/,
+    );
+});
+
 test('LLMAgentRegistry manages agents and defaults', async () => {
     const registry = new LLMAgentRegistry();
     const baseInvoker = async () => 'result';

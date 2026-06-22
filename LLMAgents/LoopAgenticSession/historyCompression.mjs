@@ -1,7 +1,7 @@
 import {
     buildHistoryCompressionPrompt,
-    extractJson,
 } from './prompts.mjs';
+import { parseHistoryCompressionMarkdown } from './historyCompressionMarkdown.mjs';
 
 const HISTORY_SUMMARY_TYPE = 'history_summary';
 const DEFAULT_HISTORY_COMPRESSION_THRESHOLD_TOKENS = 6000;
@@ -67,7 +67,7 @@ async function compressHistoryIfNeeded(session, userPrompt) {
 
     let parsed = null;
     try {
-        parsed = extractJson(raw);
+        parsed = parseHistoryCompressionMarkdown(raw);
     } catch {
         parsed = null;
     }

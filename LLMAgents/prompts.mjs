@@ -59,7 +59,7 @@ Instructions:
 
    Example of splitting intents:
    - Input: "Add a new NFS for encryption. This is critical."
-     Output: { "addRequirement": "...", "prioritizeRequirement": "set priority to Critical..." }
+     Output: markdown sections for addRequirement and prioritizeRequirement.
 
 2. Map each identified intent to one of the available skills.
 
@@ -69,20 +69,23 @@ Instructions:
    - for example: Set priority to high for NFS: All external API calls must have a fallback mechanism to prevent system-wide failures. Your skill description should be:
     Set priority to high for the NFS that is about external API calls which must have a fallback mechanism to prevent system wide failures
    
-4. Output a JSON object where:
-   - Keys are the names of the matched skills.
-   - Values are the self-contained descriptions for that skill.
+4. Output markdown sections where:
+   - Each heading is the name of a matched skill.
+   - Each section body is the self-contained description for that skill.
    
 Example input:
 The current NFS-001, 'System uptime must be 99.9%', needs to be updated to 'System uptime must be 99.99% for critical services'. This is a high priority change. Also, we need to add a new URS: 'Users can save their preferences for dashboard widgets.'
 Example Output:
-{
-    "modifyRequirement": "update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'.",
-    "prioritizeRequirement": "set priority to High for the modified NFS-001 regarding system uptime.",
-    "addRequirement": "add a new URS: 'Users can save their preferences for dashboard widgets.'"
- }
+## modifyRequirement
+update NFS-001 from 'System uptime must be 99.9%' to 'System uptime must be 99.99% for critical services'.
 
-Respond ONLY with the JSON object.`;
+## prioritizeRequirement
+set priority to High for the modified NFS-001 regarding system uptime.
+
+## addRequirement
+add a new URS: 'Users can save their preferences for dashboard widgets.'
+
+Respond ONLY with the markdown sections, no extra text.`;
 };
 
 const buildResolveConfirmationPrompt = (userInput, actionContext = null) => {
@@ -104,8 +107,12 @@ const buildResolveConfirmationPrompt = (userInput, actionContext = null) => {
         '- "no", "n", "cancel", "stop", "abort", "nevermind", "don\'t", "reject" → no',
         '- Ambiguous or unrelated responses → unclear',
         '',
-        'Respond ONLY with JSON:',
-        '{ "decision": "yes" | "no" | "unclear", "confidence": 0.0-1.0 }',
+        'Respond ONLY with markdown:',
+        '## decision',
+        'yes | no | unclear',
+        '',
+        '## confidence',
+        '0.0-1.0',
     );
 
     return lines.join('\n');

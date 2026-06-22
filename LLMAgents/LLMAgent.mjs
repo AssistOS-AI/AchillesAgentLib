@@ -14,6 +14,10 @@ import { LoopAgentSession } from './LoopAgenticSession/LoopAgentSession.mjs';
 import { SOPAgenticSession } from './SOPAgenticSession/SOPAgenticSession.mjs';
 import { stripCodeFence } from './LLMAgentHelpers.mjs';
 import {
+    parseConfirmationMarkdown,
+    parseDetectIntentsMarkdown,
+} from './structuredMarkdown.mjs';
+import {
     extraComplete,
     extraDoTask,
 } from './LLMAgentExtra.mjs';
@@ -217,16 +221,9 @@ class LLMAgent {
                 context: { intent: 'resolve-confirmation' },
             });
 
-            const parsed = extractJson(response);
-            if (parsed && typeof parsed.decision === 'string') {
-                const decision = parsed.decision.toLowerCase();
-                const confidence = typeof parsed.confidence === 'number'
-                    ? Math.max(0, Math.min(1, parsed.confidence))
-                    : 0.7;
-
-                if (['yes', 'no', 'unclear'].includes(decision)) {
-                    return { decision, confidence };
-                }
+            const parsed = parseConfirmationMarkdown(response);
+            if (parsed) {
+                return parsed;
             }
         } catch (error) {
             // Fall through to unclear on error
@@ -426,7 +423,7 @@ ${promptText}`
      * Analyze a user prompt against a described skill space.
      *
      * Determines which skills are relevant and what intents are present.
-     * Returns a JSON object parsed from the LLM response.
+     * Returns an object parsed from markdown sections in the LLM response.
      *
      * Used by: evalsSuite/evalDetectIntents.mjs — evaluates intent detection accuracy.
      *
@@ -456,9 +453,9 @@ ${promptText}`
             ...rest,
         });
 
-        const parsed = extractJson(result);
+        const parsed = parseDetectIntentsMarkdown(result);
         if (parsed === null) {
-            throw new Error(`Failed to parse JSON from LLM response: ${result}`);
+            throw new Error(`Failed to parse markdown from LLM response: ${result}`);
         }
         return parsed;
     }
