@@ -31,7 +31,7 @@ export async function callSearch(queryOrMessages, options = {}) {
     if (!provider) {
         throw new Error(
             `Search provider "${providerKey}" is not configured. ` +
-            'Set SOUL_GATEWAY_API_KEY and SOUL_GATEWAY_URL to route ' +
+            'Set PLOINKY_AGENT_API_KEY and SOUL_GATEWAY_URL to route ' +
             'search calls through Soul Gateway, or pass an explicit ' +
             'options.providerKey for a directly configured OpenAI-compatible provider.'
         );

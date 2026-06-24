@@ -568,7 +568,7 @@ ${COLORS.CYAN}Options:${COLORS.RESET}
     const availableModels = getModelsToTest(modelsConfig, config.models, config.includeReference);
 
     if (availableModels.length === 0) {
-        console.log(`${COLORS.RED}No models available. Set SOUL_GATEWAY_API_KEY.${COLORS.RESET}`);
+        console.log(`${COLORS.RED}No models available. Set PLOINKY_AGENT_API_KEY.${COLORS.RESET}`);
         return;
     }
 

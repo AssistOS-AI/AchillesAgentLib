@@ -174,7 +174,7 @@ function getAvailableModels(modelsConfig, requestedModels, { freeOnly = false } 
         if (!providerConfig) continue;
 
         const apiKeyEnv = descriptor.providerKey === 'soul_gateway'
-            ? 'SOUL_GATEWAY_API_KEY'
+            ? 'PLOINKY_AGENT_API_KEY'
             : (descriptor.apiKeyEnv || providerConfig.apiKeyEnv);
         const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : null;
         if (!apiKey) continue;
@@ -807,7 +807,7 @@ async function main() {
 
     if (availableModels.length === 0) {
         console.log(`${COLORS.RED}No models available to test.${COLORS.RESET}`);
-        console.log('Make sure SOUL_GATEWAY_API_KEY or other provider API keys are set.');
+        console.log('Make sure PLOINKY_AGENT_API_KEY or other provider API keys are set.');
         return;
     }
 

@@ -419,9 +419,9 @@ function getAvailableModels(modelsConfig, requestedModels, { freeOnly = false } 
         if (!providerConfig) continue;
 
         // Check if API key is available
-        // soul_gateway models use SOUL_GATEWAY_API_KEY
+        // soul_gateway models use PLOINKY_AGENT_API_KEY
         const apiKeyEnv = descriptor.providerKey === 'soul_gateway'
-            ? 'SOUL_GATEWAY_API_KEY'
+            ? 'PLOINKY_AGENT_API_KEY'
             : (descriptor.apiKeyEnv || providerConfig.apiKeyEnv);
         const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : null;
 

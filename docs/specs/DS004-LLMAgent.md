@@ -85,7 +85,7 @@ LLMAgent maintains a `modelConfig` object that maps semantic tags to model names
 - `getModelByTag(tag)` — resolves a tag to a model name. Returns the mapped model if the tag exists in modelConfig, otherwise returns the tag itself (normalized).
 - `setModelConfig(modelConfig)` — replaces the current modelConfig. Pass null to reset to defaults.
 
-Provider configuration is resolved by the LLM provider loaders, not by `LLMAgent` instances directly. During the hosted Soul Gateway migration window, those loaders include a temporary compatibility rule: when `SOUL_GATEWAY_API_KEY` is explicitly supplied and marked with `PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY=explicit`, the `soul_gateway` provider may use that key and fall back to the configured hosted default (`https://soul.axiologic.dev/v1/chat/completions`) instead of forcing the generated local Ploinky router route. This is not canonical AchillesAgentLib behavior. The canonical long-term path is generated Ploinky agent credentials against the local Soul Gateway deployment, and new provider integrations must not copy the hosted-key precedence rule.
+Provider configuration is resolved by the LLM provider loaders, not by `LLMAgent` instances directly. The canonical path for the `soul_gateway` provider is `PLOINKY_AGENT_API_KEY`, resolved by the provider loader. Generated Ploinky agent credentials marked with `PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY=generated` route through the local router service, while operator URL overrides still use `SOUL_GATEWAY_BASE_URL` or `SOUL_GATEWAY_URL`.
 
 **Example:**
 ```javascript
@@ -214,25 +214,16 @@ Model and tags are resolved through `getModelByTag()`. When a method receives a 
 
 ## Decisions & Questions
 
-### Question #1: Why does an explicit hosted Soul Gateway key temporarily win over generated local credentials?
+### Question #1: How is the `soul_gateway` provider credential resolved? (updated 2026-06-24)
 
 Response:
-This precedence exists only to keep existing AchillesCLI launches working while hosted `soul.axiologic.dev` remains in service. It is a compatibility bridge, not the canonical provider contract. The implementation is intentionally limited to the `soul_gateway` provider and provenance marker pair so generated local credentials still route through the embedded Ploinky router by default. When the local Soul Gateway deployment becomes the only supported path, the explicit hosted-key precedence and its tests should be removed.
+There is no explicit hosted-key precedence. The earlier compatibility bridge — where an operator-supplied `SOUL_GATEWAY_API_KEY` marked `explicit` could win over generated local credentials — was removed in the subject-identity decoupling hard cut. The `soul_gateway` provider now resolves its credential solely from the generated `PLOINKY_AGENT_API_KEY` (signed-subject), routing through the embedded Ploinky router service. The removed `SOUL_GATEWAY_API_KEY` alias and its provenance/precedence handling no longer exist; operator access to a remote gateway is configured as a normal provider account, not by substituting the agent credential.
 
-Temporary implementation offsets:
-
-```text
-utils/LLMProviders/providers/modelsConfigLoader.mjs:L10-L59
-utils/LLMProviders/providers/modelsConfigLoader.mjs:L61-L105
-utils/LLMProviders/providers/envConfigLoader.mjs:L231-L236
-utils/LLMProviders/providers/envConfigLoader.mjs:L285-L314
-```
-
-Temporary validation offsets:
+Implementation:
 
 ```text
-tests/envConfigLoader.test.mjs:L215-L231
-tests/dotenvStartup.test.mjs:L15-L66
+utils/LLMProviders/providers/envConfigLoader.mjs — soul_gateway provider def; resolveSoulGatewayEnvNames() returns ['PLOINKY_AGENT_API_KEY']; resolveSoulGatewayBaseURL() treats the credential as generated based on PLOINKY_AGENT_API_KEY only
+LLMConfig.json — soul_gateway provider apiKeyEnv = PLOINKY_AGENT_API_KEY
 ```
 
 ## Testable Functionality

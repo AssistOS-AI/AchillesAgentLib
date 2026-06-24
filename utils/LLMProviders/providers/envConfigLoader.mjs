@@ -287,40 +287,13 @@ function envSource(name) {
 }
 
 function resolveSoulGatewayEnvNames() {
-    const soulKey = String(process.env.SOUL_GATEWAY_API_KEY || '').trim();
-    if (soulKey && envSource('SOUL_GATEWAY_API_KEY') === 'explicit') {
-        return ['SOUL_GATEWAY_API_KEY', 'PLOINKY_AGENT_API_KEY'];
-    }
-    return ['PLOINKY_AGENT_API_KEY', 'SOUL_GATEWAY_API_KEY'];
+    return ['PLOINKY_AGENT_API_KEY'];
 }
 
 function resolveSoulGatewayBaseURL() {
-    const soulKey = String(process.env.SOUL_GATEWAY_API_KEY || '').trim();
-    const legacyKeySource = envSource('SOUL_GATEWAY_API_KEY');
-    if (soulKey && legacyKeySource === 'explicit') {
-        const raw = process.env.SOUL_GATEWAY_BASE_URL || process.env.SOUL_GATEWAY_URL;
-        if (!raw || !String(raw).trim()) {
-            return null;
-        }
-        const trimmed = raw.replace(/\/+$/, '');
-
-        if (trimmed.endsWith('/chat/completions')) {
-            return trimmed;
-        }
-        if (trimmed.endsWith('/v1')) {
-            return `${trimmed}/chat/completions`;
-        }
-        return `${trimmed}/v1/chat/completions`;
-    }
-
-    // Task 2 injects the same signed key under both PLOINKY_AGENT_API_KEY and
-    // SOUL_GATEWAY_API_KEY, each with its own provenance marker. Treat the key as
-    // generated when either alias is generated so preferring PLOINKY_AGENT_API_KEY
-    // still routes through the embedded router service.
     const agentKeySource = envSource('PLOINKY_AGENT_API_KEY');
-    const isGenerated = agentKeySource === 'generated' || legacyKeySource === 'generated';
+    const isGenerated = agentKeySource === 'generated';
     // Generated embedded keys must stay paired with the embedded router service.
-    // A standalone URL is honored only with an explicit operator-supplied key.
     if (isGenerated) {
         const routerURL = String(process.env.PLOINKY_ROUTER_URL || '').trim();
         if (!routerURL) {

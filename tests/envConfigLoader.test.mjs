@@ -176,9 +176,7 @@ describe('envConfigLoader', () => {
     describe('loadEnvConfig soul_gateway provider', () => {
         const SOUL_KEYS = [
             'PLOINKY_AGENT_API_KEY',
-            'SOUL_GATEWAY_API_KEY',
             'PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY',
-            'PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY',
             'PLOINKY_ROUTER_URL',
             'SOUL_GATEWAY_BASE_URL',
             'SOUL_GATEWAY_URL',
@@ -202,9 +200,8 @@ describe('envConfigLoader', () => {
             }
         });
 
-        it('prefers PLOINKY_AGENT_API_KEY over SOUL_GATEWAY_API_KEY when both are set', () => {
+        it('uses PLOINKY_AGENT_API_KEY when it is set', () => {
             process.env.PLOINKY_AGENT_API_KEY = 'signed-subject-key';
-            process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
 
             const config = loadEnvConfig();
 
@@ -212,50 +209,9 @@ describe('envConfigLoader', () => {
             assert.strictEqual(config.providers.get('soul_gateway').apiKeyEnv, 'PLOINKY_AGENT_API_KEY');
         });
 
-        it('prefers an explicit SOUL_GATEWAY_API_KEY over a generated PLOINKY_AGENT_API_KEY', () => {
-            process.env.PLOINKY_AGENT_API_KEY = 'generated-local-key';
-            process.env.SOUL_GATEWAY_API_KEY = 'sk-explicit-soul-key';
-            process.env.PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY = 'generated';
-            process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY = 'explicit';
-            process.env.PLOINKY_ROUTER_URL = 'http://127.0.0.1:8088';
-
-            const config = loadEnvConfig();
-
-            const provider = config.providers.get('soul_gateway');
-            assert.ok(provider);
-            assert.strictEqual(provider.apiKeyEnv, 'SOUL_GATEWAY_API_KEY');
-            assert.notStrictEqual(
-                provider.baseURL,
-                'http://127.0.0.1:8088/services/soul-gateway/v1/chat/completions'
-            );
-        });
-
-        it('falls back to SOUL_GATEWAY_API_KEY when PLOINKY_AGENT_API_KEY is absent', () => {
-            process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
-
-            const config = loadEnvConfig();
-
-            assert.ok(config.providers.has('soul_gateway'));
-            assert.strictEqual(config.providers.get('soul_gateway').apiKeyEnv, 'SOUL_GATEWAY_API_KEY');
-        });
-
-        it('routes through the embedded router when only the SOUL_GATEWAY_API_KEY alias is generated', () => {
-            process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
-            process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY = 'generated';
-            process.env.PLOINKY_ROUTER_URL = 'http://127.0.0.1:8088';
-
-            const config = loadEnvConfig();
-
-            const provider = config.providers.get('soul_gateway');
-            assert.ok(provider);
-            assert.strictEqual(provider.baseURL, 'http://127.0.0.1:8088/services/soul-gateway/v1/chat/completions');
-        });
-
-        it('routes through the embedded router when the PLOINKY_AGENT_API_KEY alias is generated', () => {
+        it('routes through the embedded router when PLOINKY_AGENT_API_KEY is generated', () => {
             process.env.PLOINKY_AGENT_API_KEY = 'signed-subject-key';
-            process.env.SOUL_GATEWAY_API_KEY = 'signed-subject-key';
             process.env.PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY = 'generated';
-            process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY = 'generated';
             process.env.PLOINKY_ROUTER_URL = 'http://127.0.0.1:8088';
 
             const config = loadEnvConfig();

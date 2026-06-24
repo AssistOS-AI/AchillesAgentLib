@@ -238,7 +238,7 @@ describe('callSearch error handling', () => {
         resetProviders();
         await assert.rejects(
             () => callSearch('test', { provider: 'exa' }),
-            /SOUL_GATEWAY_API_KEY/
+            /PLOINKY_AGENT_API_KEY/
         );
     });
 

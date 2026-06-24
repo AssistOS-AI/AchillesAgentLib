@@ -82,7 +82,7 @@
         },
         "soul_gateway": {
             "baseURL": "https://soul.axiologic.dev/v1/chat/completions",
-            "apiKeyEnv": "SOUL_GATEWAY_API_KEY",
+            "apiKeyEnv": "PLOINKY_AGENT_API_KEY",
             "module": "./utils/LLMProviders/providers/openai.mjs"
         }
     },

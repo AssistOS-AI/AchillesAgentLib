@@ -21,7 +21,7 @@ test('auto-loads the nearest parent .env from the CLI --dir target before model 
         fs.mkdirSync(launchCwd, { recursive: true });
         fs.mkdirSync(selectedDir, { recursive: true });
         fs.writeFileSync(path.join(workspaceRoot, '.env'), [
-            'SOUL_GATEWAY_API_KEY=sk-parent-soul-key',
+            'PLOINKY_AGENT_API_KEY=sk-parent-agent-key',
             '',
         ].join('\n'));
 
@@ -32,8 +32,8 @@ test('auto-loads the nearest parent .env from the CLI --dir target before model 
             'const config = await loadModelsConfiguration();',
             "const provider = config.providers.get('soul_gateway');",
             'console.log(JSON.stringify({',
-            '  soulKey: process.env.SOUL_GATEWAY_API_KEY,',
-            '  soulSource: process.env.PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY || null,',
+            '  agentKey: process.env.PLOINKY_AGENT_API_KEY,',
+            '  agentSource: process.env.PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY || null,',
             '  providerApiKeyEnv: provider?.apiKeyEnv || null,',
             '  providerBaseURL: provider?.baseURL || null,',
             '}));',
@@ -46,9 +46,7 @@ test('auto-loads the nearest parent .env from the CLI --dir target before model 
                 PATH: process.env.PATH,
                 HOME: process.env.HOME,
                 PLOINKY_AGENT_API_KEY: 'generated-local-key',
-                SOUL_GATEWAY_API_KEY: 'generated-local-key',
                 PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY: 'generated',
-                PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY: 'generated',
                 PLOINKY_ROUTER_URL: 'http://127.0.0.1:8088',
             },
         });
@@ -56,9 +54,9 @@ test('auto-loads the nearest parent .env from the CLI --dir target before model 
         assert.strictEqual(result.status, 0, result.stderr || result.stdout);
         const line = result.stdout.trim().split(/\r?\n/).at(-1);
         const observed = JSON.parse(line);
-        assert.strictEqual(observed.soulKey, 'sk-parent-soul-key');
-        assert.strictEqual(observed.soulSource, 'explicit');
-        assert.strictEqual(observed.providerApiKeyEnv, 'SOUL_GATEWAY_API_KEY');
+        assert.strictEqual(observed.agentKey, 'sk-parent-agent-key');
+        assert.strictEqual(observed.agentSource, 'explicit');
+        assert.strictEqual(observed.providerApiKeyEnv, 'PLOINKY_AGENT_API_KEY');
         assert.strictEqual(observed.providerBaseURL, 'https://soul.axiologic.dev/v1/chat/completions');
     } finally {
         fs.rmSync(tempRoot, { recursive: true, force: true });

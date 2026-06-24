@@ -51,6 +51,7 @@ describe('Config Merging: .env and LLMConfig.json', () => {
                 key.startsWith('LLM_MODEL_TEST') ||
                 key.startsWith('SOUL_GATEWAY') ||
                 key.startsWith('PLOINKY_ENV_SOURCE_') ||
+                key === 'PLOINKY_AGENT_API_KEY' ||
                 key === 'PLOINKY_ROUTER_URL') {
                 delete process.env[key];
             }
@@ -131,10 +132,10 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             assert.strictEqual(model.providerKey, 'customproxy', 'Should be the env-defined provider');
         });
 
-        it('should keep the JSON soul_gateway baseURL when only the API key is set', async () => {
+        it('should keep the JSON soul_gateway baseURL when only PLOINKY_AGENT_API_KEY is set', async () => {
             const originalFetch = global.fetch;
             global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
-            setEnvVar('SOUL_GATEWAY_API_KEY', 'sk-test-soul-key');
+            setEnvVar('PLOINKY_AGENT_API_KEY', 'sk-test-agent-key');
 
             try {
                 const config = await loadModelsConfiguration();
@@ -150,33 +151,12 @@ describe('Config Merging: .env and LLMConfig.json', () => {
             }
         });
 
-        it('should keep the JSON soul_gateway baseURL for an explicit key even when a router URL exists', async () => {
+        it('should use the embedded router URL for a generated PLOINKY_AGENT_API_KEY', async () => {
             const originalFetch = global.fetch;
             global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
-            setEnvVar('SOUL_GATEWAY_API_KEY', 'sk-test-soul-key');
-            setEnvVar('PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY', 'explicit');
-            setEnvVar('PLOINKY_ROUTER_URL', 'http://127.0.0.1:8080');
-
-            try {
-                const config = await loadModelsConfiguration();
-                const provider = config.providers.get('soul_gateway');
-                assert.ok(provider, 'soul_gateway provider should exist');
-                assert.strictEqual(
-                    provider.baseURL,
-                    'https://soul.axiologic.dev/v1/chat/completions',
-                    'Explicit Soul Gateway keys should use the JSON baseURL when no env baseURL is set'
-                );
-            } finally {
-                global.fetch = originalFetch;
-            }
-        });
-
-        it('should use the embedded router URL for a generated Soul Gateway key', async () => {
-            const originalFetch = global.fetch;
-            global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
-            setEnvVar('SOUL_GATEWAY_API_KEY', 'generated-soul-key');
+            setEnvVar('PLOINKY_AGENT_API_KEY', 'generated-agent-key');
             setEnvVar('SOUL_GATEWAY_BASE_URL', 'https://stale-standalone.example.test');
-            setEnvVar('PLOINKY_ENV_SOURCE_SOUL_GATEWAY_API_KEY', 'generated');
+            setEnvVar('PLOINKY_ENV_SOURCE_PLOINKY_AGENT_API_KEY', 'generated');
             setEnvVar('PLOINKY_ROUTER_URL', 'http://127.0.0.1:8080/');
 
             try {
@@ -196,7 +176,7 @@ describe('Config Merging: .env and LLMConfig.json', () => {
         it('should use an explicit SOUL_GATEWAY_BASE_URL override when provided', async () => {
             const originalFetch = global.fetch;
             global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
-            setEnvVar('SOUL_GATEWAY_API_KEY', 'sk-test-soul-key');
+            setEnvVar('PLOINKY_AGENT_API_KEY', 'sk-test-agent-key');
             setEnvVar('SOUL_GATEWAY_BASE_URL', 'https://custom-soul.example.com');
 
             try {
