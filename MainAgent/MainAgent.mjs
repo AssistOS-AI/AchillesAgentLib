@@ -272,7 +272,17 @@ export class MainAgent {
                 reasoningEffort: effectiveReasoningEffort,
             });
         } else {
-            await this._session.newPrompt(message, { signal });
+            const promptOptions = { signal };
+            if (Object.prototype.hasOwnProperty.call(options, 'model')) {
+                promptOptions.model = model;
+            }
+            if (Object.prototype.hasOwnProperty.call(options, 'tags')) {
+                promptOptions.tags = tags;
+            }
+            if (Object.prototype.hasOwnProperty.call(options, 'reasoningEffort')) {
+                promptOptions.reasoningEffort = effectiveReasoningEffort;
+            }
+            await this._session.newPrompt(message, promptOptions);
         }
 
         return {
@@ -423,6 +433,7 @@ export class MainAgent {
                         ? parentSession.getConversationSnapshot()
                         : null;
                     const supervisor = parentSession?.supervisor || this.supervisor;
+                    const parentSessionOptions = parentSession?.options || {};
                     const runtimeContext = this.context && typeof this.context === 'object'
                         ? this.context
                         : {};
@@ -433,7 +444,9 @@ export class MainAgent {
                     this.logger.debug(`MainAgent:skillParentContext: ${toolName}: hasParentContext=${Boolean(parentSessionContext)}`);
 
                     const result = await this.executeSkill(skillRecord.name, safePrompt, {
-                        model: 'plan',
+                        model: parentSessionOptions.model || 'plan',
+                        tags: parentSessionOptions.tags || null,
+                        reasoningEffort: parentSessionOptions.reasoningEffort || null,
                         signal: executionOptions?.signal || null,
                         supervisor,
                         parentContext: parentSessionContext,

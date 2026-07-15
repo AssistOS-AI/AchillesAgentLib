@@ -81,6 +81,7 @@ class LoopAgentSession {
             maxErrors: Number.isFinite(options.maxErrors) ? options.maxErrors : 5,
             model: options.model || null,
             tags: options.tags || null,
+            reasoningEffort: options.reasoningEffort || null,
             maxRetriesPerTurn: Number.isFinite(options.maxRetriesPerTurn)
                 ? options.maxRetriesPerTurn
                 : 3,

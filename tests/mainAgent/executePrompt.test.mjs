@@ -67,6 +67,29 @@ describe('MainAgent executePrompt', () => {
         agent.shutdown();
     });
 
+    it('updates the active model on a reused session', async () => {
+        const agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+
+        let capturedOptions = null;
+        const session = {
+            status: 'running',
+            async newPrompt(_message, options = {}) {
+                capturedOptions = options;
+            },
+            getLastResult() {
+                return 'ok';
+            },
+        };
+
+        agent.llmAgent.startLoopAgentSession = async () => session;
+
+        await agent.executePrompt('first', { model: 'plan' });
+        await agent.executePrompt('second', { model: 'deep' });
+
+        assert.equal(capturedOptions.model, 'deep');
+        agent.shutdown();
+    });
+
     it('cancelCurrentSession forwards reason to session cancel', async () => {
         const agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
 
@@ -207,6 +230,11 @@ Manage owner info.
         const tools = agent._buildToolsForSession();
         await tools['admin-flow'].handler(null, 'continue', {
             session: {
+                options: {
+                    model: 'deep',
+                    tags: ['analysis'],
+                    reasoningEffort: 'high',
+                },
                 getConversationSnapshot: () => ({
                     type: 'loop',
                     history: [{ type: 'user', prompt: 'previous' }],
@@ -222,5 +250,8 @@ Manage owner info.
             { type: 'user', prompt: 'previous' },
         ]);
         assert.equal(capturedOptions.supervisor, supervisor);
+        assert.equal(capturedOptions.model, 'deep');
+        assert.deepEqual(capturedOptions.tags, ['analysis']);
+        assert.equal(capturedOptions.reasoningEffort, 'high');
     });
 });

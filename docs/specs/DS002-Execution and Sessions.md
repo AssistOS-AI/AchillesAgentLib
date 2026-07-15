@@ -27,8 +27,9 @@ Check if _session exists
     │   4. Store session in _session
     │
     └─► [session exists]
-        1. Call _session.newPrompt(message, { signal })
-        2. History from previous turns is preserved
+        1. Call _session.newPrompt(message, { signal, model?, tags?, reasoningEffort? })
+        2. Explicit per-prompt model options replace the active session options before the turn starts
+        3. History from previous turns is preserved
     │
     ▼
 Return session result
@@ -41,6 +42,7 @@ Return session result
 - Tool descriptions come from the skill descriptor
 - Orchestrator-owned skills remain executable through executeSkill so the orchestrator can call them, but they are not exposed as top-level tools during executePrompt sessions
 - When a tool is called from a LoopAgentSession, the handler passes a parent session snapshot through `options.parentContext` so executed skills can receive the current conversation history and resolved tool results
+- A tool invoked from a LoopAgentSession inherits the parent session's active model, tags, and reasoning effort. The historical `plan` fallback is used only when the parent session has no active model.
 - Orchestrator sub-sessions must not inject the parent session snapshot directly into their system prompt. The parent snapshot is an internal execution context for called skills and for explicit preparation clarification, not the same thing as the sub-session's prepared context.
 - When an orchestrator skill defines `Preparation`, the preparation phase may expose the internal `clarify_context` tool/command. It answers specific questions from `options.parentContext` only, so the sub-session can load just the parent details it needs.
 
@@ -81,6 +83,7 @@ MainAgent stores one LoopAgentSession in `_session`.
 **Reuse:**
 - Subsequent executePrompt calls reuse `_session`
 - Conversation history is preserved across turns
+- When the reused call explicitly supplies `model`, `tags`, or `reasoningEffort`, those values become active before history compression, preparation, pending-input interpretation, and planning for that turn
 
 **Shutdown:**
 - shutdown clears `_session`
@@ -99,6 +102,8 @@ MainAgent → LLMAgent → invokerStrategy → LLMClient.resolveModelForInvocati
 ```
 
 Actual model resolution happens in LLMClient.
+
+The active values belong to the in-memory session and may change between prompts without recreating that session. Loop and SOP session internals use the active model for their LLM calls. A dedicated override remains authoritative where one is explicitly configured, including `historyCompressionModel` for Loop compression and `llmModel` in SOP plan-generator or interpreter options.
 
 ## What Execution Does NOT Do
 
@@ -123,6 +128,8 @@ Test files should be created in tests/mainAgent/
 - Passes tags parameter through unchanged
 - Passes systemPrompt through to session
 - Passes signal through to session creation and reused session prompts
+- Updates the active model on a reused session without discarding history
+- Propagates the active parent-session model to delegated skill execution
 - Returns session result
 
 **executeSkill tests should cover:**

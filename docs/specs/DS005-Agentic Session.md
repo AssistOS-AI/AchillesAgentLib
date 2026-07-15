@@ -13,7 +13,7 @@ new LoopAgentSession({ agent, tools, options })
 Status: idle
     │
     ▼
-session.newPrompt(userPrompt)
+session.newPrompt(userPrompt, { model?, tags?, reasoningEffort? })
     │
     ▼
 Status: running
@@ -58,6 +58,12 @@ Status: done | failed | awaiting_input
 5. Stores supervisor if provided
 6. Initializes empty turns, history, and tool calls tracking
 7. Sets status to idle
+
+## Active Model Across Turns
+
+The session's model, tags, and reasoning effort are active turn options rather than immutable constructor-only values. When `newPrompt()` explicitly receives any of these options, it updates `session.options` before history compression, preparation, pending-input interpretation, or planner execution begins. Omitting an option preserves its current value, so conversation history and model selection can evolve independently.
+
+Planner decisions, pending-input LLM classification, preparation sessions, clarification calls, and ordinary history compression use the active session model. `historyCompressionModel` remains an explicit override for compression only. Skill handlers created by MainAgent also receive the active parent-session model so their Loop or SOP sub-sessions do not fall back to a stale hardcoded planning model.
 
 ## Tool Execution with Supervisor
 
@@ -214,3 +220,5 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - getVariables returns session state
 - Cancellation marks session as interrupted and appends interruption history entry
 - New prompts recover from interrupted state
+- New prompts can replace the active model without recreating the session or losing history
+- Pending-input interpretation receives the active model and tags

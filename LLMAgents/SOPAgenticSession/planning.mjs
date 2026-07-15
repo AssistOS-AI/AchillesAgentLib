@@ -358,7 +358,13 @@ function buildExecutionFeedbackComment(feedback) {
 
 async function runPendingTool(session, userPrompt, pendingTool) {
     const interpretation = session.agent && typeof session.agent.interpretMessage === 'function'
-        ? await session.agent.interpretMessage(userPrompt, { intents: ['accept', 'cancel', 'update'], signal: session._currentAbortSignal, reasoningEffort: session.options.reasoningEffort || null })
+        ? await session.agent.interpretMessage(userPrompt, {
+            intents: ['accept', 'cancel', 'update'],
+            model: session.options.model || null,
+            tags: session.options.tags || null,
+            signal: session._currentAbortSignal,
+            reasoningEffort: session.options.reasoningEffort || null,
+        })
         : { intent: 'unknown', confidence: 0 };
     const shouldContinuePending = interpretation?.intent === 'accept'
         || interpretation?.intent === 'cancel'
@@ -399,6 +405,15 @@ async function runPendingTool(session, userPrompt, pendingTool) {
 async function newPrompt(session, SessionClass, userPrompt, promptOptions = {}) {
     if (!userPrompt || typeof userPrompt !== 'string') {
         throw new Error('newPrompt requires a prompt string.');
+    }
+    if (Object.prototype.hasOwnProperty.call(promptOptions, 'model')) {
+        session.options.model = promptOptions.model || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(promptOptions, 'tags')) {
+        session.options.tags = promptOptions.tags || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(promptOptions, 'reasoningEffort')) {
+        session.options.reasoningEffort = promptOptions.reasoningEffort || null;
     }
     if (session.status === SESSION_STATUS_INTERRUPTED) {
         session.status = SESSION_STATUS_ACTIVE;

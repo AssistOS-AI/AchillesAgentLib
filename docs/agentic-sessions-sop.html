@@ -35,7 +35,7 @@
                     <h2>Planning Surface and Session State</h2>
                     <p><code>SOPAgenticSession</code> is defined in <code>LLMAgents/SOPAgenticSession/SOPAgenticSession.mjs</code>. It is initialized over a <code>skillsDescription</code> object, not over executable tool handlers directly. The constructor adds the reserved completion commands <code>final_answer</code> and <code>cannot_complete</code> to that planning surface automatically, normalizes <code>planOnly</code>, and keeps separate option groups for plan generation and interpreter execution. When a concrete execution registry is provided, the session wraps it so completion commands and interactive command results can be handled under the same bounded contract.</p>
                     <p>The session keeps explicit state for <code>currentPlan</code>, <code>lastExecution</code>, <code>lastRunFailures</code>, <code>pendingTool</code>, preparation context, and a bounded maximum number of plan attempts. The important architectural point is that the planning surface and the execution surface are related but not identical. <code>skillsDescription</code> is the symbolic space in which the planner composes a script. <code>commandsRegistry</code> is the runtime surface that actually executes the resulting commands.</p>
-                    <p>When <code>newPrompt()</code> begins, the session may first run a bounded preparation stage. That preparation stage itself uses a SOP session and may contribute either comment-based or injected preparation context to the main plan. Once preparation is complete, the main planning cycle builds instructions through <code>buildSOPAgenticInstructions()</code> and then invokes the plan-generation path of the Plan SOPlang interpreter with <code>generateOnly</code> enabled. The result is an executable script rather than a free-form textual recommendation.</p>
+                    <p>When <code>newPrompt()</code> begins, explicitly supplied <code>model</code>, <code>tags</code>, and <code>reasoningEffort</code> values become the active session options without discarding history. The session may then run a bounded preparation stage. That preparation stage itself uses a SOP session and may contribute either comment-based or injected preparation context to the main plan. Once preparation is complete, the main planning cycle builds instructions through <code>buildSOPAgenticInstructions()</code> and then invokes the plan-generation path of the Plan SOPlang interpreter with <code>generateOnly</code> enabled. Preparation, pending-input classification, and planning use the active model unless the caller deliberately configured a dedicated <code>llmModel</code> in the plan-generator or interpreter options. The result is an executable script rather than a free-form textual recommendation.</p>
                 </section>
 
                 <section>
@@ -59,6 +59,7 @@
 
 const plan = await session.getPlan();
 const answer = session.getLastResult();
+await session.newPrompt('Regenerate with deeper analysis', { model: 'deep' });
 const state = await session.getVariables();</code></pre>
                 </section>
             </div>
