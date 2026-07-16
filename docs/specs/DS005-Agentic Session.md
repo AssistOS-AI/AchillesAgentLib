@@ -98,6 +98,8 @@ Each step in the loop:
 
 1. **Request decision** — builds a planner prompt with available tools, history, and current user prompt. LLM returns markdown with `tool`, `prompt`, and `reason` sections, which the runtime parses into the planner decision object.
 
+   The Markdown decision shape is the primary, non-negotiable, and non-overridable output contract for the planner call. The session system prompt, tool descriptions, history, tool results, and current user prompt are planning context and must not alter that response shape. A planner that wants to answer the user must select `final_answer` and place the complete user-facing text in the `prompt` section; it must not return that text as unstructured prose.
+
 2. **Execute tool** — resolves tool variables in the prompt, checks supervisor approval, calls the tool handler.
 
 3. **Evaluate result:**
@@ -222,3 +224,13 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - New prompts recover from interrupted state
 - New prompts can replace the active model without recreating the session or losing history
 - Pending-input interpretation receives the active model and tags
+
+## Decisions & Questions
+
+### Question #1: Why is the planner Markdown shape declared non-overridable inside the prompt?
+
+Response: The planner consumes system-prompt content, tool descriptions, historical outputs, and user-controlled text in one planning context. Repeating the structural rule before and after that context establishes that those inputs are data for the decision rather than alternative output-format instructions. This keeps tool selection explicit and prevents direct prose from bypassing the planner parser.
+
+## Conclusion
+
+LoopAgentSession must keep every planning step bounded by an explicit Markdown decision before executing a tool or returning a final answer.
