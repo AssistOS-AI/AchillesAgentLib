@@ -89,6 +89,38 @@ function extractOutputText(output) {
     return textParts.join('\n').trim();
 }
 
+function extractFinalEventText(eventType, data) {
+    if (eventType === 'response.output_text.done' && typeof data?.text === 'string') {
+        return data.text;
+    }
+
+    if (eventType === 'response.output_item.done') {
+        return extractOutputText([data?.item]);
+    }
+
+    if (eventType === 'response.completed') {
+        if (typeof data?.response?.output_text === 'string') {
+            return data.response.output_text;
+        }
+        return extractOutputText(data?.response?.output);
+    }
+
+    return '';
+}
+
+function getMissingFinalText(streamedText, finalText) {
+    if (!finalText) {
+        return '';
+    }
+    if (!streamedText) {
+        return finalText;
+    }
+    if (finalText.startsWith(streamedText)) {
+        return finalText.slice(streamedText.length);
+    }
+    return '';
+}
+
 function deriveProviderLabel(baseURL) {
     const match = baseURL.match(/https?:\/\/api\.([^/]+)\/?/i);
     return match?.[1] || 'OpenAI';
@@ -360,7 +392,8 @@ export async function callLLM(chatContext, options) {
  *
  * Sets `stream: true`.  The Responses API emits typed SSE events:
  *   - `response.output_text.delta` with `{ delta: string }` — text chunk
- *   - `response.completed` — final event
+ *   - `response.output_text.done` / `response.output_item.done` — finalized output
+ *   - `response.completed` — final response, which can also carry output
  *   - `error` — API error
  *
  * @param {Array}  chatContext - Conversation history.
@@ -428,6 +461,7 @@ export async function* callLLMStreaming(chatContext, options) {
 
     let fullText = '';
     let usage = null;
+    let finalText = '';
 
     try {
         for await (const frame of parseSSEStream(response.body, { doneSentinel: null })) {
@@ -452,6 +486,11 @@ export async function* callLLMStreaming(chatContext, options) {
                 yield { type: 'text_delta', text: data.delta };
             }
 
+            const completedText = extractFinalEventText(eventType, data);
+            if (completedText) {
+                finalText = completedText;
+            }
+
             if (eventType === 'response.completed') {
                 break;
             }
@@ -459,6 +498,12 @@ export async function* callLLMStreaming(chatContext, options) {
     } catch (err) {
         yield { type: 'error', error: err };
         return;
+    }
+
+    const missingFinalText = getMissingFinalText(fullText, finalText);
+    if (missingFinalText) {
+        fullText += missingFinalText;
+        yield { type: 'text_delta', text: missingFinalText };
     }
 
     yield { type: 'done', fullText, usage };

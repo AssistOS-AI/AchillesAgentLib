@@ -284,6 +284,146 @@ describe('openaiResponses.callLLMStreaming — chunk yield contract', () => {
         assert.ok(done);
         assert.equal(done.fullText, 'Hi there');
     });
+
+    it('recovers finalized text from response.output_text.done when no deltas arrived', async () => {
+        stubFetch(() => buildStreamResponse({
+            events: [
+                {
+                    event: 'response.output_text.done',
+                    data: { text: 'Final text from the completed content part' },
+                },
+                { event: 'response.completed', data: {} },
+            ],
+        }));
+
+        const chunks = await drain(callLLMStreaming(
+            [{ role: 'user', content: 'hi' }],
+            { model: 'gpt-5.4', apiKey: 'k', baseURL: 'https://chatgpt.com/backend-api/codex' },
+        ));
+
+        const textDeltas = chunks.filter((chunk) => chunk.type === 'text_delta');
+        assert.deepEqual(textDeltas, [
+            { type: 'text_delta', text: 'Final text from the completed content part' },
+        ]);
+        assert.equal(
+            chunks.find((chunk) => chunk.type === 'done').fullText,
+            'Final text from the completed content part',
+        );
+    });
+
+    it('recovers text from response.output_item.done when no deltas arrived', async () => {
+        stubFetch(() => buildStreamResponse({
+            events: [
+                {
+                    event: 'response.output_item.done',
+                    data: {
+                        item: {
+                            type: 'message',
+                            content: [{ type: 'output_text', text: 'Text from the completed item' }],
+                        },
+                    },
+                },
+                { event: 'response.completed', data: {} },
+            ],
+        }));
+
+        const chunks = await drain(callLLMStreaming(
+            [{ role: 'user', content: 'hi' }],
+            { model: 'gpt-5.4', apiKey: 'k', baseURL: 'https://chatgpt.com/backend-api/codex' },
+        ));
+
+        assert.deepEqual(chunks.filter((chunk) => chunk.type === 'text_delta'), [
+            { type: 'text_delta', text: 'Text from the completed item' },
+        ]);
+        assert.equal(
+            chunks.find((chunk) => chunk.type === 'done').fullText,
+            'Text from the completed item',
+        );
+    });
+
+    it('recovers text from the completed response output when no text events arrived', async () => {
+        stubFetch(() => buildStreamResponse({
+            events: [
+                {
+                    event: 'response.completed',
+                    data: {
+                        response: {
+                            output: [{
+                                type: 'message',
+                                content: [{ type: 'output_text', text: 'Text from response.output' }],
+                            }],
+                        },
+                    },
+                },
+            ],
+        }));
+
+        const chunks = await drain(callLLMStreaming(
+            [{ role: 'user', content: 'hi' }],
+            { model: 'gpt-5.4', apiKey: 'k', baseURL: 'https://chatgpt.com/backend-api/codex' },
+        ));
+
+        assert.deepEqual(chunks.filter((chunk) => chunk.type === 'text_delta'), [
+            { type: 'text_delta', text: 'Text from response.output' },
+        ]);
+        assert.equal(
+            chunks.find((chunk) => chunk.type === 'done').fullText,
+            'Text from response.output',
+        );
+    });
+
+    it('does not duplicate text already received through deltas', async () => {
+        stubFetch(() => buildStreamResponse({
+            events: [
+                { event: 'response.output_text.delta', data: { delta: 'Hi' } },
+                { event: 'response.output_text.delta', data: { delta: ' there' } },
+                { event: 'response.output_text.done', data: { text: 'Hi there' } },
+                {
+                    event: 'response.completed',
+                    data: {
+                        response: {
+                            output: [{
+                                type: 'message',
+                                content: [{ type: 'output_text', text: 'Hi there' }],
+                            }],
+                        },
+                    },
+                },
+            ],
+        }));
+
+        const chunks = await drain(callLLMStreaming(
+            [{ role: 'user', content: 'hi' }],
+            { model: 'gpt-5.4', apiKey: 'k', baseURL: 'https://chatgpt.com/backend-api/codex' },
+        ));
+
+        assert.deepEqual(chunks.filter((chunk) => chunk.type === 'text_delta'), [
+            { type: 'text_delta', text: 'Hi' },
+            { type: 'text_delta', text: ' there' },
+        ]);
+        assert.equal(chunks.find((chunk) => chunk.type === 'done').fullText, 'Hi there');
+    });
+
+    it('emits only the missing suffix when the finalized text completes partial deltas', async () => {
+        stubFetch(() => buildStreamResponse({
+            events: [
+                { event: 'response.output_text.delta', data: { delta: 'Partial' } },
+                { event: 'response.output_text.done', data: { text: 'Partial response' } },
+                { event: 'response.completed', data: {} },
+            ],
+        }));
+
+        const chunks = await drain(callLLMStreaming(
+            [{ role: 'user', content: 'hi' }],
+            { model: 'gpt-5.4', apiKey: 'k', baseURL: 'https://chatgpt.com/backend-api/codex' },
+        ));
+
+        assert.deepEqual(chunks.filter((chunk) => chunk.type === 'text_delta'), [
+            { type: 'text_delta', text: 'Partial' },
+            { type: 'text_delta', text: ' response' },
+        ]);
+        assert.equal(chunks.find((chunk) => chunk.type === 'done').fullText, 'Partial response');
+    });
 });
 
 // ─── listModels tests ──────────────────────────────────────────────
