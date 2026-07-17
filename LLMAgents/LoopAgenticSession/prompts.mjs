@@ -12,7 +12,7 @@ const formatValue = (value) => {
     }
 };
 
-const buildAgenticSessionPlannerPrompt = (options) => {
+const buildAgenticSessionPlannerSystemPrompt = (options) => {
     const {
         tools,
         history,
@@ -88,11 +88,9 @@ const buildAgenticSessionPlannerPrompt = (options) => {
         }
     }
 
-    lines.push('Conversation so far (most recent last):');
+    lines.push('Execution context from the session history:');
     for (const h of history || []) {
-        if (h.type === 'user') {
-            lines.push(`USER: ${h.prompt}`);
-        } else if (h.type === 'tool') {
+        if (h.type === 'tool') {
             const resultRef = h.resultRef || h.result?.resultRef;
             const value = resultRef ? toolVars.get(resultRef) : undefined;
             lines.push(`TOOL[${h.tool}]: resultRef=${resultRef || ''} result=${formatValue(value)}`);
@@ -103,10 +101,6 @@ const buildAgenticSessionPlannerPrompt = (options) => {
             lines.push(`SYSTEM_INTERRUPTED: reason=${h.reason || 'cancelled'} message=${h.message || ''}`);
         } else if (h.type === 'history_summary') {
             lines.push(`HISTORY_SUMMARY: ${h.summary || ''}`);
-        } else if (h.type === 'final_answer') {
-            lines.push(`FINAL: ${h.answer}`);
-        } else if (h.type === 'cannot_complete') {
-            lines.push(`CANNOT_COMPLETE: ${h.answer}`);
         } else if (h.type === 'validation_failed') {
             lines.push(`VALIDATION_FAILED: expected="${h.expected}", got="${h.actual}", retry=${h.retryCount}`);
         } else if (h.type === 'timeout') {
@@ -153,6 +147,38 @@ const buildAgenticSessionPlannerPrompt = (options) => {
 
     return lines.join('\n');
 };
+
+const buildAgenticSessionPlannerHistory = ({
+    history = [],
+    currentUserEntry = null,
+} = {}) => {
+    const messages = [];
+    for (const entry of history) {
+        if (!entry || entry === currentUserEntry) {
+            continue;
+        }
+        if (entry.type === 'user' && typeof entry.prompt === 'string') {
+            messages.push({ role: 'user', message: entry.prompt });
+            continue;
+        }
+        if (
+            (entry.type === 'final_answer' || entry.type === 'cannot_complete')
+            && typeof entry.answer === 'string'
+        ) {
+            messages.push({ role: 'assistant', message: entry.answer });
+            continue;
+        }
+        if (
+            entry.type === SESSION_STATUS_AWAITING_INPUT
+            && typeof entry.answer === 'string'
+        ) {
+            messages.push({ role: 'assistant', message: entry.answer });
+        }
+    }
+    return messages;
+};
+
+const buildAgenticSessionPlannerPrompt = buildAgenticSessionPlannerSystemPrompt;
 
 const buildPreparationPrompt = (preparationText, userPrompt, preparationContext = '') => {
     const preparation = String(preparationText || '').trim();
@@ -237,6 +263,8 @@ const buildHistoryCompressionPrompt = ({
 
 export {
     buildAgenticSessionPlannerPrompt,
+    buildAgenticSessionPlannerSystemPrompt,
+    buildAgenticSessionPlannerHistory,
     buildPreparationPrompt,
     buildHistoryCompressionPrompt,
     extractJson,

@@ -6,7 +6,9 @@ import { listModelsFromCache, loadModelsConfiguration } from '../../utils/LLMCli
 
 import { toAnthropicMessages } from '../../utils/LLMProviders/messageAdapters/anthropicMessages.mjs';
 import { toGeminiPayload } from '../../utils/LLMProviders/messageAdapters/googleGemini.mjs';
+import { toHuggingFacePrompt } from '../../utils/LLMProviders/messageAdapters/huggingFaceConversational.mjs';
 import { toOpenAIChatMessages } from '../../utils/LLMProviders/messageAdapters/openAIChat.mjs';
+import { buildKiroRequest } from '../../utils/LLMProviders/providers/kiro.mjs';
 
 // Ensure models are loaded before tests run
 const modelsConfig = await loadModelsConfiguration();
@@ -36,6 +38,72 @@ const sampleHistory = [
     { role: 'user', message: 'This is a test to see if the text is transformed to providers message format for their APIs' },
     { role: 'assistant', message: 'I will help with that.' },
 ];
+
+test('role-aware conversation history is preserved by every message adapter', () => {
+    const conversation = [
+        { role: 'system', message: 'Planner rules' },
+        { role: 'user', message: 'First request' },
+        { role: 'assistant', message: 'First answer' },
+        { role: 'user', message: 'Current request' },
+    ];
+
+    assert.deepEqual(toOpenAIChatMessages(conversation), [
+        { role: 'system', content: 'Planner rules' },
+        { role: 'user', content: 'First request' },
+        { role: 'assistant', content: 'First answer' },
+        { role: 'user', content: 'Current request' },
+    ]);
+
+    assert.deepEqual(toAnthropicMessages(conversation), {
+        system: 'Planner rules',
+        messages: [
+            { role: 'user', content: [{ type: 'text', text: 'First request' }] },
+            { role: 'assistant', content: [{ type: 'text', text: 'First answer' }] },
+            { role: 'user', content: [{ type: 'text', text: 'Current request' }] },
+        ],
+    });
+
+    assert.deepEqual(toGeminiPayload(conversation), {
+        systemInstruction: {
+            role: 'system',
+            parts: [{ text: 'Planner rules' }],
+        },
+        contents: [
+            { role: 'user', parts: [{ text: 'First request' }] },
+            { role: 'model', parts: [{ text: 'First answer' }] },
+            { role: 'user', parts: [{ text: 'Current request' }] },
+        ],
+    });
+
+    assert.equal(
+        toHuggingFacePrompt(conversation),
+        [
+            'System: Planner rules',
+            'User: First request',
+            'Assistant: First answer',
+            'User: Current request',
+        ].join('\n'),
+    );
+
+    assert.deepEqual(
+        buildKiroRequest(conversation, {
+            model: 'test-model',
+            params: {},
+        }),
+        {
+            modelId: 'test-model',
+            conversationState: {
+                systemInstruction: 'Planner rules',
+                turns: [
+                    { role: 'user', content: [{ text: 'First request' }] },
+                    { role: 'assistant', content: [{ text: 'First answer' }] },
+                    { role: 'user', content: [{ text: 'Current request' }] },
+                ],
+            },
+            inferenceConfig: {},
+        },
+    );
+});
 
 test('LLMAgent.complete uses correct message adapter for each configured model (mocked)', async () => {
     const llmAgent = new LLMAgent();

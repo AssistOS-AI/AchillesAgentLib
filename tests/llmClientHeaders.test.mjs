@@ -17,12 +17,14 @@ const LEGACY_HEADERS = ['X-Soul-Agent', 'x-soul-agent', 'x-soul-id', 'x-agent-na
 describe('LLMClient header handling', () => {
     const originalAgentName = process.env.AGENT_NAME;
     let captured;
+    let capturedHistory;
 
     function registerCapturingStub() {
         registerProvider({
             key: 'stub',
             handler: {
                 async callLLM(history, options) {
+                    capturedHistory = history;
                     captured = options;
                     return { content: 'ok', usage: {} };
                 },
@@ -32,6 +34,7 @@ describe('LLMClient header handling', () => {
 
     beforeEach(() => {
         captured = null;
+        capturedHistory = null;
         resetProviders();
         registerCapturingStub();
         // Prove the header is no longer injected even when AGENT_NAME is present.
@@ -82,6 +85,30 @@ describe('LLMClient header handling', () => {
                 `provider headers must not contain legacy identity header "${header}"`,
             );
         }
+    });
+
+    it('appends the current prompt as the final user-role message', async () => {
+        await callLLMWithModel(
+            'stub/test-model',
+            [
+                { role: 'system', message: 'rules' },
+                { role: 'user', message: 'earlier request' },
+                { role: 'assistant', message: 'earlier answer' },
+            ],
+            'current request',
+            {
+                providerKey: 'stub',
+                baseURL: 'https://stub.example.com/v1/chat/completions',
+                apiKey: 'sk-signed-subject-key',
+            },
+        );
+
+        assert.deepStrictEqual(capturedHistory, [
+            { role: 'system', message: 'rules' },
+            { role: 'user', message: 'earlier request' },
+            { role: 'assistant', message: 'earlier answer' },
+            { role: 'user', message: 'current request' },
+        ]);
     });
 });
 

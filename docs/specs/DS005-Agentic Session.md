@@ -96,9 +96,9 @@ When denied, the session returns a structured error JSON to the planner rather t
 
 Each step in the loop:
 
-1. **Request decision** — builds a planner prompt with available tools, history, and current user prompt. LLM returns markdown with `tool`, `prompt`, and `reason` sections, which the runtime parses into the planner decision object.
+1. **Request decision** — builds planner system instructions with the available tools and execution-only context. It derives prior user and assistant conversation turns from the existing session history and passes the current user prompt separately as the final user-role message. The LLM returns markdown with `tool`, `prompt`, and `reason` sections, which the runtime parses into the planner decision object.
 
-   The Markdown decision shape is the primary, non-negotiable, and non-overridable output contract for the planner call. The session system prompt, tool descriptions, history, tool results, and current user prompt are planning context and must not alter that response shape. A planner that wants to answer the user must select `final_answer` and place the complete user-facing text in the `prompt` section; it must not return that text as unstructured prose.
+   The Markdown decision shape is the primary, non-negotiable, and non-overridable output contract for the planner call. The session system prompt, tool descriptions, execution context, prior role-aware conversation, and current user prompt are planning context and must not alter that response shape. A planner that wants to answer the user must select `final_answer` and place the complete user-facing text in the `prompt` section; it must not return that text as unstructured prose.
 
 2. **Execute tool** — resolves tool variables in the prompt, checks supervisor approval, calls the tool handler.
 
@@ -143,7 +143,7 @@ Skill execution may not always be instantly interruptible at subsystem level; in
 
 The session maintains three distinct tracking structures, each with a specific role:
 
-- **history** — chronological log of user prompts, tool calls, and session events. Each entry has a `type` (`user`, `tool_call`, `tool`, `awaiting_input`, `final_answer`, `cannot_complete`, `validation_failed`, `timeout`, `history_summary`). For `tool` entries, `resultRef` identifies the result stored in `toolVars`. This is the primary context source for the planner prompt.
+- **history** — chronological log of user prompts, tool calls, and session events. Each entry has a `type` (`user`, `tool_call`, `tool`, `awaiting_input`, `final_answer`, `cannot_complete`, `validation_failed`, `timeout`, `history_summary`). For `tool` entries, `resultRef` identifies the result stored in `toolVars`. The runtime keeps this schema unchanged and derives provider-facing `{ role, message }` records only when requesting a planner decision.
 - **toolCalls** — flat list of all tool invocations with metadata (`tool`, `prompt`, `resultRef`). Used to quickly identify the most recent tool call for planner context. Does not store the result value itself.
 - **toolVars** — Map of `resultRef` to the actual tool result value. Single source of truth for tool outputs. Referenced by history entries and resolved via `$$resultRef` syntax in subsequent prompts.
 
@@ -225,6 +225,8 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - Cancellation marks session as interrupted and appends interruption history entry
 - New prompts recover from interrupted state
 - New prompts can replace the active model without recreating the session or losing history
+- Planner calls keep system instructions, earlier user/assistant turns, and the current user prompt in separate role records
+- Provider-facing role derivation does not add `role` fields to session history entries
 - Pending-input interpretation receives the active model and tags
 
 ## Decisions & Questions

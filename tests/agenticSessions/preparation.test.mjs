@@ -905,7 +905,10 @@ test('OrchestratorSkillsSubsystem passes current SOP session snapshot to nested 
             history: [{ type: 'user', prompt: 'Main session prompt' }],
         },
     });
-    const commandsRegistry = subsystem.buildCommandsRegistry([childSkill], tools);
+    const commandsRegistry = subsystem.buildCommandsRegistry(
+        tools,
+        subsystem.buildToolDescriptions([childSkill]),
+    );
     const session = new SOPAgenticSession({
         agent: mainAgent.llmAgent,
         skillsDescription: { child: 'Child skill' },
@@ -925,7 +928,7 @@ test('MainAgent passes loop conversation snapshot as skill parentContext', async
     const mainAgent = new MainAgent({
         startDir: process.cwd(),
         disableInternalSkills: true,
-        logger: { debug: () => {} },
+        logger: { debug: () => {}, log: () => {} },
     });
     const skillRecord = {
         name: 'skills-orchestrator',

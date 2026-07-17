@@ -8,7 +8,10 @@ import {
     SESSION_STATUS_AWAITING_INPUT,
     SESSION_STATUS_INTERRUPTED,
 } from '../constants.mjs';
-import { buildSOPAgenticInstructions } from './prompts.mjs';
+import {
+    buildSOPAgenticPlannerSystemPrompt,
+    buildSOPAgenticPlannerHistory,
+} from './prompts.mjs';
 import {
     getPendingToolFromHistory,
     isLikelyFreshInstruction,
@@ -199,7 +202,7 @@ function logPlanDiff(session, event) {
     }
 }
 
-async function generatePlanFromEnglish(session, instructions) {
+async function generatePlanFromEnglish(session, instructions, llmInvocationContext = null) {
     const trimmed = typeof instructions === 'string' ? instructions.trim() : '';
     if (!trimmed) {
         return '';
@@ -216,6 +219,9 @@ ${trimmed}`;
             logPlanDiff(session, event);
         },
     };
+    if (llmInvocationContext) {
+        planOptions.llmInvocationContext = llmInvocationContext;
+    }
     if (!Object.prototype.hasOwnProperty.call(planOptions, 'llmModel')) {
         planOptions.llmModel = session.options.model;
     }
@@ -471,12 +477,19 @@ async function newPrompt(session, SessionClass, userPrompt, promptOptions = {}) 
     const maxAttempts = session.maxPlanAttempts > 0 ? session.maxPlanAttempts : 1;
     let attempt = 0;
     let lastFeedback = null;
+    const plannerConversationHistory = buildSOPAgenticPlannerHistory(session.history);
 
     try {
         while (true) {
-            const baseInstructions = buildSOPAgenticInstructions({
-                currentPlan: session.currentPlan,
-                userPrompt,
+            const hasExistingPlan = Boolean(
+                session.currentPlan
+                || plannerConversationHistory.some((entry) => entry.role === 'assistant')
+            );
+            const baseInstructions = buildSOPAgenticPlannerSystemPrompt({
+                hasExistingPlan,
+                currentPlanFallback: plannerConversationHistory.length
+                    ? ''
+                    : session.currentPlan,
                 systemPrompt: session.systemPrompt,
                 preparationContext,
                 interruptedEvents: session._getRecentInterruptions(),
@@ -488,7 +501,13 @@ async function newPrompt(session, SessionClass, userPrompt, promptOptions = {}) 
                 : baseInstructions;
 
             session._ensureNotCancelled();
-            const plan = await session._generatePlanFromEnglish(englishInstructions);
+            const plan = await session._generatePlanFromEnglish(
+                englishInstructions,
+                {
+                    history: plannerConversationHistory,
+                    userPrompt,
+                },
+            );
 
             session.currentPlan = plan || '';
             session.lastExecution = null;

@@ -9,7 +9,8 @@ import {
     SESSION_STATUS_INTERRUPTED,
 } from '../constants.mjs';
 import {
-    buildAgenticSessionPlannerPrompt,
+    buildAgenticSessionPlannerSystemPrompt,
+    buildAgenticSessionPlannerHistory,
 } from './prompts.mjs';
 import { parsePlannerDecisionMarkdown } from './plannerMarkdown.mjs';
 import {
@@ -120,7 +121,7 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
         }
     }
 
-    const plannerPrompt = buildAgenticSessionPlannerPrompt({
+    const plannerSystemPrompt = buildAgenticSessionPlannerSystemPrompt({
         tools: session.tools,
         history: session.history,
         toolCalls: session.toolCalls,
@@ -128,14 +129,23 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
         systemPrompt: session.systemPrompt,
         toolVars: session.toolVars,
     });
+    const plannerHistory = [
+        { role: 'system', message: plannerSystemPrompt },
+        ...buildAgenticSessionPlannerHistory({
+            history: session.history,
+            currentUserEntry: turn.userHistoryEntry,
+        }),
+    ];
 
     session._debug('[LoopSession]', 'Planner prompt built', {
         stepIndex,
-        promptLength: plannerPrompt.length,
+        promptLength: plannerSystemPrompt.length,
+        historyMessages: plannerHistory.length,
     });
 
     const raw = await session.agent.complete({
-        prompt: plannerPrompt,
+        prompt: userPrompt,
+        history: plannerHistory,
         model: session.options.model,
         tags: session.options.tags,
         reasoningEffort: session.options.reasoningEffort,
@@ -546,7 +556,8 @@ async function newPrompt(session, SessionClass, userPrompt, options = {}) {
         failed: false,
     };
     session.turns.push(turn);
-    session.history.push({ type: 'user', prompt: userPrompt });
+    turn.userHistoryEntry = { type: 'user', prompt: userPrompt };
+    session.history.push(turn.userHistoryEntry);
     session.status = SESSION_STATUS_RUNNING;
 
     let answer = null;

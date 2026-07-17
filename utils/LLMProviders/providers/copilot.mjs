@@ -61,7 +61,7 @@ function toResponsesPayload(chatContext, model, params = {}) {
     const payload = {
         model,
         input: toOpenAIChatMessages(chatContext).map((msg) => ({
-            role: msg.role,
+            role: msg.role === 'system' ? 'developer' : msg.role,
             content: Array.isArray(msg.content)
                 ? msg.content.map((part) => {
                     if (part.type === 'text') return { type: 'input_text', text: part.text || '' };

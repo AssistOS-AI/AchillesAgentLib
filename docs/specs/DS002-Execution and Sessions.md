@@ -105,6 +105,8 @@ Actual model resolution happens in LLMClient.
 
 The active values belong to the in-memory session and may change between prompts without recreating that session. Loop and SOP session internals use the active model for their LLM calls. A dedicated override remains authoritative where one is explicitly configured, including `historyCompressionModel` for Loop compression and `llmModel` in SOP plan-generator or interpreter options.
 
+Loop and SOP planning preserve their existing runtime history formats. Before each model call, the session derives a provider-facing conversation with system instructions first, prior user/assistant turns in chronological order, and the current user prompt last. This prevents a role-aware provider from receiving the serialized transcript as one user message while avoiding a migration of session snapshots or persisted history.
+
 ## What Execution Does NOT Do
 
 - Does NOT expose sessionId-based APIs

@@ -236,8 +236,8 @@ class SOPAgenticSession {
         return buildExecutionFeedbackComment(feedback);
     }
 
-    _generatePlanFromEnglish(instructions) {
-        return generatePlanFromEnglish(this, instructions);
+    _generatePlanFromEnglish(instructions, llmInvocationContext = null) {
+        return generatePlanFromEnglish(this, instructions, llmInvocationContext);
     }
 
     _createPlanCommandsRegistry() {

@@ -19,16 +19,35 @@ function mapRoleToKiro(role) {
     }
 }
 
+function getMessageContent(msg) {
+    if (!msg || typeof msg !== 'object') {
+        return '';
+    }
+    if (msg.content !== undefined) {
+        return msg.content;
+    }
+    if (msg.message !== undefined) {
+        return msg.message;
+    }
+    return msg.text ?? '';
+}
+
 function convertContent(msg) {
-    if (typeof msg.content === 'string') {
-        return [{ text: msg.content }];
+    const content = getMessageContent(msg);
+
+    if (typeof content === 'string') {
+        return [{ text: content }];
     }
 
-    if (Array.isArray(msg.content)) {
-        return msg.content.map((part) => {
+    if (Array.isArray(content)) {
+        return content.map((part) => {
             if (part.type === 'text') return { text: part.text || '' };
+            if (part.type === 'input_text') return { text: part.text || '' };
             if (part.type === 'image_url') {
                 return { image: { source: { url: part.image_url?.url || '' } } };
+            }
+            if (part.type === 'input_image') {
+                return { image: { source: { url: part.image_url || part.url || '' } } };
             }
             return { text: JSON.stringify(part) };
         });
@@ -38,12 +57,12 @@ function convertContent(msg) {
         return [{
             toolResult: {
                 toolUseId: msg.tool_call_id,
-                content: [{ text: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content ?? '') }],
+                content: [{ text: typeof content === 'string' ? content : JSON.stringify(content ?? '') }],
             },
         }];
     }
 
-    return [{ text: String(msg.content || '') }];
+    return [{ text: String(content || '') }];
 }
 
 function convertToolDef(tool) {
@@ -59,17 +78,24 @@ function convertToolDef(tool) {
     };
 }
 
-function buildKiroRequest(chatContext, options) {
+export function buildKiroRequest(chatContext, options) {
     const turns = [];
-    let systemInstruction = null;
+    const systemInstructions = [];
 
     for (const msg of chatContext || []) {
         if (msg.role === 'system') {
-            systemInstruction = typeof msg.content === 'string'
-                ? msg.content
-                : Array.isArray(msg.content)
-                    ? msg.content.filter((part) => part.type === 'text').map((part) => part.text || '').join('\n')
+            const content = getMessageContent(msg);
+            const instruction = typeof content === 'string'
+                ? content
+                : Array.isArray(content)
+                    ? content
+                        .filter((part) => part.type === 'text' || part.type === 'input_text')
+                        .map((part) => part.text || '')
+                        .join('\n')
                     : '';
+            if (instruction) {
+                systemInstructions.push(instruction);
+            }
             continue;
         }
 
@@ -85,8 +111,8 @@ function buildKiroRequest(chatContext, options) {
         inferenceConfig: {},
     };
 
-    if (systemInstruction) {
-        body.conversationState.systemInstruction = systemInstruction;
+    if (systemInstructions.length) {
+        body.conversationState.systemInstruction = systemInstructions.join('\n');
     }
 
     const params = options.params || {};

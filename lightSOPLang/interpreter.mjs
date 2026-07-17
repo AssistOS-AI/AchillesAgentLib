@@ -95,6 +95,7 @@ function normalizeConstructorArgs(args) {
                 'onFail',
                 'executionMonitor',
                 'llmAgent',
+                'llmInvocationContext',
                 'maxLlmaRounds',
                 'cancelHeuristic',
                 'autoCancel',
@@ -133,6 +134,10 @@ export class LightSOPLangInterpreter {
         this.llmTags = Array.isArray(options.llmTags) ? options.llmTags : (Array.isArray(options.tags) ? options.tags : null);
         this.llmSignal = options.llmSignal ?? options.signal ?? null;
         this.llmReasoningEffort = typeof options.reasoningEffort === 'string' ? options.reasoningEffort : null;
+        this.llmInvocationContext = options.llmInvocationContext
+            && typeof options.llmInvocationContext === 'object'
+            ? options.llmInvocationContext
+            : null;
         this.maxLlmaRounds = Number.isFinite(options.maxLlmaRounds) ? options.maxLlmaRounds : 5;
         this.executionMonitor = ensureExecutionMonitor(options.executionMonitor ?? new DefaultExecutionMonitor());
         const registryHeuristic = typeof this.commandsRegistry.cancelHeuristic === 'function'
@@ -240,6 +245,7 @@ export class LightSOPLangInterpreter {
                 attempt: 0,
                 history: [],
                 lastCode: null,
+                llmInvocationContext: this.llmInvocationContext,
             };
             const generated = await this._requestLlmaCode('initial', {
                 failures: [],
@@ -951,12 +957,27 @@ export class LightSOPLangInterpreter {
         this.executionMonitor.beforeRegenerateScript({ prompt, request });
 
         const llmModel = this.llmModel || null;
-        const generated = await this.llmAgent.executePrompt(prompt, {
-            model: llmModel,
-            tags: this.llmTags,
-            reasoningEffort: this.llmReasoningEffort || null,
-            signal: this.llmSignal,
-        });
+        const invocationContext = this.englishContext.llmInvocationContext;
+        const hasStructuredInvocation = invocationContext
+            && typeof invocationContext.userPrompt === 'string';
+        const invocationHistory = hasStructuredInvocation
+            ? [
+                { role: 'system', message: prompt },
+                ...(Array.isArray(invocationContext.history)
+                    ? invocationContext.history
+                    : []),
+            ]
+            : undefined;
+        const generated = await this.llmAgent.executePrompt(
+            hasStructuredInvocation ? invocationContext.userPrompt : prompt,
+            {
+                model: llmModel,
+                tags: this.llmTags,
+                reasoningEffort: this.llmReasoningEffort || null,
+                signal: this.llmSignal,
+                ...(invocationHistory ? { history: invocationHistory } : {}),
+            },
+        );
         if (typeof generated !== 'string' || !generated.trim()) {
             throw new Error('LLMAgent returned empty code');
         }

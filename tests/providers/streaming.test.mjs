@@ -6,6 +6,7 @@ import { callLLMStreaming as openaiResponsesStreaming } from '../../utils/LLMPro
 import { callLLMStreaming as openaiCompletionsStreaming } from '../../utils/LLMProviders/providers/openaiCompletions.mjs';
 import { callLLMStreaming as googleStreaming } from '../../utils/LLMProviders/providers/google.mjs';
 import { callLLMStreaming as huggingFaceStreaming } from '../../utils/LLMProviders/providers/huggingFace.mjs';
+import { callLLMStreaming as copilotStreaming } from '../../utils/LLMProviders/providers/copilot.mjs';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,6 +57,12 @@ async function collect(gen) {
 }
 
 const DUMMY_HISTORY = [{ role: 'user', message: 'Hello' }];
+const ROLE_AWARE_HISTORY = [
+    { role: 'system', message: 'Planner rules' },
+    { role: 'user', message: 'Earlier request' },
+    { role: 'assistant', message: 'Earlier answer' },
+    { role: 'user', message: 'Current request' },
+];
 
 // ---------------------------------------------------------------------------
 // OpenAI Chat Completions
@@ -208,6 +215,37 @@ test('openaiResponses: sends stream: true and uses input (not messages)', async 
         assert.equal(capturedBody.stream, true);
         assert.ok(Array.isArray(capturedBody.input));
         assert.equal(capturedBody.messages, undefined);
+    } finally {
+        restore();
+    }
+});
+
+test('copilot Responses preserves conversational roles and maps system to developer', async () => {
+    let capturedBody = null;
+    const restore = mockFetch([
+        sseEvent('response.completed', {
+            response: { output: [] },
+        }),
+    ], {
+        validate: (_url, init) => {
+            capturedBody = JSON.parse(init.body);
+        },
+    });
+    try {
+        await collect(copilotStreaming(ROLE_AWARE_HISTORY, {
+            model: 'gpt-4.1',
+            apiKey: 'token',
+            baseURL: 'https://api.githubcopilot.com',
+            params: { force_endpoint: 'responses' },
+        }));
+        assert.deepEqual(
+            capturedBody.input.map((message) => message.role),
+            ['developer', 'user', 'assistant', 'user'],
+        );
+        assert.deepEqual(
+            capturedBody.input.map((message) => message.content),
+            ['Planner rules', 'Earlier request', 'Earlier answer', 'Current request'],
+        );
     } finally {
         restore();
     }

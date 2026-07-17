@@ -127,6 +127,10 @@ The central hub for all LLM calls. Accepts a prompt, optional history, model, ta
 
 **Used by:** `interpretMessage`, `resolveConfirmation`, `detectIntents`, `extraDoTask` (which backs `executePrompt`).
 
+`history` is an ordered array of `{ role, message }` records. The default invoker copies that array and appends `prompt` as the final `{ role: 'user', message: prompt }` record before provider conversion. This keeps system instructions, earlier user turns, earlier assistant turns, and the current user request structurally distinct. Provider adapters preserve the OpenAI-style roles or translate them to the provider's native equivalent: Anthropic extracts system text, Gemini maps assistant to `model`, Responses/Codex and Copilot Responses map system to `developer`, and classic completions flatten the same ordered roles into labeled text.
+
+High-level sessions may retain richer domain-specific history records for runtime bookkeeping. They derive the role-aware `complete()` history at invocation time; they do not mutate their persisted or in-memory session history schema to match the provider payload.
+
 Error reporting remains attached to the original invocation path. If a provider adapter returns `null`, `undefined`, an object without a text `output`, or another unsupported shape, `complete()` states that exact shape instead of exposing the internal `invokerStrategy` contract. Provider HTTP failures use the standard HTTP status and reason phrase, while structured upstream payloads contribute only their message rather than serialized response bodies. Structured-output coercion errors identify the required JSON, code, or Markdown contract without embedding the model response in normal user-facing output.
 
 ### executePrompt(promptText, options)
@@ -249,6 +253,7 @@ Test files should be created in tests/mainAgent/ or tests/llmAgent/
 - setModelConfig updates the config
 - setModelConfig with null resets to defaults
 - complete sends prompt and returns text
+- complete preserves system/user/assistant history and appends the current prompt with role `user`
 - executePrompt injects memory context
 - executePrompt coerces response to JSON
 - executePrompt coerces response to code

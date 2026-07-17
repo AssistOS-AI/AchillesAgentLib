@@ -123,6 +123,76 @@ const buildSOPAgenticInstructions = ({
     return lines.join('\n');
 };
 
+const buildSOPAgenticPlannerSystemPrompt = ({
+    hasExistingPlan = false,
+    currentPlanFallback = '',
+    systemPrompt = '',
+    preparationContext = [],
+    interruptedEvents = [],
+} = {}) => {
+    const lines = [
+        hasExistingPlan
+            ? 'You are updating an existing LightSOPLang plan.'
+            : 'You are generating a new LightSOPLang plan.',
+    ];
+    if (systemPrompt && typeof systemPrompt === 'string') {
+        lines.push('', 'System prompt / context:', systemPrompt.trim());
+    }
+    const prepLines = Array.isArray(preparationContext)
+        ? preparationContext.filter(Boolean)
+        : [];
+    if (prepLines.length) {
+        lines.push(
+            '',
+            'Additional context gathered during the previous preparation phase:',
+            ...prepLines,
+        );
+    }
+    const interruptionLines = Array.isArray(interruptedEvents)
+        ? interruptedEvents
+            .filter((event) => event && typeof event === 'object')
+            .map((event) => `- interrupted by ${event.by || 'user'}: ${event.reason || event.message || 'cancelled'}`)
+        : [];
+    if (interruptionLines.length) {
+        lines.push('', 'Recent interruption context:', ...interruptionLines);
+    }
+    if (currentPlanFallback && typeof currentPlanFallback === 'string') {
+        lines.push('', 'Current plan:', currentPlanFallback.trim());
+    }
+    lines.push('', 'Instructions:');
+    if (hasExistingPlan) {
+        lines.push(
+            '- Extend or adjust the existing plan so that it satisfies both the previous requirements and the current user requirement.',
+            '- Prefer to keep existing variables and declarations whenever possible.',
+            '- For clearly new behaviour, introduce new variables instead of overwriting old ones.',
+            '- If the current requirement changes an existing step, update that declaration.',
+            '- Avoid deleting existing steps unless they are obsolete for all requirements.',
+        );
+    }
+    lines.push(buildLightSOPLangInstructions());
+    lines.push(
+        '',
+        'Emit ONLY valid LightSOPLang code for the complete plan, with no markdown fences or explanations.',
+    );
+    return lines.join('\n');
+};
+
+const buildSOPAgenticPlannerHistory = (history = []) => {
+    const messages = [];
+    for (const entry of history) {
+        if (!entry || typeof entry !== 'object') {
+            continue;
+        }
+        if (typeof entry.prompt === 'string' && entry.prompt.trim()) {
+            messages.push({ role: 'user', message: entry.prompt });
+        }
+        if (typeof entry.plan === 'string' && entry.plan.trim()) {
+            messages.push({ role: 'assistant', message: entry.plan });
+        }
+    }
+    return messages;
+};
+
 const buildPreparationPrompt = (preparationText, userPrompt, preparationContext = '') => {
     const preparation = String(preparationText || '').trim();
     if (!preparation) {
@@ -155,5 +225,7 @@ const buildPreparationPrompt = (preparationText, userPrompt, preparationContext 
 export {
     buildLightSOPLangInstructions,
     buildSOPAgenticInstructions,
+    buildSOPAgenticPlannerSystemPrompt,
+    buildSOPAgenticPlannerHistory,
     buildPreparationPrompt,
 };

@@ -302,7 +302,7 @@ async function callLLMWithModelInternal(modelName, historyArray, prompt, invocat
 
     const history = Array.isArray(historyArray) ? historyArray.slice() : [];
     if (prompt) {
-        history.push({ role: 'human', message: prompt });
+        history.push({ role: 'user', message: prompt });
     }
 
     const externalSignal = invocationOptions.signal;

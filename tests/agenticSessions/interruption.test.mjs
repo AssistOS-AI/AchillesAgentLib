@@ -185,9 +185,12 @@ test('SOPAgenticSession rejects commands that are not in the current registry an
     const agent = {
         name: 'StubLLMAgent',
         __toolState: new Map(),
-        executePrompt: async (prompt) => {
+        executePrompt: async (prompt, options = {}) => {
             plannerCalls += 1;
-            promptText = prompt;
+            promptText = [
+                ...(options.history || []).map((entry) => entry.message),
+                prompt,
+            ].join('\n');
             if (plannerCalls === 1) {
                 return [
                     '@wrong skills-orchestrator "Create a new orchestration skill named demo-skill."',
