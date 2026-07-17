@@ -24,6 +24,27 @@ test('LLMAgent delegates completions to the invokerStrategy', async () => {
     assert.deepEqual(calls.map(call => call.agentName), ['MockAgent', 'MockAgent']);
 });
 
+test('LLMAgent explains unusable provider adapter responses', async () => {
+    const cases = [
+        [null, /returned null instead of text/],
+        [undefined, /returned undefined instead of text/],
+        [{ output: null }, /output field was null instead of text/],
+        [{ output: 42 }, /output field was number instead of text/],
+        [{ value: 'unexpected' }, /returned object instead of text or an object with a text output field/],
+    ];
+
+    for (const [response, expectedMessage] of cases) {
+        const agent = new LLMAgent({
+            name: 'InvalidResponseAgent',
+            invokerStrategy: async () => response,
+        });
+        await assert.rejects(
+            () => agent.complete({ prompt: 'Hello' }),
+            expectedMessage,
+        );
+    }
+});
+
 test('LLMAgent interpretMessage classifies user input', async () => {
     const agent = new LLMAgent({
         name: 'ParserAgent',
@@ -93,7 +114,7 @@ test('LLMAgent detectIntents rejects legacy JSON', async () => {
 
     await assert.rejects(
         () => agent.detectIntents({ modifyRequirement: 'Modify a requirement' }, 'Update NFS-001'),
-        /Failed to parse markdown/,
+        /does not contain the required Markdown intent sections/,
     );
 });
 

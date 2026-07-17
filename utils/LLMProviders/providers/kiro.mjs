@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import { parseSSEStream } from './sseParser.mjs';
 
 function resolveKiroURL(baseURL) {
@@ -291,8 +293,7 @@ export async function* callLLMStreaming(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Kiro API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Kiro API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     const contentType = response.headers.get('content-type') || '';

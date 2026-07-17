@@ -114,6 +114,8 @@ Each step in the loop:
 
 5. **Error handling** — tool errors increment an error counter. If maxErrors is reached, the session aborts.
 
+Planner-format failures must state only the response shape: an empty response, JSON, text, or invalid Markdown. Tool execution errors must identify unavailable tool names and unresolved `$$resultRef` values literally. These messages do not introduce a new error layer; they are emitted from the existing parser and execution sites.
+
 ## Session Statuses
 
 | Status | Meaning |
@@ -230,6 +232,10 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 ### Question #1: Why is the planner Markdown shape declared non-overridable inside the prompt?
 
 Response: The planner consumes system-prompt content, tool descriptions, historical outputs, and user-controlled text in one planning context. Repeating the structural rule before and after that context establishes that those inputs are data for the decision rather than alternative output-format instructions. This keeps tool selection explicit and prevents direct prose from bypassing the planner parser.
+
+### Question #2: Why do planner errors distinguish response shapes?
+
+Response: The former generic parse failure did not show whether the model returned no text, JSON, ordinary text, or malformed Markdown. Reporting only that structural category makes the model-contract failure actionable without inspecting or interpreting the response content.
 
 ## Conclusion
 

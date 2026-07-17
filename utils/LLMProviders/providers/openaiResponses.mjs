@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
 import { parseSSEStream } from './sseParser.mjs';
 
@@ -299,12 +301,7 @@ export async function listModels(options) {
 
     if (!response.ok) {
         const errorBody = await response.text();
-        let detail = errorBody;
-        try {
-            const parsed = JSON.parse(errorBody);
-            detail = parsed?.detail || parsed?.error?.message || parsed?.message || errorBody;
-        } catch { /* keep raw body */ }
-        const err = new Error(`${providerLabel} Responses listModels error (${response.status}): ${detail}`);
+        const err = new Error(`${providerLabel} Responses model-list request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
         err.status = response.status;
         try { err.body = JSON.parse(errorBody); } catch { err.body = { raw: errorBody }; }
         throw err;
@@ -370,13 +367,12 @@ export async function callLLM(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`${providerLabel} Responses API Error (${response.status}): ${errorBody}`);
+        throw new Error(`${providerLabel} Responses API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     const data = await response.json();
     if (data.error) {
-        throw new Error(`${providerLabel} Responses API Error: ${JSON.stringify(data.error)}`);
+        throw new Error(`${providerLabel} Responses API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`);
     }
 
     // Try the convenience property first, fall back to manual extraction
@@ -443,17 +439,7 @@ export async function* callLLMStreaming(chatContext, options) {
 
     if (!response.ok) {
         const errorBody = await response.text();
-        // Surface the parsed detail/error message so upstream loggers
-        // see what actually went wrong instead of a generic HTTP code.
-        let detail = errorBody;
-        try {
-            const parsedBody = JSON.parse(errorBody);
-            detail = parsedBody?.detail
-                || parsedBody?.error?.message
-                || parsedBody?.message
-                || errorBody;
-        } catch { /* keep raw body */ }
-        const err = new Error(`${providerLabel} Responses API Error (${response.status}): ${detail}`);
+        const err = new Error(`${providerLabel} Responses API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
         err.status = response.status;
         try { err.body = JSON.parse(errorBody); } catch { err.body = { raw: errorBody }; }
         throw err;
@@ -473,7 +459,10 @@ export async function* callLLMStreaming(chatContext, options) {
 
             if (eventType === 'error') {
                 const errPayload = data.error || data;
-                yield { type: 'error', error: new Error(`${providerLabel} Responses API Error: ${JSON.stringify(errPayload)}`) };
+                yield {
+                    type: 'error',
+                    error: new Error(`${providerLabel} Responses API returned an error: ${typeof errPayload === 'string' ? errPayload : errPayload.message || 'Unknown provider error.'}`),
+                };
                 return;
             }
 

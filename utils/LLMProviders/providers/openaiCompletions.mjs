@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
 import { parseSSEStream } from './sseParser.mjs';
 
@@ -97,13 +99,12 @@ export async function callLLM(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`${providerLabel} Completions API Error (${response.status}): ${errorBody}`);
+        throw new Error(`${providerLabel} Completions API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     const data = await response.json();
     if (data.error) {
-        throw new Error(`${providerLabel} Completions API Error: ${JSON.stringify(data.error)}`);
+        throw new Error(`${providerLabel} Completions API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`);
     }
     return data.choices?.[0]?.text?.trim() ?? '';
 }
@@ -153,8 +154,7 @@ export async function* callLLMStreaming(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`${providerLabel} Completions API Error (${response.status}): ${errorBody}`);
+        throw new Error(`${providerLabel} Completions API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     let fullText = '';
@@ -166,7 +166,10 @@ export async function* callLLMStreaming(chatContext, options) {
             if (!data) continue;
 
             if (data.error) {
-                yield { type: 'error', error: new Error(`${providerLabel} Completions API Error: ${JSON.stringify(data.error)}`) };
+                yield {
+                    type: 'error',
+                    error: new Error(`${providerLabel} Completions API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`),
+                };
                 return;
             }
 

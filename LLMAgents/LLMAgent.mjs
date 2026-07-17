@@ -395,7 +395,7 @@ ${promptText}`
         if (responseShape === 'json') {
             const parsed = extractJson(result);
             if (parsed === null) {
-                throw new Error(`Expected JSON response but parsing failed. Raw: ${String(result).slice(0, 200)}…`);
+                throw new Error('The LLM response could not be parsed as the required JSON value.');
             }
             return parsed;
         }
@@ -407,10 +407,10 @@ ${promptText}`
         if (responseShape === 'json-code') {
             const payload = extractJson(result);
             if (!payload || typeof payload !== 'object') {
-                throw new Error(`Expected JSON with code, but parsing failed. Raw: ${String(result).slice(0, 200)}…`);
+                throw new Error('The LLM response could not be parsed as the required JSON object containing a code field.');
             }
             if (typeof payload.code !== 'string') {
-                throw new Error('missing "code" property in JSON response');
+                throw new Error('The LLM response JSON is missing the required string "code" field.');
             }
             payload.code = payload.code.trim();
             return payload;
@@ -455,7 +455,7 @@ ${promptText}`
 
         const parsed = parseDetectIntentsMarkdown(result);
         if (parsed === null) {
-            throw new Error(`Failed to parse markdown from LLM response: ${result}`);
+            throw new Error('The LLM response does not contain the required Markdown intent sections.');
         }
         return parsed;
     }

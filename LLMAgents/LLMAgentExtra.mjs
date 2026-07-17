@@ -15,6 +15,25 @@ function normalizeTagArray(value) {
         .filter(Boolean);
 }
 
+function describeInvokerResponse(response) {
+    if (response === null) {
+        return 'The LLM provider adapter returned null instead of text. The model completed without a usable response.';
+    }
+    if (response === undefined) {
+        return 'The LLM provider adapter returned undefined instead of text. No usable model response was received.';
+    }
+    if (response && typeof response === 'object' && Object.prototype.hasOwnProperty.call(response, 'output')) {
+        const outputType = response.output === null
+            ? 'null'
+            : Array.isArray(response.output)
+                ? 'an array'
+                : typeof response.output;
+        return `The LLM provider adapter returned an object whose output field was ${outputType} instead of text.`;
+    }
+    const responseType = Array.isArray(response) ? 'an array' : typeof response;
+    return `The LLM provider adapter returned ${responseType} instead of text or an object with a text output field.`;
+}
+
 async function extraComplete(agent, options = {}) {
     const {
         prompt,
@@ -69,7 +88,7 @@ ${prompt}`
             responseMetadata = response;
             finalResponse = response.output;
         } else {
-            throw new Error('LLMAgent invokerStrategy must return a string response.');
+            throw new Error(describeInvokerResponse(response));
         }
 
         const outputCharacters = finalResponse.length;
@@ -184,6 +203,7 @@ async function extraDoTaskWithHumanReview(agent, agentContext, description, opti
 }
 
 export {
+    describeInvokerResponse,
     extraComplete,
     extraDoTask,
     extraDoTaskWithReview,

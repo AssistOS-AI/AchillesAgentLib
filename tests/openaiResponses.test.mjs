@@ -231,7 +231,8 @@ describe('openaiResponses.callLLMStreaming — error surfacing', () => {
 
         assert.ok(caught, 'expected an error to be thrown');
         assert.equal(caught.status, 400);
-        assert.ok(caught.message.includes('Instructions are required'));
+        assert.equal(caught.message, 'OpenAI Responses API request failed: 400 - Bad Request.');
+        assert.doesNotMatch(caught.message, /Instructions are required/);
         assert.deepEqual(caught.body, { detail: 'Instructions are required' });
     });
 
@@ -253,7 +254,8 @@ describe('openaiResponses.callLLMStreaming — error surfacing', () => {
 
         assert.ok(caught);
         assert.equal(caught.status, 500);
-        assert.ok(caught.message.includes('plain text failure'));
+        assert.equal(caught.message, 'openai.com Responses API request failed: 500 - Internal Server Error.');
+        assert.doesNotMatch(caught.message, /plain text failure/);
         assert.deepEqual(caught.body, { raw: 'plain text failure' });
     });
 });
@@ -614,7 +616,8 @@ describe('openaiResponses.listModels — validation & errors', () => {
         }
         assert.ok(caught);
         assert.equal(caught.status, 403);
-        assert.ok(caught.message.includes('scope denied'));
+        assert.equal(caught.message, 'openai.com Responses model-list request failed: 403 - Forbidden.');
+        assert.doesNotMatch(caught.message, /scope denied/);
         assert.deepEqual(caught.body, { detail: 'scope denied' });
     });
 

@@ -43,6 +43,7 @@
 const sopSession = await llmAgent.startSOPLangAgentSession(skillsDescription, 'Run the plan', {
     planOnly: false,
 });</code></pre>
+            <p>Failures stay attached to the model or provider call that produced them. An adapter response now identifies whether it was <code>null</code>, <code>undefined</code>, an object with a non-text <code>output</code>, or another unsupported shape. HTTP failures remain short and use the standard status phrase, such as <code>401 - Unauthorized</code> or <code>500 - Internal Server Error</code>; serialized provider response bodies are not copied into ordinary error text. JSON, code, and Markdown coercion failures likewise name the required output contract without reproducing the model response.</p>
             <p>Two additional operational details complete the picture. First, <code>cancel()</code> forwards cancellation to the underlying request layer and attempts to close active processing callbacks. Session runtimes also rely on this capability when the user interrupts a running turn. Second, <code>getCallLog()</code> returns the per-call telemetry accumulated by the agent, including input size, output size, model, requested tags, matched tags, duration, and intent. This makes LLMAgent not only a prompt wrapper, but the general LLM-facing runtime service on top of which the rest of the library is built.</p>
         </section>
     </main>

@@ -126,7 +126,7 @@ test('openai: yields error on API error in stream', async () => {
         }));
         const err = chunks.find(c => c.type === 'error');
         assert.ok(err);
-        assert.ok(err.error.message.includes('rate_limit_error'));
+        assert.equal(err.error.message, 'openai.com API returned an error: rate limit');
     } finally {
         restore();
     }
@@ -473,14 +473,14 @@ test('huggingFace: sends stream: true with optional apiKey', async () => {
     }
 });
 
-test('huggingFace: throws 503 with model loading message', async () => {
+test('huggingFace: throws short standard 503 message', async () => {
     const restore = mockFetch([], { status: 503 });
     try {
         await assert.rejects(
             async () => { await collect(huggingFaceStreaming(DUMMY_HISTORY, {
                 model: 'x', baseURL: 'https://router.huggingface.co/v1/chat/completions',
             })); },
-            /loading or unavailable.*503/,
+            /503 - Service Unavailable/,
         );
     } finally {
         restore();

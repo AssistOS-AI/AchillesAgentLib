@@ -168,7 +168,21 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
             stepIndex,
             parsed,
         });
-        throw new Error('Planner did not return a valid markdown decision.');
+        const responseText = typeof raw === 'string' ? raw.trim() : '';
+        let responseShape = 'text';
+        if (!responseText) {
+            responseShape = 'an empty response';
+        } else {
+            try {
+                JSON.parse(responseText);
+                responseShape = 'JSON';
+            } catch {
+                if (/^\s{0,3}#{1,6}\s+/m.test(responseText)) {
+                    responseShape = 'invalid Markdown';
+                }
+            }
+        }
+        throw new Error(`The LLM planner returned ${responseShape} instead of the required Markdown decision.`);
     }
 
     const validated = validateAndRepairPlannerDecision(parsed, userPrompt, session.tools);
@@ -409,7 +423,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                 });
 
                 if (session.errorCount >= maxErrors) {
-                    const message = 'Too many tool errors, aborting.';
+                    const message = 'The session stopped after reaching the maximum number of tool errors.';
                     session._debug('[LoopSession]', 'Aborting due to tool errors', { message });
                     turn.finalAnswer = message;
                     turn.status = SESSION_STATUS_FAILED;
@@ -429,7 +443,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
             errorCount: session.errorCount,
         });
         if (session.errorCount >= maxErrors) {
-            const message = 'Too many planner errors, aborting.';
+            const message = 'The session stopped after reaching the maximum number of invalid planner decisions.';
             session._debug('[LoopSession]', 'Aborting due to planner errors', { message });
             turn.finalAnswer = message;
             turn.status = SESSION_STATUS_FAILED;
@@ -438,7 +452,7 @@ async function runLoopForPrompt(session, userPrompt, turn) {
         }
     }
 
-    const fallback = 'Unable to complete within step limit.';
+    const fallback = 'The session stopped after reaching the maximum number of planning steps.';
     session._debug('[LoopSession]', 'Step limit reached', { message: fallback });
     turn.finalAnswer = fallback;
     turn.status = SESSION_STATUS_FAILED;
@@ -551,7 +565,7 @@ async function newPrompt(session, SessionClass, userPrompt, options = {}) {
 
     const invariantAnswer = session.getLastResult();
     if (invariantAnswer !== session.lastAnswer) {
-        throw new Error('LoopAgentSession invariant violated: getLastResult() mismatch with lastAnswer.');
+        throw new Error('Internal AchillesAgentLib session error: the stored final answer does not match the session result.');
     }
 
     return answer;

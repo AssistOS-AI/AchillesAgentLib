@@ -127,6 +127,8 @@ The central hub for all LLM calls. Accepts a prompt, optional history, model, ta
 
 **Used by:** `interpretMessage`, `resolveConfirmation`, `detectIntents`, `extraDoTask` (which backs `executePrompt`).
 
+Error reporting remains attached to the original invocation path. If a provider adapter returns `null`, `undefined`, an object without a text `output`, or another unsupported shape, `complete()` states that exact shape instead of exposing the internal `invokerStrategy` contract. Provider HTTP failures use the standard HTTP status and reason phrase, while structured upstream payloads contribute only their message rather than serialized response bodies. Structured-output coercion errors identify the required JSON, code, or Markdown contract without embedding the model response in normal user-facing output.
+
 ### executePrompt(promptText, options)
 
 Completion with memory context injection. Prepends memory segments (global, user, session, skill) to the prompt, then routes through `extraDoTask()` → `complete()`. Supports `responseShape` coercion:
@@ -225,6 +227,11 @@ Implementation:
 utils/LLMProviders/providers/envConfigLoader.mjs — soul_gateway provider def; resolveSoulGatewayEnvNames() returns ['PLOINKY_AGENT_API_KEY']; resolveSoulGatewayBaseURL() treats the credential as generated based on PLOINKY_AGENT_API_KEY only
 LLMConfig.json — soul_gateway provider apiKeyEnv = PLOINKY_AGENT_API_KEY
 ```
+
+### Question #2: Why are provider response bodies omitted from ordinary error messages?
+
+Response:
+Provider bodies can be verbose, implementation-specific, or contain data that should remain diagnostic metadata. A short provider label plus the standard HTTP status phrase explains the failure category without leaking the upstream payload. Errors are still thrown at the provider call site so callers retain the original stack and source location.
 
 ## Testable Functionality
 

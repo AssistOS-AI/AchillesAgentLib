@@ -184,7 +184,7 @@ test('yields error chunk on API-level error event', async () => {
         const errorChunk = chunks.find(c => c.type === 'error');
         assert.ok(errorChunk, 'should yield an error chunk');
         assert.ok(errorChunk.error instanceof Error);
-        assert.ok(errorChunk.error.message.includes('overloaded_error'));
+        assert.equal(errorChunk.error.message, 'Anthropic API returned an error: Overloaded');
 
         // No done chunk after an error
         assert.equal(chunks.find(c => c.type === 'done'), undefined);

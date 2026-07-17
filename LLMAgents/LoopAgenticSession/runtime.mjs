@@ -233,13 +233,13 @@ async function executeTool(session, toolName, prompt) {
     session._ensureNotCancelled();
     const toolEntry = session.tools[toolName];
     if (!toolEntry || typeof toolEntry.handler !== 'function') {
-        throw new Error(`Unknown tool: ${toolName}`);
+        throw new Error(`The planner selected unavailable tool "${toolName}".`);
     }
 
     const resolvedPrompt = typeof prompt === 'string'
         ? prompt.replace(/\$\$([A-Za-z0-9_-]+)/g, (match, resultRef) => {
             if (!session.toolVars.has(resultRef)) {
-                throw new Error(`Unknown tool variable: ${resultRef}`);
+                throw new Error(`The planner referenced unknown tool result "$$${resultRef}".`);
             }
             const value = session.toolVars.get(resultRef);
             return typeof value === 'string' ? value : JSON.stringify(value);

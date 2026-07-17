@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import { toGeminiPayload } from '../messageAdapters/googleGemini.mjs';
 import { parseSSEStream } from './sseParser.mjs';
 
@@ -64,13 +66,12 @@ export async function callLLM(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Google Generative API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Google Generative API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     const responseJSON = await response.json();
     if (responseJSON.error) {
-        throw new Error(JSON.stringify(responseJSON.error));
+        throw new Error(`Google Generative API returned an error: ${typeof responseJSON.error === 'string' ? responseJSON.error : responseJSON.error.message || 'Unknown provider error.'}`);
     }
 
     return responseJSON.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -144,8 +145,7 @@ export async function* callLLMStreaming(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Google Generative API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Google Generative API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     let fullText = '';
@@ -157,7 +157,10 @@ export async function* callLLMStreaming(chatContext, options) {
             if (!data) continue;
 
             if (data.error) {
-                yield { type: 'error', error: new Error(JSON.stringify(data.error)) };
+                yield {
+                    type: 'error',
+                    error: new Error(`Google Generative API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`),
+                };
                 return;
             }
 

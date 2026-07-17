@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import { toAnthropicMessages } from '../messageAdapters/anthropicMessages.mjs';
 import { parseSSEStream } from './sseParser.mjs';
 
@@ -71,13 +73,12 @@ export async function callLLM(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Anthropic API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Anthropic API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     const data = await response.json();
     if (data.error) {
-        throw new Error(JSON.stringify(data.error));
+        throw new Error(`Anthropic API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`);
     }
     // Find the text content block - some models return thinking blocks first
     const textContent = data.content?.find(c => c.type === 'text');
@@ -132,8 +133,7 @@ export async function* callLLMStreaming(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Anthropic API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Anthropic API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     let fullText = '';
@@ -147,7 +147,10 @@ export async function* callLLMStreaming(chatContext, options) {
             if (!data) continue;
 
             if (data.type === 'error') {
-                yield { type: 'error', error: new Error(JSON.stringify(data.error)) };
+                yield {
+                    type: 'error',
+                    error: new Error(`Anthropic API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`),
+                };
                 return;
             }
 

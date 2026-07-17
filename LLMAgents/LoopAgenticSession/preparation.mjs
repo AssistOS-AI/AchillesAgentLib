@@ -95,7 +95,7 @@ async function runPreparation({
             debugLog(logger, `[${getTimestamp()}] [LoopSession] Preparation awaiting input`, {
                 status: session.status,
             });
-            throw new Error('Preparation loop requires user input.');
+            throw new Error('Preparation cannot continue because a preparation tool requested user input.');
         }
         if (session.status === SESSION_STATUS_INTERRUPTED) {
             throw new Error('Preparation loop interrupted.');

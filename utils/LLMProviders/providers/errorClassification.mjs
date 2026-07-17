@@ -21,8 +21,12 @@ export function classifyError(status) {
 export function classifyProviderError(err, providerKey) {
   const message = err?.message || String(err);
 
-  const statusMatch = message.match(/\((\d{3})\)/);
-  const status = statusMatch ? parseInt(statusMatch[1], 10) : 0;
+  const statusMatch = message.match(/\((\d{3})\)|\b(?:HTTP\s+)?(\d{3})\s*-/);
+  const status = Number.isInteger(err?.status)
+    ? err.status
+    : statusMatch
+      ? parseInt(statusMatch[1] || statusMatch[2], 10)
+      : 0;
 
   if (status) {
     const classification = classifyError(status);

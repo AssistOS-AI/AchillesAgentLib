@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
 import { parseSSEStream } from './sseParser.mjs';
 
@@ -140,8 +142,7 @@ export async function callLLM(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Copilot API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Copilot API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     const data = await response.json();
@@ -178,8 +179,7 @@ export async function* callLLMStreaming(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Copilot API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Copilot API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     if (endpoint === 'responses') {
@@ -201,7 +201,10 @@ async function* streamCompletions(body) {
         if (!data) continue;
 
         if (data.error) {
-            yield { type: 'error', error: new Error(`Copilot API Error: ${JSON.stringify(data.error)}`) };
+            yield {
+                type: 'error',
+                error: new Error(`Copilot API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`),
+            };
             return;
         }
 
@@ -268,7 +271,10 @@ async function* streamResponses(body) {
         const eventType = frame.event || data.type;
 
         if (eventType === 'error') {
-            yield { type: 'error', error: new Error(`Copilot Responses API Error: ${JSON.stringify(data.error || data)}`) };
+            yield {
+                type: 'error',
+                error: new Error(`Copilot Responses API returned an error: ${data.error?.message || data.message || 'Unknown provider error.'}`),
+            };
             return;
         }
 

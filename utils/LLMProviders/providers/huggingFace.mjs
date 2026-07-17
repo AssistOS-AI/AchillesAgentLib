@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import { toOpenAIChatMessages } from '../messageAdapters/openAIChat.mjs';
 import { parseSSEStream } from './sseParser.mjs';
 
@@ -37,11 +39,7 @@ export async function callLLM(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        if (response.status === 503) {
-            throw new Error('Hugging Face model is currently loading or unavailable (503 Service Unavailable). Please try again later.');
-        }
-        throw new Error(`Hugging Face API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Hugging Face API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     const data = await response.json();
@@ -52,7 +50,7 @@ export async function callLLM(chatContext, options) {
     }
 
     if (data.error) {
-        throw new Error(`Hugging Face API Error: ${data.error}`);
+        throw new Error(`Hugging Face API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`);
     }
 
     return typeof data === 'string' ? data : JSON.stringify(data);
@@ -101,11 +99,7 @@ export async function* callLLMStreaming(chatContext, options) {
     });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        if (response.status === 503) {
-            throw new Error('Hugging Face model is currently loading or unavailable (503 Service Unavailable). Please try again later.');
-        }
-        throw new Error(`Hugging Face API Error (${response.status}): ${errorBody}`);
+        throw new Error(`Hugging Face API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
     }
 
     let fullText = '';
@@ -117,7 +111,10 @@ export async function* callLLMStreaming(chatContext, options) {
             if (!data) continue;
 
             if (data.error) {
-                yield { type: 'error', error: new Error(`Hugging Face API Error: ${JSON.stringify(data.error)}`) };
+                yield {
+                    type: 'error',
+                    error: new Error(`Hugging Face API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`),
+                };
                 return;
             }
 
