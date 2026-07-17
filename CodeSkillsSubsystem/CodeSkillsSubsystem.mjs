@@ -145,6 +145,9 @@ export class CodeSkillsSubsystem {
     args.mainAgent = mainAgent;
     this.logger?.log(`[CodeSkills] Executing skill "${skillRecord.shortName}" with prompt: ${args.promptText.substring(0, 200)}...`);
     args.llmAgent = llmAgent;
+    if (Object.prototype.hasOwnProperty.call(options || {}, 'model')) {
+      args.model = options.model;
+    }
 
     const executionContext = options?.context || {};
     if (options?.signal) {
