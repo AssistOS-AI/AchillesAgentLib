@@ -22,65 +22,10 @@ import {
     injectContextIntoPrompt,
 } from './utils.mjs';
 
-const MOVEMENT_INTENT_PATTERN = /\b(move|relocate|transfer|assign|muta|mută|transfera)\b/i;
-const DESTINATION_AREA_PATTERN = /\b(to|into|in|la|catre|către)\s+area\b/i;
-const MATERIAL_CUE_PATTERN = /\b(material|materials|conduit|cms|cable|consumable|fixing|crms|supply|supplies)\b/i;
-const EQUIPMENT_CUE_PATTERN = /\b(equipment|equipments|tool|tools|device|devices|asset|assets|instrument|instruments)\b/i;
-const AREA_EDIT_PATTERN = /\b(area\s+(name|location|description|type)|rename\s+area|update\s+area|edit\s+area|modify\s+area|create\s+area|delete\s+area|list\s+areas|show\s+areas)\b/i;
-
 function debugLog(session, ...args) {
     if (session && session.debugLogger) {
         session.debugLogger.log(...args);
     }
-}
-
-function inferMovementTargetTool(promptText = '', tools = {}) {
-    const hasMaterialTool = Object.prototype.hasOwnProperty.call(tools, 'material');
-    const hasEquipmentTool = Object.prototype.hasOwnProperty.call(tools, 'equipment');
-    const text = String(promptText || '');
-    const hasMaterialCue = MATERIAL_CUE_PATTERN.test(text);
-    const hasEquipmentCue = EQUIPMENT_CUE_PATTERN.test(text);
-
-    if (hasMaterialCue && hasMaterialTool) {
-        return 'material';
-    }
-    if (hasEquipmentCue && hasEquipmentTool) {
-        return 'equipment';
-    }
-    return null;
-}
-
-function validateAndRepairPlannerDecision(decision, userPrompt, tools = {}) {
-    if (!decision || typeof decision !== 'object') {
-        return { decision, adjusted: false };
-    }
-
-    if (typeof decision.tool !== 'string') {
-        return { decision, adjusted: false };
-    }
-
-    const text = String(userPrompt || '');
-    const selectedTool = String(decision.tool || '').toLowerCase();
-    const isMovementIntent = MOVEMENT_INTENT_PATTERN.test(text);
-    const hasAreaDestination = DESTINATION_AREA_PATTERN.test(text) || /\barea\s+[a-z0-9.-]+\b/i.test(text);
-    const isExplicitAreaEdit = AREA_EDIT_PATTERN.test(text);
-
-    if (selectedTool === 'area' && isMovementIntent && hasAreaDestination && !isExplicitAreaEdit) {
-        const repairedTool = inferMovementTargetTool(text, tools);
-        if (repairedTool && repairedTool !== selectedTool) {
-            return {
-                decision: {
-                    ...decision,
-                    tool: repairedTool,
-                    reason: `${decision.reason || 'planner routing'} | adjusted by validator: movement target belongs to ${repairedTool}, area is destination`,
-                },
-                adjusted: true,
-                reason: 'movement-target-validator',
-            };
-        }
-    }
-
-    return { decision, adjusted: false };
 }
 
 async function requestDecision(session, userPrompt, turn, stepIndex) {
@@ -193,17 +138,6 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
             }
         }
         throw new Error(`The LLM planner returned ${responseShape} instead of the required Markdown decision.`);
-    }
-
-    const validated = validateAndRepairPlannerDecision(parsed, userPrompt, session.tools);
-    if (validated.adjusted) {
-        session._debug('[LoopSession]', 'Planner decision adjusted by validator', {
-            stepIndex,
-            reason: validated.reason,
-            original: parsed,
-            adjusted: validated.decision,
-        });
-        parsed = validated.decision;
     }
 
     session._debug('[LoopSession]', 'Planner parsed response', { stepIndex, parsed });
@@ -586,5 +520,4 @@ export {
     newPrompt,
     runLoopForPrompt,
     requestDecision,
-    validateAndRepairPlannerDecision,
 };
