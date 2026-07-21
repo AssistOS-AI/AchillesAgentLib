@@ -18,6 +18,36 @@ import {
 function debugLog(session, ...args) {
 }
 
+function stableSerialize(value) {
+    if (value === null || typeof value !== 'object') {
+        return JSON.stringify(value);
+    }
+    if (Array.isArray(value)) {
+        return `[${value.map((entry) => stableSerialize(entry)).join(',')}]`;
+    }
+    const entries = Object.keys(value)
+        .sort()
+        .map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`);
+    return `{${entries.join(',')}}`;
+}
+
+function buildSupervisorCacheKey(toolName, params) {
+    return `alwaysApprove:${stableSerialize({ toolName, params })}`;
+}
+
+function normalizeSupervisorDecision(value) {
+    if (typeof value === 'string') {
+        return { decision: value };
+    }
+    if (!value || typeof value !== 'object') {
+        return { decision: 'deny', reason: 'Supervisor returned an invalid decision.' };
+    }
+    return {
+        ...value,
+        decision: String(value.decision || value.status || 'deny'),
+    };
+}
+
 function getParentContext(value) {
     return value && typeof value === 'object' ? value : null;
 }
@@ -250,24 +280,39 @@ async function executeTool(session, toolName, prompt) {
     debugLog(session, `[${getTimestamp()}] [LoopSession] Calling tool "${toolName}" with prompt: "${promptPreview}"`);
     session._debug('[LoopSession]', 'Calling tool', { tool: toolName, prompt: resolvedPrompt });
 
+    let supervisorApproval = null;
     if (session.supervisor) {
-        const cacheKey = `alwaysApprove:${toolName}`;
+        const toolChoice = {
+            toolName,
+            prompt: resolvedPrompt,
+            params: resolvedPrompt,
+        };
+        const cacheKey = buildSupervisorCacheKey(toolName, resolvedPrompt);
         if (session._alwaysApproveCache.has(cacheKey)) {
+            supervisorApproval = session._alwaysApproveCache.get(cacheKey);
             session._debug('[LoopSession]', 'Tool approved via alwaysApprove cache', { tool: toolName });
         } else {
-            const decision = await session.supervisor.approve({
-                toolName,
-                prompt: resolvedPrompt,
-            });
+            const decision = normalizeSupervisorDecision(await session.supervisor.approve(toolChoice));
 
-            if (decision === 'alwaysApprove') {
-                session._alwaysApproveCache.set(cacheKey, true);
+            if (decision.decision === 'alwaysApprove') {
+                supervisorApproval = decision.approval || null;
+                session._alwaysApproveCache.set(cacheKey, supervisorApproval);
                 session._debug('[LoopSession]', 'Tool always approved and cached', { tool: toolName });
-            } else if (decision === 'deny') {
+            } else if (decision.decision === 'deny') {
                 session._debug('[LoopSession]', 'Tool denied by supervisor', { tool: toolName });
                 return JSON.stringify({
                     success: false,
-                    error: `Tool "${toolName}" was denied by supervisor.`,
+                    error: decision.reason || `Tool "${toolName}" was denied by supervisor.`,
+                    supervisorDecision: decision.status || 'denied',
+                });
+            } else if (decision.decision === 'approve') {
+                supervisorApproval = decision.approval || null;
+            } else {
+                session._debug('[LoopSession]', 'Tool denied after invalid supervisor decision', { tool: toolName });
+                return JSON.stringify({
+                    success: false,
+                    error: `Tool "${toolName}" was denied because the supervisor returned an invalid decision.`,
+                    supervisorDecision: 'invalid',
                 });
             }
         }
@@ -285,6 +330,7 @@ async function executeTool(session, toolName, prompt) {
             signal: session._currentAbortSignal,
             reason: session._cancelReason,
             session,
+            supervisorApproval,
         });
     } finally {
         session.agent.currentSession = null;
@@ -328,4 +374,6 @@ export {
     buildClarifyContextTool,
     emitToolReason,
     executeTool,
+    buildSupervisorCacheKey,
+    normalizeSupervisorDecision,
 };

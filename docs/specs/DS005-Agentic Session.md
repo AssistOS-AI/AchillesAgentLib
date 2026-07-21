@@ -74,23 +74,23 @@ Before executing any tool, the session checks with the supervisor if one is conf
 _executeTool(toolName, prompt)
     │
     ▼
-Check alwaysApprove cache for this tool
+Check alwaysApprove cache for this exact tool name and params
     │
     ├─► [cached] → execute directly
     │
     └─► [not cached]
         │
         ▼
-        supervisor.approve({ toolName, prompt })
+        supervisor.approve({ toolName, prompt, params })
         │
         ├─► 'approve' → execute tool
         ├─► 'alwaysApprove' → execute tool + cache approval
         └─► 'deny' → return error JSON to planner
 ```
 
-The alwaysApprove cache is stored in a Map keyed by `alwaysApprove:toolName`. Once a tool is marked as always approved, subsequent calls skip the supervisor check.
+The alwaysApprove cache is stored in a Map keyed by a deterministic serialization of `toolName + params`. Once an exact call is marked as always approved, only subsequent calls with the same tool name and params skip the supervisor check. A structured supervisor result may carry an opaque approval proof, which is cached with the decision and forwarded to the tool handler as `supervisorApproval`.
 
-When denied, the session returns a structured error JSON to the planner rather than throwing, allowing the planner to choose an alternative tool.
+When denied, the session returns a structured error JSON containing the supervisor reason and status to the planner rather than throwing, allowing the planner to choose an alternative tool.
 
 ## Planner Decision Loop
 
@@ -201,6 +201,8 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - Supervisor approve allows tool execution
 - Supervisor alwaysApprove caches approval
 - Supervisor alwaysApprove skips supervisor on subsequent calls
+- Supervisor alwaysApprove is scoped to exact tool params
+- Structured supervisor decisions propagate denial reasons and approval proofs
 - Supervisor deny returns error to planner
 - Supervisor deny does not execute tool
 - Tool variable references resolve correctly

@@ -440,6 +440,9 @@ export class MainAgent {
                     const context = {
                         ...runtimeContext,
                         ...(parentSessionContext ? { parentSession: parentSessionContext } : {}),
+                        ...(executionOptions?.supervisorApproval
+                            ? { supervisorApproval: executionOptions.supervisorApproval }
+                            : {}),
                     };
                     this.logger.debug(`MainAgent:skillParentContext: ${toolName}: hasParentContext=${Boolean(parentSessionContext)}`);
 
