@@ -81,32 +81,47 @@ test('supervisor cache key is deterministic for object params', () => {
     );
 });
 
-test('structured supervisor denial reason is returned to the planner', async () => {
+test('supervisor denial skips the handler and becomes planner context', async () => {
+    const plannerDecisions = [
+        decision('bash', 'ls -la'),
+        decision('final_answer', 'The command was not executed because the user denied it.'),
+    ];
+    const plannerPrompts = [];
     const agent = {
         name: 'SupervisorDenialTestAgent',
         __toolState: new Map(),
-        complete: async () => decision('echo', 'blocked'),
+        complete: async ({ history }) => {
+            plannerPrompts.push(history[0].message);
+            return plannerDecisions.shift();
+        },
         interpretMessage: async () => ({ intent: 'accept', confidence: 1 }),
     };
     let executed = false;
+    let approvalCount = 0;
     const session = new LoopAgentSession({
         agent,
         tools: {
-            echo: {
-                description: 'Echo a value.',
+            bash: {
+                description: 'Execute a command.',
                 handler: async () => {
                     executed = true;
                 },
             },
         },
         options: {
-            maxStepsPerTurn: 1,
+            maxStepsPerTurn: 2,
             supervisor: {
-                approve: async () => ({
-                    decision: 'deny',
-                    status: 'pending',
-                    reason: 'Bash execution is waiting for user approval.',
-                }),
+                approve: async (toolChoice) => {
+                    if (toolChoice.toolName === 'final_answer') {
+                        return 'approve';
+                    }
+                    approvalCount += 1;
+                    return {
+                        decision: 'deny',
+                        status: 'denied',
+                        reason: 'The user denied this Bash command. It was not executed.',
+                    };
+                },
                 getOutputWriter: () => ({ write: async () => {} }),
             },
         },
@@ -114,5 +129,21 @@ test('structured supervisor denial reason is returned to the planner', async () 
 
     const result = await session.newPrompt('run');
     assert.equal(executed, false);
-    assert.match(result, /waiting for user approval/i);
+    assert.equal(approvalCount, 1);
+    assert.equal(result, 'The command was not executed because the user denied it.');
+    assert.match(plannerPrompts[1], /Tool "bash" was denied before execution\./);
+    assert.match(plannerPrompts[1], /Params: "ls -la"/);
+    assert.match(plannerPrompts[1], /Reason: The user denied this Bash command\. It was not executed\./);
+    assert.match(plannerPrompts[1], /The tool handler was not called\./);
+    assert.doesNotMatch(plannerPrompts[1], /supervisorDecision|"success"\s*:\s*false/);
+    assert.equal(session.toolCalls[0].tool, 'bash');
+    assert.equal(
+        session.toolVars.get(session.toolCalls[0].resultRef),
+        [
+            'Tool "bash" was denied before execution.',
+            'Params: "ls -la"',
+            'Reason: The user denied this Bash command. It was not executed.',
+            'The tool handler was not called.',
+        ].join('\n'),
+    );
 });

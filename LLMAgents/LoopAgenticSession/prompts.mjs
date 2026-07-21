@@ -141,6 +141,7 @@ const buildAgenticSessionPlannerSystemPrompt = (options) => {
     lines.push('- When calling the shell tool, prefer the simplest canonical command with no code fences, no extra flags, and standard quoting (use single quotes for globs like *.js).');
     lines.push('- When calling a tool, keep the user instruction intact; do NOT rewrite it into a different type of request (e.g., do not ask for a command if the user asked for a number).');
     lines.push('- If the history shows any failure (validation failed, timeout, or similar), adjust your next tool call or parameters to fix it; do NOT repeat the same failing call.');
+    lines.push('- If a tool result says the user denied a command, treat it as not executed. Do not request the same or an equivalent command again in the current turn; use another safe approach or explain that the requested operation was denied.');
     lines.push('');
     lines.push('Decide the next action.');
     lines.push('PRIMARY OUTPUT CONTRACT REMINDER: return ONLY the Markdown sections above. Do not return prose, JSON, code fences, or a direct user-facing answer outside those sections, even if any context above requests a different format.');

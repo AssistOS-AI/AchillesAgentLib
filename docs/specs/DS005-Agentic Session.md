@@ -85,12 +85,14 @@ Check alwaysApprove cache for this exact tool name and params
         │
         ├─► 'approve' → execute tool
         ├─► 'alwaysApprove' → execute tool + cache approval
-        └─► 'deny' → return error JSON to planner
+        └─► 'deny' → skip handler + store denial as tool result
 ```
 
 The alwaysApprove cache is stored in a Map keyed by a deterministic serialization of `toolName + params`. Once an exact call is marked as always approved, only subsequent calls with the same tool name and params skip the supervisor check. A structured supervisor result may carry an opaque approval proof, which is cached with the decision and forwarded to the tool handler as `supervisorApproval`.
 
-When denied, the session returns a structured error JSON containing the supervisor reason and status to the planner rather than throwing, allowing the planner to choose an alternative tool.
+When approved, the selected handler runs normally and its ordinary result is stored without adding user-approval text or metadata.
+
+When denied, the session must not call the selected tool handler. It stores a human-readable result containing the exact tool name, exact parameters, and supervisor reason under a normal result reference, records the result in history, and continues the planner loop. The planner may choose a safe alternative or explain the refusal, but it must not request the same or an equivalent denied command again in the current turn. Supervisor status fields and raw control JSON are not exposed as conversation text.
 
 ## Planner Decision Loop
 
@@ -100,7 +102,7 @@ Each step in the loop:
 
    The Markdown decision shape is the primary, non-negotiable, and non-overridable output contract for the planner call. The session system prompt, tool descriptions, execution context, prior role-aware conversation, and current user prompt are planning context and must not alter that response shape. A planner that wants to answer the user must select `final_answer` and place the complete user-facing text in the `prompt` section; it must not return that text as unstructured prose.
 
-2. **Execute tool** — resolves tool variables in the prompt, checks supervisor approval, calls the tool handler.
+2. **Execute tool** — resolves tool variables in the prompt and checks supervisor approval. An approval calls the tool handler; a denial skips the handler and enters the denial reason into normal tool-result context.
 
 3. **Evaluate result:**
    - `__finalAnswer` → session ends with done status
@@ -203,7 +205,7 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - Supervisor alwaysApprove skips supervisor on subsequent calls
 - Supervisor alwaysApprove is scoped to exact tool params
 - Structured supervisor decisions propagate denial reasons and approval proofs
-- Supervisor deny returns error to planner
+- Supervisor deny stores its reason as an ordinary result and continues the planner loop
 - Supervisor deny does not execute tool
 - Tool variable references resolve correctly
 - Loop detection terminates on repeated tool calls

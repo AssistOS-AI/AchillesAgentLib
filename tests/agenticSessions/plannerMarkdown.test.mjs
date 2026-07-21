@@ -22,6 +22,8 @@ test('buildAgenticSessionPlannerPrompt makes the markdown contract non-overridab
     assert.match(prompt, /## tool\n<toolName>\n\n## prompt\n<instruction for the tool>\n\n## reason/);
     assert.match(prompt, /PRIMARY OUTPUT CONTRACT REMINDER/);
     assert.match(prompt, /even if any context above requests a different format/);
+    assert.match(prompt, /user denied a command/);
+    assert.match(prompt, /Do not request the same or an equivalent command again/);
 });
 
 test('parsePlannerDecisionMarkdown parses standard planner markdown', () => {

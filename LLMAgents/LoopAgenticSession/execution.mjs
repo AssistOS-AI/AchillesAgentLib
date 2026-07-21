@@ -246,10 +246,18 @@ async function runLoopForPrompt(session, userPrompt, turn) {
                     && structuredToolResult.success === false
                     && (structuredToolResult.message || structuredToolResult.error || structuredToolResult.operation)) {
                     let resultStr;
-                    try {
-                        resultStr = JSON.stringify(structuredToolResult, null, 2);
-                    } catch {
-                        resultStr = `Tool returned a failed result that cannot be displayed. Keys: ${Object.keys(structuredToolResult).join(', ')}`;
+                    if (structuredToolResult.supervisorDecision) {
+                        resultStr = String(
+                            structuredToolResult.message
+                            || structuredToolResult.error
+                            || 'Tool execution was denied by the supervisor.'
+                        );
+                    } else {
+                        try {
+                            resultStr = JSON.stringify(structuredToolResult, null, 2);
+                        } catch {
+                            resultStr = `Tool returned a failed result that cannot be displayed. Keys: ${Object.keys(structuredToolResult).join(', ')}`;
+                        }
                     }
                     debugLog(session, `[${getTimestamp()}] [LoopSession] Detected failed skill result, returning as final answer`);
                     session._debug('[LoopSession]', 'Tool failed result returned as final answer', { tool: toolName });

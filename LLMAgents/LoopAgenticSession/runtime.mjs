@@ -35,6 +35,19 @@ function buildSupervisorCacheKey(toolName, params) {
     return `alwaysApprove:${stableSerialize({ toolName, params })}`;
 }
 
+function formatSupervisorDeniedResult(toolName, params, reason = '') {
+    const lines = [
+        `Tool "${toolName}" was denied before execution.`,
+        `Params: ${stableSerialize(params)}`,
+    ];
+    const resolvedReason = String(reason || '').trim();
+    if (resolvedReason) {
+        lines.push(`Reason: ${resolvedReason}`);
+    }
+    lines.push('The tool handler was not called.');
+    return lines.join('\n');
+}
+
 function normalizeSupervisorDecision(value) {
     if (typeof value === 'string') {
         return { decision: value };
@@ -281,6 +294,7 @@ async function executeTool(session, toolName, prompt) {
     session._debug('[LoopSession]', 'Calling tool', { tool: toolName, prompt: resolvedPrompt });
 
     let supervisorApproval = null;
+    let supervisorDeniedResult = null;
     if (session.supervisor) {
         const toolChoice = {
             toolName,
@@ -300,11 +314,11 @@ async function executeTool(session, toolName, prompt) {
                 session._debug('[LoopSession]', 'Tool always approved and cached', { tool: toolName });
             } else if (decision.decision === 'deny') {
                 session._debug('[LoopSession]', 'Tool denied by supervisor', { tool: toolName });
-                return JSON.stringify({
-                    success: false,
-                    error: decision.reason || `Tool "${toolName}" was denied by supervisor.`,
-                    supervisorDecision: decision.status || 'denied',
-                });
+                supervisorDeniedResult = formatSupervisorDeniedResult(
+                    toolName,
+                    resolvedPrompt,
+                    decision.reason,
+                );
             } else if (decision.decision === 'approve') {
                 supervisorApproval = decision.approval || null;
             } else {
@@ -317,23 +331,29 @@ async function executeTool(session, toolName, prompt) {
             }
         }
 
-        const outputWriter = session.supervisor.getOutputWriter();
-        if (outputWriter && typeof outputWriter.write === 'function') {
-            await outputWriter.write(`Executing tool: ${toolName}`);
+        if (supervisorDeniedResult === null) {
+            const outputWriter = session.supervisor.getOutputWriter();
+            if (outputWriter && typeof outputWriter.write === 'function') {
+                await outputWriter.write(`Executing tool: ${toolName}`);
+            }
         }
     }
 
-    session.agent.currentSession = session;
     let result;
-    try {
-        result = await toolEntry.handler(session.agent, resolvedPrompt, {
-            signal: session._currentAbortSignal,
-            reason: session._cancelReason,
-            session,
-            supervisorApproval,
-        });
-    } finally {
-        session.agent.currentSession = null;
+    if (supervisorDeniedResult !== null) {
+        result = supervisorDeniedResult;
+    } else {
+        session.agent.currentSession = session;
+        try {
+            result = await toolEntry.handler(session.agent, resolvedPrompt, {
+                signal: session._currentAbortSignal,
+                reason: session._cancelReason,
+                session,
+                supervisorApproval,
+            });
+        } finally {
+            session.agent.currentSession = null;
+        }
     }
 
     session.toolVarCounter += 1;

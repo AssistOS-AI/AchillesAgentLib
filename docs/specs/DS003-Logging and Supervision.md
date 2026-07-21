@@ -103,7 +103,7 @@ Loop sessions write structured progress events through the supervisor output wri
 **Approval decisions:**
 - approve — execute the tool normally
 - alwaysApprove — execute the tool and cache the approval for future calls with the exact same tool name and params
-- deny — mark as denied, do not execute, and return the supervisor reason to the LLM
+- deny — skip the tool handler, store the supervisor reason as an ordinary tool result, and continue planning with that result
 
 Supervisors may return the legacy decision string or a structured object containing `decision`, optional `reason`, optional `status`, and optional opaque `approval` proof. The runtime forwards the approval proof to the selected tool execution context. Cached approvals are keyed by a deterministic serialization of `toolName + params`; a different parameter value always requires a new supervisor decision.
 
@@ -137,5 +137,5 @@ Test files should be created in `tests/mainAgent/`
 - Supervisor is passed to loop session creation
 - Loop sessions emit planner tool reasons before tool execution
 - alwaysApprove cache is scoped to exact tool params
-- Structured denial reasons enter planner context without executing the tool
+- Structured denial reasons enter planner context through a result reference without executing the tool handler
 - Opaque approval proofs reach the approved tool execution context
