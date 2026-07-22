@@ -521,7 +521,7 @@ describe('openaiResponses.listModels — response normalization', () => {
                 {
                     slug: 'legacy-model',
                     visibility: 'list',
-                    supported_in_api: false, // should be filtered out
+                    supported_in_api: false,
                 },
             ],
         }));
@@ -541,6 +541,37 @@ describe('openaiResponses.listModels — response normalization', () => {
         assert.equal(models[1].modelId, 'gpt-5-codex');
         assert.equal(models[1].supportsVision, false);
         assert.equal(models[1].visibility, 'hide');
+    });
+
+    it('includes ChatGPT-only Codex models when requested by an OAuth caller', async () => {
+        stubFetch(() => buildJsonResponse({
+            models: [
+                {
+                    slug: 'gpt-5.3-codex-spark',
+                    display_name: 'GPT-5.3-Codex-Spark',
+                    visibility: 'list',
+                    supported_in_api: false,
+                },
+                {
+                    slug: 'gpt-5.4',
+                    visibility: 'list',
+                    supported_in_api: true,
+                },
+            ],
+        }));
+
+        const models = await listModels({
+            baseURL: 'https://chatgpt.com/backend-api/codex',
+            apiKey: 'oauth-token',
+            includeChatGPTOnly: true,
+        });
+
+        assert.deepEqual(models.map((model) => model.modelId), [
+            'gpt-5.3-codex-spark',
+            'gpt-5.4',
+        ]);
+        assert.equal(models[0].metadata.supportedInApi, false);
+        assert.equal(models[1].metadata.supportedInApi, true);
     });
 
     it('parses the standard OpenAI models list ({ object: "list", data: [...] })', async () => {

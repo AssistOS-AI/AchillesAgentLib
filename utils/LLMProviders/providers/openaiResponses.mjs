@@ -221,8 +221,9 @@ function resolveModelsURL(baseURL, { clientVersion = DEFAULT_CODEX_CLIENT_VERSIO
  *    input_modalities, visibility, supported_in_api, ... }`
  *  - Standard OpenAI: `{ id, object: 'model', created, owned_by }`
  *
- * Models that look marked as unavailable (Codex's `supported_in_api: false`)
- * are filtered out upstream — this function just maps shape.
+ * Codex's `supported_in_api` flag distinguishes models available to API-key
+ * callers from ChatGPT-only models. Preserve it so callers can apply the
+ * authentication-mode-specific filtering used by the official Codex client.
  */
 function normalizeDiscoveryModel(raw, { providerLabel } = {}) {
     if (!raw) return null;
@@ -247,6 +248,7 @@ function normalizeDiscoveryModel(raw, { providerLabel } = {}) {
             minimalClientVersion: raw.minimal_client_version || null,
             priority: raw.priority ?? null,
             reasoningSummaryFormat: raw.reasoning_summary_format || null,
+            supportedInApi: raw.supported_in_api ?? null,
             supportedReasoningLevels: Array.isArray(raw.supported_reasoning_levels)
                 ? raw.supported_reasoning_levels.map((l) => l.effort || l).filter(Boolean)
                 : null,
@@ -272,6 +274,10 @@ function normalizeDiscoveryModel(raw, { providerLabel } = {}) {
  * @param {string} options.apiKey   Bearer token / API key
  * @param {AbortSignal} [options.signal]
  * @param {object} [options.headers]  Extra headers (e.g. User-Agent)
+ * @param {boolean} [options.includeChatGPTOnly=false] Include Codex models
+ *                                  marked `supported_in_api: false`. The
+ *                                  official Codex client includes these for
+ *                                  ChatGPT OAuth and filters them for API keys.
  * @returns {Promise<Array<object>>}
  */
 export async function listModels(options) {
@@ -279,7 +285,14 @@ export async function listModels(options) {
         throw new Error('OpenAI Responses listModels requires invocation options.');
     }
 
-    const { baseURL, apiKey, signal, headers, clientVersion } = options;
+    const {
+        baseURL,
+        apiKey,
+        signal,
+        headers,
+        clientVersion,
+        includeChatGPTOnly = false,
+    } = options;
     if (!baseURL) {
         throw new Error('OpenAI Responses listModels requires a baseURL.');
     }
@@ -312,7 +325,7 @@ export async function listModels(options) {
     // Codex ChatGPT backend: { models: [...] }
     if (Array.isArray(data?.models)) {
         return data.models
-            .filter((m) => m && m.supported_in_api !== false)
+            .filter((m) => m && (includeChatGPTOnly || m.supported_in_api !== false))
             .map((m) => normalizeDiscoveryModel(m, { providerLabel }))
             .filter(Boolean);
     }
