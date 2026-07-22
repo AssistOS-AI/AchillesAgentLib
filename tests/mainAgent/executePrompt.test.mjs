@@ -67,6 +67,33 @@ describe('MainAgent executePrompt', () => {
         agent.shutdown();
     });
 
+    it('forwards initialHistory only when creating the loop session', async () => {
+        const agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
+        const initialHistory = [
+            { role: 'user', message: 'Earlier question' },
+            { role: 'assistant', message: 'Earlier answer' },
+        ];
+        let creationOptions = null;
+        const session = {
+            status: 'done',
+            async newPrompt() {},
+            getLastResult() { return 'ok'; },
+        };
+        agent.llmAgent.startLoopAgentSession = async (_tools, _message, options) => {
+            creationOptions = options;
+            return session;
+        };
+
+        await agent.executePrompt('Current question', { initialHistory });
+
+        assert.deepEqual(creationOptions.initialHistory, initialHistory);
+        await assert.rejects(
+            () => agent.executePrompt('Following question', { initialHistory }),
+            /only be supplied when MainAgent creates a new session/,
+        );
+        agent.shutdown();
+    });
+
     it('updates the active model on a reused session', async () => {
         const agent = new MainAgent({ startDir: '/tmp/nonexistent-dir' });
 

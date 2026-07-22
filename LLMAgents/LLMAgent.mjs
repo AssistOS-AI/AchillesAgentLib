@@ -483,6 +483,7 @@ ${promptText}`
      * @param {number} [options.historyCompressionMaxSummaryTokens=1200] - Target summary budget for compression prompt
      * @param {string|null} [options.historyCompressionModel] - Model override for compression (defaults to planner model)
      * @param {Object} [options.supervisor] - Tool approval controller
+     * @param {Array} [options.initialHistory] - Ordered prior user/assistant messages used to hydrate a new session
      * @returns {LoopAgentSession} Started session
      */
     async startLoopAgentSession(tools, initialPrompt, options = {}) {

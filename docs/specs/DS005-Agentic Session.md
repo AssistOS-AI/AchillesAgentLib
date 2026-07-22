@@ -49,6 +49,7 @@ Status: done | failed | awaiting_input
 - `historyCompressionModel` — optional model override for compression (defaults to planner model)
 - `supervisor` — tool approval controller
 - `signal` — AbortSignal forwarded to planner/model calls for cancellation
+- `initialHistory` — ordered non-empty `{ role, message }` records limited to `user` and `assistant`
 
 **What happens on construction:**
 1. Validates agent and tools are provided
@@ -56,7 +57,7 @@ Status: done | failed | awaiting_input
 3. Adds reserved tools (final_answer, cannot_complete) to tool set
 4. Configures execution limits from options
 5. Stores supervisor if provided
-6. Initializes empty turns, history, and tool calls tracking
+6. Initializes empty turns and tool-call tracking, and hydrates internal user/final-answer history entries when valid `initialHistory` is supplied
 7. Sets status to idle
 
 ## Active Model Across Turns
@@ -155,6 +156,8 @@ Tool results are stored in `toolVars` with auto-generated references (e.g., `too
 
 LoopAgentSession exposes `getConversationSnapshot()` for delegated skill execution. The snapshot contains `history`, `status`, and `lastAnswer`, and is cloned so downstream consumers cannot mutate the live session state. Tool result payloads are not included in the snapshot; tool call records remain available through `history`, while the separate internal `toolCalls` index is not included.
 
+Initial role-aware history is a creation-only input rather than a second persisted history schema. The constructor validates it, translates each user record to `{ type: 'user', prompt }` and each assistant record to `{ type: 'final_answer', answer }`, and then uses the ordinary provider-facing history derivation. The current prompt remains a separate final user message.
+
 ## Preparation
 
 If a preparation configuration is provided, the session runs a preparation sub-session before processing the main prompt. The preparation executes tools to build context, and the resulting context variables are injected into both the system prompt and the user prompt.
@@ -230,6 +233,8 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 - New prompts recover from interrupted state
 - New prompts can replace the active model without recreating the session or losing history
 - Planner calls keep system instructions, earlier user/assistant turns, and the current user prompt in separate role records
+- Initial history hydrates earlier user/assistant turns without serializing them into the current prompt
+- Invalid initial history roles and empty messages are rejected
 - Provider-facing role derivation does not add `role` fields to session history entries
 - Pending-input interpretation receives the active model and tags
 

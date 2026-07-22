@@ -179,6 +179,7 @@ Notable options passed through to the loop runtime include:
 - Planner routing model/tags (`model`, `tags`)
 - Supervisor control (`supervisor`)
 - Cancellation signal (`signal`)
+- Initial role-aware history (`initialHistory`) for hydrating a newly created session
 - History compression controls (`historyCompressionEnabled`, `historyCompressionThresholdTokens`, `historyCompressionKeepRecentEntries`, `historyCompressionMaxSummaryTokens`, `historyCompressionModel`)
 
 **Used by:** `MainAgent.executePrompt()`, `AnthropicSkillsSubsystem`.
@@ -266,5 +267,6 @@ Test files should be created in tests/mainAgent/ or tests/llmAgent/
 - startLoopAgentSession passes model through options
 - startLoopAgentSession passes history compression options through
 - startLoopAgentSession passes signal through
+- startLoopAgentSession passes initialHistory through
 - startSOPLangAgentSession creates SOP session
 - Traffic counters accumulate correctly

@@ -12,6 +12,7 @@ Primary method for user-to-LLM communication. Manages a single session lifecycle
 - MainAgent keeps one in-memory LoopAgentSession instance
 - If the session does not exist, executePrompt creates it
 - If the session exists, executePrompt reuses it and appends the new message
+- A caller may supply `initialHistory` as ordered `{ role, message }` user/assistant records only while the first call creates the session; supplying non-empty initial history to an active session is rejected to prevent duplicate hydration
 
 **Flow:**
 ```
@@ -107,6 +108,8 @@ The active values belong to the in-memory session and may change between prompts
 
 Loop and SOP planning preserve their existing runtime history formats. Before each model call, the session derives a provider-facing conversation with system instructions first, prior user/assistant turns in chronological order, and the current user prompt last. This prevents a role-aware provider from receiving the serialized transcript as one user message while avoiding a migration of session snapshots or persisted history.
 
+When a new loop session receives `initialHistory`, it converts user records into internal user entries and assistant records into internal final-answer entries before processing the current prompt. System roles, empty messages, and malformed records are rejected. This preserves the internal session schema while allowing a host to restore an external conversation without serializing it into the current user message.
+
 ## What Execution Does NOT Do
 
 - Does NOT expose sessionId-based APIs
@@ -129,6 +132,7 @@ Test files should be created in tests/mainAgent/
 - Passes model parameter through unchanged
 - Passes tags parameter through unchanged
 - Passes systemPrompt through to session
+- Passes initialHistory through only during session creation
 - Passes signal through to session creation and reused session prompts
 - Updates the active model on a reused session without discarding history
 - Propagates the active parent-session model to delegated skill execution

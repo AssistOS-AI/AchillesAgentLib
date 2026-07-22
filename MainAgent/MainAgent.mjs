@@ -254,6 +254,7 @@ export class MainAgent {
             supervisor = this.supervisor,
             context = null,
             reasoningEffort = null,
+            initialHistory = null,
         } = options;
         if (context && typeof context === 'object') {
             this.context = context;
@@ -270,8 +271,14 @@ export class MainAgent {
                 supervisor,
                 signal,
                 reasoningEffort: effectiveReasoningEffort,
+                initialHistory,
             });
         } else {
+            if (initialHistory !== null
+                && initialHistory !== undefined
+                && (!Array.isArray(initialHistory) || initialHistory.length > 0)) {
+                throw new Error('initialHistory can only be supplied when MainAgent creates a new session.');
+            }
             const promptOptions = { signal };
             if (Object.prototype.hasOwnProperty.call(options, 'model')) {
                 promptOptions.model = model;

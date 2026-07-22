@@ -71,6 +71,64 @@ test('LoopAgentSession uses a changed model for every call in the next turn', as
     assert.equal(session.options.model, 'deep');
 });
 
+test('LoopAgentSession hydrates prior user and assistant turns before the current prompt', async () => {
+    const calls = [];
+    const agent = {
+        name: 'HydratedHistoryAgent',
+        __toolState: new Map(),
+        complete: async (options = {}) => {
+            calls.push(options);
+            return finalAnswerDecision('current answer');
+        },
+    };
+    const session = new LoopAgentSession({
+        agent,
+        tools: {},
+        options: {
+            initialHistory: [
+                { role: 'user', message: 'Earlier question' },
+                { role: 'assistant', message: 'Earlier answer' },
+            ],
+            historyCompressionEnabled: false,
+        },
+    });
+
+    await session.newPrompt('Current question');
+
+    assert.deepEqual(calls[0].history.slice(1), [
+        { role: 'user', message: 'Earlier question' },
+        { role: 'assistant', message: 'Earlier answer' },
+    ]);
+    assert.equal(calls[0].prompt, 'Current question');
+    assert.deepEqual(session.history.filter((entry) => (
+        entry.type === 'user' || entry.type === 'final_answer'
+    )), [
+        { type: 'user', prompt: 'Earlier question' },
+        { type: 'final_answer', answer: 'Earlier answer' },
+        { type: 'user', prompt: 'Current question' },
+        { type: 'final_answer', answer: 'current answer' },
+    ]);
+    assert.equal(JSON.stringify(calls[0]).includes('Ploinky conversation context'), false);
+});
+
+test('LoopAgentSession rejects malformed initial history', () => {
+    const agent = {
+        name: 'InvalidHistoryAgent',
+        __toolState: new Map(),
+        complete: async () => finalAnswerDecision('unused'),
+    };
+    assert.throws(() => new LoopAgentSession({
+        agent,
+        tools: {},
+        options: { initialHistory: [{ role: 'system', message: 'not allowed' }] },
+    }), /role must be "user" or "assistant"/);
+    assert.throws(() => new LoopAgentSession({
+        agent,
+        tools: {},
+        options: { initialHistory: [{ role: 'user', message: '' }] },
+    }), /message must be a non-empty string/);
+});
+
 test('SOPAgenticSession uses a changed model for planning the next turn', async () => {
     const calls = [];
     const agent = {

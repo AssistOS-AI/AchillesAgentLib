@@ -101,7 +101,7 @@ class LoopAgentSession {
         this.supervisor = options.supervisor || null;
         this._alwaysApproveCache = new Map();
         this.turns = [];
-        this.history = [];
+        this.history = normalizeInitialHistory(options.initialHistory);
         this.toolCalls = [];
         this.errorCount = 0;
         this.status = SESSION_STATUS_IDLE;
@@ -257,6 +257,28 @@ class LoopAgentSession {
     _buildClarifyContextTool(parentContext) {
         return buildClarifyContextTool(this, parentContext);
     }
+}
+
+function normalizeInitialHistory(initialHistory) {
+    if (initialHistory === null || initialHistory === undefined) return [];
+    if (!Array.isArray(initialHistory)) {
+        throw new TypeError('initialHistory must be an array of { role, message } records.');
+    }
+    return initialHistory.map((entry, index) => {
+        if (!entry || typeof entry !== 'object') {
+            throw new TypeError(`initialHistory[${index}] must be an object.`);
+        }
+        if (typeof entry.message !== 'string' || !entry.message.trim()) {
+            throw new TypeError(`initialHistory[${index}].message must be a non-empty string.`);
+        }
+        if (entry.role === 'user') {
+            return { type: 'user', prompt: entry.message };
+        }
+        if (entry.role === 'assistant') {
+            return { type: 'final_answer', answer: entry.message };
+        }
+        throw new TypeError(`initialHistory[${index}].role must be "user" or "assistant".`);
+    });
 }
 
 export {
