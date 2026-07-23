@@ -99,9 +99,11 @@ When denied, the session must not call the selected tool handler. It stores a hu
 
 Each step in the loop:
 
-1. **Request decision** — builds planner system instructions with the available tools and execution-only context. It derives prior user and assistant conversation turns from the existing session history and passes the current user prompt separately as the final user-role message. The LLM returns markdown with `tool`, `prompt`, and `reason` sections, which the runtime parses into the planner decision object.
+1. **Request decision** — builds planner system instructions with the available tools and execution-only context. It derives prior user and assistant conversation turns from the existing session history and passes the current user prompt separately as the final user-role message. The canonical LLM response is Markdown with `tool` and `prompt` sections plus an optional `reason` section, which the runtime parses into the planner decision object.
 
-   The Markdown decision shape is the primary, non-negotiable, and non-overridable output contract for the planner call. The session system prompt, tool descriptions, execution context, prior role-aware conversation, and current user prompt are planning context and must not alter that response shape. A planner that wants to answer the user must select `final_answer` and place the complete user-facing text in the `prompt` section; it must not return that text as unstructured prose.
+   The canonical Markdown decision remains the primary, non-negotiable, and non-overridable format requested from the planner. The session system prompt, tool descriptions, execution context, prior role-aware conversation, and current user prompt are planning context and must not instruct the model to select a different output format. The parser is deliberately more tolerant than the requested format: section names and JSON property names are case-insensitive; `tool-name`, `tool_name`, `toolName`, and `tool name` are equivalent, as are the corresponding `prompt` forms; headings, inline labels, bold labels, and JSON objects are accepted; and one outer Markdown, text, or JSON fence may wrap the decision. Markdown fields may appear in any order. The last occurrence of a duplicated normalized field wins, while section-looking text inside an internal code fence remains prompt content.
+
+   A structured Markdown or JSON response containing a tool but no prompt executes that tool with an empty string. A response containing only `prompt` or an explicit `final_answer` label becomes a `final_answer` decision. A response containing only `reason` also becomes `final_answer`, with the reason copied into the final prompt. Non-empty non-JSON text without a recognized planner field is treated as the final answer. This fallback never infers a non-terminal tool from prose. Empty responses, non-string values, JSON arrays or primitives, malformed explicitly fenced JSON, and JSON objects without any recognized planner property remain invalid.
 
 2. **Execute tool** — resolves tool variables in the prompt and checks supervisor approval. An approval calls the tool handler; a denial skips the handler and enters the denial reason into normal tool-result context.
 
@@ -117,7 +119,7 @@ Each step in the loop:
 
 5. **Error handling** — tool errors increment an error counter. If maxErrors is reached, the session aborts.
 
-Planner-format failures must state only the response shape: an empty response, JSON, text, or invalid Markdown. Tool execution errors must identify unavailable tool names and unresolved `$$resultRef` values literally. These messages do not introduce a new error layer; they are emitted from the existing parser and execution sites.
+Planner-format failures must state only the response shape, such as an empty response, unsupported JSON, or invalid Markdown. Ordinary non-empty text and JSON objects with recognized planner properties are not planner-format failures because they are normalized into decisions. Tool execution errors must identify unavailable tool names and unresolved `$$resultRef` values literally. These messages do not introduce a new error layer; they are emitted from the existing parser and execution sites.
 
 ## Session Statuses
 
@@ -242,12 +244,16 @@ Test files should be created in tests/mainAgent/ or tests/agenticSessions/
 
 ### Question #1: Why is the planner Markdown shape declared non-overridable inside the prompt?
 
-Response: The planner consumes system-prompt content, tool descriptions, historical outputs, and user-controlled text in one planning context. Repeating the structural rule before and after that context establishes that those inputs are data for the decision rather than alternative output-format instructions. This keeps tool selection explicit and prevents direct prose from bypassing the planner parser.
+Response: The planner consumes system-prompt content, tool descriptions, historical outputs, and user-controlled text in one planning context. Repeating the structural rule before and after that context establishes that those inputs are data for the decision rather than alternative output-format instructions. This keeps non-terminal tool selection explicit even though the runtime can safely recover direct prose as `final_answer`.
 
 ### Question #2: Why do planner errors distinguish response shapes?
 
-Response: The former generic parse failure did not show whether the model returned no text, JSON, ordinary text, or malformed Markdown. Reporting only that structural category makes the model-contract failure actionable without inspecting or interpreting the response content.
+Response: The former generic parse failure did not show whether the model returned no text, unsupported JSON, or malformed structured output. Reporting only that structural category makes the remaining model-contract failures actionable without exposing or semantically interpreting the response content. Ordinary text and supported planner JSON no longer enter this error path.
+
+### Question #3: Why does the tolerant parser not infer tool names from ordinary prose?
+
+Response: Parser recovery must not turn ambiguous language into an external action. Explicit tool fields may use harmless spelling and layout variants, but a response without such a field can only finish through `final_answer`. This improves provider compatibility without widening the tool-execution authority of the planner response.
 
 ## Conclusion
 
-LoopAgentSession must keep every planning step bounded by an explicit Markdown decision before executing a tool or returning a final answer.
+LoopAgentSession must require an explicit structured decision before executing a non-terminal tool. It may normalize common planner formatting variations or convert unstructured text into `final_answer`, but it must never infer an external tool call from that text.

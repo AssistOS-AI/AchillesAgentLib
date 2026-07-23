@@ -40,7 +40,7 @@ const buildAgenticSessionPlannerSystemPrompt = (options) => {
     if (systemPrompt && typeof systemPrompt === 'string') {
         lines.push(systemPrompt);
     }
-    lines.push('Emit ONLY Markdown with these exact sections:');
+    lines.push('Emit ONLY Markdown using the canonical sections below. The reason section is optional:');
     lines.push('## tool');
     lines.push('<toolName>');
     lines.push('');
@@ -48,7 +48,7 @@ const buildAgenticSessionPlannerSystemPrompt = (options) => {
     lines.push('<instruction for the tool>');
     lines.push('');
     lines.push('## reason');
-    lines.push('<short explanation>');
+    lines.push('<optional short explanation; this section may be omitted>');
     lines.push('');
     lines.push('Available tools:');
     for (const [name, spec] of Object.entries(tools || {})) {

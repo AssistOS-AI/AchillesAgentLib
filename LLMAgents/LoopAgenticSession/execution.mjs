@@ -132,12 +132,14 @@ async function requestDecision(session, userPrompt, turn, stepIndex) {
                 JSON.parse(responseText);
                 responseShape = 'JSON';
             } catch {
-                if (/^\s{0,3}#{1,6}\s+/m.test(responseText)) {
+                if (/^\s*(`{3,}|~{3,})json\b/i.test(responseText)) {
+                    responseShape = 'JSON';
+                } else if (/^\s{0,3}#{1,6}\s+/m.test(responseText)) {
                     responseShape = 'invalid Markdown';
                 }
             }
         }
-        throw new Error(`The LLM planner returned ${responseShape} instead of the required Markdown decision.`);
+        throw new Error(`The LLM planner returned ${responseShape} instead of a valid planner decision.`);
     }
 
     session._debug('[LoopSession]', 'Planner parsed response', { stepIndex, parsed });
@@ -163,7 +165,9 @@ async function runLoopForPrompt(session, userPrompt, turn) {
         if (decision && typeof decision.tool === 'string') {
             const toolName = decision.tool;
             await session._emitToolReason(decision, stepIndex);
-            const rawPrompt = decision.prompt || userPrompt;
+            const rawPrompt = Object.prototype.hasOwnProperty.call(decision, 'prompt')
+                ? decision.prompt
+                : userPrompt;
             const prompt = typeof rawPrompt === 'string'
                 ? rawPrompt
                 : (rawPrompt != null ? JSON.stringify(rawPrompt) : userPrompt);
