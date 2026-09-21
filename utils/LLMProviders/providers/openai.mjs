@@ -33,6 +33,16 @@ function resolveChatCompletionsURL(baseURL) {
     return `${trimmed}/v1/chat/completions`;
 }
 
+// OpenAI-compatible vendors stream reasoning as `delta.reasoning`
+// (OpenRouter) or `delta.reasoning_content` (DeepSeek-style servers).
+function reasoningDeltaText(delta) {
+    for (const key of ['reasoning', 'reasoning_content']) {
+        const value = delta[key];
+        if (typeof value === 'string' && value.length > 0) return value;
+    }
+    return '';
+}
+
 function buildHeaders({ apiKey, allowNoAuth = false, headers = {}, providerLabel }) {
     if (!apiKey && !allowNoAuth) {
         throw new Error(`${providerLabel} provider requires an API key.`);
@@ -106,6 +116,57 @@ function readGeneratedLocalCredential(descriptor) {
     return { descriptor, apiKey };
 }
 
+const FORWARDED_ERROR_HEADERS = Object.freeze([
+    'retry-after',
+    'x-ratelimit-limit',
+    'x-ratelimit-remaining',
+    'x-ratelimit-reset',
+]);
+
+function pickErrorHeaders(headers) {
+    const picked = {};
+    if (!headers || typeof headers.get !== 'function') return picked;
+    for (const name of FORWARDED_ERROR_HEADERS) {
+        const value = headers.get(name);
+        if (value !== null && value !== undefined) picked[name] = String(value);
+    }
+    return picked;
+}
+
+// Upstream HTTP failures keep the status, parsed body, and rate-limit headers
+// so gateway callers can classify retry, fallback, and quota behavior.
+async function throwUpstreamResponseError(response, providerLabel) {
+    let raw = '';
+    try {
+        raw = typeof response.text === 'function' ? await response.text() : '';
+    } catch {
+        raw = '';
+    }
+    const error = new Error(
+        `${providerLabel} API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`
+    );
+    error.status = response.status;
+    try {
+        error.body = raw ? JSON.parse(raw) : {};
+    } catch {
+        error.body = { raw: String(raw).slice(0, 2000) };
+    }
+    error.headers = pickErrorHeaders(response.headers);
+    throw error;
+}
+
+function createPayloadError(providerLabel, payloadError, { afterOutput = false } = {}) {
+    const message = typeof payloadError === 'string'
+        ? payloadError
+        : payloadError?.message || 'Unknown provider error.';
+    const error = new Error(`${providerLabel} API returned an error: ${message}`);
+    const code = Number(payloadError?.code);
+    if (Number.isInteger(code) && code >= 400 && code < 600) error.status = code;
+    error.body = { error: payloadError };
+    error.afterOutput = afterOutput;
+    return error;
+}
+
 async function throwGeneratedLocalResponseError(response, providerLabel) {
     const detail = await response.readErrorText();
     const error = new Error(
@@ -166,12 +227,12 @@ export async function callLLM(chatContext, options) {
 
     if (!response.ok) {
         if (generatedLocal) await throwGeneratedLocalResponseError(response, providerLabel);
-        throw new Error(`${providerLabel} API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
+        await throwUpstreamResponseError(response, providerLabel);
     }
 
     const data = await response.json();
     if (data.error) {
-        throw new Error(`${providerLabel} API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`);
+        throw createPayloadError(providerLabel, data.error);
     }
     return data.choices?.[0]?.message?.content;
 }
@@ -236,7 +297,7 @@ export async function* callLLMStreaming(chatContext, options) {
 
     if (!response.ok) {
         if (generatedLocal) await throwGeneratedLocalResponseError(response, providerLabel);
-        throw new Error(`${providerLabel} API request failed: ${response.status} - ${response.statusText || STATUS_CODES[response.status] || 'Unknown Error'}.`);
+        await throwUpstreamResponseError(response, providerLabel);
     }
 
     let fullText = '';
@@ -252,7 +313,9 @@ export async function* callLLMStreaming(chatContext, options) {
             if (data.error) {
                 yield {
                     type: 'error',
-                    error: new Error(`${providerLabel} API returned an error: ${typeof data.error === 'string' ? data.error : data.error.message || 'Unknown provider error.'}`),
+                    error: createPayloadError(providerLabel, data.error, {
+                        afterOutput: fullText.length > 0 || toolCallAccum.length > 0,
+                    }),
                 };
                 return;
             }
@@ -270,6 +333,13 @@ export async function* callLLMStreaming(chatContext, options) {
 
             const delta = choice.delta;
             if (!delta) continue;
+
+            // Reasoning delta: evidence that the model is working before its
+            // answer starts. It is never part of the answer text.
+            const reasoning = reasoningDeltaText(delta);
+            if (reasoning) {
+                yield { type: 'thinking_delta', thinking: reasoning };
+            }
 
             // Content delta
             if (typeof delta.content === 'string' && delta.content.length > 0) {
@@ -299,6 +369,9 @@ export async function* callLLMStreaming(chatContext, options) {
             }
         }
     } catch (err) {
+        if (err && typeof err === 'object') {
+            err.afterOutput = fullText.length > 0 || toolCallAccum.length > 0;
+        }
         yield { type: 'error', error: err };
         return;
     }
