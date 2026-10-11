@@ -23,7 +23,7 @@ Update this catalog, the matching HTML pages, and the matching DS files whenever
 
 - Write documentation, specifications, source comments, and agent guidance in English.
 - Treat `docs/specs/DS004-coding-style.md` as the canonical coding-style, source-layout, file-size, and test-organization contract.
-- Keep DS numbering contiguous. Every ordinary DS file requires exactly `title` and `summary` frontmatter and uses `Introduction` and `Core Content` as its only top-level content sections; do not add a `Conclusion` section.
+- Keep DS numbering contiguous and preserve established external references, including `DS001-vision.md` and `DS004-coding-style.md`. DS003 owns Main Behavior; DS004 remains the coding-style authority. Every ordinary DS file requires exactly `title` and `summary` frontmatter, with the filename stem as title, and uses `Introduction` and `Core Content` as its only top-level content sections; do not add a `Conclusion` section.
 - Put rationale, limitations, assumptions, alternatives, and unresolved contract boundaries declaratively in the affected DS file's `Core Content`; do not use a separate decision log.
 - Run `detect-main-behaviors` before creating or changing `DS003-main-behavior.md`, and whenever source or product changes may alter user outcomes, essential paths, public interfaces, broad subsystems, major hidden consequences, special behavior, or the architectural skeleton.
 - When source behavior, interfaces, architecture, workflows, or constraints change, update both the affected HTML documentation and DS specifications.

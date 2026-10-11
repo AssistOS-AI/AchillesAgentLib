@@ -5,7 +5,7 @@ summary: Defines BacklogManager as an agent-oriented task record with explicit a
 
 ## Introduction
 
-[BacklogManager](../wiki.html#definition-backlog-manager) gives an application or LLM agent a small, deterministic way to record unresolved work, propose alternatives, approve a resolution, and preserve completed history. It separates deciding what should happen from executing the work so an agent can manage task state without treating a free-form document as an implicit queue.
+[BacklogManager](wiki.html#definition-backlog-manager) gives an application or LLM agent a small, deterministic way to record unresolved work, propose alternatives, approve a resolution, and preserve completed history. It separates deciding what should happen from executing the work so an agent can manage task state without treating a free-form document as an implicit queue.
 
 ## Core Content
 

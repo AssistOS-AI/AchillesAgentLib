@@ -5,7 +5,7 @@ summary: Defines the adaptive Loop and plan-first SOP session regimes, their mem
 
 ## Introduction
 
-An LLM agent cannot complete every request in one model response. [Agentic sessions](../wiki.html#definition-agentic-session) provide the process-local memory and control loop required to plan actions, use tools, observe results, pause for input, and continue safely across prompts. AchillesAgentLib provides two regimes because adaptive action selection and dependency-aware plan execution require different state and stopping behavior.
+An LLM agent cannot complete every request in one model response. [Agentic sessions](wiki.html#definition-agentic-session) provide the process-local memory and control loop required to plan actions, use tools, observe results, pause for input, and continue safely across prompts. AchillesAgentLib provides two regimes because adaptive action selection and dependency-aware plan execution require different state and stopping behavior.
 
 ## Core Content
 
@@ -17,19 +17,19 @@ Sessions must reserve explicit final-answer and cannot-complete operations and r
 
 ### Adaptive Loop Sessions
 
-[LoopAgentSession](../wiki.html#definition-loop-session) must retain prompts, compressed and recent history, turn records, tool calls, intermediate variables, failures, the active tool surface, approval state, model options, status, and latest answer. Each step must ask LLMAgent for one next action based on the latest state, obtain approval when required, execute the selected tool, and record the outcome before planning again.
+[LoopAgentSession](wiki.html#definition-loop-session) must retain prompts, compressed and recent history, turn records, tool calls, intermediate variables, failures, the active tool surface, approval state, model options, status, and latest answer. Each step must ask LLMAgent for one next action based on the latest state, obtain approval when required, execute the selected tool, and record the outcome before planning again.
 
 The loop must stop when it emits a final answer, needs clarification, is interrupted, reaches `maxStepsPerTurn`, reaches `maxErrors`, or exhausts a retry boundary. History compression may summarize older entries when a threshold is reached, but it must preserve the configured recent window and leave enough context for continuation.
 
 ### Plan-First SOP Sessions
 
-[SOPAgenticSession](../wiki.html#definition-sop-session) must retain history, current LightSOPLang plan, execution variables, failures, pending user-input command, command registries, preparation context, model options, status, and latest answer. It must generate a plan, validate every command and dependency topology, and reject an invalid plan before any command executes.
+[SOPAgenticSession](wiki.html#definition-sop-session) must retain history, current LightSOPLang plan, execution variables, failures, pending user-input command, command registries, preparation context, model options, status, and latest answer. It must generate a plan, validate every command and dependency topology, and reject an invalid plan before any command executes.
 
 Execution must run commands whose dependencies are ready. A command that needs user input must be stored as `pendingTool` and return control to the caller. Recoverable failures may return to bounded replanning, while `planOnly` or `generatePlanOnly` must stop after generation without pretending that the plan was executed.
 
 ### Supervision and Execution Authority
 
-Both regimes may receive a [SecuritySupervisor](../wiki.html#definition-security-supervisor). The supervisor must decide whether a proposed tool or command may execute at the approval boundary; it must not choose the next action, generate the plan, invoke LLMAgent, or perform the action itself.
+Both regimes may receive a [SecuritySupervisor](wiki.html#definition-security-supervisor). The supervisor must decide whether a proposed tool or command may execute at the approval boundary; it must not choose the next action, generate the plan, invoke LLMAgent, or perform the action itself.
 
 The active tool or command registry is the session's executable authority. Model output must not create permission to call an operation that is absent from that registry, disabled by MainAgent, rejected by validation, or denied by the supervisor.
 

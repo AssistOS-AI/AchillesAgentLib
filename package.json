@@ -11,8 +11,6 @@
         "./MainAgent": "./MainAgent/index.mjs",
         "./AgenticKnowledgeUnits": "./AgenticKnowledgeUnits/index.mjs",
         "./DBTableSkillsSubsystem": "./DBTableSkillsSubsystem/index.mjs",
-        "./InteractiveSkillsSubsystem": "./InteractiveSkillsSubsystem/index.mjs",
-        "./InteractiveSkillsSubsystem/*": "./InteractiveSkillsSubsystem/*",
         "./BacklogManager": "./BacklogManager/BacklogManager.mjs",
         "./BacklogManager/backlogIO.mjs": "./BacklogManager/backlogIO.mjs",
         "./BacklogManager/backlogDomain.mjs": "./BacklogManager/backlogDomain.mjs",

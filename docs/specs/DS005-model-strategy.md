@@ -11,7 +11,7 @@ Different agent tasks need different balances of latency, cost, reasoning depth,
 
 ### Central Model Selection Boundary
 
-All LLM work must pass through [LLMAgent](../wiki.html#definition-llm-agent). An explicit model supplied for a call must take priority over semantic tag selection. When a caller supplies `modelConfig`, LLMAgent must treat that mapping as the application-controlled override; otherwise it may construct defaults from runtime configuration.
+All LLM work must pass through [LLMAgent](wiki.html#definition-llm-agent). An explicit model supplied for a call must take priority over semantic tag selection. When a caller supplies `modelConfig`, LLMAgent must treat that mapping as the application-controlled override; otherwise it may construct defaults from runtime configuration.
 
 No subsystem may reinterpret the resolved choice as its own provider policy. MainAgent, agentic sessions, and skill executors must preserve the selected model, tags, mappings, and reasoning effort until LLMAgent performs the provider invocation.
 
@@ -23,7 +23,7 @@ Credentials must never be embedded in source, descriptors, or documentation exam
 
 ### Semantic Tags and Tiers
 
-[Model tags](../wiki.html#definition-model-tag) must express the work being performed, not a vendor name. Applications should define mappings for recurring categories such as documentation, specification, orchestration, bootstrap, and testing, and may map those categories to fast, balanced, or deep model tiers.
+[Model tags](wiki.html#definition-model-tag) must express the work being performed, not a vendor name. Applications should define mappings for recurring categories such as documentation, specification, orchestration, bootstrap, and testing, and may map those categories to fast, balanced, or deep model tiers.
 
 A tag communicates intent but does not guarantee a concrete model when no caller mapping or provider-catalog match exists. The model strategy must preserve this limitation explicitly rather than silently promising a tier that the application has not configured.
 

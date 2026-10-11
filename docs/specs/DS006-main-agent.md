@@ -5,7 +5,7 @@ summary: Defines MainAgent as the application-facing coordinator for skill disco
 
 ## Introduction
 
-[MainAgent](../wiki.html#definition-main-agent) is the application-facing coordinator of AchillesAgentLib. It exists so an application can configure one agent, discover a heterogeneous workspace skill catalog, apply supervision consistently, and choose between conversational execution and direct invocation without owning subsystem internals.
+[MainAgent](wiki.html#definition-main-agent) is the application-facing coordinator of AchillesAgentLib. It exists so an application can configure one agent, discover a heterogeneous workspace skill catalog, apply supervision consistently, and choose between conversational execution and direct invocation without owning subsystem internals.
 
 ## Core Content
 

@@ -23,7 +23,7 @@ Files ending in `.generated.mjs` are build products. They must be changed throug
 
 ### LLM and Runtime Configuration Boundary
 
-All LLM interactions must use [LLMAgent](../wiki.html#definition-llm-agent). A subsystem, utility, or session must not call a provider directly because doing so would bypass shared model selection, cancellation, counters, response handling, and application overrides.
+All LLM interactions must use [LLMAgent](wiki.html#definition-llm-agent). A subsystem, utility, or session must not call a provider directly because doing so would bypass shared model selection, cancellation, counters, response handling, and application overrides.
 
 Runtime configuration must allow explicit caller-supplied model mappings in addition to environment and file defaults. Routing-sensitive work should use semantic task tags for areas such as documentation, specification, orchestration, bootstrap, and testing rather than embedding provider-specific choices in component code.
 

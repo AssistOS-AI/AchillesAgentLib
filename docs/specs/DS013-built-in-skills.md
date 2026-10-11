@@ -5,7 +5,7 @@ summary: Defines the purpose, portable packaging, execution boundaries, and indi
 
 ## Introduction
 
-AchillesAgentLib supplies a small built-in toolbox so its foundational agent can inspect and modify a workspace, run commands, fetch external text, and generate skill-local code without requiring every application to recreate those primitives. The `bash`, `edit`, `glob`, `grep`, `mirror-code-generator`, `read`, `webfetch`, and `write` folders are portable built-in [code skills](../wiki.html#definition-code-skill), not privileged shortcuts around the normal skill lifecycle.
+AchillesAgentLib supplies a small built-in toolbox so its foundational agent can inspect and modify a workspace, run commands, fetch external text, and generate skill-local code without requiring every application to recreate those primitives. The `bash`, `edit`, `glob`, `grep`, `mirror-code-generator`, `read`, `webfetch`, and `write` folders are portable built-in [code skills](wiki.html#definition-code-skill), not privileged shortcuts around the normal skill lifecycle.
 
 ## Core Content
 

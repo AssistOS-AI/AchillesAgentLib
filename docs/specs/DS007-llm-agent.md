@@ -5,7 +5,7 @@ summary: Defines LLMAgent as the single provider boundary for model calls, conte
 
 ## Introduction
 
-[LLMAgent](../wiki.html#definition-llm-agent) isolates the rest of AchillesAgentLib from provider-specific invocation details. It exists so sessions, subsystems, and applications share one contract for model selection, context, response parsing, observability, cancellation, and the construction of agentic sessions.
+[LLMAgent](wiki.html#definition-llm-agent) isolates the rest of AchillesAgentLib from provider-specific invocation details. It exists so sessions, subsystems, and applications share one contract for model selection, context, response parsing, observability, cancellation, and the construction of agentic sessions.
 
 ## Core Content
 

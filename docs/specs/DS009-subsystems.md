@@ -5,7 +5,7 @@ summary: Defines how specialized subsystems preserve different skill descriptors
 
 ## Introduction
 
-AchillesAgentLib supports task-specific skill types because one generic skill structure cannot express every preparation, generation, validation, and execution need. [Skill subsystems](../wiki.html#definition-subsystem) isolate those differences while letting MainAgent present one coherent catalog to applications and agentic sessions.
+AchillesAgentLib supports task-specific skill types because one generic skill structure cannot express every preparation, generation, validation, and execution need. [Skill subsystems](wiki.html#definition-subsystem) isolate those differences while letting MainAgent present one coherent catalog to applications and agentic sessions.
 
 ## Core Content
 

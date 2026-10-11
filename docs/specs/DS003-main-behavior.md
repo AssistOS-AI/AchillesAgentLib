@@ -35,11 +35,11 @@ An application may invoke a named skill directly through `executeSkill()` or all
 
 A LoopAgentSession must support adaptive work in which each model decision depends on the latest history and tool result. It must select one next action, obtain required approval, execute the permitted tool, record the outcome, and repeat until it produces a final answer, requests clarification, is interrupted, or reaches a configured step, error, or retry limit.
 
-A SOPAgenticSession must support plan-first work by generating and validating [LightSOPLang](../wiki.html#definition-light-sop-lang), executing commands whose dependencies are ready, pausing when a command needs user input, and performing bounded replanning after recoverable failures. Both regimes must reserve explicit final-answer and cannot-complete outcomes, retain continuation state in memory, and propagate cancellation through abort signals.
+A SOPAgenticSession must support plan-first work by generating and validating [LightSOPLang](wiki.html#definition-light-sop-lang), executing commands whose dependencies are ready, pausing when a command needs user input, and performing bounded replanning after recoverable failures. Both regimes must reserve explicit final-answer and cannot-complete outcomes, retain continuation state in memory, and propagate cancellation through abort signals.
 
 ### LLMAgent model mediation
 
-Every component that needs an LLM must call LLMAgent rather than reaching a provider directly. LLMAgent must accept an explicit model, [model tags](../wiki.html#definition-model-tag), reasoning effort, history, context, cancellation, and manual model mappings, then pass the resolved request to the configured provider strategy.
+Every component that needs an LLM must call LLMAgent rather than reaching a provider directly. LLMAgent must accept an explicit model, [model tags](wiki.html#definition-model-tag), reasoning effort, history, context, cancellation, and manual model mappings, then pass the resolved request to the configured provider strategy.
 
 This boundary must give an application one place to configure model routing and one observable path for provider calls. Provider credentials, provider availability, and the concrete meaning of application-defined tiers remain the integrating application's responsibility.
 

@@ -5,7 +5,7 @@ summary: Defines MarkdownDataStore as an agent-oriented, root-bounded Markdown r
 
 ## Introduction
 
-[MarkdownDataStore](../wiki.html#definition-markdown-data-store) gives an application or LLM agent a predictable way to manage file-backed records without rewriting an entire unstructured Markdown document. It uses named, numbered sections and constrained mutation operations so an agent can retrieve or change only the part of a record relevant to its current task.
+[MarkdownDataStore](wiki.html#definition-markdown-data-store) gives an application or LLM agent a predictable way to manage file-backed records without rewriting an entire unstructured Markdown document. It uses named, numbered sections and constrained mutation operations so an agent can retrieve or change only the part of a record relevant to its current task.
 
 ## Core Content
 

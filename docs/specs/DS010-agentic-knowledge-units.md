@@ -5,7 +5,7 @@ summary: Defines AKU as deterministic, agent-managed project memory with validat
 
 ## Introduction
 
-[Agentic Knowledge Units](../wiki.html#definition-agentic-knowledge-units) provide durable project memory for applications that need an LLM agent to retain selected evidence, results, files, relationships, and session information beyond one process-local conversation. AKU uses deterministic local records so memory can be inspected, validated, repaired, and retrieved without requiring another model call.
+[Agentic Knowledge Units](wiki.html#definition-agentic-knowledge-units) provide durable project memory for applications that need an LLM agent to retain selected evidence, results, files, relationships, and session information beyond one process-local conversation. AKU uses deterministic local records so memory can be inspected, validated, repaired, and retrieved without requiring another model call.
 
 ## Core Content
 

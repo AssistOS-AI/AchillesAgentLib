@@ -11,7 +11,7 @@ AchillesAgentLib uses a layered architecture because a reusable LLM agent must c
 
 ### Architectural Direction
 
-The library must keep orchestration separate from execution specialization. [MainAgent](../wiki.html#definition-main-agent) coordinates the skill catalog and begins work, an [agentic session](../wiki.html#definition-agentic-session) owns the evolving state of one conversation, [LLMAgent](../wiki.html#definition-llm-agent) owns model interaction, and each [skill subsystem](../wiki.html#definition-subsystem) owns the rules of one skill family. File-backed utilities remain caller-controlled services rather than implicit parts of every request.
+The library must keep orchestration separate from execution specialization. [MainAgent](wiki.html#definition-main-agent) coordinates the skill catalog and begins work, an [agentic session](wiki.html#definition-agentic-session) owns the evolving state of one conversation, [LLMAgent](wiki.html#definition-llm-agent) owns model interaction, and each [skill subsystem](wiki.html#definition-subsystem) owns the rules of one skill family. File-backed utilities remain caller-controlled services rather than implicit parts of every request.
 
 This separation must remain visible in public behavior. A component may delegate work across a boundary, but it must not silently take ownership of another component's state, policy, or persistence contract.
 
@@ -31,7 +31,7 @@ MainAgent must remain the canonical catalog across these families. A subsystem m
 
 ### Memory and Utility Boundary
 
-[Agentic Knowledge Units](../wiki.html#definition-agentic-knowledge-units), [MarkdownDataStore](../wiki.html#definition-markdown-data-store), and [BacklogManager](../wiki.html#definition-backlog-manager) must remain explicit, caller-operated services. They are designed to hold agent-managed information, but MainAgent and the sessions must not insert, mutate, or persist their data unless the application deliberately connects those services to a request.
+[Agentic Knowledge Units](wiki.html#definition-agentic-knowledge-units), [MarkdownDataStore](wiki.html#definition-markdown-data-store), and [BacklogManager](wiki.html#definition-backlog-manager) must remain explicit, caller-operated services. They are designed to hold agent-managed information, but MainAgent and the sessions must not insert, mutate, or persist their data unless the application deliberately connects those services to a request.
 
 Session memory and durable memory must remain distinct. Sessions retain process-local conversation and execution state; persistent services retain selected knowledge or work files across sessions and process restarts.
 
